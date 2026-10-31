@@ -164,6 +164,18 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
             Err(erro) => Err(self.erro(chave, erro)),
         }
     }
+
+    /// Um `HEAD`, sem baixar o objeto: a pré-checagem confere o tamanho de
+    /// arquivos grandes sem carregá-los na memória (ver `docs/adr/0012`).
+    async fn tamanho(&self, chave: &str) -> Result<Option<u64>, ErroDeIngestao> {
+        match self.bucket.head_object(chave).await {
+            Ok((cabecalho, _)) => Ok(cabecalho
+                .content_length
+                .and_then(|bytes| u64::try_from(bytes).ok())),
+            Err(S3Error::HttpFailWithBody(404, _)) => Ok(None),
+            Err(erro) => Err(self.erro(chave, erro)),
+        }
+    }
 }
 
 impl ArmazenamentoS3 {

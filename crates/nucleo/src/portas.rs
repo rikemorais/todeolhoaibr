@@ -38,6 +38,13 @@ pub trait ArmazenamentoRaw: Send + Sync {
 
     /// Conteúdo do objeto, ou `None` se ele não existir.
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao>;
+
+    /// Tamanho do objeto em bytes, sem baixá-lo (um `HEAD`), ou `None` se não
+    /// existir. A implementação padrão lê o objeto; as de infraestrutura devem
+    /// sobrescrever com um `HEAD` para não carregar arquivos grandes na memória.
+    async fn tamanho(&self, chave: &str) -> Result<Option<u64>, ErroDeIngestao> {
+        Ok(self.ler(chave).await?.map(|conteudo| conteudo.len() as u64))
+    }
 }
 
 /// Resposta bem-sucedida de uma API.

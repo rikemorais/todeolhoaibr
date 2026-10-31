@@ -4,8 +4,6 @@
 //! Diferente de [`crate::decisao`], que é regra pura, aqui há I/O, sempre pelo
 //! porto [`ArmazenamentoRaw`]. O resultado alimenta [`crate::decisao::decidir`].
 
-use sha2::{Digest, Sha256};
-
 use crate::decisao::EstadoNaRaw;
 use crate::erros::ErroDeIngestao;
 use crate::portas::ArmazenamentoRaw;
@@ -50,20 +48,20 @@ pub async fn estado_na_raw(
     }))
 }
 
-/// Confere que cada parte do manifesto existe e bate em bytes e sha256.
+/// Confere que cada parte do manifesto existe e tem o tamanho esperado.
+///
+/// A checagem é por tamanho (um `HEAD`), não relendo o conteúdo: reler arquivos
+/// grandes a cada rodada estouraria a memória do contêiner (ver `docs/adr/0012`).
+/// O `sha256` do manifesto segue como procedência, usado na comparação com a
+/// origem, não para re-hashear o arquivo local.
 async fn partes_integras(
     armazenamento: &dyn ArmazenamentoRaw,
     manifesto: &ManifestoRaw,
 ) -> Result<bool, ErroDeIngestao> {
     for parte in &manifesto.partes {
-        let Some(conteudo) = armazenamento.ler(&parte.chave).await? else {
-            return Ok(false);
-        };
-        if conteudo.len() as u64 != parte.bytes {
-            return Ok(false);
-        }
-        if hex::encode(Sha256::digest(&conteudo)) != parte.sha256 {
-            return Ok(false);
+        match armazenamento.tamanho(&parte.chave).await? {
+            Some(bytes) if bytes == parte.bytes => {}
+            _ => return Ok(false),
         }
     }
     Ok(true)
@@ -163,17 +161,13 @@ mod testes {
         serde_json::to_vec(valor).unwrap()
     }
 
-    fn sha256(conteudo: &[u8]) -> String {
-        hex::encode(Sha256::digest(conteudo))
-    }
-
     /// Semeia um recurso íntegro e devolve o armazenamento.
     fn integro() -> ArmazenamentoEmMemoria {
         let ponteiro = UltimaVersao {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
         };
-        let manifesto = manifesto(parte(CONTEUDO.len() as u64, &sha256(CONTEUDO)));
+        let manifesto = manifesto(parte(CONTEUDO.len() as u64, "sha-ignorado"));
         ArmazenamentoEmMemoria::com([
             (
                 LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
@@ -229,7 +223,7 @@ mod testes {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
         };
-        let manifesto = manifesto(parte(CONTEUDO.len() as u64 + 10, &sha256(CONTEUDO)));
+        let manifesto = manifesto(parte(CONTEUDO.len() as u64 + 10, "sha-ignorado"));
         let armazenamento = ArmazenamentoEmMemoria::com([
             (
                 LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
@@ -248,34 +242,10 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn hash_divergente_nao_e_integro() {
-        // Mesmo tamanho, mas sha256 do manifesto não corresponde ao conteúdo.
-        let ponteiro = UltimaVersao {
-            versao: Some("v1".to_owned()),
-            manifesto: CHAVE_MANIFESTO.to_owned(),
-        };
-        let manifesto = manifesto(parte(CONTEUDO.len() as u64, &sha256(b"outro conteudo")));
-        let armazenamento = ArmazenamentoEmMemoria::com([
-            (
-                LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
-                json(&ponteiro),
-            ),
-            (CHAVE_MANIFESTO.to_owned(), json(&manifesto)),
-            (CHAVE_PARTE.to_owned(), CONTEUDO.to_vec()),
-        ]);
-
-        let estado = estado_na_raw(&armazenamento, FONTE, RECURSO)
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(!estado.integra);
-    }
-
-    #[tokio::test]
     async fn ponteiro_antigo_sem_campo_versao_desserializa() {
         // Formato gravado hoje pela TarefaDeArquivo: versao como string simples.
         let ponteiro = serde_json::json!({ "versao": "v1", "manifesto": CHAVE_MANIFESTO });
-        let manifesto = manifesto(parte(CONTEUDO.len() as u64, &sha256(CONTEUDO)));
+        let manifesto = manifesto(parte(CONTEUDO.len() as u64, "sha-ignorado"));
         let armazenamento = ArmazenamentoEmMemoria::com([
             (
                 LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
