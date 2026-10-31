@@ -6,7 +6,8 @@ use async_trait::async_trait;
 use futures::TryStreamExt;
 use reqwest::{RequestBuilder, Response, StatusCode, header};
 use todeolho_nucleo::{
-    ClienteHttp, DownloadHttp, ErroDeIngestao, InformacoesDoArquivo, RespostaHttp,
+    ClienteHttp, DownloadHttp, ErroDeIngestao, InformacoesDoArquivo, RespostaCondicional,
+    RespostaHttp,
 };
 use tokio_util::io::StreamReader;
 use tracing::warn;
@@ -88,6 +89,53 @@ impl ClienteHttpComRetentativas {
         })
     }
 
+    async fn tentar_condicional(
+        &self,
+        url: &str,
+        aceita: &str,
+        validador: Option<&str>,
+    ) -> Result<RespostaCondicional, Falha> {
+        let mut requisicao = self
+            .cliente
+            .get(url)
+            .timeout(TEMPO_LIMITE)
+            .header(header::ACCEPT, aceita);
+        if let Some(validador) = validador {
+            requisicao = requisicao.header(header::IF_NONE_MATCH, validador);
+        }
+
+        let resposta = requisicao
+            .send()
+            .await
+            .map_err(|erro| Falha::transitoria(descrever(erro)))?;
+
+        let status = resposta.status();
+        if status == StatusCode::NOT_MODIFIED {
+            return Ok(RespostaCondicional::NaoModificado);
+        }
+        if !status.is_success() {
+            let detalhe = format!("status {status}");
+            return Err(if eh_transitorio(status) {
+                Falha::transitoria(detalhe)
+            } else {
+                Falha::definitiva(detalhe)
+            });
+        }
+
+        let tipo_de_conteudo = tipo_de_conteudo(&resposta);
+        let versao = etag(&resposta);
+        let corpo = resposta
+            .bytes()
+            .await
+            .map_err(|erro| Falha::transitoria(descrever(erro)))?;
+
+        Ok(RespostaCondicional::Modificado {
+            tipo_de_conteudo,
+            versao,
+            corpo: corpo.to_vec(),
+        })
+    }
+
     /// Repete a operação enquanto a falha for transitória.
     async fn com_retentativas<T, F>(
         &self,
@@ -123,6 +171,16 @@ impl ClienteHttpComRetentativas {
 impl ClienteHttp for ClienteHttpComRetentativas {
     async fn obter(&self, url: &str, aceita: &str) -> Result<RespostaHttp, ErroDeIngestao> {
         self.com_retentativas(url, || self.tentar_obter(url, aceita))
+            .await
+    }
+
+    async fn obter_condicional(
+        &self,
+        url: &str,
+        aceita: &str,
+        validador: Option<&str>,
+    ) -> Result<RespostaCondicional, ErroDeIngestao> {
+        self.com_retentativas(url, || self.tentar_condicional(url, aceita, validador))
             .await
     }
 

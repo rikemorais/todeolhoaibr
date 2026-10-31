@@ -19,3 +19,4 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | [0009](0009-interface-de-arquivos.md) | Interface web do versitygw para navegar pelos arquivos | Aceito |
 | [0010](0010-selecao-e-arquivos-grandes.md) | Seleção com aviso de espaço e ingestão de arquivos grandes | Aceito |
 | [0011](0011-versionamento-e-commits.md) | Versionamento semântico e Conventional Commits | Aceito |
+| [0012](0012-pre-checagem-idempotente.md) | Pré-checagem idempotente antes de ingerir | Aceito |

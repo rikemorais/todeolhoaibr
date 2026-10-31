@@ -41,6 +41,10 @@ pub struct ParteRaw {
     pub bytes: u64,
     pub sha256: String,
     pub tipo_de_conteudo: String,
+    /// Validador da origem (ETag) desta página, usado na requisição condicional
+    /// da próxima rodada. `None` quando a origem não o informou.
+    #[serde(default)]
+    pub versao: Option<String>,
 }
 
 /// Procedência de uma ingestão completa de um recurso.
@@ -53,6 +57,17 @@ pub struct ManifestoRaw {
     pub iniciada_em: DateTime<Utc>,
     pub concluida_em: DateTime<Utc>,
     pub partes: Vec<ParteRaw>,
+}
+
+/// Ponteiro para a última ingestão completa de um recurso (`_ultima_versao.json`).
+/// Gravado por último, depois do manifesto, e lido pela pré-checagem (ver `docs/adr/0010`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UltimaVersao {
+    /// Validador da origem (ETag/Last-Modified) daquela ingestão, se houver.
+    #[serde(default)]
+    pub versao: Option<String>,
+    /// Chave do manifesto vigente.
+    pub manifesto: String,
 }
 
 #[cfg(test)]
