@@ -5,6 +5,7 @@
 
 pub mod contexto;
 pub mod dag;
+pub mod decisao;
 pub mod erros;
 pub mod espaco;
 pub mod executor;
@@ -17,6 +18,7 @@ pub mod tarefa;
 
 pub use contexto::ContextoDeExecucao;
 pub use dag::DagDeIngestao;
+pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
 pub use erros::{ErroDeDag, ErroDeIngestao};
 pub use espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
 pub use executor::{
