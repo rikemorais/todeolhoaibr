@@ -1,0 +1,34 @@
+# Compilação
+/target
+
+# Configuração local e segredos: só o .env.example vai para o repositório
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+credentials.json
+credenciais.json
+secrets.*
+segredos.*
+.aws/
+
+# Dados ingeridos: ficam no volume do Docker, nunca no Git
+/raw-local
+/dados
+*.zip
+*.parquet
+
+# Ambiente de cada pessoa
+/.idea
+/.vscode
+*.iml
+*.swp
+.DS_Store
+Thumbs.db
+
+# Registros de execução
+*.log
