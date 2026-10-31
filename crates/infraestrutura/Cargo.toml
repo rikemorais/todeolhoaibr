@@ -6,7 +6,9 @@ edition.workspace = true
 
 [dependencies]
 todeolho-nucleo.workspace = true
+
 async-trait.workspace = true
+fs4.workspace = true
 futures.workspace = true
 reqwest.workspace = true
 rust-s3.workspace = true
