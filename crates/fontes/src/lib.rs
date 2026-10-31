@@ -9,12 +9,14 @@ pub mod paginacao;
 
 use todeolho_nucleo::FonteDeDados;
 
+pub use fontes::camara::FonteCamara;
 pub use fontes::ibge::FonteIbge;
 
 /// Todas as fontes disponíveis. Único ponto a alterar ao adicionar uma nova.
 pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
     vec![
         Box::new(FonteIbge),
+        Box::new(FonteCamara),
     ]
 }
 
