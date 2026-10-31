@@ -22,7 +22,7 @@ pub use dag::DagDeIngestao;
 pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
 pub use erros::{ErroDeDag, ErroDeIngestao};
 pub use espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
-pub use estado_raw::estado_na_raw;
+pub use estado_raw::{estado_na_raw, manifesto_vigente};
 pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
 };
@@ -33,7 +33,7 @@ pub use historico::{
 };
 pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
-    RespostaHttp,
+    RespostaCondicional, RespostaHttp,
 };
 pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
 pub use selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};

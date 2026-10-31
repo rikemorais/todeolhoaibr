@@ -41,6 +41,10 @@ pub struct ParteRaw {
     pub bytes: u64,
     pub sha256: String,
     pub tipo_de_conteudo: String,
+    /// Validador da origem (ETag) desta página, usado na requisição condicional
+    /// da próxima rodada. `None` quando a origem não o informou.
+    #[serde(default)]
+    pub versao: Option<String>,
 }
 
 /// Procedência de uma ingestão completa de um recurso.

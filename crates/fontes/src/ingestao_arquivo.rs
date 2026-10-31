@@ -62,6 +62,7 @@ impl TarefaDeArquivo {
             .gravar_fluxo(&chave, &download.tipo_de_conteudo, &mut leitor)
             .await?;
 
+        let versao = download.versao;
         Ok(ArquivoGravado {
             parte: ParteRaw {
                 chave,
@@ -69,8 +70,9 @@ impl TarefaDeArquivo {
                 bytes: leitor.bytes,
                 sha256: hex::encode(leitor.hash.finalize()),
                 tipo_de_conteudo: download.tipo_de_conteudo,
+                versao: versao.clone(),
             },
-            versao: download.versao,
+            versao,
         })
     }
 

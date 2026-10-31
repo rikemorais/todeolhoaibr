@@ -48,6 +48,28 @@ pub async fn estado_na_raw(
     }))
 }
 
+/// O manifesto da ingestão vigente de um recurso, ou `None` se não houver
+/// ponteiro ou manifesto. Usado pela ingestão paginada para a requisição
+/// condicional página a página.
+pub async fn manifesto_vigente(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+) -> Result<Option<ManifestoRaw>, ErroDeIngestao> {
+    let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
+    let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+        return Ok(None);
+    };
+    let ponteiro: UltimaVersao =
+        serde_json::from_slice(&bytes).map_err(|erro| erro_de_manifesto(recurso, erro))?;
+    let Some(bytes_manifesto) = armazenamento.ler(&ponteiro.manifesto).await? else {
+        return Ok(None);
+    };
+    let manifesto = serde_json::from_slice(&bytes_manifesto)
+        .map_err(|erro| erro_de_manifesto(recurso, erro))?;
+    Ok(Some(manifesto))
+}
+
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
 ///
 /// A checagem é por tamanho (um `HEAD`), não relendo o conteúdo: reler arquivos
@@ -142,6 +164,7 @@ mod testes {
             bytes,
             sha256: sha256.to_owned(),
             tipo_de_conteudo: "application/json".to_owned(),
+            versao: None,
         }
     }
 

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -6,10 +6,18 @@ use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw,
-    ResumoDaTarefa, Tarefa,
+    RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, manifesto_vigente,
 };
 
 use crate::paginacao::{EstrategiaDePaginacao, SemPaginacao};
+
+/// Uma página lida durante a caminhada, antes de gravar a nova execução.
+struct ParteColhida {
+    url: String,
+    tipo_de_conteudo: String,
+    versao: Option<String>,
+    corpo: Vec<u8>,
+}
 
 const ACEITA_JSON: &str = "application/json";
 const LIMITE_DE_PAGINAS: usize = 1_000;
@@ -57,6 +65,27 @@ impl TarefaDeIngestaoHttp {
             detalhe,
         }
     }
+
+    async fn gravar_json<T: serde::Serialize>(
+        &self,
+        contexto: &ContextoDeExecucao,
+        chave: String,
+        valor: &T,
+    ) -> Result<(), ErroDeIngestao> {
+        let conteudo =
+            serde_json::to_vec_pretty(valor).map_err(|erro| ErroDeIngestao::Manifesto {
+                recurso: self.recurso.clone(),
+                detalhe: erro.to_string(),
+            })?;
+        contexto
+            .armazenamento
+            .gravar(ObjetoRaw {
+                chave,
+                conteudo,
+                tipo_de_conteudo: ACEITA_JSON.to_owned(),
+            })
+            .await
+    }
 }
 
 #[async_trait]
@@ -80,12 +109,26 @@ impl Tarefa for TarefaDeIngestaoHttp {
             &contexto.id_execucao,
         );
 
-        let mut partes: Vec<ParteRaw> = Vec::new();
+        // Partes da ingestão anterior, por URL, para a requisição condicional.
+        let anteriores: HashMap<String, ParteRaw> =
+            manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
+                .await?
+                .map(|manifesto| {
+                    manifesto
+                        .partes
+                        .into_iter()
+                        .map(|parte| (parte.url.clone(), parte))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+        let mut colhidas: Vec<ParteColhida> = Vec::new();
         let mut visitadas = HashSet::new();
         let mut proxima = Some(self.url_inicial.clone());
+        let mut tudo_reaproveitado = true;
 
         while let Some(url) = proxima.take() {
-            if partes.len() >= self.limite_de_paginas {
+            if colhidas.len() >= self.limite_de_paginas {
                 return Err(self.erro_de_paginacao(format!(
                     "limite de {} páginas excedido",
                     self.limite_de_paginas
@@ -95,27 +138,79 @@ impl Tarefa for TarefaDeIngestaoHttp {
                 return Err(self.erro_de_paginacao(format!("página repetida: {url}")));
             }
 
-            let resposta = contexto.http.obter(&url, ACEITA_JSON).await?;
+            let anterior = anteriores.get(&url);
+            let validador = anterior.and_then(|parte| parte.versao.as_deref());
+
+            let colhida = match contexto
+                .http
+                .obter_condicional(&url, ACEITA_JSON, validador)
+                .await?
+            {
+                RespostaCondicional::NaoModificado => {
+                    // 304 não traz corpo: releio o guardado para seguir a paginação.
+                    let anterior = anterior.expect("304 só ocorre quando havia validador anterior");
+                    let corpo = contexto
+                        .armazenamento
+                        .ler(&anterior.chave)
+                        .await?
+                        .ok_or_else(|| ErroDeIngestao::Armazenamento {
+                            chave: anterior.chave.clone(),
+                            detalhe: "parte reaproveitada não encontrada na Raw".to_owned(),
+                        })?;
+                    ParteColhida {
+                        url,
+                        tipo_de_conteudo: anterior.tipo_de_conteudo.clone(),
+                        versao: anterior.versao.clone(),
+                        corpo,
+                    }
+                }
+                RespostaCondicional::Modificado {
+                    tipo_de_conteudo,
+                    versao,
+                    corpo,
+                } => {
+                    tudo_reaproveitado = false;
+                    ParteColhida {
+                        url,
+                        tipo_de_conteudo,
+                        versao,
+                        corpo,
+                    }
+                }
+            };
 
             proxima = self
                 .paginacao
-                .proxima_url(&resposta.corpo)
+                .proxima_url(&colhida.corpo)
                 .map_err(|detalhe| self.erro_de_paginacao(detalhe))?;
+            colhidas.push(colhida);
+        }
 
-            let chave = local.parte(partes.len() + 1, extensao(&resposta.tipo_de_conteudo));
+        // Nenhuma página mudou: reaproveita a ingestão anterior sem reescrever.
+        if tudo_reaproveitado && !colhidas.is_empty() {
+            return Ok(ResumoDaTarefa {
+                reaproveitada: true,
+                ..ResumoDaTarefa::default()
+            });
+        }
+
+        let mut partes = Vec::with_capacity(colhidas.len());
+        for (indice, colhida) in colhidas.into_iter().enumerate() {
+            let chave = local.parte(indice + 1, extensao(&colhida.tipo_de_conteudo));
             partes.push(ParteRaw {
                 chave: chave.clone(),
-                url,
-                bytes: resposta.corpo.len() as u64,
-                sha256: hex::encode(Sha256::digest(&resposta.corpo)),
-                tipo_de_conteudo: resposta.tipo_de_conteudo.clone(),
+                url: colhida.url,
+                bytes: colhida.corpo.len() as u64,
+                sha256: hex::encode(Sha256::digest(&colhida.corpo)),
+                tipo_de_conteudo: colhida.tipo_de_conteudo.clone(),
+                versao: colhida.versao,
             });
             contexto
                 .armazenamento
                 .gravar(ObjetoRaw {
                     chave,
-                    conteudo: resposta.corpo,
-                    tipo_de_conteudo: resposta.tipo_de_conteudo,
+                    conteudo: colhida.corpo,
+                    tipo_de_conteudo: colhida.tipo_de_conteudo,
                 })
                 .await?;
         }
@@ -135,19 +230,21 @@ impl Tarefa for TarefaDeIngestaoHttp {
             concluida_em: Utc::now(),
             partes,
         };
-        let conteudo =
-            serde_json::to_vec_pretty(&manifesto).map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: self.recurso.clone(),
-                detalhe: erro.to_string(),
-            })?;
-        contexto
-            .armazenamento
-            .gravar(ObjetoRaw {
-                chave: local.manifesto(),
-                conteudo,
-                tipo_de_conteudo: ACEITA_JSON.to_owned(),
-            })
+        self.gravar_json(contexto, local.manifesto(), &manifesto)
             .await?;
+
+        // Ponteiro para a próxima rodada localizar este manifesto. Sem validador
+        // de recurso: a requisição condicional é por página (ver docs/adr/0012).
+        let ultima = UltimaVersao {
+            versao: None,
+            manifesto: local.manifesto(),
+        };
+        self.gravar_json(
+            contexto,
+            LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso),
+            &ultima,
+        )
+        .await?;
 
         Ok(resumo)
     }
@@ -174,7 +271,8 @@ mod testes {
     use std::sync::Mutex;
 
     use todeolho_nucleo::{
-        ArmazenamentoRaw, ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp,
+        ArmazenamentoRaw, ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaCondicional,
+        RespostaHttp,
     };
 
     use super::*;
@@ -267,11 +365,12 @@ mod testes {
         assert_eq!(resumo.bytes, (PAGINA_1.len() + PAGINA_2.len()) as u64);
 
         let objetos = armazenamento.objetos.lock().unwrap();
-        assert_eq!(objetos.len(), 3);
+        assert_eq!(objetos.len(), 4);
         assert_eq!(objetos[0].conteudo, PAGINA_1.as_bytes());
         assert!(objetos[0].chave.ends_with("/parte-00001.json"));
         assert!(objetos[1].chave.ends_with("/parte-00002.json"));
         assert!(objetos[2].chave.ends_with("/_manifesto.json"));
+        assert!(objetos[3].chave.ends_with("/_ultima_versao.json"));
 
         let manifesto: ManifestoRaw = serde_json::from_slice(&objetos[2].conteudo).unwrap();
         assert_eq!(manifesto.partes.len(), 2);
@@ -315,5 +414,104 @@ mod testes {
         let erro = tarefa.executar(&contexto).await.unwrap_err();
 
         assert!(matches!(erro, ErroDeIngestao::Paginacao { .. }));
+    }
+
+    const UNICA: &str = r#"{"dados":[1]}"#;
+
+    /// Armazenamento com leitura funcional, para a requisição condicional reusar
+    /// a parte guardada numa segunda rodada.
+    #[derive(Default)]
+    struct ArmazenamentoMapa {
+        objetos: Mutex<HashMap<String, Vec<u8>>>,
+    }
+
+    #[async_trait]
+    impl ArmazenamentoRaw for ArmazenamentoMapa {
+        async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+
+        async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            self.objetos
+                .lock()
+                .unwrap()
+                .insert(objeto.chave, objeto.conteudo);
+            Ok(())
+        }
+
+        async fn gravar_fluxo(
+            &self,
+            _: &str,
+            _: &str,
+            _: &mut (dyn tokio::io::AsyncRead + Send + Unpin),
+        ) -> Result<(), ErroDeIngestao> {
+            unreachable!("a ingestão paginada não grava fluxo")
+        }
+
+        async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(self.objetos.lock().unwrap().get(chave).cloned())
+        }
+    }
+
+    /// Entrega o corpo com ETag `v1` na primeira vez e responde 304 quando o
+    /// validador `v1` volta na requisição condicional.
+    #[derive(Default)]
+    struct HttpCondicional {
+        chamadas: Mutex<u32>,
+    }
+
+    #[async_trait]
+    impl ClienteHttp for HttpCondicional {
+        async fn obter(&self, _: &str, _: &str) -> Result<RespostaHttp, ErroDeIngestao> {
+            unreachable!("usa obter_condicional")
+        }
+
+        async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+            unreachable!("a ingestão paginada não consulta arquivos")
+        }
+
+        async fn baixar(&self, _: &str) -> Result<DownloadHttp, ErroDeIngestao> {
+            unreachable!("a ingestão paginada não baixa arquivos")
+        }
+
+        async fn obter_condicional(
+            &self,
+            _: &str,
+            _: &str,
+            validador: Option<&str>,
+        ) -> Result<RespostaCondicional, ErroDeIngestao> {
+            *self.chamadas.lock().unwrap() += 1;
+            if validador == Some("v1") {
+                Ok(RespostaCondicional::NaoModificado)
+            } else {
+                Ok(RespostaCondicional::Modificado {
+                    tipo_de_conteudo: "application/json".to_owned(),
+                    versao: Some("v1".to_owned()),
+                    corpo: UNICA.as_bytes().to_vec(),
+                })
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn reaproveita_a_pagina_que_nao_mudou() {
+        let armazenamento = Arc::new(ArmazenamentoMapa::default());
+        let http = Arc::new(HttpCondicional::default());
+        let contexto = ContextoDeExecucao {
+            id_execucao: "e1".into(),
+            iniciada_em: Utc::now(),
+            armazenamento: armazenamento.clone(),
+            http: http.clone(),
+        };
+        let tarefa =
+            TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
+
+        let primeira = tarefa.executar(&contexto).await.unwrap();
+        assert!(!primeira.reaproveitada);
+
+        let segunda = tarefa.executar(&contexto).await.unwrap();
+        assert!(segunda.reaproveitada);
+        // Uma chamada por rodada: a segunda recebeu 304 e não rebaixou.
+        assert_eq!(*http.chamadas.lock().unwrap(), 2);
     }
 }
