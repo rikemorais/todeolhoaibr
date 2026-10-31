@@ -16,4 +16,5 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | [0006](0006-layout-da-camada-raw.md) | Layout imutável da camada Raw, com manifesto | Aceito |
 | [0007](0007-docker-para-maquinas-modestas.md) | Docker como única dependência, pensando em máquinas modestas | Aceito |
 | [0008](0008-painel-de-execucoes.md) | Painel próprio de execuções, alimentado por um histórico no armazenamento | Aceito |
+| [0009](0009-interface-de-arquivos.md) | Interface web do versitygw para navegar pelos arquivos | Aceito |
 | [0010](0010-selecao-e-arquivos-grandes.md) | Seleção com aviso de espaço e ingestão de arquivos grandes | Aceito |
