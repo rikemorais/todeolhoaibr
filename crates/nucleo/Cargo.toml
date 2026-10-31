@@ -1,0 +1,10 @@
+[package]
+name = "todeolho-nucleo"
+description = "Abstrações de domínio e execução de DAGs de ingestão"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["io-util", "sync", "time"] }

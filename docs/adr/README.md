@@ -9,3 +9,4 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | ADR | Decisão | Status |
 | --- | --- | --- |
 | [0001](0001-registrar-decisoes-com-adrs.md) | Registrar decisões com ADRs, em português do Brasil | Aceito |
+| [0002](0002-monorepo-em-camadas.md) | Monorepo Cargo em camadas, aplicando SOLID e POO | Aceito |
