@@ -7,6 +7,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Substitui os labels padrão do Dependabot (dependencies, rust) pelo nosso
+    # conjunto em português.
+    labels:
+      - "dependências"
 
   # As ações do workflow são código de terceiro que roda com acesso ao
   # repositório. Uma tag pode ser movida; por isso ficam fixadas por SHA, e o
@@ -16,6 +20,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    labels:
+      - "dependências"
 
   # Imagem base do contêiner (docker/Dockerfile). O digest fixado não sobe
   # sozinho.
@@ -24,3 +30,5 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 2
+    labels:
+      - "dependências"
