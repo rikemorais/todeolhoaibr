@@ -1563,6 +1563,7 @@ dependencies = [
  "sha2 0.11.0",
  "todeolho-nucleo",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -4,6 +4,7 @@
 //! `FonteDeDados` e registre-a em [`catalogo`]. Nada mais precisa mudar.
 
 mod fontes;
+pub mod ingestao_arquivo;
 pub mod ingestao_http;
 pub mod paginacao;
 
