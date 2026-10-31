@@ -10,4 +10,5 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | --- | --- | --- |
 | [0001](0001-registrar-decisoes-com-adrs.md) | Registrar decisões com ADRs, em português do Brasil | Aceito |
 | [0002](0002-monorepo-em-camadas.md) | Monorepo Cargo em camadas, aplicando SOLID e POO | Aceito |
+| [0003](0003-dagron-core-com-executor-proprio.md) | `dagron-core` para o grafo, com executor próprio | Aceito |
 | [0004](0004-factory-method-para-fontes.md) | Factory Method para adicionar fontes de dados | Aceito |

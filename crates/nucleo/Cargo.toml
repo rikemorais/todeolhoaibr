@@ -8,5 +8,7 @@ edition.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 dagron-core.workspace = true
+futures.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["io-util", "sync", "time"] }
+tracing.workspace = true
