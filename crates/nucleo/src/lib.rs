@@ -11,6 +11,7 @@ pub mod fonte;
 pub mod historico;
 pub mod portas;
 pub mod raw;
+pub mod selecao;
 pub mod tarefa;
 
 pub use contexto::ContextoDeExecucao;
@@ -29,4 +30,5 @@ pub use portas::{
     RespostaHttp,
 };
 pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw};
+pub use selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
 pub use tarefa::{ResumoDaTarefa, Tarefa, TarefaPlanejada};
