@@ -8,6 +8,7 @@ pub mod dag;
 pub mod erros;
 pub mod executor;
 pub mod fonte;
+pub mod historico;
 pub mod portas;
 pub mod raw;
 pub mod tarefa;
@@ -19,6 +20,10 @@ pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
 };
 pub use fonte::FonteDeDados;
+pub use historico::{
+    ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
+    RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
+};
 pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
     RespostaHttp,
