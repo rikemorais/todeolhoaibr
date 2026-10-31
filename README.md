@@ -98,6 +98,8 @@ pesada na sua máquina, use `TODEOLHO_BUILD_JOBS=1`.
 Abra **<http://localhost:8080>**. O painel mostra as 50 execuções mais recentes e, em cada uma, a DAG de cada fonte,
 com o estado, o volume, a duração e o erro de cada tarefa. A página se atualiza sozinha e acompanha a execução em andamento.
 
+![Painel do Tô De Olho Aí: para cada execução, a DAG de cada fonte montada pelo Dagron, com estado, volume e duração por tarefa.](docs/img/painel-execucoes.png)
+
 | Situação | Significado |
 | --- | --- |
 | Em andamento | A ingestão está rodando |
