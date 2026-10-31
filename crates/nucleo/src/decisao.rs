@@ -45,6 +45,20 @@ pub struct EstadoNaRaw {
     pub tamanho: Option<u64>,
 }
 
+impl EstadoNaRaw {
+    /// Estado em que a Raw tem algo registrado, mas não dá para reaproveitar:
+    /// ponteiro ou manifesto ausente, ilegível ou sem partes. Força a reingestão
+    /// com motivo `IncompletaOuCorrompida`, preservando o validador conhecido.
+    pub fn incompleto(versao: Option<String>) -> Self {
+        Self {
+            completa: false,
+            integra: false,
+            versao,
+            tamanho: None,
+        }
+    }
+}
+
 /// Decide se um recurso precisa ser (re)ingerido.
 ///
 /// `raw` é `None` quando não há ingestão anterior. A ordem de precedência:

@@ -23,19 +23,24 @@ pub async fn estado_na_raw(
     let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
         return Ok(None);
     };
-    let ponteiro: UltimaVersao =
-        serde_json::from_slice(&bytes).map_err(|erro| erro_de_manifesto(recurso, erro))?;
+    // Ponteiro ilegível não pode travar o recurso: trata como estado incompleto
+    // para que a decisão reingira e o sobrescreva (ver issue #13).
+    let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes) else {
+        return Ok(Some(EstadoNaRaw::incompleto(None)));
+    };
 
     let Some(bytes_manifesto) = armazenamento.ler(&ponteiro.manifesto).await? else {
-        return Ok(Some(EstadoNaRaw {
-            completa: false,
-            integra: false,
-            versao: ponteiro.versao,
-            tamanho: None,
-        }));
+        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
     };
-    let manifesto: ManifestoRaw = serde_json::from_slice(&bytes_manifesto)
-        .map_err(|erro| erro_de_manifesto(recurso, erro))?;
+    // Manifesto ilegível recebe o mesmo tratamento do ponteiro corrompido.
+    let Ok(manifesto) = serde_json::from_slice::<ManifestoRaw>(&bytes_manifesto) else {
+        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+    };
+
+    // Manifesto sem partes não descreve dado nenhum: incompleto, para reingerir.
+    if manifesto.partes.is_empty() {
+        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+    }
 
     let tamanho = manifesto.partes.iter().map(|parte| parte.bytes).sum();
     let integra = partes_integras(armazenamento, &manifesto).await?;
@@ -60,13 +65,17 @@ pub async fn manifesto_vigente(
     let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
         return Ok(None);
     };
-    let ponteiro: UltimaVersao =
-        serde_json::from_slice(&bytes).map_err(|erro| erro_de_manifesto(recurso, erro))?;
+    // Ponteiro ou manifesto ilegível: segue como se não houvesse ingestão
+    // anterior, para que a reingestão o substitua (ver issue #13).
+    let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes) else {
+        return Ok(None);
+    };
     let Some(bytes_manifesto) = armazenamento.ler(&ponteiro.manifesto).await? else {
         return Ok(None);
     };
-    let manifesto = serde_json::from_slice(&bytes_manifesto)
-        .map_err(|erro| erro_de_manifesto(recurso, erro))?;
+    let Ok(manifesto) = serde_json::from_slice::<ManifestoRaw>(&bytes_manifesto) else {
+        return Ok(None);
+    };
     Ok(Some(manifesto))
 }
 
@@ -87,13 +96,6 @@ async fn partes_integras(
         }
     }
     Ok(true)
-}
-
-fn erro_de_manifesto(recurso: &str, erro: serde_json::Error) -> ErroDeIngestao {
-    ErroDeIngestao::Manifesto {
-        recurso: recurso.to_owned(),
-        detalhe: erro.to_string(),
-    }
 }
 
 #[cfg(test)]
@@ -237,6 +239,83 @@ mod testes {
             .unwrap();
         assert!(!estado.completa);
         assert!(!estado.integra);
+    }
+
+    #[tokio::test]
+    async fn manifesto_sem_partes_e_incompleto() {
+        // Um manifesto válido, porém vazio, não descreve dado nenhum: incompleto.
+        let ponteiro = UltimaVersao {
+            versao: Some("v1".to_owned()),
+            manifesto: CHAVE_MANIFESTO.to_owned(),
+        };
+        let mut manifesto = manifesto(parte(CONTEUDO.len() as u64, "sha-ignorado"));
+        manifesto.partes.clear();
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (
+                LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                json(&ponteiro),
+            ),
+            (CHAVE_MANIFESTO.to_owned(), json(&manifesto)),
+        ]);
+
+        let estado = estado_na_raw(&armazenamento, FONTE, RECURSO)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!estado.completa);
+        assert!(!estado.integra);
+    }
+
+    #[tokio::test]
+    async fn ponteiro_ilegivel_nao_trava_o_recurso() {
+        // JSON corrompido no ponteiro vira estado incompleto, não erro: a próxima
+        // ingestão sobrescreve em vez de ficar bloqueada.
+        let armazenamento = ArmazenamentoEmMemoria::com([(
+            LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+            b"{ nao e json".to_vec(),
+        )]);
+
+        let estado = estado_na_raw(&armazenamento, FONTE, RECURSO)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!estado.completa);
+        assert!(!estado.integra);
+    }
+
+    #[tokio::test]
+    async fn manifesto_ilegivel_nao_trava_o_recurso() {
+        let ponteiro = UltimaVersao {
+            versao: Some("v1".to_owned()),
+            manifesto: CHAVE_MANIFESTO.to_owned(),
+        };
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (
+                LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                json(&ponteiro),
+            ),
+            (CHAVE_MANIFESTO.to_owned(), b"}}} invalido".to_vec()),
+        ]);
+
+        let estado = estado_na_raw(&armazenamento, FONTE, RECURSO)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!estado.completa);
+        assert_eq!(estado.versao.as_deref(), Some("v1"));
+    }
+
+    #[tokio::test]
+    async fn manifesto_vigente_ignora_ponteiro_ilegivel() {
+        let armazenamento = ArmazenamentoEmMemoria::com([(
+            LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+            b"xpto".to_vec(),
+        )]);
+
+        let manifesto = manifesto_vigente(&armazenamento, FONTE, RECURSO)
+            .await
+            .unwrap();
+        assert!(manifesto.is_none());
     }
 
     #[tokio::test]
