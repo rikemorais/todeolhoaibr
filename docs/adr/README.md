@@ -1,0 +1,11 @@
+# Registros de Decisão de Arquitetura (ADRs)
+
+Cada ADR registra uma decisão arquitetural: o contexto, o que foi decidido e o que
+aceitamos como consequência. ADRs aceitos não são reescritos. Quando uma decisão muda,
+criamos um novo ADR e marcamos o anterior como substituído.
+
+Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo número.
+
+| ADR | Decisão | Status |
+| --- | --- | --- |
+| [0001](0001-registrar-decisoes-com-adrs.md) | Registrar decisões com ADRs, em português do Brasil | Aceito |
