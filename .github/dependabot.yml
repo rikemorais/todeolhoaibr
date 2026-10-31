@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Workspace Cargo (raiz + crates/*). O Dependabot resolve o workspace inteiro
+  # a partir do Cargo.toml da raiz.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # As ações do workflow são código de terceiro que roda com acesso ao
+  # repositório. Uma tag pode ser movida; por isso ficam fixadas por SHA, e o
+  # Dependabot abre a PR quando há versão nova.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+
+  # Imagem base do contêiner (docker/Dockerfile). O digest fixado não sobe
+  # sozinho.
+  - package-ecosystem: docker
+    directory: "/docker"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
