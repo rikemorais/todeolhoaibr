@@ -6,6 +6,7 @@
 pub mod contexto;
 pub mod dag;
 pub mod erros;
+pub mod espaco;
 pub mod executor;
 pub mod fonte;
 pub mod historico;
@@ -17,6 +18,7 @@ pub mod tarefa;
 pub use contexto::ContextoDeExecucao;
 pub use dag::DagDeIngestao;
 pub use erros::{ErroDeDag, ErroDeIngestao};
+pub use espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
 pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
 };
