@@ -1465,6 +1465,7 @@ dependencies = [
  "futures",
  "reqwest",
  "rust-s3",
+ "serde_json",
  "todeolho-nucleo",
  "tokio",
  "tokio-util",

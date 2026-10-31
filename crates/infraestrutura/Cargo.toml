@@ -10,6 +10,7 @@ async-trait.workspace = true
 futures.workspace = true
 reqwest.workspace = true
 rust-s3.workspace = true
+serde_json.workspace = true
 tokio = { workspace = true, features = ["io-util"] }
 tokio-util.workspace = true
 tracing.workspace = true
