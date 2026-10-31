@@ -6,12 +6,14 @@
 pub mod contexto;
 pub mod dag;
 pub mod erros;
+pub mod fonte;
 pub mod portas;
 pub mod tarefa;
 
 pub use contexto::ContextoDeExecucao;
 pub use dag::DagDeIngestao;
 pub use erros::{ErroDeDag, ErroDeIngestao};
+pub use fonte::FonteDeDados;
 pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
     RespostaHttp,
