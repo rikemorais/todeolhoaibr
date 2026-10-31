@@ -4,11 +4,13 @@
 //! As demais camadas dependem dele, nunca o contrário (ver `docs/adr/0002`).
 
 pub mod contexto;
+pub mod dag;
 pub mod erros;
 pub mod portas;
 pub mod tarefa;
 
 pub use contexto::ContextoDeExecucao;
+pub use dag::DagDeIngestao;
 pub use erros::{ErroDeDag, ErroDeIngestao};
 pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
