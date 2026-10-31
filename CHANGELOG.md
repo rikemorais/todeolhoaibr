@@ -5,7 +5,7 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
-## [0.1.0] - Não lançada
+## [0.1.0] - 2026-10-31
 
 Primeira versão, com a ingestão de dados públicos para a camada Raw.
 
@@ -22,3 +22,6 @@ Primeira versão, com a ingestão de dados públicos para a camada Raw.
 - Navegador de arquivos em `http://localhost:7071`.
 - Ambiente completo em Docker, sem necessidade de conta ou token.
 - Registros de decisão de arquitetura em `docs/adr`.
+- Integração contínua que roda os testes do workspace (`cargo test`) em cada pull request.
+- Dependabot para `cargo`, `github-actions` e `docker`, com atualizações semanais.
+- Licença dual MIT OR Apache-2.0.
