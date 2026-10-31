@@ -1,0 +1,18 @@
+[package]
+name = "todeolho-infraestrutura"
+description = "Adaptadores de armazenamento S3 e cliente HTTP"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+todeolho-nucleo.workspace = true
+
+async-trait.workspace = true
+fs4.workspace = true
+futures.workspace = true
+reqwest.workspace = true
+rust-s3.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["io-util"] }
+tokio-util.workspace = true
+tracing.workspace = true

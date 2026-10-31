@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Execuções - Tô De Olho Aí</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --fundo: #f5f6f4;
+  --superficie: #ffffff;
+  --superficie-2: #eef0ec;
+  --texto: #1c211d;
+  --texto-2: #5c655e;
+  --borda: #d9ddd6;
+  --destaque: #0b6b4f;
+  --sucesso: #0b7a55;
+  --sucesso-fundo: #dff3ea;
+  --falha: #b3261e;
+  --falha-fundo: #fbe4e1;
+  --andamento: #1a5fb4;
+  --andamento-fundo: #e0ebfa;
+  --alerta: #8f5b00;
+  --alerta-fundo: #fbeed2;
+  --neutro: #5c655e;
+  --neutro-fundo: #e9ebe7;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #121513;
+    --superficie: #1a1e1b;
+    --superficie-2: #232824;
+    --texto: #e7ebe7;
+    --texto-2: #9ca69e;
+    --borda: #303732;
+    --destaque: #5fd0a8;
+    --sucesso: #5fd0a8;
+    --sucesso-fundo: #17352a;
+    --falha: #ff9a90;
+    --falha-fundo: #40201d;
+    --andamento: #8dbaf5;
+    --andamento-fundo: #1b2f4b;
+    --alerta: #f0c060;
+    --alerta-fundo: #3b2e13;
+    --neutro: #9ca69e;
+    --neutro-fundo: #272c28;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; }
+.tabular { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 24px; background: var(--superficie); border-bottom: 1px solid var(--borda);
+}
+.marca h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.marca p { color: var(--texto-2); font-size: 13px; }
+#conexao { color: var(--texto-2); font-size: 13px; text-align: right; }
+
+#aviso {
+  margin: 16px 24px 0; padding: 10px 14px; border-radius: 8px;
+  background: var(--falha-fundo); color: var(--falha); font-weight: 500;
+}
+#aviso[hidden] { display: none; }
+
+main {
+  display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px;
+  max-width: 1440px; margin: 0 auto; padding: 20px 24px 40px; align-items: start;
+}
+#lista { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 16px;
+  max-height: calc(100vh - 32px); overflow-y: auto; padding: 2px; }
+.rotulo-secao { font-size: 12px; font-weight: 600; color: var(--texto-2);
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 0 2px 4px; }
+
+.cartao {
+  display: block; width: 100%; text-align: left; cursor: pointer; padding: 12px 14px;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px;
+}
+.cartao:hover { border-color: var(--texto-2); }
+.cartao[aria-current="true"] { border-color: var(--destaque); box-shadow: inset 0 0 0 1px var(--destaque); }
+.cartao:focus-visible, .aba:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+.cartao-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cartao-data { font-weight: 600; font-size: 14px; }
+.cartao-info { color: var(--texto-2); font-size: 13px; margin-top: 4px; }
+
+.selo {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+}
+.selo svg { width: 12px; height: 12px; flex: none; }
+.e-sucesso { color: var(--sucesso); background: var(--sucesso-fundo); }
+.e-falha { color: var(--falha); background: var(--falha-fundo); }
+.e-andamento { color: var(--andamento); background: var(--andamento-fundo); }
+.e-alerta { color: var(--alerta); background: var(--alerta-fundo); }
+.e-neutro { color: var(--neutro); background: var(--neutro-fundo); }
+
+#detalhe { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.painel { background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px; padding: 18px 20px; }
+.titulo-execucao { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.titulo-execucao h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.id-execucao { color: var(--texto-2); margin-top: 2px; word-break: break-all; }
+.numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.numero { background: var(--superficie-2); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.numero b { display: block; font-size: 20px; font-weight: 700; line-height: 1.25; }
+.numero span { color: var(--texto-2); font-size: 12px; }
+
+.fonte-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.fonte-topo h3 { font-size: 16px; font-weight: 700; }
+.grafo { overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; }
+.grafo svg { display: block; }
+.grafo text { font: 600 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: var(--texto); }
+.grafo text.sub { font-weight: 400; font-size: 12px; fill: var(--texto-2); }
+.grafo .aresta { fill: none; stroke: var(--texto-2); stroke-width: 1.5; }
+.grafo .ponta { fill: var(--texto-2); }
+.grafo .no { fill: var(--superficie); stroke-width: 1.5; }
+.no-sucesso { stroke: var(--sucesso); } .no-falha { stroke: var(--falha); }
+.no-andamento { stroke: var(--andamento); } .no-alerta { stroke: var(--alerta); }
+.no-neutro { stroke: var(--borda); }
+.ponto-sucesso { fill: var(--sucesso); } .ponto-falha { fill: var(--falha); }
+.ponto-andamento { fill: var(--andamento); } .ponto-alerta { fill: var(--alerta); }
+.ponto-neutro { fill: var(--neutro); }
+@media (prefers-reduced-motion: no-preference) {
+  .pulsa { animation: pulsa 1.4s ease-in-out infinite; }
+  @keyframes pulsa { 50% { opacity: 0.35; } }
+}
+
+.rolagem-tabela { overflow-x: auto; }
+.tarefas { width: 100%; border-collapse: collapse; }
+.tarefas th { text-align: left; font-size: 12px; font-weight: 600; color: var(--texto-2);
+  padding: 6px 10px 6px 0; border-bottom: 1px solid var(--borda); }
+.tarefas td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--borda); vertical-align: top; }
+.tarefas tr:last-child td { border-bottom: 0; }
+.tarefas .num { text-align: right; white-space: nowrap; padding-right: 0; padding-left: 10px; }
+.tarefas th.num { padding-right: 0; }
+.nome-tarefa { font-weight: 600; }
+.detalhe-tarefa { color: var(--texto-2); font-size: 13px; margin-top: 3px; overflow-wrap: anywhere; }
+.detalhe-tarefa.erro { color: var(--falha); }
+
+.vazio { text-align: center; padding: 56px 24px; grid-column: 1 / -1; }
+.vazio h2 { font-size: 20px; margin-bottom: 6px; }
+.vazio p { color: var(--texto-2); }
+.vazio code { display: inline-block; margin-top: 14px; padding: 8px 12px; border-radius: 8px;
+  background: var(--superficie-2); overflow-wrap: anywhere; }
+
+@media (max-width: 860px) {
+  header { padding: 12px 16px; }
+  #aviso { margin: 12px 16px 0; }
+  main { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 32px; gap: 16px; }
+  #lista { position: static; max-height: 280px; }
+  .numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .painel { padding: 14px; }
+  .opcional { display: none; }
+}
+@media (max-width: 520px) {
+  .estreita-oculta { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">
+    <h1>Tô De Olho Aí</h1>
+    <p>Execuções de ingestão</p>
+  </div>
+  <div id="conexao" role="status"></div>
+</header>
+<div id="aviso" role="alert" hidden></div>
+<main id="conteudo"></main>
+
+<script>
+"use strict";
+
+// Tudo que vem da API entra na página como texto, nunca como HTML.
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function el(tag, atributos, ...filhos) {
+  const no = document.createElement(tag);
+  aplicar(no, atributos);
+  no.append(...filhos.filter((f) => f !== null && f !== undefined));
+  return no;
+}
+
+function svg(tag, atributos, ...filhos) {
+  const no = document.createElementNS(SVG_NS, tag);
+  for (const [nome, valor] of Object.entries(atributos || {})) no.setAttribute(nome, valor);
+  no.append(...filhos);
+  return no;
+}
+
+function aplicar(no, atributos) {
+  for (const [nome, valor] of Object.entries(atributos || {})) {
+    if (nome === "class") no.className = valor;
+    else if (nome.startsWith("on")) no.addEventListener(nome.slice(2), valor);
+    else no.setAttribute(nome, valor);
+  }
+}
+
+const SITUACOES = {
+  sucesso: { texto: "Sucesso", classe: "sucesso" },
+  com_falhas: { texto: "Com falhas", classe: "falha" },
+  em_andamento: { texto: "Em andamento", classe: "andamento" },
+  interrompida: { texto: "Interrompida", classe: "alerta" },
+};
+
+const ESTADOS = {
+  concluida: { texto: "Concluída", classe: "sucesso" },
+  falhou: { texto: "Falhou", classe: "falha" },
+  em_execucao: { texto: "Em execução", classe: "andamento" },
+  ignorada: { texto: "Ignorada", classe: "alerta" },
+  pendente: { texto: "Pendente", classe: "neutro" },
+  interrompida: { texto: "Interrompida", classe: "alerta" },
+};
+
+const ICONES = {
+  sucesso: "M3 8.5 6.5 12 13 4.5",
+  falha: "M4 4l8 8M12 4l-8 8",
+  alerta: "M8 3v6M8 12.5v.5",
+  neutro: "M4 8h8",
+};
+
+function icone(classe) {
+  if (classe === "andamento") {
+    return svg("svg", { viewBox: "0 0 16 16", "aria-hidden": "true" },
+      svg("circle", { cx: 8, cy: 8, r: 4.5, fill: "currentColor", class: "pulsa" }));
+  }
+  return svg("svg", { viewBox: "0 0 16 16", "aria-hidden": "true" },
+    svg("path", { d: ICONES[classe], fill: "none", stroke: "currentColor",
+      "stroke-width": 2.2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+}
+
+function selo({ texto, classe }) {
+  return el("span", { class: `selo e-${classe}` }, icone(classe), texto);
+}
+
+const formatoData = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+
+function formatarData(iso) {
+  return formatoData.format(new Date(iso));
+}
+
+function formatarDuracao(ms) {
+  if (ms === null || ms === undefined) return "-";
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const segundos = ms / 1000;
+  if (segundos < 60) return `${segundos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s`;
+  const minutos = Math.floor(segundos / 60);
+  return `${minutos} min ${Math.round(segundos % 60)} s`;
+}
+
+function formatarBytes(bytes) {
+  if (bytes === null || bytes === undefined) return "-";
+  const unidades = ["B", "KB", "MB", "GB", "TB"];
+  let valor = bytes;
+  let indice = 0;
+  while (valor >= 1024 && indice < unidades.length - 1) {
+    valor /= 1024;
+    indice += 1;
+  }
+  const casas = indice === 0 || valor >= 100 ? 0 : 1;
+  return `${valor.toLocaleString("pt-BR", { maximumFractionDigits: casas })} ${unidades[indice]}`;
+}
+
+function plural(quantidade, singular, varias) {
+  return `${quantidade} ${quantidade === 1 ? singular : varias}`;
+}
+
+function tarefasDe(execucao) {
+  return execucao.fontes.flatMap((fonte) => fonte.tarefas);
+}
+
+// Tarefas de uma execução interrompida nunca vão terminar: não exibi-las como ativas.
+function estadoVisivel(tarefa, execucao) {
+  const parada = execucao.situacao === "interrompida";
+  if (parada && tarefa.estado === "em_execucao") return ESTADOS.interrompida;
+  return ESTADOS[tarefa.estado] || ESTADOS.pendente;
+}
+
+// A duração de uma execução interrompida é desconhecida: o processo pode ter
+// rodado muito além da sua última publicação.
+function duracaoDaExecucao(execucao) {
+  if (execucao.situacao === "interrompida") return null;
+  const fim = execucao.concluida_em ? new Date(execucao.concluida_em) : new Date();
+  return fim - new Date(execucao.iniciada_em);
+}
+
+function duracaoDaTarefa(tarefa, execucao) {
+  if (tarefa.duracao_ms !== null && tarefa.duracao_ms !== undefined) return tarefa.duracao_ms;
+  if (tarefa.estado === "em_execucao" && execucao.situacao === "em_andamento" && tarefa.iniciada_em) {
+    return Date.now() - new Date(tarefa.iniciada_em);
+  }
+  return null;
+}
+
+function resumoDoDetalhe(tarefa) {
+  if (tarefa.estado === "falhou") return { texto: tarefa.detalhe, erro: true };
+  if (tarefa.estado === "concluida" && tarefa.detalhe) return { texto: tarefa.detalhe };
+  if (tarefa.estado === "ignorada") return { texto: `Não executada porque "${tarefa.detalhe}" falhou.` };
+  return null;
+}
+
+// ---- Grafo da DAG ----
+
+// Acima disso o desenho deixa de ajudar: a tabela já mostra cada tarefa.
+const MAXIMO_DE_TAREFAS_NO_GRAFO = 24;
+const NO = { largura: 176, altura: 52, vao_x: 56, vao_y: 14, margem: 2, caracteres: 18 };
+
+function abreviar(nome) {
+  return nome.length > NO.caracteres ? `${nome.slice(0, NO.caracteres - 3)}...` : nome;
+}
+
+function desenharGrafo(fonte, execucao) {
+  const niveis = [];
+  for (const tarefa of fonte.tarefas) (niveis[tarefa.nivel] ||= []).push(tarefa);
+
+  const maiorNivel = Math.max(...niveis.map((nivel) => nivel.length));
+  const altura = maiorNivel * NO.altura + (maiorNivel - 1) * NO.vao_y + NO.margem * 2;
+  const largura = niveis.length * NO.largura + (niveis.length - 1) * NO.vao_x + NO.margem * 2;
+
+  const posicoes = new Map();
+  niveis.forEach((nivel, coluna) => {
+    const alturaNivel = nivel.length * NO.altura + (nivel.length - 1) * NO.vao_y;
+    const inicio = (altura - alturaNivel) / 2;
+    nivel.forEach((tarefa, linha) => {
+      posicoes.set(tarefa.nome, {
+        x: NO.margem + coluna * (NO.largura + NO.vao_x),
+        y: inicio + linha * (NO.altura + NO.vao_y),
+      });
+    });
+  });
+
+  const idDaPonta = `ponta-${fonte.nome}`;
+  const desenho = svg("svg", {
+    width: largura, height: altura, viewBox: `0 0 ${largura} ${altura}`, role: "img",
+    "aria-label": `Grafo de dependências da fonte ${fonte.nome}`,
+  }, svg("defs", null, svg("marker", {
+    id: idDaPonta, viewBox: "0 0 8 8", refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, orient: "auto",
+  }, svg("path", { d: "M0 0 8 4 0 8z", class: "ponta" }))));
+
+  for (const tarefa of fonte.tarefas) {
+    const destino = posicoes.get(tarefa.nome);
+    for (const dependencia of tarefa.depende_de) {
+      const origem = posicoes.get(dependencia);
+      if (!origem) continue;
+      const x1 = origem.x + NO.largura;
+      const y1 = origem.y + NO.altura / 2;
+      const x2 = destino.x;
+      const y2 = destino.y + NO.altura / 2;
+      const meio = (x1 + x2) / 2;
+      desenho.append(svg("path", { class: "aresta", d: `M${x1} ${y1} C${meio} ${y1} ${meio} ${y2} ${x2} ${y2}`,
+        "marker-end": `url(#${idDaPonta})` }));
+    }
+  }
+
+  for (const tarefa of fonte.tarefas) {
+    const { x, y } = posicoes.get(tarefa.nome);
+    const estado = estadoVisivel(tarefa, execucao);
+    const subtitulo = tarefa.estado === "concluida"
+      ? `${formatarDuracao(tarefa.duracao_ms)} - ${formatarBytes(tarefa.bytes)}`
+      : estado.texto;
+    const ponto = svg("circle", { cx: x + 16, cy: y + 18, r: 5,
+      class: `ponto-${estado.classe}${estado.classe === "andamento" ? " pulsa" : ""}` });
+    desenho.append(
+      svg("rect", { x, y, width: NO.largura, height: NO.altura, rx: 8, class: `no no-${estado.classe}` }),
+      ponto,
+      svg("text", { x: x + 28, y: y + 22 }, svg("title", null, tarefa.nome), abreviar(tarefa.nome)),
+      svg("text", { x: x + 28, y: y + 40, class: "sub" }, subtitulo),
+    );
+  }
+
+  return el("div", { class: "grafo" }, desenho);
+}
+
+// ---- Telas ----
+
+let execucoes = [];
+// Sem escolha explícita, o painel acompanha sempre a execução mais recente.
+let selecionada = null;
+let ultimaResposta = "";
+
+function execucaoSelecionada() {
+  return execucoes.find((e) => e.id === selecionada) || execucoes[0];
+}
+
+function cartao(execucao) {
+  const tarefas = tarefasDe(execucao);
+  const feitas = tarefas.filter((t) => t.estado === "concluida").length;
+  const nomes = execucao.fontes.map((f) => f.nome).join(", ");
+  const ms = duracaoDaExecucao(execucao);
+  const duracao = ms === null ? null : formatarDuracao(ms);
+  return el("button", {
+    class: "cartao", type: "button",
+    "aria-current": String(execucao.id === execucaoSelecionada().id),
+    onclick: () => selecionar(execucao.id),
+  },
+    el("div", { class: "cartao-topo" },
+      el("span", { class: "cartao-data tabular" }, formatarData(execucao.iniciada_em)),
+      selo(SITUACOES[execucao.situacao])),
+    el("div", { class: "cartao-info" },
+      [nomes, `${feitas} de ${tarefas.length} tarefas`, duracao].filter(Boolean).join(" - ")));
+}
+
+function numero(valor, rotulo) {
+  return el("div", { class: "numero tabular" }, el("b", null, valor), el("span", null, rotulo));
+}
+
+function telaResumo(execucao) {
+  const tarefas = tarefasDe(execucao);
+  const feitas = tarefas.filter((t) => t.estado === "concluida");
+  const falhas = tarefas.filter((t) => t.estado === "falhou").length;
+  const bytes = feitas.reduce((soma, t) => soma + (t.bytes || 0), 0);
+  const partes = feitas.reduce((soma, t) => soma + (t.partes || 0), 0);
+
+  let explicacao = null;
+  if (execucao.situacao === "interrompida") {
+    explicacao = el("p", { class: "detalhe-tarefa" },
+      `O processo parou sem concluir. Última atualização em ${formatarData(execucao.atualizada_em)}.`);
+  }
+
+  return el("section", { class: "painel" },
+    el("div", { class: "titulo-execucao" },
+      el("h2", { class: "tabular" }, formatarData(execucao.iniciada_em)),
+      selo(SITUACOES[execucao.situacao])),
+    el("p", { class: "id-execucao mono" }, execucao.id),
+    explicacao,
+    el("div", { class: "numeros" },
+      numero(`${feitas.length} de ${tarefas.length}`, "tarefas concluídas"),
+      numero(String(falhas), falhas === 1 ? "falha" : "falhas"),
+      numero(formatarBytes(bytes), plural(partes, "parte gravada", "partes gravadas")),
+      numero(formatarDuracao(duracaoDaExecucao(execucao)), "duração")));
+}
+
+function linhaDaTarefa(tarefa, execucao) {
+  const detalhe = resumoDoDetalhe(tarefa);
+  return el("tr", null,
+    el("td", null,
+      el("div", { class: "nome-tarefa" }, tarefa.nome),
+      detalhe ? el("div", { class: `detalhe-tarefa${detalhe.erro ? " erro" : ""}` }, detalhe.texto) : null),
+    el("td", null, selo(estadoVisivel(tarefa, execucao))),
+    el("td", { class: "num tabular opcional" }, tarefa.partes ?? "-"),
+    el("td", { class: "num tabular estreita-oculta" }, formatarBytes(tarefa.bytes)),
+    el("td", { class: "num tabular" }, formatarDuracao(duracaoDaTarefa(tarefa, execucao))));
+}
+
+function telaFonte(fonte, execucao) {
+  const ordenadas = [...fonte.tarefas].sort((a, b) => a.nivel - b.nivel || a.nome.localeCompare(b.nome));
+  return el("section", { class: "painel" },
+    el("div", { class: "fonte-topo" }, el("h3", null, fonte.nome)),
+    fonte.tarefas.length <= MAXIMO_DE_TAREFAS_NO_GRAFO ? desenharGrafo(fonte, execucao) : null,
+    el("div", { class: "rolagem-tabela" }, el("table", { class: "tarefas" },
+      el("thead", null, el("tr", null,
+        el("th", { scope: "col" }, "Tarefa"),
+        el("th", { scope: "col" }, "Estado"),
+        el("th", { scope: "col", class: "num opcional" }, "Partes"),
+        el("th", { scope: "col", class: "num estreita-oculta" }, "Volume"),
+        el("th", { scope: "col", class: "num" }, "Duração"))),
+      el("tbody", null, ...ordenadas.map((tarefa) => linhaDaTarefa(tarefa, execucao))))));
+}
+
+function telaVazia() {
+  return el("div", { class: "painel vazio" },
+    el("h2", null, "Nenhuma execução por aqui ainda"),
+    el("p", null, "Dispare a primeira ingestão no terminal e acompanhe por esta página:"),
+    el("code", { class: "mono" }, "docker compose run --rm ingestao"));
+}
+
+function desenhar() {
+  const conteudo = document.getElementById("conteudo");
+
+  if (execucoes.length === 0) {
+    conteudo.replaceChildren(telaVazia());
+    return;
+  }
+  const execucao = execucaoSelecionada();
+
+  const rolagemLista = document.getElementById("lista")?.scrollTop ?? 0;
+  const lista = el("nav", { id: "lista", "aria-label": "Execuções" },
+    el("div", { class: "rotulo-secao" }, "Execuções recentes"),
+    ...execucoes.map(cartao));
+  const detalhe = el("div", { id: "detalhe" },
+    telaResumo(execucao),
+    ...execucao.fontes.map((fonte) => telaFonte(fonte, execucao)));
+
+  const rolagemGrafos = [...conteudo.querySelectorAll(".grafo")].map((g) => g.scrollLeft);
+  conteudo.replaceChildren(lista, detalhe);
+  lista.scrollTop = rolagemLista;
+  conteudo.querySelectorAll(".grafo").forEach((g, i) => { g.scrollLeft = rolagemGrafos[i] || 0; });
+}
+
+function selecionar(id) {
+  selecionada = id;
+  try { history.replaceState(null, "", `#${id}`); } catch { /* opcional */ }
+  desenhar();
+}
+
+function haAlgoEmAndamento() {
+  return execucoes.some((e) => e.situacao === "em_andamento");
+}
+
+async function atualizar() {
+  const aviso = document.getElementById("aviso");
+  const conexao = document.getElementById("conexao");
+  try {
+    const resposta = await fetch("/api/execucoes");
+    if (!resposta.ok) {
+      const corpo = await resposta.json().catch(() => ({}));
+      throw new Error(corpo.erro || `O painel respondeu com o status ${resposta.status}.`);
+    }
+    const texto = await resposta.text();
+    const mudou = texto !== ultimaResposta;
+    ultimaResposta = texto;
+    execucoes = JSON.parse(texto);
+    aviso.hidden = true;
+    conexao.textContent = haAlgoEmAndamento()
+      ? "Acompanhando ao vivo"
+      : `Atualizado às ${new Date().toLocaleTimeString("pt-BR")}`;
+    if (mudou || haAlgoEmAndamento()) desenhar();
+  } catch (erro) {
+    aviso.textContent = erro instanceof TypeError
+      ? "Sem conexão com o painel. Tentando novamente..."
+      : erro.message;
+    aviso.hidden = false;
+    conexao.textContent = "";
+  }
+  setTimeout(atualizar, haAlgoEmAndamento() ? 2000 : 8000);
+}
+
+selecionada = decodeURIComponent(location.hash.slice(1)) || null;
+atualizar();
+</script>
+</body>
+</html>

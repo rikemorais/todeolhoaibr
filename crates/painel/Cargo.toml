@@ -1,0 +1,19 @@
+[package]
+name = "todeolho-painel"
+description = "Painel web para acompanhar as execuções de ingestão"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+todeolho-nucleo.workspace = true
+
+axum.workspace = true
+chrono.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+serde_json.workspace = true
+tower.workspace = true

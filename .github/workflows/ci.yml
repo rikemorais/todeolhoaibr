@@ -1,0 +1,18 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # O ubuntu-latest já traz o toolchain Rust stable (edition 2024 exige
+      # >= 1.85). --locked garante que o Cargo.lock está em dia; --workspace
+      # roda os testes de todos os crates.
+      - run: cargo test --workspace --locked
