@@ -5,11 +5,11 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
-    ContextoDeExecucao, ErroDeIngestao, FluxoDeBytes, InformacoesDoArquivo, LocalizacaoRaw,
-    ManifestoRaw, ObjetoRaw, ParteRaw, ResumoDaTarefa, Tarefa,
+    ContextoDeExecucao, DecisaoDeIngestao, ErroDeIngestao, FluxoDeBytes, LocalizacaoRaw,
+    ManifestoRaw, ObjetoRaw, ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, decidir,
+    estado_na_raw,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tracing::warn;
@@ -31,12 +31,6 @@ pub struct TarefaDeArquivo {
     espera_entre_tentativas: Duration,
 }
 
-#[derive(Serialize, Deserialize)]
-struct UltimaVersao {
-    versao: String,
-    manifesto: String,
-}
-
 struct ArquivoGravado {
     parte: ParteRaw,
     versao: Option<String>,
@@ -54,22 +48,6 @@ impl TarefaDeArquivo {
         }
     }
 
-    async fn ja_atualizado(
-        &self,
-        contexto: &ContextoDeExecucao,
-        informacoes: &InformacoesDoArquivo,
-    ) -> Result<bool, ErroDeIngestao> {
-        let Some(versao_na_origem) = &informacoes.versao else {
-            return Ok(false);
-        };
-        let chave = LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso);
-        let Some(conteudo) = contexto.armazenamento.ler(&chave).await? else {
-            return Ok(false);
-        };
-        let ultima: Option<UltimaVersao> = serde_json::from_slice(&conteudo).ok();
-        Ok(ultima.is_some_and(|ultima| &ultima.versao == versao_na_origem))
-    }
-
     async fn transferir(
         &self,
         contexto: &ContextoDeExecucao,
@@ -84,6 +62,7 @@ impl TarefaDeArquivo {
             .gravar_fluxo(&chave, &download.tipo_de_conteudo, &mut leitor)
             .await?;
 
+        let versao = download.versao;
         Ok(ArquivoGravado {
             parte: ParteRaw {
                 chave,
@@ -91,8 +70,9 @@ impl TarefaDeArquivo {
                 bytes: leitor.bytes,
                 sha256: hex::encode(leitor.hash.finalize()),
                 tipo_de_conteudo: download.tipo_de_conteudo,
+                versao: versao.clone(),
             },
-            versao: download.versao,
+            versao,
         })
     }
 
@@ -116,10 +96,12 @@ impl Tarefa for TarefaDeArquivo {
         contexto: &ContextoDeExecucao,
     ) -> Result<Option<u64>, ErroDeIngestao> {
         let informacoes = contexto.http.informacoes(&self.url).await?;
-        if self.ja_atualizado(contexto, &informacoes).await? {
-            return Ok(Some(0));
+        let estado =
+            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
+        match decidir(&informacoes, estado.as_ref()) {
+            DecisaoDeIngestao::Reaproveitar => Ok(Some(0)),
+            DecisaoDeIngestao::Ingerir(_) => Ok(informacoes.tamanho),
         }
-        Ok(informacoes.tamanho)
     }
 
     async fn executar(
@@ -135,12 +117,17 @@ impl Tarefa for TarefaDeArquivo {
         let chave_da_versao = LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso);
 
         let informacoes = contexto.http.informacoes(&self.url).await?;
-        if self.ja_atualizado(contexto, &informacoes).await? {
-            return Ok(ResumoDaTarefa {
-                reaproveitada: true,
-                ..ResumoDaTarefa::default()
-            });
-        }
+        let estado =
+            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
+        let motivo = match decidir(&informacoes, estado.as_ref()) {
+            DecisaoDeIngestao::Reaproveitar => {
+                return Ok(ResumoDaTarefa {
+                    reaproveitada: true,
+                    ..ResumoDaTarefa::default()
+                });
+            }
+            DecisaoDeIngestao::Ingerir(motivo) => motivo,
+        };
 
         // A conexão pode cair no meio de um arquivo grande. Nada fica visível na Raw
         // antes do fim da transferência, então basta recomeçar.
@@ -163,6 +150,7 @@ impl Tarefa for TarefaDeArquivo {
             partes: 1,
             bytes: arquivo.parte.bytes,
             reaproveitada: false,
+            motivo: Some(motivo),
         };
 
         let manifesto = ManifestoRaw {
@@ -181,18 +169,18 @@ impl Tarefa for TarefaDeArquivo {
         )
         .await?;
 
-        if let Some(versao) = arquivo.versao {
-            let ultima = UltimaVersao {
-                versao,
-                manifesto: local.manifesto(),
-            };
-            gravar_json(
-                contexto,
-                chave_da_versao,
-                serde_json::to_vec_pretty(&ultima).map_err(|e| self.erro_de_manifesto(e))?,
-            )
-            .await?;
-        }
+        // Grava o ponteiro mesmo sem validador (versao `None`): é o que permite
+        // a pré-checagem por tamanho reaproveitar numa próxima rodada.
+        let ultima = UltimaVersao {
+            versao: arquivo.versao,
+            manifesto: local.manifesto(),
+        };
+        gravar_json(
+            contexto,
+            chave_da_versao,
+            serde_json::to_vec_pretty(&ultima).map_err(|e| self.erro_de_manifesto(e))?,
+        )
+        .await?;
 
         Ok(resumo)
     }
@@ -253,7 +241,9 @@ mod testes {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
-    use todeolho_nucleo::{ArmazenamentoRaw, ClienteHttp, DownloadHttp, RespostaHttp};
+    use todeolho_nucleo::{
+        ArmazenamentoRaw, ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp,
+    };
     use tokio::io::AsyncReadExt;
 
     use super::*;
@@ -456,14 +446,38 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn sem_versao_na_origem_sempre_baixa() {
+    async fn sem_validador_reaproveita_quando_o_tamanho_bate() {
         let cenario = cenario(HttpFalso::novo(None, 0));
 
         tarefa().executar(&cenario.contexto).await.unwrap();
+        let segunda = tarefa().executar(&cenario.contexto).await.unwrap();
+
+        assert!(segunda.reaproveitada);
+        assert_eq!(*cenario.http.downloads.lock().unwrap(), 1);
+        // Sem validador, o ponteiro ainda é gravado para a checagem por tamanho.
+        assert!(!chaves(&cenario.armazenamento, "_ultima_versao.json").is_empty());
+    }
+
+    #[tokio::test]
+    async fn reingere_quando_a_parte_na_raw_foi_truncada() {
+        let cenario = cenario(HttpFalso::novo(Some("v1"), 0));
         tarefa().executar(&cenario.contexto).await.unwrap();
 
+        // Mesmo com o validador igual, uma parte truncada força a reingestão.
+        {
+            let mut objetos = cenario.armazenamento.objetos.lock().unwrap();
+            let chave = objetos
+                .keys()
+                .find(|c| c.ends_with("/parte-00001.zip"))
+                .cloned()
+                .unwrap();
+            objetos.insert(chave, b"truncado".to_vec());
+        }
+
+        let segunda = tarefa().executar(&cenario.contexto).await.unwrap();
+
+        assert!(!segunda.reaproveitada);
         assert_eq!(*cenario.http.downloads.lock().unwrap(), 2);
-        assert!(chaves(&cenario.armazenamento, "_ultima_versao.json").is_empty());
     }
 
     #[tokio::test]

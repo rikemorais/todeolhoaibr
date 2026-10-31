@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 use tracing::warn;
 
 use crate::dag::DagDeIngestao;
+use crate::decisao::MotivoDeIngestao;
 use crate::erros::{ErroDeDag, ErroDeIngestao};
 use crate::executor::{EstadoDaTarefa, ObservadorDeExecucao, ResultadoDaTarefa};
 
@@ -19,6 +20,19 @@ use crate::executor::{EstadoDaTarefa, ObservadorDeExecucao, ResultadoDaTarefa};
 const INTERVALO_DE_BATIMENTO: Duration = Duration::from_secs(30);
 /// Sem publicações por este tempo, a execução é considerada interrompida.
 const TOLERANCIA_SEM_BATIMENTO: TimeDelta = TimeDelta::minutes(5);
+
+/// Texto para o painel explicando por que a tarefa foi reingerida.
+fn motivo_texto(motivo: MotivoDeIngestao) -> String {
+    match motivo {
+        MotivoDeIngestao::AusenteNaRaw => "Primeira ingestão.",
+        MotivoDeIngestao::IncompletaOuCorrompida => {
+            "A ingestão anterior estava incompleta ou corrompida; refeita."
+        }
+        MotivoDeIngestao::Menor => "A origem ficou maior que o guardado; reingerida.",
+        MotivoDeIngestao::Desatualizada => "A origem mudou desde a última ingestão; reingerida.",
+    }
+    .to_owned()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -157,9 +171,11 @@ impl RegistroDeExecucao {
                 registro.estado = EstadoRegistrado::Concluida;
                 registro.partes = Some(resumo.partes);
                 registro.bytes = Some(resumo.bytes);
-                registro.detalhe = resumo
-                    .reaproveitada
-                    .then(|| "Sem alterações na origem; nada foi baixado.".to_owned());
+                registro.detalhe = if resumo.reaproveitada {
+                    Some("Sem alterações na origem; nada foi baixado.".to_owned())
+                } else {
+                    resumo.motivo.map(motivo_texto)
+                };
             }
             EstadoDaTarefa::Falhou(erro) => {
                 registro.estado = EstadoRegistrado::Falhou;
@@ -357,6 +373,7 @@ mod testes {
                         partes: 2,
                         bytes: 10,
                         reaproveitada: false,
+                        motivo: None,
                     }),
                     duracao: Duration::from_millis(1500),
                 },

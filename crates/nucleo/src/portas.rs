@@ -38,6 +38,13 @@ pub trait ArmazenamentoRaw: Send + Sync {
 
     /// Conteúdo do objeto, ou `None` se ele não existir.
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao>;
+
+    /// Tamanho do objeto em bytes, sem baixá-lo (um `HEAD`), ou `None` se não
+    /// existir. A implementação padrão lê o objeto; as de infraestrutura devem
+    /// sobrescrever com um `HEAD` para não carregar arquivos grandes na memória.
+    async fn tamanho(&self, chave: &str) -> Result<Option<u64>, ErroDeIngestao> {
+        Ok(self.ler(chave).await?.map(|conteudo| conteudo.len() as u64))
+    }
 }
 
 /// Resposta bem-sucedida de uma API.
@@ -45,6 +52,20 @@ pub trait ArmazenamentoRaw: Send + Sync {
 pub struct RespostaHttp {
     pub tipo_de_conteudo: String,
     pub corpo: Vec<u8>,
+}
+
+/// Resultado de um GET condicional.
+#[derive(Debug, Clone)]
+pub enum RespostaCondicional {
+    /// 304: o conteúdo não mudou desde o validador enviado.
+    NaoModificado,
+    /// A origem devolveu um corpo novo.
+    Modificado {
+        tipo_de_conteudo: String,
+        /// Validador do novo conteúdo (ETag), quando informado.
+        versao: Option<String>,
+        corpo: Vec<u8>,
+    },
 }
 
 /// O que a origem informa sobre um arquivo sem precisar baixá-lo.
@@ -69,6 +90,23 @@ pub struct DownloadHttp {
 #[async_trait]
 pub trait ClienteHttp: Send + Sync {
     async fn obter(&self, url: &str, aceita: &str) -> Result<RespostaHttp, ErroDeIngestao>;
+
+    /// GET condicional: envia o validador (If-None-Match) e devolve
+    /// `NaoModificado` em caso de 304. A implementação padrão ignora o validador
+    /// e sempre baixa, para fontes que não suportam requisição condicional.
+    async fn obter_condicional(
+        &self,
+        url: &str,
+        aceita: &str,
+        _validador: Option<&str>,
+    ) -> Result<RespostaCondicional, ErroDeIngestao> {
+        let resposta = self.obter(url, aceita).await?;
+        Ok(RespostaCondicional::Modificado {
+            tipo_de_conteudo: resposta.tipo_de_conteudo,
+            versao: None,
+            corpo: resposta.corpo,
+        })
+    }
 
     /// Consulta o arquivo na origem, sem baixá-lo.
     async fn informacoes(&self, url: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao>;

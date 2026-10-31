@@ -4,6 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::contexto::ContextoDeExecucao;
+use crate::decisao::MotivoDeIngestao;
 use crate::erros::ErroDeIngestao;
 
 /// O que uma tarefa concluída produziu.
@@ -13,6 +14,9 @@ pub struct ResumoDaTarefa {
     pub bytes: u64,
     /// Nada foi baixado porque os dados não mudaram na origem desde a última ingestão.
     pub reaproveitada: bool,
+    /// Por que foi reingerida, quando a pré-checagem decidiu reingerir. `None`
+    /// quando reaproveitada ou quando a tarefa não faz pré-checagem.
+    pub motivo: Option<MotivoDeIngestao>,
 }
 
 /// Unidade de trabalho de uma DAG (o "produto" do Factory Method).
