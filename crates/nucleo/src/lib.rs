@@ -9,6 +9,7 @@ pub mod erros;
 pub mod executor;
 pub mod fonte;
 pub mod portas;
+pub mod raw;
 pub mod tarefa;
 
 pub use contexto::ContextoDeExecucao;
@@ -22,4 +23,5 @@ pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
     RespostaHttp,
 };
+pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw};
 pub use tarefa::{ResumoDaTarefa, Tarefa, TarefaPlanejada};

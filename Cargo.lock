@@ -527,6 +527,7 @@ dependencies = [
  "chrono",
  "dagron-core",
  "futures",
+ "serde",
  "thiserror",
  "tokio",
  "tracing",
