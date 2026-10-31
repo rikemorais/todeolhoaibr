@@ -1,0 +1,22 @@
+[package]
+name = "todeolho-cli"
+description = "Linha de comando que compõe e dispara as DAGs de ingestão"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "todeolho"
+path = "src/main.rs"
+
+[dependencies]
+todeolho-fontes.workspace = true
+todeolho-infraestrutura.workspace = true
+todeolho-nucleo.workspace = true
+todeolho-painel.workspace = true
+
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

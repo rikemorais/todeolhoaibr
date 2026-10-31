@@ -1,0 +1,84 @@
+name: todeolhoai
+
+# Configuração comum à ingestão e ao painel, que usam o mesmo binário.
+x-aplicacao: &aplicacao
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+    args:
+      CARGO_BUILD_JOBS: ${TODEOLHO_BUILD_JOBS:-2}
+  image: todeolhoai/aplicacao:local
+  depends_on:
+    armazenamento:
+      condition: service_healthy
+  # Encaminha sinais ao binário, para que Ctrl+C e docker compose down sejam imediatos.
+  init: true
+
+x-ambiente-s3: &ambiente-s3
+  TODEOLHO_S3_ENDPOINT: http://armazenamento:7070
+  TODEOLHO_S3_REGIAO: ${TODEOLHO_S3_REGIAO:-sa-east-1}
+  TODEOLHO_S3_BUCKET_RAW: ${TODEOLHO_S3_BUCKET_RAW:-raw}
+  TODEOLHO_S3_BUCKET_EXECUCOES: ${TODEOLHO_S3_BUCKET_EXECUCOES:-execucoes}
+  TODEOLHO_S3_CHAVE_DE_ACESSO: ${TODEOLHO_S3_CHAVE_DE_ACESSO:-todeolho}
+  TODEOLHO_S3_CHAVE_SECRETA: ${TODEOLHO_S3_CHAVE_SECRETA:-todeolho-local}
+  TODEOLHO_LOG: ${TODEOLHO_LOG:-info}
+
+services:
+  # Armazenamento compatível com S3 onde ficam a camada Raw e o histórico (docs/adr/0005).
+  armazenamento:
+    image: versity/versitygw:v1.10.0
+    # A interface roda no navegador: precisa do endereço visível pela máquina, não o do container.
+    command:
+      - --webui=:7071
+      - --webui-gateways=http://localhost:${TODEOLHO_S3_PORTA:-7070}
+      - --webui-admin-gateways=http://localhost:${TODEOLHO_S3_PORTA:-7070}
+      - --cors-allow-origin=http://localhost:${TODEOLHO_ARQUIVOS_PORTA:-7071}
+      - posix
+      - /dados
+    environment:
+      ROOT_ACCESS_KEY: ${TODEOLHO_S3_CHAVE_DE_ACESSO:-todeolho}
+      ROOT_SECRET_KEY: ${TODEOLHO_S3_CHAVE_SECRETA:-todeolho-local}
+      # Não use us-east-1: o rust-s3 enviaria um LocationConstraint que o padrão S3 rejeita.
+      VGW_REGION: ${TODEOLHO_S3_REGIAO:-sa-east-1}
+    ports:
+      # Só acessível a partir da própria máquina.
+      - "127.0.0.1:${TODEOLHO_S3_PORTA:-7070}:7070"
+      # Navegador de arquivos do armazenamento.
+      - "127.0.0.1:${TODEOLHO_ARQUIVOS_PORTA:-7071}:7071"
+    volumes:
+      - dados-raw:/dados
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "7070"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    mem_limit: 128m
+    restart: unless-stopped
+
+  # Painel das execuções, em http://localhost:8080 (docs/adr/0008).
+  painel:
+    <<: *aplicacao
+    command: ["painel"]
+    environment:
+      <<: *ambiente-s3
+    ports:
+      - "127.0.0.1:${TODEOLHO_PAINEL_PORTA:-8080}:8080"
+    mem_limit: 64m
+    restart: unless-stopped
+
+  # Abre o menu de seleção: docker compose run --rm ingestao
+  ingestao:
+    <<: *aplicacao
+    profiles: ["ingestao"]
+    command: ["selecionar"]
+    environment:
+      <<: *ambiente-s3
+      TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-2}
+      # Onde medir o espaço livre antes de ingerir (docs/adr/0010).
+      TODEOLHO_DIR_DADOS: /dados
+    volumes:
+      - dados-raw:/dados:ro
+    mem_limit: 256m
+
+volumes:
+  dados-raw:
