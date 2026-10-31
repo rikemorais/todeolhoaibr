@@ -3,6 +3,7 @@ name = "todeolho-cli"
 description = "Linha de comando que compõe e dispara as DAGs de ingestão"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [[bin]]
 name = "todeolho"

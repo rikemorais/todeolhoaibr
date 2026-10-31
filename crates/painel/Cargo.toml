@@ -3,6 +3,7 @@ name = "todeolho-painel"
 description = "Painel web para acompanhar as execuções de ingestão"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 todeolho-nucleo.workspace = true

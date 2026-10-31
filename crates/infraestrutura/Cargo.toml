@@ -3,6 +3,7 @@ name = "todeolho-infraestrutura"
 description = "Adaptadores de armazenamento S3 e cliente HTTP"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 todeolho-nucleo.workspace = true

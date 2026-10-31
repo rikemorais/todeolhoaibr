@@ -254,3 +254,14 @@ Depois de alterar o código, reconstrua a imagem e reinicie o painel com `docker
 
 O projeto usa [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/) e [Versionamento Semântico](https://semver.org/lang/pt-BR/). As regras estão no
 [ADR 0011](docs/adr/0011-versionamento-e-commits.md), e as mudanças de cada versão, no [`CHANGELOG.md`](CHANGELOG.md).
+
+## Licença
+
+Licenciado sob qualquer uma das opções abaixo, à sua escolha:
+
+- Licença MIT ([`LICENSE-MIT`](LICENSE-MIT) ou <https://opensource.org/licenses/MIT>)
+- Licença Apache, Versão 2.0 ([`LICENSE-APACHE`](LICENSE-APACHE) ou <https://www.apache.org/licenses/LICENSE-2.0>)
+
+Salvo declaração explícita em contrário, qualquer contribuição enviada para
+inclusão neste projeto, conforme definido na Apache-2.0, será licenciada sob
+esses dois termos, sem cláusulas adicionais.
