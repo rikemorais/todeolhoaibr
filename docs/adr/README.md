@@ -14,3 +14,4 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | [0004](0004-factory-method-para-fontes.md) | Factory Method para adicionar fontes de dados | Aceito |
 | [0005](0005-armazenamento-s3-com-versitygw.md) | API S3 servida pelo versitygw, em vez do LocalStack | Aceito |
 | [0006](0006-layout-da-camada-raw.md) | Layout imutável da camada Raw, com manifesto | Aceito |
+| [0008](0008-painel-de-execucoes.md) | Painel próprio de execuções, alimentado por um histórico no armazenamento | Aceito |
