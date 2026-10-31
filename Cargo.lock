@@ -1462,9 +1462,12 @@ name = "todeolho-infraestrutura"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures",
+ "reqwest",
  "rust-s3",
  "todeolho-nucleo",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 
