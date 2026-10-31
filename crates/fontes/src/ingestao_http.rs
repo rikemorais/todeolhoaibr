@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
-    ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw,
-    RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, manifesto_vigente,
+    ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
+    ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, manifesto_vigente,
 };
 
 use crate::paginacao::{EstrategiaDePaginacao, SemPaginacao};
@@ -215,10 +215,16 @@ impl Tarefa for TarefaDeIngestaoHttp {
                 .await?;
         }
 
+        let motivo = if anteriores.is_empty() {
+            MotivoDeIngestao::AusenteNaRaw
+        } else {
+            MotivoDeIngestao::Desatualizada
+        };
         let resumo = ResumoDaTarefa {
             partes: partes.len(),
             bytes: partes.iter().map(|parte| parte.bytes).sum(),
             reaproveitada: false,
+            motivo: Some(motivo),
         };
 
         let manifesto = ManifestoRaw {

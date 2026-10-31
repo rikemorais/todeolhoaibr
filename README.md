@@ -48,8 +48,9 @@ Fontes disponíveis:
   3) tse        16,4 GB  TSE - Votos por seção eleitoral, de 1998 a 2026
 ```
 
-Antes de executar, o projeto compara o espaço necessário com o espaço livre e pede confirmação. **Se não couber, a execução é recusada.** O que já foi baixado e não mudou na origem
-não ocupa espaço de novo. Por isso, se uma carga longa for interrompida, basta rodar de novo para continuar de onde parou.
+Antes de executar, o projeto compara o espaço necessário com o espaço livre e pede confirmação. **Se não couber, a execução é recusada.**
+
+A ingestão é **idempotente**: antes de baixar, o projeto confere o que já existe na camada Raw e só (re)ingere o que está **ausente, desatualizado, menor ou incompleto**. O que continua igual é reaproveitado; as APIs paginadas usam requisição condicional (`If-None-Match`), e uma carga longa interrompida continua de onde parou. O painel indica, por tarefa, se foi reaproveitada ou reingerida e por quê (ver [ADR 0012](docs/adr/0012-pre-checagem-idempotente.md)).
 
 No Mac e no Windows, o espaço livre mostrado é o do disco virtual do Docker, ajustável nas configurações do Docker Desktop.
 

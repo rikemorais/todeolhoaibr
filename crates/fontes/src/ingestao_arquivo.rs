@@ -119,15 +119,15 @@ impl Tarefa for TarefaDeArquivo {
         let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
             estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
-        if matches!(
-            decidir(&informacoes, estado.as_ref()),
-            DecisaoDeIngestao::Reaproveitar
-        ) {
-            return Ok(ResumoDaTarefa {
-                reaproveitada: true,
-                ..ResumoDaTarefa::default()
-            });
-        }
+        let motivo = match decidir(&informacoes, estado.as_ref()) {
+            DecisaoDeIngestao::Reaproveitar => {
+                return Ok(ResumoDaTarefa {
+                    reaproveitada: true,
+                    ..ResumoDaTarefa::default()
+                });
+            }
+            DecisaoDeIngestao::Ingerir(motivo) => motivo,
+        };
 
         // A conexão pode cair no meio de um arquivo grande. Nada fica visível na Raw
         // antes do fim da transferência, então basta recomeçar.
@@ -150,6 +150,7 @@ impl Tarefa for TarefaDeArquivo {
             partes: 1,
             bytes: arquivo.parte.bytes,
             reaproveitada: false,
+            motivo: Some(motivo),
         };
 
         let manifesto = ManifestoRaw {
