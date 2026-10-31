@@ -8,6 +8,7 @@ pub mod dag;
 pub mod decisao;
 pub mod erros;
 pub mod espaco;
+pub mod estado_raw;
 pub mod executor;
 pub mod fonte;
 pub mod historico;
@@ -21,6 +22,7 @@ pub use dag::DagDeIngestao;
 pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
 pub use erros::{ErroDeDag, ErroDeIngestao};
 pub use espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
+pub use estado_raw::estado_na_raw;
 pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
 };
@@ -33,6 +35,6 @@ pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
     RespostaHttp,
 };
-pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw};
+pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
 pub use selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
 pub use tarefa::{ResumoDaTarefa, Tarefa, TarefaPlanejada};

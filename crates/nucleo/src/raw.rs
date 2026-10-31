@@ -55,6 +55,17 @@ pub struct ManifestoRaw {
     pub partes: Vec<ParteRaw>,
 }
 
+/// Ponteiro para a última ingestão completa de um recurso (`_ultima_versao.json`).
+/// Gravado por último, depois do manifesto, e lido pela pré-checagem (ver `docs/adr/0010`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UltimaVersao {
+    /// Validador da origem (ETag/Last-Modified) daquela ingestão, se houver.
+    #[serde(default)]
+    pub versao: Option<String>,
+    /// Chave do manifesto vigente.
+    pub manifesto: String,
+}
+
 #[cfg(test)]
 mod testes {
     use chrono::TimeZone;
