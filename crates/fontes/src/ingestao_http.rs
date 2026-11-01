@@ -8,12 +8,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
-use tracing::warn;
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
     ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw,
     manifesto_vigente, publicar_ponteiro,
 };
+use tracing::warn;
 
 use crate::paginacao::{EstrategiaDePaginacao, SemPaginacao};
 
@@ -156,15 +156,20 @@ impl TarefaDeIngestaoHttp {
         contexto: &ContextoDeExecucao,
         url: &str,
     ) -> Result<PaginaResolvida, ErroDeIngestao> {
-        match contexto.http.obter_condicional(url, ACEITA_JSON, None).await? {
+        match contexto
+            .http
+            .obter_condicional(url, ACEITA_JSON, None)
+            .await?
+        {
             RespostaCondicional::Modificado {
                 tipo_de_conteudo,
                 versao,
                 corpo,
             } => Ok(self.classificar_modificado(None, tipo_de_conteudo, versao, corpo)),
-            RespostaCondicional::NaoModificado => Err(self.erro_de_paginacao(format!(
-                "origem respondeu 304 sem validador para {url}"
-            ))),
+            RespostaCondicional::NaoModificado => {
+                Err(self
+                    .erro_de_paginacao(format!("origem respondeu 304 sem validador para {url}")))
+            }
         }
     }
 
@@ -330,7 +335,9 @@ impl Tarefa for TarefaDeIngestaoHttp {
         // Nada mudou e o conjunto de páginas é o mesmo: a ingestão anterior segue
         // válida, nada a reescrever.
         let mesmo_conjunto = partes.len() == anteriores.len()
-            && partes.iter().all(|parte| anteriores.contains_key(&parte.url));
+            && partes
+                .iter()
+                .all(|parte| anteriores.contains_key(&parte.url));
         if !alguma_mudou && mesmo_conjunto && !partes.is_empty() {
             return Ok(ResumoDaTarefa {
                 reaproveitada: true,
