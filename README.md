@@ -43,7 +43,7 @@ docker compose up -d --build
 docker compose run --rm --build ingestao
 ```
 
-> **Sempre use `--build`.** O Compose só (re)constrói a imagem quando você passa `--build`; sem ele, `docker compose run`/`up` reaproveitam a imagem já buildada e **não enxergam mudanças no código** — uma fonte recém-adicionada, por exemplo, não aparece no menu. Depois de um `git pull` ou de alterar o código, inclua `--build` (é rápido quando nada mudou, por causa do cache de camadas).
+> **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
 
 ### Escolhendo o que ingerir
 
@@ -80,8 +80,9 @@ docker compose run --rm --build ingestao executar --todas
 docker compose run --rm --build -T ingestao executar ibge --sim
 
 # Lista as fontes e mostra a ordem de execução de uma DAG, sem acessar a rede
-docker compose run --rm --build ingestao listar
-docker compose run --rm --build ingestao plano camara
+# (com a imagem já construída; sem --build para não recompilar, que exigiria rede).
+docker compose run --rm ingestao listar
+docker compose run --rm ingestao plano camara
 ```
 
 ### Votos do TSE
