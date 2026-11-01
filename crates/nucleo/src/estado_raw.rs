@@ -100,11 +100,12 @@ pub async fn publicar_ponteiro(
 
     if let Some(bytes) = armazenamento.ler(&chave).await?
         && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(&bytes)
-        && vigente.iniciada_em >= nova.iniciada_em
+        && vigente.iniciada_em > nova.iniciada_em
     {
-        // Já há um ponteiro ao menos tão novo quanto o nosso: não sobrescreve.
+        // Já há um ponteiro estritamente mais novo que o nosso: não sobrescreve.
         // (`None` ordena antes de qualquer data, então um ponteiro legado nunca
-        // bloqueia uma rodada datada, e uma rodada sem data não derruba uma datada.)
+        // bloqueia uma rodada datada, e uma rodada sem data não derruba uma datada;
+        // com datas iguais, ou ambos sem data, a gravação atual prevalece.)
         return Ok(false);
     }
 
@@ -475,5 +476,32 @@ mod testes {
 
         assert!(gravou);
         assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "nova");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_sem_data_substitui_ponteiro_legado_sem_data() {
+        // Dois ponteiros sem `iniciada_em` (formato legado): a gravação atual
+        // prevalece em vez de ficar presa no antigo.
+        let armazenamento = ArmazenamentoEmMemoria::default();
+        let legado = UltimaVersao {
+            versao: None,
+            manifesto: "legado".to_owned(),
+            iniciada_em: None,
+        };
+        let novo = UltimaVersao {
+            versao: None,
+            manifesto: "novo".to_owned(),
+            iniciada_em: None,
+        };
+
+        publicar_ponteiro(&armazenamento, FONTE, RECURSO, &legado)
+            .await
+            .unwrap();
+        let gravou = publicar_ponteiro(&armazenamento, FONTE, RECURSO, &novo)
+            .await
+            .unwrap();
+
+        assert!(gravou);
+        assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "novo");
     }
 }

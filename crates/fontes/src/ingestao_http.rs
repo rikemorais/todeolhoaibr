@@ -8,6 +8,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
+use tracing::warn;
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
     ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw,
@@ -372,13 +373,19 @@ impl Tarefa for TarefaDeIngestaoHttp {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        publicar_ponteiro(
+        let publicou = publicar_ponteiro(
             contexto.armazenamento.as_ref(),
             &self.fonte,
             &self.recurso,
             &ultima,
         )
         .await?;
+        if !publicou {
+            warn!(
+                recurso = %self.recurso,
+                "outra rodada já publicou um ponteiro mais novo; este manifesto não é o vigente"
+            );
+        }
 
         Ok(resumo)
     }

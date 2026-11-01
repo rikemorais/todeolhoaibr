@@ -179,13 +179,19 @@ impl Tarefa for TarefaDeArquivo {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        publicar_ponteiro(
+        let publicou = publicar_ponteiro(
             contexto.armazenamento.as_ref(),
             &self.fonte,
             &self.recurso,
             &ultima,
         )
         .await?;
+        if !publicou {
+            warn!(
+                tarefa = %self.nome,
+                "outra rodada já publicou um ponteiro mais novo; este manifesto não é o vigente"
+            );
+        }
 
         Ok(resumo)
     }
