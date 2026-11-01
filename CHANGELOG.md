@@ -7,10 +7,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-11-01
+
 ### Adicionado
 
 - Publicação do ponteiro `_ultima_versao.json` resistente a sobrescrita por uma rodada mais antiga, comparando o início da execução ([issue #16](https://github.com/rikemorais/todeolhoaibr/issues/16)).
 - Gate de cobertura de documentação no CI (`cargo doc` com `-D warnings`) e `#![warn(missing_docs)]` nas bibliotecas, para a documentação não regredir ([issue #20](https://github.com/rikemorais/todeolhoaibr/issues/20)).
+- Gate de formatação e lint no CI (`cargo fmt --check` e `cargo clippy -D warnings`), barrando PRs fora do padrão ([issue #4](https://github.com/rikemorais/todeolhoaibr/issues/4)).
 - Diagramas de arquitetura e de fluxo da ingestão (Archify), em `docs/diagramas`, com prévia no README ([issue #7](https://github.com/rikemorais/todeolhoaibr/issues/7)).
 
 ## [0.2.1] - 2026-10-31
