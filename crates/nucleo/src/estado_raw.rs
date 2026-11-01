@@ -109,11 +109,10 @@ pub async fn publicar_ponteiro(
         return Ok(false);
     }
 
-    let conteudo =
-        serde_json::to_vec_pretty(nova).map_err(|erro| ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: erro.to_string(),
-        })?;
+    let conteudo = serde_json::to_vec_pretty(nova).map_err(|erro| ErroDeIngestao::Manifesto {
+        recurso: recurso.to_owned(),
+        detalhe: erro.to_string(),
+    })?;
     armazenamento
         .gravar(ObjetoRaw {
             chave,
@@ -470,9 +469,14 @@ mod testes {
         publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("antiga", antiga))
             .await
             .unwrap();
-        let gravou = publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("nova", Utc::now()))
-            .await
-            .unwrap();
+        let gravou = publicar_ponteiro(
+            &armazenamento,
+            FONTE,
+            RECURSO,
+            &ponteiro("nova", Utc::now()),
+        )
+        .await
+        .unwrap();
 
         assert!(gravou);
         assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "nova");
