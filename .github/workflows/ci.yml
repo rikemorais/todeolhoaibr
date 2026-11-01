@@ -17,6 +17,15 @@ jobs:
       # roda os testes de todos os crates.
       - run: cargo test --workspace --locked
 
+  # Formatação e lint: barra PR com código fora do rustfmt ou com qualquer aviso
+  # do clippy. `--all-targets` cobre também testes e exemplos.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
   # Gate de documentação: com `#![warn(missing_docs)]` nas bibliotecas, tratar
   # warnings como erro faz o CI falhar quando falta doc em item público ou há
   # link intra-doc quebrado. Mantém a cobertura de docstring sem regredir.
