@@ -32,3 +32,14 @@ Thumbs.db
 
 # Registros de execução
 *.log
+
+# Ferramentas de agente (skill Archify etc.): reinstaláveis, não versionadas
+/.claude
+/.agents
+/skills-lock.json
+
+# Recibos do Archify: o entregável é o .html + o .json-fonte
+/docs/diagramas/*.finalize.json
+/docs/diagramas/*.finalize-summary.json
+/docs/diagramas/*.browser-check.json
+/docs/diagramas/*.delivery.json

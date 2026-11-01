@@ -3,6 +3,13 @@
 O **Tô De Olho Aí** ingere, transforma e apresenta dados públicos para que a população tenha uma fonte
 para consultar quando estiver diante de assuntos da sociedade.
 
+[![Arquitetura dos crates do Tô De Olho Aí](docs/img/arquitetura-crates.png)](docs/diagramas/arquitetura-crates.html)
+
+> Prévia da arquitetura. Abra o [diagrama de arquitetura](docs/diagramas/arquitetura-crates.html) ou o
+> [fluxo da ingestão](docs/diagramas/fluxo-ingestao.html) no navegador para a versão **Live** — animada e
+> interativa (o GitHub não executa o JavaScript do diagrama aqui dentro). Diagramas gerados com
+> [Archify](https://github.com/tt-a1i/archify).
+
 ## Estado atual
 
 | Etapa | Situação |
