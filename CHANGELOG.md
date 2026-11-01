@@ -25,7 +25,7 @@ Pré-checagem idempotente: rodar o processo de novo não rebaixa nem duplica o q
 
 ### Adicionado
 
-- Pré-checagem idempotente na ingestão: antes de buscar, confere a Raw (manifesto de procedência, tamanho e SHA-256) e só (re)ingere o que está **ausente, menor, desatualizado, incompleto ou corrompido** ([issue #13](https://github.com/rikemorais/todeolhoaibr/issues/13)).
+- Pré-checagem idempotente na ingestão: antes de buscar, confere a Raw (manifesto de procedência com SHA-256 e o tamanho de cada parte) e só (re)ingere o que está **ausente, menor, desatualizado ou incompleto** ([issue #13](https://github.com/rikemorais/todeolhoaibr/issues/13)). A integridade das partes é por tamanho (detecta ausência e truncamento), barata em memória; ver [ADR 0012](docs/adr/0012-pre-checagem-idempotente.md).
 - Requisição condicional (`If-None-Match`) por página nas APIs paginadas: 304 reaproveita a página guardada, 200 reingere; páginas inalteradas não são reescritas.
 - O painel mostra, por tarefa, se foi reaproveitada ou reingerida e o motivo.
 
