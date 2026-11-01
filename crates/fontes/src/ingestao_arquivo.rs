@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, DecisaoDeIngestao, ErroDeIngestao, FluxoDeBytes, LocalizacaoRaw,
     ManifestoRaw, ObjetoRaw, ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, decidir,
-    estado_na_raw,
+    estado_na_raw, publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tracing::warn;
@@ -117,8 +117,6 @@ impl Tarefa for TarefaDeArquivo {
             contexto.iniciada_em,
             &contexto.id_execucao,
         );
-        let chave_da_versao = LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso);
-
         let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
             estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
@@ -173,15 +171,19 @@ impl Tarefa for TarefaDeArquivo {
         .await?;
 
         // Grava o ponteiro mesmo sem validador (versao `None`): é o que permite
-        // a pré-checagem por tamanho reaproveitar numa próxima rodada.
+        // a pré-checagem por tamanho reaproveitar numa próxima rodada. A
+        // publicação não deixa uma rodada mais antiga sobrescrever uma mais nova
+        // (ver issue #16).
         let ultima = UltimaVersao {
             versao: arquivo.versao,
             manifesto: local.manifesto(),
+            iniciada_em: Some(contexto.iniciada_em),
         };
-        gravar_json(
-            contexto,
-            chave_da_versao,
-            serde_json::to_vec_pretty(&ultima).map_err(|e| self.erro_de_manifesto(e))?,
+        publicar_ponteiro(
+            contexto.armazenamento.as_ref(),
+            &self.fonte,
+            &self.recurso,
+            &ultima,
         )
         .await?;
 

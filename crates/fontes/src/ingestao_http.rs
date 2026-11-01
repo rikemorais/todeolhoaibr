@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
     ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw,
-    manifesto_vigente,
+    manifesto_vigente, publicar_ponteiro,
 };
 
 use crate::paginacao::{EstrategiaDePaginacao, SemPaginacao};
@@ -365,13 +365,17 @@ impl Tarefa for TarefaDeIngestaoHttp {
 
         // Ponteiro para a próxima rodada localizar este manifesto. Sem validador
         // de recurso: a requisição condicional é por página (ver docs/adr/0012).
+        // A publicação não deixa uma rodada mais antiga sobrescrever uma mais
+        // nova (ver issue #16).
         let ultima = UltimaVersao {
             versao: None,
             manifesto: local.manifesto(),
+            iniciada_em: Some(contexto.iniciada_em),
         };
-        self.gravar_json(
-            contexto,
-            LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso),
+        publicar_ponteiro(
+            contexto.armazenamento.as_ref(),
+            &self.fonte,
+            &self.recurso,
             &ultima,
         )
         .await?;

@@ -6,7 +6,7 @@
 
 use crate::decisao::EstadoNaRaw;
 use crate::erros::ErroDeIngestao;
-use crate::portas::ArmazenamentoRaw;
+use crate::portas::{ArmazenamentoRaw, ObjetoRaw};
 use crate::raw::{LocalizacaoRaw, ManifestoRaw, UltimaVersao};
 
 /// Lê o estado de um recurso na Raw.
@@ -77,6 +77,50 @@ pub async fn manifesto_vigente(
         return Ok(None);
     };
     Ok(Some(manifesto))
+}
+
+/// Publica o ponteiro `_ultima_versao.json` sem deixar uma rodada mais antiga
+/// sobrescrever uma mais nova.
+///
+/// Só grava quando não há ponteiro vigente, quando o vigente é ilegível, ou
+/// quando o snapshot atual (`nova.iniciada_em`) é mais recente que o guardado.
+/// Devolve `true` se gravou, `false` se preservou um ponteiro mais novo.
+///
+/// Isto resolve, de forma determinística, o caso em que uma rodada mais antiga
+/// termina por último (ver issue #16). A atomicidade sob escritas estritamente
+/// simultâneas dependeria de escrita condicional (CAS) no porto, ainda não
+/// disponível no cliente S3 atual; o guard por recência não introduz regressão.
+pub async fn publicar_ponteiro(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+    nova: &UltimaVersao,
+) -> Result<bool, ErroDeIngestao> {
+    let chave = LocalizacaoRaw::ultima_versao(fonte, recurso);
+
+    if let Some(bytes) = armazenamento.ler(&chave).await?
+        && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(&bytes)
+        && vigente.iniciada_em >= nova.iniciada_em
+    {
+        // Já há um ponteiro ao menos tão novo quanto o nosso: não sobrescreve.
+        // (`None` ordena antes de qualquer data, então um ponteiro legado nunca
+        // bloqueia uma rodada datada, e uma rodada sem data não derruba uma datada.)
+        return Ok(false);
+    }
+
+    let conteudo =
+        serde_json::to_vec_pretty(nova).map_err(|erro| ErroDeIngestao::Manifesto {
+            recurso: recurso.to_owned(),
+            detalhe: erro.to_string(),
+        })?;
+    armazenamento
+        .gravar(ObjetoRaw {
+            chave,
+            conteudo,
+            tipo_de_conteudo: "application/json".to_owned(),
+        })
+        .await?;
+    Ok(true)
 }
 
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
@@ -191,6 +235,7 @@ mod testes {
         let ponteiro = UltimaVersao {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
+            iniciada_em: None,
         };
         let manifesto = manifesto(parte(CONTEUDO.len() as u64, "sha-ignorado"));
         ArmazenamentoEmMemoria::com([
@@ -227,6 +272,7 @@ mod testes {
         let ponteiro = UltimaVersao {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
+            iniciada_em: None,
         };
         let armazenamento = ArmazenamentoEmMemoria::com([(
             LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
@@ -247,6 +293,7 @@ mod testes {
         let ponteiro = UltimaVersao {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
+            iniciada_em: None,
         };
         let mut manifesto = manifesto(parte(CONTEUDO.len() as u64, "sha-ignorado"));
         manifesto.partes.clear();
@@ -288,6 +335,7 @@ mod testes {
         let ponteiro = UltimaVersao {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
+            iniciada_em: None,
         };
         let armazenamento = ArmazenamentoEmMemoria::com([
             (
@@ -324,6 +372,7 @@ mod testes {
         let ponteiro = UltimaVersao {
             versao: Some("v1".to_owned()),
             manifesto: CHAVE_MANIFESTO.to_owned(),
+            iniciada_em: None,
         };
         let manifesto = manifesto(parte(CONTEUDO.len() as u64 + 10, "sha-ignorado"));
         let armazenamento = ArmazenamentoEmMemoria::com([
@@ -363,5 +412,68 @@ mod testes {
             .unwrap();
         assert_eq!(estado.versao.as_deref(), Some("v1"));
         assert!(estado.integra);
+    }
+
+    fn ponteiro(manifesto: &str, iniciada_em: chrono::DateTime<Utc>) -> UltimaVersao {
+        UltimaVersao {
+            versao: None,
+            manifesto: manifesto.to_owned(),
+            iniciada_em: Some(iniciada_em),
+        }
+    }
+
+    async fn manifesto_do_ponteiro(armazenamento: &ArmazenamentoEmMemoria) -> String {
+        let bytes = armazenamento
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        serde_json::from_slice::<UltimaVersao>(&bytes)
+            .unwrap()
+            .manifesto
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_grava_quando_ausente() {
+        let armazenamento = ArmazenamentoEmMemoria::default();
+        let gravou = publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("m1", Utc::now()))
+            .await
+            .unwrap();
+        assert!(gravou);
+        assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "m1");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_nao_deixa_rodada_antiga_sobrescrever_a_nova() {
+        let armazenamento = ArmazenamentoEmMemoria::default();
+        let nova = Utc::now();
+        let antiga = nova - chrono::TimeDelta::seconds(60);
+
+        // A rodada mais nova publica primeiro; a mais antiga termina depois.
+        publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("nova", nova))
+            .await
+            .unwrap();
+        let gravou = publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("antiga", antiga))
+            .await
+            .unwrap();
+
+        assert!(!gravou);
+        assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "nova");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_sobrescreve_quando_a_nova_e_mais_recente() {
+        let armazenamento = ArmazenamentoEmMemoria::default();
+        let antiga = Utc::now() - chrono::TimeDelta::seconds(60);
+
+        publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("antiga", antiga))
+            .await
+            .unwrap();
+        let gravou = publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("nova", Utc::now()))
+            .await
+            .unwrap();
+
+        assert!(gravou);
+        assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "nova");
     }
 }
