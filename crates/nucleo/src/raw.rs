@@ -93,6 +93,11 @@ pub struct UltimaVersao {
     pub versao: Option<String>,
     /// Chave do manifesto vigente.
     pub manifesto: String,
+    /// Início da execução que publicou este ponteiro. Usado para não deixar uma
+    /// rodada mais antiga sobrescrever uma mais nova (ver issue #16). `None` nos
+    /// ponteiros gravados antes deste campo existir, tratados como os mais antigos.
+    #[serde(default)]
+    pub iniciada_em: Option<DateTime<Utc>>,
 }
 
 #[cfg(test)]
