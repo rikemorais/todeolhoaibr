@@ -20,3 +20,5 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | [0010](0010-selecao-e-arquivos-grandes.md) | Seleção com aviso de espaço e ingestão de arquivos grandes | Aceito |
 | [0011](0011-versionamento-e-commits.md) | Versionamento semântico e Conventional Commits | Aceito |
 | [0012](0012-pre-checagem-idempotente.md) | Pré-checagem idempotente antes de ingerir | Aceito |
+| [0013](0013-autenticacao-e-limite-de-taxa-no-cliente-http.md) | Autenticação e limite de taxa como preocupação de borda no cliente HTTP | Proposto |
+| [0014](0014-raw-opaca-e-refino-em-estagio-separado.md) | Camada Raw opaca em bytes e refino em estágio separado | Proposto |
