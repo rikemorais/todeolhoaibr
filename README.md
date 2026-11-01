@@ -278,6 +278,13 @@ cargo clippy --workspace --all-targets
 cargo fmt --all
 ```
 
+Os testes de integração do adaptador S3 (`armazenamento_s3`) são **pulados por padrão** e só rodam contra um S3 no ar, apontado por `TODEOLHO_TESTE_S3_ENDPOINT`. Para exercitá-los com o versitygw local:
+
+```bash
+docker compose up -d armazenamento
+TODEOLHO_TESTE_S3_ENDPOINT=http://localhost:7070 cargo test -p todeolho-infraestrutura armazenamento_s3
+```
+
 Depois de alterar o código, reconstrua a imagem e reinicie o painel com `docker compose up -d --build`.
 
 O projeto usa [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/) e [Versionamento Semântico](https://semver.org/lang/pt-BR/). As regras estão no

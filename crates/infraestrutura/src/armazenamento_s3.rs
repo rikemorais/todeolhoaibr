@@ -233,3 +233,119 @@ async fn ler_parte(fluxo: &mut (dyn AsyncRead + Send + Unpin)) -> std::io::Resul
         .await?;
     Ok(parte)
 }
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    fn config_de_teste(endpoint: String) -> ConfiguracaoS3 {
+        let env =
+            |nome: &str, padrao: &str| std::env::var(nome).unwrap_or_else(|_| padrao.to_owned());
+        ConfiguracaoS3 {
+            endpoint,
+            regiao: env("TODEOLHO_TESTE_S3_REGIAO", "sa-east-1"),
+            bucket: env("TODEOLHO_TESTE_S3_BUCKET", "teste-raw"),
+            chave_de_acesso: env("TODEOLHO_TESTE_S3_CHAVE", "todeolho"),
+            chave_secreta: env("TODEOLHO_TESTE_S3_SEGREDO", "todeolho-local"),
+        }
+    }
+
+    /// Conecta ao S3 de teste quando `TODEOLHO_TESTE_S3_ENDPOINT` está definido; sem ele, os
+    /// testes de integração são pulados, para o `cargo test` padrão não exigir um S3 no ar.
+    /// Suba o versitygw com `docker compose up -d armazenamento` antes de rodá-los.
+    fn s3_de_teste() -> Option<ArmazenamentoS3> {
+        let endpoint = std::env::var("TODEOLHO_TESTE_S3_ENDPOINT").ok()?;
+        Some(ArmazenamentoS3::novo(config_de_teste(endpoint)).expect("config de teste válida"))
+    }
+
+    /// Sufixo único por teste, para as chaves não colidirem no mesmo bucket.
+    fn chave_unica(prefixo: &str) -> String {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        format!("teste/{prefixo}-{nanos}")
+    }
+
+    // --- Unit: rodam sempre, sem S3 ---
+
+    #[tokio::test]
+    async fn ler_parte_le_todo_o_fluxo_e_depois_devolve_vazio() {
+        let dados = b"conteudo pequeno".to_vec();
+        let mut fluxo: &[u8] = &dados;
+        assert_eq!(ler_parte(&mut fluxo).await.unwrap(), dados);
+        // No fim do fluxo a leitura é vazia: é o que encerra o laço do multipart.
+        assert!(ler_parte(&mut fluxo).await.unwrap().is_empty());
+    }
+
+    #[test]
+    fn novo_constroi_sem_rede_com_config_valida() {
+        let config = config_de_teste("http://127.0.0.1:7070".to_owned());
+        assert!(ArmazenamentoS3::novo(config).is_ok());
+    }
+
+    // --- Integração: contra o versitygw, acionados por TODEOLHO_TESTE_S3_ENDPOINT ---
+
+    #[tokio::test]
+    async fn preparar_cria_o_bucket_e_e_idempotente() {
+        let Some(s3) = s3_de_teste() else { return };
+        s3.preparar().await.unwrap();
+        s3.preparar().await.unwrap(); // de novo: bucket já existe, não pode falhar
+    }
+
+    #[tokio::test]
+    async fn grava_le_e_mede_o_tamanho() {
+        let Some(s3) = s3_de_teste() else { return };
+        s3.preparar().await.unwrap();
+        let chave = chave_unica("objeto");
+        let conteudo = b"ola, raw".to_vec();
+        s3.gravar(ObjetoRaw {
+            chave: chave.clone(),
+            conteudo: conteudo.clone(),
+            tipo_de_conteudo: "text/plain".to_owned(),
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(s3.ler(&chave).await.unwrap(), Some(conteudo.clone()));
+        assert_eq!(
+            s3.tamanho(&chave).await.unwrap(),
+            Some(conteudo.len() as u64)
+        );
+    }
+
+    #[tokio::test]
+    async fn gravar_fluxo_grava_em_parte_unica() {
+        let Some(s3) = s3_de_teste() else { return };
+        s3.preparar().await.unwrap();
+        let chave = chave_unica("fluxo");
+        let conteudo = b"conteudo via fluxo".to_vec();
+        let mut fonte: &[u8] = &conteudo;
+        s3.gravar_fluxo(&chave, "application/octet-stream", &mut fonte)
+            .await
+            .unwrap();
+        assert_eq!(s3.ler(&chave).await.unwrap(), Some(conteudo));
+    }
+
+    #[tokio::test]
+    async fn ler_e_tamanho_de_chave_ausente_sao_none() {
+        let Some(s3) = s3_de_teste() else { return };
+        s3.preparar().await.unwrap();
+        let chave = chave_unica("inexistente");
+        assert_eq!(s3.ler(&chave).await.unwrap(), None);
+        assert_eq!(s3.tamanho(&chave).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn descartar_cancela_envio_incompleto() {
+        let Some(s3) = s3_de_teste() else { return };
+        s3.preparar().await.unwrap();
+        let chave = chave_unica("multipart-pendente");
+        // Deixa um multipart pendente, sem concluir.
+        s3.bucket
+            .initiate_multipart_upload(&chave, "application/octet-stream")
+            .await
+            .unwrap();
+        assert!(s3.descartar_envios_incompletos().await.unwrap() >= 1);
+    }
+}
