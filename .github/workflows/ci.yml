@@ -16,3 +16,14 @@ jobs:
       # >= 1.85). --locked garante que o Cargo.lock está em dia; --workspace
       # roda os testes de todos os crates.
       - run: cargo test --workspace --locked
+
+  # Gate de documentação: com `#![warn(missing_docs)]` nas bibliotecas, tratar
+  # warnings como erro faz o CI falhar quando falta doc em item público ou há
+  # link intra-doc quebrado. Mantém a cobertura de docstring sem regredir.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo doc --no-deps --workspace --locked
+        env:
+          RUSTDOCFLAGS: "-D warnings"
