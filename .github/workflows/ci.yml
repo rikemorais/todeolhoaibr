@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Cache de ~/.cargo e target/ entre runs, para o CI não compilar do zero.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # O ubuntu-latest já traz o toolchain Rust stable (edition 2024 exige
       # >= 1.85). --locked garante que o Cargo.lock está em dia; --workspace
       # roda os testes de todos os crates.
@@ -23,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Cache de ~/.cargo e target/ entre runs, para o CI não compilar do zero.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
@@ -33,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Cache de ~/.cargo e target/ entre runs, para o CI não compilar do zero.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo doc --no-deps --workspace --locked
         env:
           RUSTDOCFLAGS: "-D warnings"
