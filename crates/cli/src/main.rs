@@ -106,8 +106,11 @@ async fn rodar(cli: Cli) -> Result<bool> {
     match cli.comando {
         Comando::Selecionar => selecionar().await,
         Comando::Listar => {
-            for fonte in catalogo() {
-                println!("{:<10} {}", fonte.nome(), fonte.descricao());
+            let fontes = catalogo();
+            // Alinha a coluna pelo nome mais longo, para nomes de qualquer tamanho.
+            let largura = fontes.iter().map(|f| f.nome().len()).max().unwrap_or(0);
+            for fonte in &fontes {
+                println!("{:<largura$} {}", fonte.nome(), fonte.descricao());
             }
             Ok(true)
         }
