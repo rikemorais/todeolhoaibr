@@ -25,6 +25,8 @@ Separar com nitidez **ingestão fiel** de **transformação**, em duas camadas.
 
 **`nucleo`, `fontes` e `infraestrutura` seguem sem conhecer formato de conteúdo.** O conhecimento de "isto é um shapefile projetado em SIRGAS 2000" ou "este CSV é Latin-1 separado por `;`" vive na camada de refino, não na ingestão.
 
+**Exceção explícita — navegação de paginação.** Ler o corpo da resposta apenas para **descobrir como navegar** (o link ou cursor da próxima página, como já faz `LinksDePaginacao` nas APIs paginadas da Câmara) é permitido. A fronteira é clara: a ingestão pode interpretar o conteúdo para **andar pela origem**, mas não para **transformar o dado** que grava — o corpo continua indo para a Raw sem alteração. Sem essa exceção, a regra quebraria a paginação existente e deixaria as futuras fontes paginadas sem lugar definido para essa lógica.
+
 ## Consequências
 
 - Cada fonte nova vira, na ingestão, "trazer os bytes": uniforme, simples e testável. Geoespacial e CSV/ZIP entram sem código especial, reusando o caminho de arquivo grande.
