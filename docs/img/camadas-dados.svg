@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 360" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" role="img" aria-label="Camadas de dados raw, bronze, silver, gold e diamond no versitygw">
+  <rect width="1100" height="360" rx="16" fill="#0f172a"/>
+
+  <text x="40" y="44" fill="#e2e8f0" font-size="22" font-weight="700">versitygw — armazenamento S3 local (Docker)</text>
+  <text x="40" y="66" fill="#94a3b8" font-size="13">Um bucket por camada. É aqui que os dados vão viver, da origem bruta ao produto final.</text>
+
+  <rect x="24" y="86" width="1052" height="208" rx="14" fill="none" stroke="#334155" stroke-width="1.5"/>
+
+  <!-- chips -->
+  <g>
+    <!-- raw -->
+    <rect x="40" y="128" width="180" height="128" rx="12" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+    <circle cx="60" cy="150" r="6" fill="#64748b"/>
+    <text x="76" y="156" fill="#e2e8f0" font-size="19" font-weight="700">raw</text>
+    <text x="60" y="186" fill="#cbd5e1" font-size="12.5">bytes fiéis da origem,</text>
+    <text x="60" y="204" fill="#cbd5e1" font-size="12.5">imutável</text>
+    <rect x="60" y="218" width="54" height="22" rx="11" fill="#16a34a"/>
+    <text x="87" y="233" fill="#06210f" font-size="11.5" font-weight="700" text-anchor="middle">hoje</text>
+
+    <!-- bronze -->
+    <rect x="255" y="128" width="180" height="128" rx="12" fill="#1e293b" stroke="#cd7f32" stroke-width="2"/>
+    <circle cx="275" cy="150" r="6" fill="#cd7f32"/>
+    <text x="291" y="156" fill="#e2e8f0" font-size="19" font-weight="700">bronze</text>
+    <text x="275" y="186" fill="#cbd5e1" font-size="12.5">decodificado e</text>
+    <text x="275" y="204" fill="#cbd5e1" font-size="12.5">estruturado (UTF-8)</text>
+    <rect x="275" y="218" width="78" height="22" rx="11" fill="#334155"/>
+    <text x="314" y="233" fill="#cbd5e1" font-size="11.5" font-weight="700" text-anchor="middle">planejada</text>
+
+    <!-- silver -->
+    <rect x="470" y="128" width="180" height="128" rx="12" fill="#1e293b" stroke="#c0c5ce" stroke-width="2"/>
+    <circle cx="490" cy="150" r="6" fill="#c0c5ce"/>
+    <text x="506" y="156" fill="#e2e8f0" font-size="19" font-weight="700">silver</text>
+    <text x="490" y="186" fill="#cbd5e1" font-size="12.5">limpo, tipado,</text>
+    <text x="490" y="204" fill="#cbd5e1" font-size="12.5">chave município+ano</text>
+    <rect x="490" y="218" width="78" height="22" rx="11" fill="#334155"/>
+    <text x="529" y="233" fill="#cbd5e1" font-size="11.5" font-weight="700" text-anchor="middle">planejada</text>
+
+    <!-- gold -->
+    <rect x="685" y="128" width="180" height="128" rx="12" fill="#1e293b" stroke="#e3b341" stroke-width="2"/>
+    <circle cx="705" cy="150" r="6" fill="#e3b341"/>
+    <text x="721" y="156" fill="#e2e8f0" font-size="19" font-weight="700">gold</text>
+    <text x="705" y="186" fill="#cbd5e1" font-size="12.5">agregado e modelado</text>
+    <text x="705" y="204" fill="#cbd5e1" font-size="12.5">para análise</text>
+    <rect x="705" y="218" width="78" height="22" rx="11" fill="#334155"/>
+    <text x="744" y="233" fill="#cbd5e1" font-size="11.5" font-weight="700" text-anchor="middle">planejada</text>
+
+    <!-- diamond -->
+    <rect x="900" y="128" width="180" height="128" rx="12" fill="#1e293b" stroke="#67e8f9" stroke-width="2"/>
+    <circle cx="920" cy="150" r="6" fill="#67e8f9"/>
+    <text x="936" y="156" fill="#e2e8f0" font-size="19" font-weight="700">diamond</text>
+    <text x="920" y="186" fill="#cbd5e1" font-size="12.5">produtos finais</text>
+    <text x="920" y="204" fill="#cbd5e1" font-size="12.5">curados</text>
+    <rect x="920" y="218" width="78" height="22" rx="11" fill="#334155"/>
+    <text x="959" y="233" fill="#cbd5e1" font-size="11.5" font-weight="700" text-anchor="middle">planejada</text>
+  </g>
+
+  <!-- arrows -->
+  <g fill="#64748b">
+    <path d="M226 192 l20 0 l0 -5 l9 7 l-9 7 l0 -5 l-20 0 z"/>
+    <path d="M441 192 l20 0 l0 -5 l9 7 l-9 7 l0 -5 l-20 0 z"/>
+    <path d="M656 192 l20 0 l0 -5 l9 7 l-9 7 l0 -5 l-20 0 z"/>
+    <path d="M871 192 l20 0 l0 -5 l9 7 l-9 7 l0 -5 l-20 0 z"/>
+  </g>
+
+  <text x="40" y="326" fill="#94a3b8" font-size="12.5">Cada camada lê a anterior e escreve a próxima, nunca reescreve a montante. Ver ADR 0006, 0014 e 0015.</text>
+</svg>
