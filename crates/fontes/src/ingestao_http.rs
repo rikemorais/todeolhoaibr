@@ -1,5 +1,6 @@
-//! Ingestão de APIs HTTP, com ou sem paginação: busca cada página com requisição
-//! condicional, reaproveita o que não mudou e grava o restante na camada Raw.
+//! Ingestão de APIs HTTP, com ou sem paginação: busca cada página (com requisição
+//! condicional `If-None-Match` quando há validador da rodada anterior; incondicional
+//! na primeira vez), reaproveita o que não mudou e grava o restante na camada Raw.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

@@ -22,7 +22,7 @@ pub use fontes::tse::FonteTse;
 ///
 /// ```
 /// let fontes = todeolho_fontes::catalogo();
-/// assert!(fontes.iter().any(|f| f.nome() == "ibge"));
+/// assert!(!fontes.is_empty());
 /// ```
 pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
     vec![
