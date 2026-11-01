@@ -41,6 +41,7 @@ Uma pré-checagem comum às tarefas decide, **antes de buscar**, se o recurso pr
 - A integridade por tamanho detecta parte ausente ou truncada, mas não corrupção que preserve o tamanho. Aceitamos isso em troca de uma pré-checagem barata e segura em memória.
 - APIs paginadas por **cursor**, cujas URLs mudam a cada rodada, não casam página a página; esses recursos caem no fallback por assinatura, com menos economia de banda.
 - Como no [ADR 0010](0010-selecao-e-arquivos-grandes.md), o validador indica mudança no arquivo, não no conteúdo: uma republicação idêntica com novo ETag é reingerida.
+- `_ultima_versao.json` guarda o `iniciada_em` da execução e é publicado por `publicar_ponteiro`, que não deixa uma rodada mais antiga sobrescrever uma mais nova (ver issue #16). A atomicidade sob escritas estritamente simultâneas exigiria escrita condicional (CAS) no porto, ainda não disponível no cliente S3; o guard por recência resolve o caso sequencial sem introduzir regressão.
 
 ## Alternativas consideradas
 
