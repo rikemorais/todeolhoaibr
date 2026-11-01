@@ -120,7 +120,9 @@ exponha na internet.
 
 ### Acessando os dados
 
-A forma mais simples é o navegador de arquivos, em **<http://localhost:7071>**. Entre com a chave de acesso e a chave secreta
+O armazenamento é o **[versitygw](https://github.com/versity/versitygw)**, um gateway S3 que roda localmente no Docker ([ADR 0005](docs/adr/0005-armazenamento-s3-com-versitygw.md)). É nele que os dados vivem, hoje no bucket `raw` e, no futuro, nas camadas `bronze`, `silver`, `gold` e `diamond` (ver [Camadas de dados](#camadas-de-dados)).
+
+A forma mais simples de ver os arquivos é o **navegador de arquivos do versitygw**, em **<http://localhost:7071>**. Entre com a chave de acesso e a chave secreta
 do `.env` (`TODEOLHO_S3_CHAVE_DE_ACESSO` e `TODEOLHO_S3_CHAVE_SECRETA`) e abra o bucket `raw` em **Explorer**. Use `localhost`: o
 endereço `127.0.0.1` não funciona nessa tela.
 
@@ -175,6 +177,18 @@ raw/<fonte>/<recurso>/data_ingestao=AAAA-MM-DD/execucao=<id>/_manifesto.json
 ```
 
 O manifesto é gravado por último, então um prefixo sem ele é de uma ingestão incompleta.
+
+### Camadas de dados
+
+Os dados ficam no versitygw organizados em **medalhão**: cada camada é um bucket, e cada estágio lê a anterior e escreve a próxima, sem nunca reescrever a montante. Hoje só existe o `raw`; as demais são o destino do refino, a jusante da ingestão ([ADR 0014](docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md) e [ADR 0015](docs/adr/0015-arquitetura-de-dados-em-medalhao.md)).
+
+![Camadas de dados raw, bronze, silver, gold e diamond no versitygw](docs/img/camadas-dados.svg)
+
+- **`raw`** — bytes fiéis da origem, imutável (existe hoje).
+- **`bronze`** — decodificado e estruturado (descompactado, UTF-8), 1:1 com a origem.
+- **`silver`** — limpo, tipado e conformado, com a chave canônica `município + ano`.
+- **`gold`** — agregado e modelado para análise e consumo (os cruzamentos).
+- **`diamond`** — produtos finais curados (índices, datasets de correlação, *features*).
 
 ```text
 crates/
