@@ -1,3 +1,6 @@
+//! Ingestão de APIs HTTP, com ou sem paginação: busca cada página com requisição
+//! condicional, reaproveita o que não mudou e grava o restante na camada Raw.
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -41,6 +44,7 @@ pub struct TarefaDeIngestaoHttp {
 }
 
 impl TarefaDeIngestaoHttp {
+    /// Cria uma tarefa paginada, com a estratégia de paginação dada.
     pub fn paginada(
         fonte: &str,
         recurso: &str,
@@ -57,6 +61,7 @@ impl TarefaDeIngestaoHttp {
         }
     }
 
+    /// Cria uma tarefa de uma única página (sem paginação).
     pub fn sem_paginacao(fonte: &str, recurso: &str, url: String) -> Self {
         Self::paginada(fonte, recurso, url, SemPaginacao)
     }

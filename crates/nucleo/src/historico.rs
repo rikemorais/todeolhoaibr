@@ -36,32 +36,49 @@ fn motivo_texto(motivo: MotivoDeIngestao) -> String {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// Estado de uma tarefa no registro de uma execução.
 pub enum EstadoRegistrado {
+    /// Ainda não começou.
     Pendente,
+    /// Em execução.
     EmExecucao,
+    /// Terminou com sucesso.
     Concluida,
+    /// Terminou com falha.
     Falhou,
+    /// Não rodou porque uma dependência falhou.
     Ignorada,
 }
 
+/// O que se sabe sobre uma tarefa dentro do registro de uma execução.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegistroDeTarefa {
+    /// Nome da tarefa.
     pub nome: String,
     /// Posição na DAG: tarefas do mesmo nível são independentes entre si.
     pub nivel: usize,
+    /// Nomes das tarefas das quais esta depende.
     pub depende_de: Vec<String>,
+    /// Estado atual da tarefa.
     pub estado: EstadoRegistrado,
+    /// Quando começou, se já começou.
     pub iniciada_em: Option<DateTime<Utc>>,
+    /// Duração, em milissegundos, quando concluída.
     pub duracao_ms: Option<u64>,
+    /// Quantas partes gravou, quando concluída.
     pub partes: Option<usize>,
+    /// Quantos bytes gravou, quando concluída.
     pub bytes: Option<u64>,
     /// Mensagem da falha, nome da tarefa que causou a ignorada ou observação sobre a conclusão.
     pub detalhe: Option<String>,
 }
 
+/// As tarefas de uma fonte dentro do registro de uma execução.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegistroDeFonte {
+    /// Nome da fonte.
     pub nome: String,
+    /// Registros das tarefas da fonte.
     pub tarefas: Vec<RegistroDeTarefa>,
 }
 
@@ -69,19 +86,28 @@ pub struct RegistroDeFonte {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SituacaoDaExecucao {
+    /// Ainda rodando, com batimento recente.
     EmAndamento,
+    /// Concluída com todas as tarefas bem-sucedidas.
     Sucesso,
+    /// Concluída, mas com ao menos uma tarefa falha ou ignorada.
     ComFalhas,
     /// O processo parou sem concluir a execução.
     Interrompida,
 }
 
+/// Tudo o que uma execução fez, publicado enquanto ela acontece.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegistroDeExecucao {
+    /// Identificador da execução.
     pub id: String,
+    /// Quando a execução começou.
     pub iniciada_em: DateTime<Utc>,
+    /// Último batimento: quando o registro foi atualizado pela última vez.
     pub atualizada_em: DateTime<Utc>,
+    /// Quando terminou, se já terminou.
     pub concluida_em: Option<DateTime<Utc>>,
+    /// Registros por fonte.
     pub fontes: Vec<RegistroDeFonte>,
 }
 
@@ -125,6 +151,8 @@ impl RegistroDeExecucao {
         })
     }
 
+    /// Calcula a situação atual: em andamento, interrompida (sem batimento),
+    /// sucesso ou com falhas.
     pub fn situacao(&self, agora: DateTime<Utc>) -> SituacaoDaExecucao {
         if self.concluida_em.is_none() {
             return if agora - self.atualizada_em > TOLERANCIA_SEM_BATIMENTO {
@@ -194,6 +222,7 @@ impl RegistroDeExecucao {
 /// Onde a ingestão publica o histórico.
 #[async_trait]
 pub trait GravadorDeExecucoes: Send + Sync {
+    /// Persiste o registro atual da execução.
     async fn salvar(&self, registro: &RegistroDeExecucao) -> Result<(), ErroDeIngestao>;
 }
 
@@ -215,6 +244,7 @@ pub struct RegistradorDeExecucao {
 }
 
 impl RegistradorDeExecucao {
+    /// Cria o registrador a partir do registro inicial e de onde publicá-lo.
     pub fn novo(registro: RegistroDeExecucao, gravador: Arc<dyn GravadorDeExecucoes>) -> Self {
         Self {
             registro: Mutex::new(registro),
@@ -238,6 +268,7 @@ impl RegistradorDeExecucao {
         }
     }
 
+    /// Marca a execução como concluída e publica o estado final.
     pub async fn concluir(&self) {
         self.alterar(|registro| registro.concluida_em = Some(Utc::now()))
             .await;

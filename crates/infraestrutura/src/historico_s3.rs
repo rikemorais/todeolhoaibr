@@ -18,12 +18,14 @@ pub struct HistoricoS3 {
 }
 
 impl HistoricoS3 {
+    /// Conecta ao bucket de histórico com a configuração dada.
     pub fn novo(configuracao: ConfiguracaoS3) -> Result<Self, ErroDeIngestao> {
         Ok(Self {
             destino: ArmazenamentoS3::novo(configuracao)?,
         })
     }
 
+    /// Garante que o bucket de histórico existe (idempotente).
     pub async fn preparar(&self) -> Result<(), ErroDeIngestao> {
         self.destino.preparar().await
     }
