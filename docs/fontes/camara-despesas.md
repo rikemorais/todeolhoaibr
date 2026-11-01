@@ -17,9 +17,12 @@ Despesas da **CEAP** (Cota para o Exercício da Atividade Parlamentar) dos deput
 Mesmo sendo uma fonte separada no catálogo, os arquivos ficam sob a fonte `camara`:
 
 ```text
+raw/camara/despesas/ano=AAAA/_ultima_versao.json                                    # ponteiro do vigente
 raw/camara/despesas/ano=AAAA/data_ingestao=AAAA-MM-DD/execucao=<id>/parte-00001.zip
-raw/camara/despesas/ano=AAAA/.../_manifesto.json
+raw/camara/despesas/ano=AAAA/data_ingestao=AAAA-MM-DD/execucao=<id>/_manifesto.json
 ```
+
+O `_ultima_versao.json` é o **ponteiro** que aponta para o manifesto da execução **vigente** de cada ano: um leitor a jusante começa por ele para achar o snapshot atual, em vez de adivinhar pelo caminho de execução (ver [ADR 0012](../adr/0012-pre-checagem-idempotente.md)).
 
 ## Fonte separada, `sob_demanda`
 
@@ -32,18 +35,20 @@ O dado, ainda assim, mora em `raw/camara/despesas/`.
 ## Como rodar
 
 ```bash
-# Todos os anos
-todeolho executar --fonte camara-despesas
+# Todos os anos (a fonte é argumento posicional)
+todeolho executar camara-despesas
 
 # Só um ano (filtro por etiqueta)
-todeolho executar --fonte camara-despesas --filtro ano=2024
+todeolho executar camara-despesas --filtro ano=2024
 ```
 
 ## Idempotência
 
 Reusa a pré-checagem por versão/tamanho ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)): a
-origem envia `ETag` e `Last-Modified`, usados como validador autoritativo, então um arquivo
-revisado é reingerido e um inalterado é reaproveitado.
+origem envia um `ETag` (conferido no arquivo real), que o cliente usa como **validador
+autoritativo** — um arquivo revisado ganha ETag novo e é reingerido; um inalterado é
+reaproveitado. Quando não há validador, a checagem cai para o **tamanho** (a origem também manda
+`Last-Modified`, mas o cliente hoje só considera o ETag).
 
 ## Fora de escopo desta camada (fica no refino)
 
