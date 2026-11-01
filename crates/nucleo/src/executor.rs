@@ -1,3 +1,6 @@
+//! O executor que roda a DAG de uma fonte nível a nível, com concorrência
+//! limitada, e avisa um observador sobre o início e o fim de cada tarefa.
+
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -10,30 +13,42 @@ use crate::dag::DagDeIngestao;
 use crate::erros::ErroDeDag;
 use crate::tarefa::ResumoDaTarefa;
 
+/// Como uma tarefa terminou.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EstadoDaTarefa {
+    /// Concluída, com o resumo do que produziu.
     Concluida(ResumoDaTarefa),
+    /// Falhou, com a mensagem de erro.
     Falhou(String),
     /// Não executada porque a tarefa `causa`, da qual ela depende, falhou.
     Ignorada {
+        /// Nome da tarefa que falhou e causou a ignorada.
         causa: String,
     },
 }
 
+/// Resultado de uma tarefa: nome, estado final e duração.
 #[derive(Debug, Clone)]
 pub struct ResultadoDaTarefa {
+    /// Nome da tarefa.
     pub nome: String,
+    /// Como ela terminou.
     pub estado: EstadoDaTarefa,
+    /// Quanto tempo levou.
     pub duracao: Duration,
 }
 
+/// Resultado agregado da execução de uma fonte.
 #[derive(Debug, Clone)]
 pub struct RelatorioDaExecucao {
+    /// Fonte executada.
     pub fonte: String,
+    /// Resultado de cada tarefa.
     pub resultados: Vec<ResultadoDaTarefa>,
 }
 
 impl RelatorioDaExecucao {
+    /// `true` se todas as tarefas concluíram (nenhuma falhou nem foi ignorada).
     pub fn sucesso(&self) -> bool {
         self.resultados
             .iter()
@@ -47,7 +62,9 @@ impl RelatorioDaExecucao {
 /// propósito: quem observa não pode interferir na ingestão.
 #[async_trait]
 pub trait ObservadorDeExecucao: Send + Sync {
+    /// Avisado quando uma tarefa começa.
     async fn tarefa_iniciada(&self, fonte: &str, tarefa: &str);
+    /// Avisado quando uma tarefa termina, com o resultado.
     async fn tarefa_finalizada(&self, fonte: &str, resultado: &ResultadoDaTarefa);
 }
 
@@ -60,12 +77,16 @@ pub struct ExecutorDeDag {
 }
 
 impl ExecutorDeDag {
+    /// Cria o executor; `concorrencia` é o máximo de tarefas simultâneas por
+    /// nível (no mínimo 1).
     pub fn novo(concorrencia: usize) -> Self {
         Self {
             concorrencia: concorrencia.max(1),
         }
     }
 
+    /// Executa a DAG nível a nível e devolve o relatório com o resultado de cada
+    /// tarefa. A falha de uma tarefa ignora apenas seus descendentes.
     pub async fn executar(
         &self,
         dag: &DagDeIngestao,

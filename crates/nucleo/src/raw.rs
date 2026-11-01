@@ -11,6 +11,7 @@ pub struct LocalizacaoRaw {
 }
 
 impl LocalizacaoRaw {
+    /// Monta o prefixo de um recurso dentro de uma execução, particionado por data.
     pub fn nova(fonte: &str, recurso: &str, iniciada_em: DateTime<Utc>, id_execucao: &str) -> Self {
         let data = iniciada_em.format("%Y-%m-%d");
         Self {
@@ -19,6 +20,17 @@ impl LocalizacaoRaw {
     }
 
     /// Chave que aponta para a última versão ingerida de um recurso (ver `docs/adr/0010`).
+    ///
+    /// # Exemplos
+    ///
+    /// ```
+    /// use todeolho_nucleo::LocalizacaoRaw;
+    ///
+    /// assert_eq!(
+    ///     LocalizacaoRaw::ultima_versao("ibge", "estados"),
+    ///     "ibge/estados/_ultima_versao.json",
+    /// );
+    /// ```
     pub fn ultima_versao(fonte: &str, recurso: &str) -> String {
         format!("{fonte}/{recurso}/_ultima_versao.json")
     }
@@ -34,12 +46,18 @@ impl LocalizacaoRaw {
     }
 }
 
+/// Uma parte gravada de um recurso (uma página de API ou o arquivo baixado).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParteRaw {
+    /// Chave do objeto na camada Raw.
     pub chave: String,
+    /// URL de origem desta parte.
     pub url: String,
+    /// Tamanho do conteúdo, em bytes.
     pub bytes: u64,
+    /// Assinatura `sha256` do conteúdo (procedência; ver `docs/adr/0012`).
     pub sha256: String,
+    /// Tipo de conteúdo (`Content-Type`) como veio da origem.
     pub tipo_de_conteudo: String,
     /// Validador da origem (ETag) desta página, usado na requisição condicional
     /// da próxima rodada. `None` quando a origem não o informou.
@@ -50,12 +68,19 @@ pub struct ParteRaw {
 /// Procedência de uma ingestão completa de um recurso.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestoRaw {
+    /// Fonte à qual o recurso pertence (ex.: `ibge`).
     pub fonte: String,
+    /// Recurso ingerido (ex.: `estados`).
     pub recurso: String,
+    /// Execução que produziu esta ingestão.
     pub id_execucao: String,
+    /// Primeira URL buscada (início da paginação ou o próprio arquivo).
     pub url_inicial: String,
+    /// Quando a ingestão começou.
     pub iniciada_em: DateTime<Utc>,
+    /// Quando a ingestão terminou (o manifesto é gravado por último).
     pub concluida_em: DateTime<Utc>,
+    /// Partes que compõem o recurso, na ordem em que foram buscadas.
     pub partes: Vec<ParteRaw>,
 }
 

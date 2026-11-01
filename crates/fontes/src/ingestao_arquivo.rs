@@ -1,3 +1,6 @@
+//! Ingestão de arquivos grandes (como os ZIPs do TSE): baixa em fluxo, sem
+//! carregar o arquivo na memória, e pula o que não mudou na origem.
+
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};

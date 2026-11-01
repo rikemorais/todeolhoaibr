@@ -3,6 +3,8 @@
 //! Este crate não conhece nenhuma API pública nem tecnologia de infraestrutura.
 //! As demais camadas dependem dele, nunca o contrário (ver `docs/adr/0002`).
 
+#![warn(missing_docs)]
+
 pub mod contexto;
 pub mod dag;
 pub mod decisao;

@@ -1,3 +1,6 @@
+//! A DAG de uma fonte: constrói, valida e consulta o grafo de tarefas. É o único
+//! ponto do projeto que conhece a biblioteca Dagron (ver `docs/adr/0003`).
+
 use std::sync::Arc;
 
 use dagron_core::{DAG, DagronError};
@@ -48,6 +51,7 @@ impl DagDeIngestao {
         })
     }
 
+    /// Nome da fonte à qual este grafo pertence.
     pub fn fonte(&self) -> &str {
         &self.fonte
     }
@@ -64,6 +68,7 @@ impl DagDeIngestao {
             .collect())
     }
 
+    /// Recupera a tarefa de nome `nome`, ou erro se ela não existe no grafo.
     pub fn tarefa(&self, nome: &str) -> Result<Arc<dyn Tarefa>, ErroDeDag> {
         self.grafo
             .get_payload(nome)

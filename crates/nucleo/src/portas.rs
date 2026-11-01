@@ -8,8 +8,11 @@ use crate::erros::ErroDeIngestao;
 /// Objeto pronto para ser gravado na camada Raw.
 #[derive(Debug, Clone)]
 pub struct ObjetoRaw {
+    /// Chave de destino na camada Raw.
     pub chave: String,
+    /// Conteúdo a gravar.
     pub conteudo: Vec<u8>,
+    /// Tipo de conteúdo (`Content-Type`) a registrar.
     pub tipo_de_conteudo: String,
 }
 
@@ -19,6 +22,7 @@ pub trait ArmazenamentoRaw: Send + Sync {
     /// Garante que o destino existe. Precisa ser idempotente.
     async fn preparar(&self) -> Result<(), ErroDeIngestao>;
 
+    /// Grava um objeto por inteiro na camada Raw.
     async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao>;
 
     /// Grava sem carregar tudo na memória. O objeto só fica visível ao final da transferência.
@@ -50,7 +54,9 @@ pub trait ArmazenamentoRaw: Send + Sync {
 /// Resposta bem-sucedida de uma API.
 #[derive(Debug, Clone)]
 pub struct RespostaHttp {
+    /// Tipo de conteúdo (`Content-Type`) devolvido.
     pub tipo_de_conteudo: String,
+    /// Corpo da resposta.
     pub corpo: Vec<u8>,
 }
 
@@ -61,9 +67,11 @@ pub enum RespostaCondicional {
     NaoModificado,
     /// A origem devolveu um corpo novo.
     Modificado {
+        /// Tipo de conteúdo (`Content-Type`) do novo corpo.
         tipo_de_conteudo: String,
         /// Validador do novo conteúdo (ETag), quando informado.
         versao: Option<String>,
+        /// Corpo novo.
         corpo: Vec<u8>,
     },
 }
@@ -73,22 +81,27 @@ pub enum RespostaCondicional {
 pub struct InformacoesDoArquivo {
     /// Identifica a versão do arquivo (ETag).
     pub versao: Option<String>,
+    /// Tamanho do arquivo em bytes (`Content-Length`), quando informado.
     pub tamanho: Option<u64>,
 }
 
+/// Fluxo de bytes lido aos poucos, sem carregar tudo na memória.
 pub type FluxoDeBytes = Box<dyn AsyncRead + Send + Unpin>;
 
 /// Resposta bem-sucedida cujo corpo ainda será lido aos poucos.
 pub struct DownloadHttp {
+    /// Tipo de conteúdo (`Content-Type`) do arquivo.
     pub tipo_de_conteudo: String,
     /// Identifica a versão do arquivo na origem (ETag), quando informada.
     pub versao: Option<String>,
+    /// Fluxo do corpo, lido sob demanda.
     pub fluxo: FluxoDeBytes,
 }
 
 /// Acesso às APIs públicas. Falhas transitórias são tratadas pela implementação.
 #[async_trait]
 pub trait ClienteHttp: Send + Sync {
+    /// GET simples: devolve o corpo inteiro em memória.
     async fn obter(&self, url: &str, aceita: &str) -> Result<RespostaHttp, ErroDeIngestao>;
 
     /// GET condicional: envia o validador (If-None-Match) e devolve
@@ -111,5 +124,6 @@ pub trait ClienteHttp: Send + Sync {
     /// Consulta o arquivo na origem, sem baixá-lo.
     async fn informacoes(&self, url: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao>;
 
+    /// Baixa um arquivo como fluxo, para gravá-lo sem carregá-lo na memória.
     async fn baixar(&self, url: &str) -> Result<DownloadHttp, ErroDeIngestao>;
 }

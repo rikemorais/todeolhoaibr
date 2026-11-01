@@ -11,12 +11,18 @@ use tracing::{info, warn};
 /// livre da máquina, ignorando o limite do container.
 const TAMANHO_DA_PARTE: usize = 16 * 1024 * 1024;
 
+/// Dados de conexão a um serviço compatível com S3.
 #[derive(Debug, Clone)]
 pub struct ConfiguracaoS3 {
+    /// Endpoint do serviço (ex.: `http://armazenamento:7070`).
     pub endpoint: String,
+    /// Região a enviar nas requisições.
     pub regiao: String,
+    /// Nome do bucket.
     pub bucket: String,
+    /// Chave de acesso (credencial).
     pub chave_de_acesso: String,
+    /// Chave secreta (credencial).
     pub chave_secreta: String,
 }
 
@@ -28,6 +34,7 @@ pub struct ArmazenamentoS3 {
 }
 
 impl ArmazenamentoS3 {
+    /// Conecta ao serviço S3 com a configuração dada.
     pub fn novo(configuracao: ConfiguracaoS3) -> Result<Self, ErroDeIngestao> {
         let erro = |detalhe: String| ErroDeIngestao::Armazenamento {
             chave: configuracao.bucket.clone(),

@@ -7,18 +7,30 @@ use thiserror::Error;
 
 use crate::tarefa::TarefaPlanejada;
 
+/// Falhas ao interpretar ou aplicar um filtro de seleção.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroDeSelecao {
+    /// O texto do filtro não está no formato `nome=valor[,valor...]`.
     #[error("filtro inválido: {0}. Use o formato ano=2022,2024")]
     FormatoInvalido(String),
 
+    /// Nenhuma tarefa tem a etiqueta pedida.
     #[error("filtro desconhecido: {filtro}. Disponíveis: {disponiveis}")]
-    FiltroDesconhecido { filtro: String, disponiveis: String },
+    FiltroDesconhecido {
+        /// Etiqueta pedida que não existe.
+        filtro: String,
+        /// Etiquetas disponíveis, separadas por vírgula.
+        disponiveis: String,
+    },
 
+    /// A etiqueta existe, mas nenhum valor dela corresponde ao pedido.
     #[error("valor desconhecido para {filtro}: {valor}. Disponíveis: {disponiveis}")]
     ValorDesconhecido {
+        /// Etiqueta cujo valor não existe.
         filtro: String,
+        /// Valor pedido que não existe.
         valor: String,
+        /// Valores disponíveis para a etiqueta, separados por vírgula.
         disponiveis: String,
     },
 }

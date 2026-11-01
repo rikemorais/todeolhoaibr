@@ -27,12 +27,16 @@ pub async fn estimar(
 /// Resumo do espaço necessário para um conjunto de tarefas.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct EspacoNecessario {
+    /// Soma das estimativas conhecidas, em bytes.
     pub bytes: u64,
+    /// Maior estimativa individual, usada para o pico durante o envio em partes.
     pub maior_arquivo: u64,
+    /// Quantas tarefas não tiveram estimativa (tamanho desconhecido).
     pub sem_estimativa: usize,
 }
 
 impl EspacoNecessario {
+    /// Agrega as estimativas de várias tarefas em um só resumo.
     pub fn somar<'a>(estimativas: impl IntoIterator<Item = &'a Option<u64>>) -> Self {
         let mut espaco = Self::default();
         for estimativa in estimativas {
@@ -53,6 +57,7 @@ impl EspacoNecessario {
         self.bytes + self.maior_arquivo
     }
 
+    /// Compara o pico necessário com o espaço livre informado.
     pub fn avaliar(&self, livre: Option<u64>) -> AvaliacaoDeEspaco {
         match livre {
             None => AvaliacaoDeEspaco::Desconhecido,
@@ -64,14 +69,31 @@ impl EspacoNecessario {
     }
 }
 
+/// Veredito de [`EspacoNecessario::avaliar`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AvaliacaoDeEspaco {
+    /// O pico necessário cabe no espaço livre.
     Cabe,
-    NaoCabe { faltam: u64 },
+    /// Não cabe; faltam `faltam` bytes.
+    NaoCabe {
+        /// Quantos bytes faltam para o pico caber.
+        faltam: u64,
+    },
+    /// O espaço livre não pôde ser medido.
     Desconhecido,
 }
 
 /// Formata bytes para leitura, no padrão brasileiro: `1,7 GB`.
+///
+/// # Exemplos
+///
+/// ```
+/// use todeolho_nucleo::formatar_bytes;
+///
+/// assert_eq!(formatar_bytes(194), "194 B");
+/// assert_eq!(formatar_bytes(2_470_036), "2,4 MB");
+/// assert_eq!(formatar_bytes(1_800_000_000), "1,7 GB");
+/// ```
 pub fn formatar_bytes(bytes: u64) -> String {
     const UNIDADES: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut valor = bytes as f64;

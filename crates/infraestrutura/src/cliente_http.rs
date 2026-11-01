@@ -24,9 +24,13 @@ const TEMPO_LIMITE: Duration = Duration::from_secs(90);
 /// Generoso para o maior arquivo (cerca de 860 MB) em uma conexão lenta.
 const TEMPO_LIMITE_DE_DOWNLOAD: Duration = Duration::from_secs(6 * 60 * 60);
 
+/// Quantas vezes tentar uma requisição transitória e quanto esperar no início.
 #[derive(Debug, Clone, Copy)]
 pub struct PoliticaDeRetentativas {
+    /// Número **total** de tentativas, já contando a primeira (ex.: `5` = a
+    /// requisição inicial mais até 4 repetições).
     pub tentativas: u32,
+    /// Espera antes da primeira retentativa; dobra a cada falha.
     pub espera_inicial: Duration,
 }
 
@@ -55,6 +59,7 @@ pub struct ClienteHttpComRetentativas {
 }
 
 impl ClienteHttpComRetentativas {
+    /// Cria o cliente com a política de retentativas dada.
     pub fn novo(politica: PoliticaDeRetentativas) -> Result<Self, ErroDeIngestao> {
         let cliente = reqwest::Client::builder()
             .user_agent(AGENTE)
