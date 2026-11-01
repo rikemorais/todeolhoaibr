@@ -1,3 +1,6 @@
+//! Estratégias de paginação: como descobrir, a partir do corpo de uma resposta,
+//! a URL da próxima página (ou que não há mais páginas).
+
 use serde::Deserialize;
 
 /// Como descobrir, a partir de uma resposta, a URL da página seguinte.

@@ -1,5 +1,7 @@
 //! Painel web, somente leitura, das execuções de ingestão (ver `docs/adr/0008`).
 
+#![warn(missing_docs)]
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 

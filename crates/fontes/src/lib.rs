@@ -3,6 +3,8 @@
 //! Para adicionar uma fonte: crie um módulo em `fontes/` que implemente
 //! `FonteDeDados` e registre-a em [`catalogo`]. Nada mais precisa mudar.
 
+#![warn(missing_docs)]
+
 mod fontes;
 pub mod ingestao_arquivo;
 pub mod ingestao_http;
@@ -15,6 +17,13 @@ pub use fontes::ibge::FonteIbge;
 pub use fontes::tse::FonteTse;
 
 /// Todas as fontes disponíveis. Único ponto a alterar ao adicionar uma nova.
+///
+/// # Exemplos
+///
+/// ```
+/// let fontes = todeolho_fontes::catalogo();
+/// assert!(!fontes.is_empty());
+/// ```
 pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
     vec![
         Box::new(FonteIbge),

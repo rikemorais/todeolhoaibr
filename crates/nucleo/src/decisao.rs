@@ -63,6 +63,24 @@ impl EstadoNaRaw {
 ///
 /// `raw` é `None` quando não há ingestão anterior. A ordem de precedência:
 /// ausência, integridade, validador da origem e, por fim, tamanho.
+///
+/// # Exemplos
+///
+/// ```
+/// use todeolho_nucleo::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
+/// use todeolho_nucleo::InformacoesDoArquivo;
+///
+/// // Sem nada na Raw, ingere pela primeira vez.
+/// let origem = InformacoesDoArquivo { versao: Some("v1".into()), tamanho: Some(100) };
+/// assert_eq!(
+///     decidir(&origem, None),
+///     DecisaoDeIngestao::Ingerir(MotivoDeIngestao::AusenteNaRaw),
+/// );
+///
+/// // Validador igual ao guardado: reaproveita.
+/// let raw = EstadoNaRaw { completa: true, integra: true, versao: Some("v1".into()), tamanho: Some(100) };
+/// assert_eq!(decidir(&origem, Some(&raw)), DecisaoDeIngestao::Reaproveitar);
+/// ```
 pub fn decidir(origem: &InformacoesDoArquivo, raw: Option<&EstadoNaRaw>) -> DecisaoDeIngestao {
     use DecisaoDeIngestao::{Ingerir, Reaproveitar};
     use MotivoDeIngestao::{AusenteNaRaw, Desatualizada, IncompletaOuCorrompida, Menor};

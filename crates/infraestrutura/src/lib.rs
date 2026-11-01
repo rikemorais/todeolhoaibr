@@ -1,5 +1,7 @@
 //! Adaptadores que implementam as portas do núcleo com tecnologias concretas.
 
+#![warn(missing_docs)]
+
 mod armazenamento_s3;
 mod cliente_http;
 mod disco;

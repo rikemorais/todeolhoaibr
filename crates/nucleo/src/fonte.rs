@@ -1,3 +1,6 @@
+//! O contrato [`FonteDeDados`]: cada API pública ingerida implementa este trait,
+//! que decide quais tarefas existem; montar e executar o grafo é igual para todas.
+
 use crate::dag::DagDeIngestao;
 use crate::erros::ErroDeDag;
 use crate::tarefa::TarefaPlanejada;
@@ -13,6 +16,7 @@ pub trait FonteDeDados: Send + Sync {
     /// Identificador estável: é usado na CLI e no caminho dos dados na camada Raw.
     fn nome(&self) -> &str;
 
+    /// Texto curto que descreve a fonte, exibido na CLI e no menu de seleção.
     fn descricao(&self) -> &str;
 
     /// Fontes muito grandes só rodam quando pedidas pelo nome, nunca em `--todas`.
