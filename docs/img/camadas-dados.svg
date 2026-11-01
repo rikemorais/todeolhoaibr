@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 360" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" role="img" aria-label="Camadas de dados raw, bronze, silver, gold e diamond no versitygw">
-  <rect width="1100" height="360" rx="16" fill="#0f172a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 360" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" role="img" aria-label="Camadas de dados raw, bronze, silver, gold e diamond no versitygw">
+  <rect width="1120" height="360" rx="16" fill="#0f172a"/>
 
   <text x="40" y="44" fill="#e2e8f0" font-size="22" font-weight="700">versitygw — armazenamento S3 local (Docker)</text>
   <text x="40" y="66" fill="#94a3b8" font-size="13">Um bucket por camada. É aqui que os dados vão viver, da origem bruta ao produto final.</text>
 
-  <rect x="24" y="86" width="1052" height="208" rx="14" fill="none" stroke="#334155" stroke-width="1.5"/>
+  <rect x="24" y="86" width="1072" height="208" rx="14" fill="none" stroke="#334155" stroke-width="1.5"/>
 
   <!-- chips -->
   <g>
