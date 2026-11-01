@@ -64,35 +64,45 @@ impl FonteDeDados for FonteCamara {
 
 #[cfg(test)]
 mod testes {
+    use std::collections::BTreeSet;
+
     use super::*;
 
-    fn tarefas_de_despesas() -> Vec<String> {
+    /// Anos cobertos pelas tarefas de despesas, lidos do nome `despesas_<ano>`.
+    fn anos_de_despesas() -> BTreeSet<u16> {
         FonteCamara
             .criar_tarefas()
             .iter()
-            .filter(|t| t.tarefa.nome().starts_with("despesas_"))
-            .map(|t| t.tarefa.nome().to_owned())
+            .filter_map(|t| {
+                t.tarefa
+                    .nome()
+                    .strip_prefix("despesas_")
+                    .map(|ano| ano.parse().expect("ano numérico no nome da tarefa"))
+            })
             .collect()
     }
 
     #[test]
-    fn cobre_um_arquivo_de_ceap_por_ano() {
-        let esperado = usize::from(ULTIMO_ANO_CEAP - PRIMEIRO_ANO_CEAP + 1);
-        assert_eq!(tarefas_de_despesas().len(), esperado);
-        assert!(tarefas_de_despesas().contains(&format!("despesas_{PRIMEIRO_ANO_CEAP}")));
-        assert!(tarefas_de_despesas().contains(&format!("despesas_{ULTIMO_ANO_CEAP}")));
+    fn cobre_exatamente_um_arquivo_por_ano_de_ceap() {
+        // Conjunto exato (não só a contagem e os extremos): pega ano faltando no meio.
+        let esperado: BTreeSet<u16> = (PRIMEIRO_ANO_CEAP..=ULTIMO_ANO_CEAP).collect();
+        assert_eq!(anos_de_despesas(), esperado);
     }
 
     #[test]
-    fn as_despesas_sao_filtraveis_por_ano() {
+    fn a_etiqueta_ano_bate_com_o_ano_do_nome() {
         for tarefa in FonteCamara.criar_tarefas() {
-            if tarefa.tarefa.nome().starts_with("despesas_") {
-                assert!(
-                    tarefa.etiquetas.contains_key("ano"),
-                    "{}",
-                    tarefa.tarefa.nome()
-                );
-            }
+            let Some(ano) = tarefa.tarefa.nome().strip_prefix("despesas_") else {
+                continue;
+            };
+            // Não basta a etiqueta existir: seu valor precisa ser o ano do arquivo,
+            // senão o filtro `--filtro ano=` selecionaria a tarefa errada.
+            assert_eq!(
+                tarefa.etiquetas.get("ano").map(String::as_str),
+                Some(ano),
+                "etiqueta `ano` diverge do nome em {}",
+                tarefa.tarefa.nome()
+            );
         }
     }
 

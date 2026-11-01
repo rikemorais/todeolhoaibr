@@ -24,7 +24,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | Fonte | Recursos ingeridos | Documentação |
 | --- | --- | --- |
 | `ibge` | regiões, estados, municípios | [API de Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) |
-| `camara` | legislaturas, partidos, deputados em exercício, despesas (CEAP, por ano desde 2008) | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
+| `camara` | legislaturas, partidos, deputados em exercício, despesas (CEAP, por ano desde 2008) | [API](https://dadosabertos.camara.leg.br/swagger/api.html) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
 | `tse` | votos por seção eleitoral, de 1998 a 2026 (16,4 GB) | [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) |
 
 ## Como rodar
