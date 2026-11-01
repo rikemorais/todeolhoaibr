@@ -40,8 +40,10 @@ cd todeolhoaibr
 docker compose up -d --build
 
 # Abre o menu para escolher o que ingerir
-docker compose run --rm ingestao
+docker compose run --rm --build ingestao
 ```
+
+> **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
 
 ### Escolhendo o que ingerir
 
@@ -66,18 +68,19 @@ Também é possível executar sem o menu:
 
 ```bash
 # Uma UF de uma eleição
-docker compose run --rm ingestao executar tse --filtro ano=2024 --filtro uf=AC
+docker compose run --rm --build ingestao executar tse --filtro ano=2024 --filtro uf=AC
 
 # Várias eleições e UFs
-docker compose run --rm ingestao executar tse --filtro ano=2022,2024 --filtro uf=AC,SP
+docker compose run --rm --build ingestao executar tse --filtro ano=2022,2024 --filtro uf=AC,SP
 
 # Todas as fontes, exceto as muito grandes (o TSE só roda pelo nome)
-docker compose run --rm ingestao executar --todas
+docker compose run --rm --build ingestao executar --todas
 
 # Sem a pergunta de confirmação, para automações. A verificação de espaço continua valendo.
-docker compose run --rm -T ingestao executar ibge --sim
+docker compose run --rm --build -T ingestao executar ibge --sim
 
 # Lista as fontes e mostra a ordem de execução de uma DAG, sem acessar a rede
+# (com a imagem já construída; sem --build para não recompilar, que exigiria rede).
 docker compose run --rm ingestao listar
 docker compose run --rm ingestao plano camara
 ```
