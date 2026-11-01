@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Fonte `camara-despesas` (sob demanda) com as despesas da CEAP (Cota para o Exercício da Atividade Parlamentar): um arquivo anual, desde 2008, filtrável por `ano` e guardado em `raw/camara/despesas/` ([issue #25](https://github.com/rikemorais/todeolhoaibr/issues/25)).
+
 ## [0.3.0] - 2026-11-01
 
 ### Adicionado
