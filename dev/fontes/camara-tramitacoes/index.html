@@ -1081,9 +1081,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#arquivamento-e-limites-do-dado" class="md-nav__link">
+  <a href="#layout-na-raw" class="md-nav__link">
     <span class="md-ellipsis">
-      Arquivamento e limites do dado
+      Layout na Raw
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#idempotencia-incremental-por-etag" class="md-nav__link">
+    <span class="md-ellipsis">
+      Idempotência (incremental por ETag)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpretacao-do-dado-fica-no-refino" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interpretação do dado (fica no refino)
     </span>
   </a>
   
@@ -1241,9 +1259,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#arquivamento-e-limites-do-dado" class="md-nav__link">
+  <a href="#layout-na-raw" class="md-nav__link">
     <span class="md-ellipsis">
-      Arquivamento e limites do dado
+      Layout na Raw
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#idempotencia-incremental-por-etag" class="md-nav__link">
+    <span class="md-ellipsis">
+      Idempotência (incremental por ETag)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpretacao-do-dado-fica-no-refino" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interpretação do dado (fica no refino)
     </span>
   </a>
   
@@ -1291,33 +1327,42 @@
 
 
 <h1 id="fonte-camara-tramitacoes-historico-de-tramitacoes">Fonte <code>camara-tramitacoes</code> — histórico de tramitações<a class="headerlink" href="#fonte-camara-tramitacoes-historico-de-tramitacoes" title="Permanent link">&para;</a></h1>
-<p>A fonte <code>camara-tramitacoes</code> ingere os passos oficiais de tramitação das proposições anuais da Câmara, preservando as respostas JSON sem transformação na Raw (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>). Ela é separada de <code>camara-votacoes</code> e executada sob demanda por causa do grande número de consultas.</p>
+<p>A fonte <code>camara-tramitacoes</code> ingere os passos oficiais de tramitação das proposições da Câmara, preservando o JSON sem transformação na Raw (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>). É separada de <code>camara</code> e executada <strong>sob demanda</strong>, com o dado em <code>raw/camara/tramitacoes/</code>.</p>
 <h2 id="endpoints-e-cobertura">Endpoints e cobertura<a class="headerlink" href="#endpoints-e-cobertura" title="Permanent link">&para;</a></h2>
-<p>Para cada ano desde 2001, a fonte percorre <code>GET /api/v2/proposicoes?ano=AAAA&amp;itens=100</code>, seguindo os links <code>next</code> da API, e consulta <code>GET /api/v2/proposicoes/{id}/tramitacoes</code> para cada ID listado. A lista é paginada; a OpenAPI limita listagens a 100 itens por requisição. O endpoint de tramitações não declara parâmetros próprios de paginação. Cada resposta consultada vira uma parte bruta no manifesto <code>raw/camara/tramitacoes/ano=AAAA/</code>; as partes das tramitações têm URL com o ID da proposição.</p>
-<p>Uma consulta de referência em 2026 encontrou 282 páginas de proposições para 2024 (até 28.200 IDs), antes das consultas individuais de histórico. O volume total depende do ano e do tamanho de cada histórico; comece com um único ano para avaliar tempo e armazenamento. Cada tarefa falha sem publicar manifesto parcial se ultrapassar 100.000 respostas.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Escolher anos específicos para controlar o volume</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>camara-tramitacoes<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2024</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Pode gerar centenas de milhares de requisições ao percorrer toda a cobertura</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>camara-tramitacoes
+<p>Em vez de percorrer a API REST proposição a proposição (<code>/proposicoes/{id}/tramitacoes</code>, um fan-out de centenas de milhares de requisições), a fonte baixa os <strong>arquivos anuais em lote</strong> dos Dados Abertos, um por ano desde 2001, via <code>TarefaDeArquivo</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>https://dadosabertos.camara.leg.br/arquivos/proposicoesTramitacoes/json/proposicoesTramitacoes-{ano}.json
 </code></pre></div>
-<h2 id="arquivamento-e-limites-do-dado">Arquivamento e limites do dado<a class="headerlink" href="#arquivamento-e-limites-do-dado" title="Permanent link">&para;</a></h2>
-<p>No endpoint de tramitações, cada item contém <code>dataHora</code>, <code>siglaOrgao</code>, <code>descricaoTramitacao</code>, <code>descricaoSituacao</code>, <code>codSituacao</code> e <code>despacho</code>, entre outros campos. A data e o órgão descrevem o passo; a situação pode ser uma fotografia do estado da proposição. Preserve todos os campos e textos e não conclua que uma situação final, sozinha, representa um evento de arquivamento.</p>
-<p>Os exemplos abaixo foram consultados diretamente na API e nas fichas oficiais em 2 de novembro de 2026:</p>
+<p>Cada arquivo traz todos os passos de tramitação das proposições daquele ano num único JSON <code>{ "dados": [ ... ] }</code> — o de 2001, por exemplo, tem ~31 mil passos em ~16 MB. Isso troca ~10 mil requisições por ano por <strong>um download</strong>, e a cobertura completa (2001 até o ano atual) por <strong>~26 requisições</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Um ano específico</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>camara-tramitacoes<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2024</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Cobertura completa: um arquivo por ano, de 2001 até o ano atual</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>camara-tramitacoes
+</code></pre></div>
+<p>O ano corrente tolera ausência (<code>aceitar_ausencia</code>): no começo de um ano o arquivo pode ainda não existir, e um <code>404</code> nele não falha a rodada.</p>
+<h2 id="layout-na-raw">Layout na Raw<a class="headerlink" href="#layout-na-raw" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>raw/camara/tramitacoes/ano=AAAA/_ultima_versao.json
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>raw/camara/tramitacoes/ano=AAAA/data_ingestao=AAAA-MM-DD/execucao=&lt;id&gt;/parte-00001.json
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>raw/camara/tramitacoes/ano=AAAA/data_ingestao=AAAA-MM-DD/execucao=&lt;id&gt;/_manifesto.json
+</code></pre></div>
+<h2 id="idempotencia-incremental-por-etag">Idempotência (incremental por ETag)<a class="headerlink" href="#idempotencia-incremental-por-etag" title="Permanent link">&para;</a></h2>
+<p>Os arquivos anuais são regerados diariamente e publicam <code>ETag</code>/<code>Last-Modified</code>. A pré-checagem condicional <code>If-None-Match</code> (<a href="../../adr/0012-pre-checagem-idempotente/">ADR 0012</a>) usa o <code>ETag</code> da rodada anterior: o ano <strong>sem mudança</strong> responde <code>304</code> e é pulado, reaproveitando o que já está na Raw. Assim a rodada é <strong>incremental</strong> — só rebaixa os anos cujo arquivo mudou.</p>
+<h2 id="interpretacao-do-dado-fica-no-refino">Interpretação do dado (fica no refino)<a class="headerlink" href="#interpretacao-do-dado-fica-no-refino" title="Permanent link">&para;</a></h2>
+<p>Cada passo traz <code>idTramitacao</code>, <code>dataHora</code>, <code>sequencia</code>, <code>uriProposicao</code>, <code>siglaOrgao</code>, <code>regime</code>, <code>descricaoTramitacao</code>, <code>codSituacao</code> e <code>despacho</code>, entre outros. A data e o órgão descrevem o passo; a situação (<code>codSituacao</code>) pode ser uma fotografia do estado da proposição. Preserve todos os campos e textos e <strong>não</strong> conclua que uma situação final, sozinha, representa um evento de arquivamento.</p>
+<p>Exemplos consultados nas fichas oficiais em 2 de novembro de 2026:</p>
 <ul>
-<li><code>PL 760/2020</code> (ID <code>2239677</code>): a resposta da API contém um passo com <code>dataHora=2023-06-01T00:00</code>, <code>siglaOrgao=MESA</code>, <code>descricaoTramitacao=Arquivamento</code>, <code>descricaoSituacao=Arquivada</code> e <code>despacho=Arquivado</code>.</li>
-<li><code>REQ 3128/2026</code> (ID <code>2627570</code>): o estado é <code>Arquivada</code>, mas o último passo publicado é <code>Deferido o requerimento de retirada pelo(a) autor(a)</code> em <code>2026-07-08</code>; não há passo cujo campo <code>descricaoTramitacao</code> identifique um evento de arquivamento.</li>
+<li><code>PL 760/2020</code> (ID <code>2239677</code>): há um passo com <code>dataHora=2023-06-01T00:00</code>, <code>siglaOrgao=MESA</code>, <code>descricaoTramitacao=Arquivamento</code> e <code>despacho=Arquivado</code>.</li>
+<li><code>REQ 3128/2026</code> (ID <code>2627570</code>): o estado é <code>Arquivada</code>, mas o último passo publicado é <code>Deferido o requerimento de retirada pelo(a) autor(a)</code> em <code>2026-07-08</code>; nenhum passo tem <code>descricaoTramitacao</code> que identifique um evento de arquivamento.</li>
 </ul>
-<p>Os exemplos demonstram que situação e evento de arquivamento devem ser interpretados separadamente. A API não garante um campo que identifique a liderança ou pessoa responsável; só atribua autoria quando ela estiver explicitamente na resposta. O histórico é provisório segundo a própria OpenAPI, e a ausência de um passo nomeado como arquivamento não significa que a proposição esteja em tramitação.</p>
+<p>Situação e evento de arquivamento devem ser interpretados separadamente. A API não garante um campo de liderança/pessoa responsável; só atribua autoria quando ela estiver explícita. Achatar os passos numa tabela consultável e cruzar com a proposição (por <code>uriProposicao</code>) é trabalho do refino (<a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>).</p>
 <h2 id="rate-limit-e-execucao">Rate limit e execução<a class="headerlink" href="#rate-limit-e-execucao" title="Permanent link">&para;</a></h2>
-<p>A OpenAPI e a FAQ consultadas não publicam uma quota fixa de requisições por segundo/minuto. Para reduzir pressão durante o fan-out, o cliente aplica um ritmo <strong>local</strong> compartilhado de até 5 requisições por segundo ao host <code>dadosabertos.camara.leg.br</code>; esse valor é uma escolha operacional do projeto, não um limite oficial da Câmara. A camada HTTP repete respostas transitórias, incluindo HTTP 429, com backoff limitado. Mesmo assim, a ingestão pode levar bastante tempo e deve ser selecionada por ano.</p>
+<p>Os arquivos ficam no host <code>dadosabertos.camara.leg.br</code>, ao qual o cliente aplica um ritmo <strong>local</strong> de até 5 requisições por segundo (escolha operacional do projeto, não um limite oficial). Com ~26 downloads por rodada completa, o tempo passa a ser dominado pela transferência dos arquivos, não pelo número de requisições.</p>
 <h2 id="referencias-oficiais">Referências oficiais<a class="headerlink" href="#referencias-oficiais" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://dadosabertos.camara.leg.br/api/v2/api-docs">OpenAPI dos Dados Abertos da Câmara</a>: contrato do endpoint, filtros por ano, paginação e limite geral de 100 itens.</li>
-<li><a href="https://dadosabertos.camara.leg.br/howtouse/2017-05-16-js-resultados-paginados.html">Tutorial de resultados paginados</a>.</li>
-<li><a href="https://dadosabertos.camara.leg.br/faq/faq-home.html">FAQ dos Dados Abertos</a>.</li>
-<li><a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2239677">Ficha oficial do PL 760/2020</a> e <a href="https://dadosabertos.camara.leg.br/api/v2/proposicoes/2239677/tramitacoes">resposta JSON de tramitações</a>.</li>
-<li><a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2627570">Ficha oficial do REQ 3128/2026</a> e <a href="https://dadosabertos.camara.leg.br/api/v2/proposicoes/2627570/tramitacoes">resposta JSON de tramitações</a>.</li>
+<li><a href="https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-tramitacoes.html">Documentação do dado de tramitações</a>.</li>
+<li><a href="https://dadosabertos.camara.leg.br/api/v2/api-docs">OpenAPI dos Dados Abertos da Câmara</a>.</li>
+<li><a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2239677">Ficha oficial do PL 760/2020</a>.</li>
+<li><a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2627570">Ficha oficial do REQ 3128/2026</a>.</li>
 </ul>
 
 
