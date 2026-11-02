@@ -9,6 +9,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Corrigido
 
+- Gravações S3 de objetos, início e conclusão multipart repetem falhas de rede e respostas transitórias com tentativas limitadas, backoff e jitter; erros permanentes falham imediatamente (issue #90).
 - Remove da Raw o objeto da parte quando a transferência falha na validação final de tamanho (issue #97).
 
 ## [0.5.1] - 2026-11-02

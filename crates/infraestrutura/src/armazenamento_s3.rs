@@ -2,6 +2,8 @@ use async_trait::async_trait;
 use s3::creds::Credentials;
 use s3::error::S3Error;
 use s3::{Bucket, BucketConfiguration, Region};
+use std::future::Future;
+use std::sync::atomic::{AtomicU64, Ordering};
 use todeolho_nucleo::{ArmazenamentoRaw, ErroDeIngestao, ObjetoRaw};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tracing::{info, warn};
@@ -10,6 +12,8 @@ use tracing::{info, warn};
 /// O `put_object_stream` do rust-s3 não serve: dimensiona a concorrência pela memória
 /// livre da máquina, ignorando o limite do container.
 const TAMANHO_DA_PARTE: usize = 16 * 1024 * 1024;
+const TENTATIVAS_DE_ESCRITA: u32 = 4;
+const ESPERA_BASE: std::time::Duration = std::time::Duration::from_millis(200);
 
 /// Dados de conexão a um serviço compatível com S3.
 #[derive(Debug, Clone)]
@@ -34,6 +38,30 @@ pub struct ArmazenamentoS3 {
 }
 
 impl ArmazenamentoS3 {
+    async fn repetir_escrita<T, F, Fut>(
+        &self,
+        chave: &str,
+        mut operacao: F,
+    ) -> Result<T, ErroDeIngestao>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = Result<T, S3Error>>,
+    {
+        for tentativa in 1..=TENTATIVAS_DE_ESCRITA {
+            match operacao().await {
+                Ok(resultado) => return Ok(resultado),
+                Err(erro) if eh_transitorio(&erro) && tentativa < TENTATIVAS_DE_ESCRITA => {
+                    let exponencial = ESPERA_BASE.saturating_mul(1 << (tentativa - 1));
+                    let espera = exponencial + jitter(tentativa);
+                    warn!(%chave, %erro, tentativa, ?espera, "gravação S3 falhou; tentando novamente");
+                    tokio::time::sleep(espera).await;
+                }
+                Err(erro) => return Err(self.erro(chave, erro)),
+            }
+        }
+        unreachable!("ao menos uma tentativa de gravação é feita")
+    }
+
     /// Conecta ao serviço S3 com a configuração dada.
     pub fn novo(configuracao: ConfiguracaoS3) -> Result<Self, ErroDeIngestao> {
         let erro = |detalhe: String| ErroDeIngestao::Armazenamento {
@@ -105,10 +133,14 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     }
 
     async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
-        self.bucket
-            .put_object_with_content_type(&objeto.chave, &objeto.conteudo, &objeto.tipo_de_conteudo)
-            .await
-            .map_err(|e| self.erro(&objeto.chave, e))?;
+        self.repetir_escrita(&objeto.chave, || {
+            self.bucket.put_object_with_content_type(
+                &objeto.chave,
+                &objeto.conteudo,
+                &objeto.tipo_de_conteudo,
+            )
+        })
+        .await?;
         Ok(())
     }
 
@@ -128,18 +160,20 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     ) -> Result<(), ErroDeIngestao> {
         let primeira = ler_parte(fluxo).await.map_err(|e| self.erro(chave, e))?;
         if primeira.len() < TAMANHO_DA_PARTE {
-            self.bucket
-                .put_object_with_content_type(chave, &primeira, tipo_de_conteudo)
-                .await
-                .map_err(|e| self.erro(chave, e))?;
+            self.repetir_escrita(chave, || {
+                self.bucket
+                    .put_object_with_content_type(chave, &primeira, tipo_de_conteudo)
+            })
+            .await?;
             return Ok(());
         }
 
         let envio = self
-            .bucket
-            .initiate_multipart_upload(chave, tipo_de_conteudo)
-            .await
-            .map_err(|e| self.erro(chave, e))?;
+            .repetir_escrita(chave, || {
+                self.bucket
+                    .initiate_multipart_upload(chave, tipo_de_conteudo)
+            })
+            .await?;
 
         let resultado = self
             .enviar_partes(chave, tipo_de_conteudo, &envio.upload_id, primeira, fluxo)
@@ -224,10 +258,11 @@ impl ArmazenamentoS3 {
             }
         }
 
-        self.bucket
-            .complete_multipart_upload(chave, id_do_envio, partes)
-            .await
-            .map_err(|e| self.erro(chave, e))?;
+        self.repetir_escrita(chave, || {
+            self.bucket
+                .complete_multipart_upload(chave, id_do_envio, partes.clone())
+        })
+        .await?;
         Ok(())
     }
 }
@@ -240,6 +275,49 @@ async fn ler_parte(fluxo: &mut (dyn AsyncRead + Send + Unpin)) -> std::io::Resul
         .read_to_end(&mut parte)
         .await?;
     Ok(parte)
+}
+
+fn eh_transitorio(erro: &S3Error) -> bool {
+    match erro {
+        S3Error::HttpFail => true,
+        S3Error::HttpFailWithBody(status, detalhe) => {
+            (500..=599).contains(status)
+                || *status == 408
+                || *status == 429
+                || detalhe
+                    .to_ascii_lowercase()
+                    .contains("end of file before message length reached")
+        }
+        S3Error::Reqwest(erro) => {
+            erro.is_timeout()
+                || erro.is_connect()
+                || erro.is_body()
+                || erro
+                    .to_string()
+                    .to_ascii_lowercase()
+                    .contains("end of file before message length reached")
+        }
+        S3Error::Io(erro) => matches!(
+            erro.kind(),
+            std::io::ErrorKind::TimedOut
+                | std::io::ErrorKind::ConnectionReset
+                | std::io::ErrorKind::ConnectionAborted
+                | std::io::ErrorKind::UnexpectedEof
+        ),
+        _ => false,
+    }
+}
+
+fn jitter(tentativa: u32) -> std::time::Duration {
+    static SEQUENCIA: AtomicU64 = AtomicU64::new(0x9e37_79b9_7f4a_7c15);
+    let agora = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duracao| duracao.subsec_nanos() as u64);
+    let valor = SEQUENCIA
+        .fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed)
+        .wrapping_add(agora)
+        .wrapping_add(u64::from(tentativa));
+    std::time::Duration::from_millis(valor % 200)
 }
 
 #[cfg(test)]
@@ -311,6 +389,34 @@ mod testes {
     fn novo_constroi_sem_rede_com_config_valida() {
         let config = config_de_teste("http://127.0.0.1:7070".to_owned(), "teste-raw".to_owned());
         assert!(ArmazenamentoS3::novo(config).is_ok());
+    }
+
+    #[test]
+    fn classifica_falhas_transitorias_e_permanentes_do_s3() {
+        assert!(eh_transitorio(&S3Error::HttpFail));
+        assert!(eh_transitorio(&S3Error::HttpFailWithBody(
+            503,
+            "indisponível".into()
+        )));
+        assert!(eh_transitorio(&S3Error::HttpFailWithBody(
+            429,
+            "limite".into()
+        )));
+        assert!(!eh_transitorio(&S3Error::HttpFailWithBody(
+            403,
+            "negado".into()
+        )));
+        assert!(!eh_transitorio(&S3Error::HttpFailWithBody(
+            404,
+            "ausente".into()
+        )));
+    }
+
+    #[test]
+    fn jitter_fica_limitado_a_duzentos_milisegundos() {
+        for tentativa in 1..=TENTATIVAS_DE_ESCRITA {
+            assert!(jitter(tentativa) < std::time::Duration::from_millis(200));
+        }
     }
 
     // --- Integração: #[ignore] por padrão; `cargo test -- --ignored` com o versitygw no ar ---
