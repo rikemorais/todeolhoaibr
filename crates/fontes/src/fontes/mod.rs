@@ -1,12 +1,4 @@
 pub mod camara;
-mod camara_api;
-pub mod camara_despesas;
-pub mod camara_proposicoes_tramitacoes;
-pub mod camara_votacoes;
 pub mod ibge;
-mod senado_api;
-pub mod senado_parlamentares;
-pub mod senado_processos;
-pub mod senado_processos_detalhes;
-pub mod senado_votacoes;
+pub mod senado;
 pub mod tse;

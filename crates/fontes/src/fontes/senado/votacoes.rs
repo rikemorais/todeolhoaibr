@@ -3,7 +3,7 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 
-use super::senado_api;
+use super::api;
 
 const NOME: &str = "senado-votacoes";
 const FONTE_RAW: &str = "senado";
@@ -48,7 +48,7 @@ impl FonteDeDados for FonteSenadoVotacoes {
     }
 
     fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
-        senado_api::perfil_http()
+        api::perfil_http()
     }
 
     /// São dezenas de anos em lote: não devem entrar em `--todas` por acidente.
