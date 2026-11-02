@@ -198,7 +198,6 @@ async fn montar_opcao_de_menu(
     };
     menu::OpcaoDeFonte {
         nome: fonte.nome().to_owned(),
-        descricao: fonte.descricao().to_owned(),
         sob_demanda: fonte.sob_demanda(),
         tarefas: tarefas
             .iter()
