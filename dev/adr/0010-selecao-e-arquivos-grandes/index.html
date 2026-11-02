@@ -1281,7 +1281,8 @@
 etiqueta suas tarefas ganha tudo isso sem código específico, o que mantém o princípio aberto/fechado do
 <a href="../0004-factory-method-para-fontes/">ADR 0004</a>.</p>
 <ul>
-<li><code>docker compose run --rm ingestao</code> abre um menu com o tamanho de cada fonte, ano e UF.</li>
+<li><code>docker compose run --rm ingestao</code> abre um menu. Fontes <code>sob_demanda</code> aparecem sem estimativa antecipada; após a escolha, o tamanho das tarefas selecionadas é consultado antes da confirmação.</li>
+<li>Enter no primeiro prompt seleciona todas as fontes e tarefas sem perguntas adicionais, inclusive as <code>sob_demanda</code>; <code>q</code> sai sem executar. A checagem de espaço e a confirmação continuam obrigatórias antes de baixar.</li>
 <li><code>executar &lt;fonte&gt; --filtro ano=2024 --filtro uf=AC</code> faz o mesmo sem o menu. Filtros e valores desconhecidos são erro, nunca ignorados.</li>
 <li>Fontes muito grandes declaram <code>sob_demanda</code> e ficam fora de <code>executar --todas</code>, para que ninguém baixe 16 GB por acidente.</li>
 </ul>
@@ -1314,7 +1315,7 @@ estáticos após cada eleição. O formato deve ser reavaliado na transformaçã
 <ul>
 <li><strong>Exceção ao <a href="../0006-layout-da-camada-raw/">ADR 0006</a>:</strong> <code>_ultima_versao.json</code> é sobrescrito. Ele é um ponteiro de controle, não um dado ingerido; os dados continuam imutáveis.</li>
 <li>Uma pessoa pode ingerir uma única UF de uma única eleição, com poucos megabytes.</li>
-<li>O menu faz cerca de 400 consultas ao TSE antes de abrir, o que levou alguns segundos no teste.</li>
+<li>O menu deixou de consultar antecipadamente as fontes <code>sob_demanda</code> (incluindo os 408 arquivos do TSE); o custo das consultas de tamanho ocorre apenas para as tarefas escolhidas.</li>
 <li>O espaço avisado cobre só a camada Raw. A transformação precisará de espaço próprio: os CSVs chegam a 8 vezes o tamanho dos ZIPs.</li>
 <li>Duas ingestões simultâneas interferem entre si: a limpeza de uma cancela a transferência da outra, que recomeça o arquivo. Nenhum dado se perde, mas há retrabalho.</li>
 <li>O ETag indica mudança no arquivo, não no conteúdo, então uma republicação idêntica é baixada de novo.</li>
