@@ -29,6 +29,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
 | `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
 | `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
+| `camara-tramitacoes` | histórico de tramitações das proposições da Câmara, por ano desde 2001 (sob demanda, volume alto) | [doc da fonte](docs/fontes/camara-tramitacoes.md) |
 | `senado-votacoes` | matérias e votos nominais do Senado, por ano (sob demanda) | [doc da fonte](docs/fontes/senado-votacoes.md) |
 | `senado-processos` | processos legislativos do Senado, por ano desde 1826 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
 | `senado-processos-detalhes` | detalhes e histórico dos processos do Senado, por ano (sob demanda, volume alto) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |

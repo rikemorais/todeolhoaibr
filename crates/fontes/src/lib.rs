@@ -14,6 +14,7 @@ use todeolho_nucleo::FonteDeDados;
 
 pub use fontes::camara::FonteCamara;
 pub use fontes::camara_despesas::FonteCamaraDespesas;
+pub use fontes::camara_proposicoes_tramitacoes::FonteCamaraTramitacoes;
 pub use fontes::camara_votacoes::FonteCamaraVotacoes;
 pub use fontes::ibge::FonteIbge;
 pub use fontes::senado_parlamentares::FonteSenadoParlamentares;
@@ -35,6 +36,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteIbge),
         Box::new(FonteCamara),
         Box::new(FonteCamaraDespesas),
+        Box::new(FonteCamaraTramitacoes),
         Box::new(FonteCamaraVotacoes),
         Box::new(FonteSenadoVotacoes),
         Box::new(FonteSenadoProcessos),
