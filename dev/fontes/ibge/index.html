@@ -26,7 +26,7 @@
     
     
       
-        <title>Fonte ibge — malha territorial (Localidades) - Tô de Olho AI</title>
+        <title>Fonte ibge — malha territorial (Localidades) e indicadores macro - Tô de Olho AI</title>
       
     
     
@@ -87,7 +87,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#fonte-ibge-malha-territorial-localidades" class="md-skip">
+        <a href="#fonte-ibge-malha-territorial-localidades-e-indicadores-macro" class="md-skip">
           Pular para conteúdo
         </a>
       
@@ -125,7 +125,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Fonte ibge — malha territorial (Localidades)
+              Fonte ibge — malha territorial (Localidades) e indicadores macro
             
           </span>
         </div>
@@ -955,7 +955,7 @@
           
   
   <span class="md-ellipsis">
-    Fonte ibge — malha territorial (Localidades)
+    Fonte ibge — malha territorial (Localidades) e indicadores macro
   </span>
   
 
@@ -966,7 +966,7 @@
         
   
   <span class="md-ellipsis">
-    Fonte ibge — malha territorial (Localidades)
+    Fonte ibge — malha territorial (Localidades) e indicadores macro
   </span>
   
 
@@ -988,11 +988,50 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#localidades" class="md-nav__link">
+    <span class="md-ellipsis">
+      Localidades
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Localidades">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#o-que-e-ingerido" class="md-nav__link">
     <span class="md-ellipsis">
       O que é ingerido
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#indicadores-macro" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicadores macro
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Indicadores macro">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-e-ingerido_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que é ingerido
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1241,11 +1280,50 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#localidades" class="md-nav__link">
+    <span class="md-ellipsis">
+      Localidades
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Localidades">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#o-que-e-ingerido" class="md-nav__link">
     <span class="md-ellipsis">
       O que é ingerido
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#indicadores-macro" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicadores macro
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Indicadores macro">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-e-ingerido_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que é ingerido
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1308,13 +1386,20 @@
   
 
 
-<h1 id="fonte-ibge-malha-territorial-localidades">Fonte <code>ibge</code> — malha territorial (Localidades)<a class="headerlink" href="#fonte-ibge-malha-territorial-localidades" title="Permanent link">&para;</a></h1>
-<p>Regiões, estados e municípios do Brasil, da <strong>API de Localidades do IBGE</strong> — a base territorial para cruzar qualquer outra fonte por UF/município.</p>
+<h1 id="fonte-ibge-malha-territorial-localidades-e-indicadores-macro">Fonte <code>ibge</code> — malha territorial (Localidades) e indicadores macro<a class="headerlink" href="#fonte-ibge-malha-territorial-localidades-e-indicadores-macro" title="Permanent link">&para;</a></h1>
+<p>A fonte <code>ibge</code> reúne dois conjuntos de recursos:</p>
 <ul>
-<li><strong>Origem (base da API):</strong> <code>https://servicodados.ibge.gov.br/api/v1/localidades</code> (ex.: <code>.../regioes</code>).</li>
-<li><strong>Documentação:</strong> <a href="https://servicodados.ibge.gov.br/api/docs/localidades">https://servicodados.ibge.gov.br/api/docs/localidades</a>.</li>
+<li><strong>Localidades</strong> — regiões, estados e municípios do Brasil, da <strong>API de Localidades</strong> — a base territorial para cruzar qualquer outra fonte por UF/município.</li>
+<li>
+<p><strong>Indicadores macro</strong> — inflação (IPCA e INPC), crescimento (PIB trimestral) e mercado de trabalho (PNAD Contínua), da <strong>API de agregados v3 (SIDRA)</strong> — a base de comparação temporal para os eixos de renda e empresas.</p>
+</li>
+<li>
+<p><strong>Origem (Localidades):</strong> <code>https://servicodados.ibge.gov.br/api/v1/localidades</code> (ex.: <code>.../regioes</code>) — <a href="https://servicodados.ibge.gov.br/api/docs/localidades">https://servicodados.ibge.gov.br/api/docs/localidades</a>.</p>
+</li>
+<li><strong>Origem (Indicadores):</strong> <code>https://servicodados.ibge.gov.br/api/v3/agregados</code> — <a href="https://servicodados.ibge.gov.br/api/docs/agregados-por-municipio">https://servicodados.ibge.gov.br/api/docs/agregados-por-municipio</a>.</li>
 </ul>
-<h2 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h2>
+<h2 id="localidades">Localidades<a class="headerlink" href="#localidades" title="Permanent link">&para;</a></h2>
+<h3 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h3>
 <p>Três recursos JSON, sem paginação (a API devolve tudo de uma vez), via
 <code>TarefaDeIngestaoHttp</code> e gravados <strong>opacos</strong> na Raw (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>):</p>
 <table>
@@ -1344,19 +1429,67 @@
 </tbody>
 </table>
 <p>As dependências ordenam a DAG (estados depois de regiões, municípios depois de estados), mas cada recurso é um arquivo independente na Raw.</p>
+<h2 id="indicadores-macro">Indicadores macro<a class="headerlink" href="#indicadores-macro" title="Permanent link">&para;</a></h2>
+<h3 id="o-que-e-ingerido_1">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido_1" title="Permanent link">&para;</a></h3>
+<p>Cada indicador é um recurso que baixa a <strong>série completa</strong> (todos os períodos) de uma variável de um agregado do SIDRA, sem paginação, via <code>TarefaDeIngestaoHttp</code> e gravado <strong>opaco</strong> na Raw. O nível territorial é Nacional (<code>N1</code>) ou por UF (<code>N3</code>) — nunca municipal.</p>
+<table>
+<thead>
+<tr>
+<th>Recurso</th>
+<th>Indicador</th>
+<th>Agregado / variável</th>
+<th>Nível</th>
+<th>Periodicidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ipca</code></td>
+<td>IPCA — variação mensal</td>
+<td>1737 / 63</td>
+<td><code>N1</code> Brasil</td>
+<td>mensal</td>
+</tr>
+<tr>
+<td><code>inpc</code></td>
+<td>INPC — variação mensal</td>
+<td>1736 / 44</td>
+<td><code>N1</code> Brasil</td>
+<td>mensal</td>
+</tr>
+<tr>
+<td><code>pib-trimestral</code></td>
+<td>PIB — índice de volume encadeado</td>
+<td>1620 / 583</td>
+<td><code>N1</code> Brasil</td>
+<td>trimestral</td>
+</tr>
+<tr>
+<td><code>pnad-desocupacao</code></td>
+<td>PNAD Contínua — taxa de desocupação</td>
+<td>4093 / 4099</td>
+<td><code>N3</code> por UF</td>
+<td>trimestral</td>
+</tr>
+</tbody>
+</table>
+<p>A URL de cada recurso pede todos os períodos e todas as localidades do nível, por exemplo:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>https://servicodados.ibge.gov.br/api/v3/agregados/1737/periodos/all/variaveis/63?localidades=N1[all]
+</code></pre></div>
+<p>Os indicadores não têm dependências entre si: cada um é um arquivo independente na Raw.</p>
 <h2 id="layout-na-raw">Layout na Raw<a class="headerlink" href="#layout-na-raw" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>raw/ibge/&lt;recurso&gt;/_ultima_versao.json
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>raw/ibge/&lt;recurso&gt;/data_ingestao=AAAA-MM-DD/execucao=&lt;id&gt;/parte-00001.json
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>raw/ibge/&lt;recurso&gt;/data_ingestao=AAAA-MM-DD/execucao=&lt;id&gt;/_manifesto.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>raw/ibge/&lt;recurso&gt;/_ultima_versao.json
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>raw/ibge/&lt;recurso&gt;/data_ingestao=AAAA-MM-DD/execucao=&lt;id&gt;/parte-00001.json
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>raw/ibge/&lt;recurso&gt;/data_ingestao=AAAA-MM-DD/execucao=&lt;id&gt;/_manifesto.json
 </code></pre></div>
 <h2 id="como-rodar">Como rodar<a class="headerlink" href="#como-rodar" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>ibge
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>ibge
 </code></pre></div>
 <p>Fonte <strong>leve</strong> (~2,4 MB) e <strong>não</strong> <code>sob_demanda</code>: entra no <code>executar --todas</code>.</p>
 <h2 id="idempotencia">Idempotência<a class="headerlink" href="#idempotencia" title="Permanent link">&para;</a></h2>
 <p>Pré-checagem por versão/tamanho (<a href="../../adr/0012-pre-checagem-idempotente/">ADR 0012</a>): requisição condicional <code>If-None-Match</code> com o <code>ETag</code> da rodada anterior; <code>304</code> reaproveita o que já está na Raw.</p>
 <h2 id="fora-de-escopo-desta-camada-fica-no-refino">Fora de escopo desta camada (fica no refino)<a class="headerlink" href="#fora-de-escopo-desta-camada-fica-no-refino" title="Permanent link">&para;</a></h2>
-<p>A Raw guarda o JSON <strong>opaco</strong>. Interpretar os campos, achatar a hierarquia região → estado → município numa tabela consultável e cruzar com outras fontes por código de município é trabalho do refino (<a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>).</p>
+<p>A Raw guarda o JSON <strong>opaco</strong>. Interpretar os campos — achatar a hierarquia região → estado → município numa tabela consultável, cruzar por código de município, e desdobrar as séries do SIDRA em observações por indicador, recorte e período — é trabalho do refino (<a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>).</p>
 
 
 
