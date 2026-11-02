@@ -112,6 +112,14 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         Ok(())
     }
 
+    async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+        self.bucket
+            .delete_object(chave)
+            .await
+            .map_err(|e| self.erro(chave, e))?;
+        Ok(())
+    }
+
     async fn gravar_fluxo(
         &self,
         chave: &str,
