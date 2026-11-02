@@ -1108,6 +1108,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#detalhes-e-historico-de-tramitacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detalhes e histórico de tramitação
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#parlamentares" class="md-nav__link">
     <span class="md-ellipsis">
       Parlamentares
@@ -1159,19 +1168,30 @@
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-processos<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2024</span>
 </code></pre></div>
 <p>Os dados ficam em <code>raw/senado/processos/ano=AAAA/</code>.</p>
+<h2 id="detalhes-e-historico-de-tramitacao">Detalhes e histórico de tramitação<a class="headerlink" href="#detalhes-e-historico-de-tramitacao" title="Permanent link">&para;</a></h2>
+<p><code>senado-processos-detalhes</code> consulta a listagem de um ano e, em sequência, busca <code>GET /dadosabertos/processo/{id}</code> para cada processo retornado. A resposta de cada URL vira uma parte bruta independente no manifesto do ano; assim ficam preservados os campos de situação, informes legislativos e movimentações sem transformá-los. A listagem inicial também fica no mesmo recurso para registrar quais IDs foram percorridos.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Todos os anos — pode gerar muitas requisições</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-processos-detalhes
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Selecionar anos para controlar o volume</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-processos-detalhes<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2024</span>
+</code></pre></div>
+<p>Os dados ficam em <code>raw/senado/processos-detalhes/ano=AAAA/</code>. Cada tarefa limita uma rodada a 10.000 respostas (a listagem mais até 9.999 detalhes); se um ano exceder esse limite, a tarefa falha sem publicar um manifesto parcial. O limite oficial da API é de 10 requisições por segundo e é compartilhado entre as fontes do Senado.</p>
+<p>O detalhe informa a situação atual e sua data (<code>dataSituacaoAtual</code>), além de informes com datas e descrições. A cobertura foi conferida em dois exemplos da API: o processo <code>8237825</code> (<code>PL 823/2022</code>) tem situação atual <code>RTPA</code> em <code>2023-07-12</code> e um informe legislativo datado cuja descrição registra que a Presidência deferiu a retirada e encaminhou o projeto ao Arquivo; o processo <code>8614284</code> (<code>PL 1/2024</code>) aparece como <code>PRONTPAUT</code> e tramitando, sem evento de arquivamento no detalhe consultado. Assim, situação atual e evento de arquivamento são informações distintas.</p>
+<p>A API não garante uma coluna estruturada para a data de arquivamento ou para a pessoa responsável. Preserve datas e descrições dos informes/movimentações; só atribua órgão ou responsável quando estiver explicitamente presente na resposta. Os exemplos validam o formato disponível, não garantem que todos os arquivamentos tenham evento estruturado ou identificável.</p>
 <h2 id="parlamentares">Parlamentares<a class="headerlink" href="#parlamentares" title="Permanent link">&para;</a></h2>
 <p><code>senado-parlamentares</code> consulta <code>GET /dadosabertos/senador/lista/legislatura/{legislatura}</code>, uma vez por legislatura, da <strong>49ª</strong> (1991–1995) até a legislatura atual. A resposta contém a identificação parlamentar, incluindo partido quando informado, e os mandatos com UF e períodos/legislaturas. A API mantém rotas separadas para detalhes, mandatos e filiações (<code>/senador/{codigo}</code>, <code>/senador/{codigo}/mandatos</code> e <code>/senador/{codigo}/filiacoes</code>); esta fonte usa a listagem por legislatura, que já fornece o recorte de composição necessário aos dados de votação.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Todas as legislaturas</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-parlamentares
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Uma legislatura</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-parlamentares<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">legislatura</span><span class="o">=</span><span class="m">57</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Todas as legislaturas</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-parlamentares
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Uma legislatura</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-parlamentares<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">legislatura</span><span class="o">=</span><span class="m">57</span>
 </code></pre></div>
 <p>Os dados ficam em <code>raw/senado/parlamentares/legislatura=NN/</code>.</p>
 <h2 id="dados-brutos-e-execucao">Dados brutos e execução<a class="headerlink" href="#dados-brutos-e-execucao" title="Permanent link">&para;</a></h2>
-<p>As duas fontes são <code>sob_demanda</code> por cobrirem um histórico extenso. Suas respostas JSON ficam opacas na camada Raw, sem normalização ou cruzamento nesta etapa (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>); relacionar matérias, parlamentares, mandatos e votos pertence ao refino (<a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-processos<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2024</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-parlamentares<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">legislatura</span><span class="o">=</span><span class="m">57</span>
+<p>As fontes são <code>sob_demanda</code> por cobrirem um histórico extenso. Suas respostas JSON ficam opacas na camada Raw, sem normalização ou cruzamento nesta etapa (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>); relacionar matérias, parlamentares, mandatos e votos pertence ao refino (<a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-processos<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2024</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>todeolho<span class="w"> </span>executar<span class="w"> </span>senado-parlamentares<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">legislatura</span><span class="o">=</span><span class="m">57</span>
 </code></pre></div>
 <p>A ingestão segue a pré-checagem idempotente documentada no <a href="../../adr/0012-pre-checagem-idempotente/">ADR 0012</a>. A API pública não exige autenticação. O limite documentado é de 10 requisições por segundo; respostas HTTP 429 e 503 são tratadas pelo mecanismo comum de erros HTTP da ingestão.</p>
 <p>Referência primária: <a href="https://legis.senado.leg.br/dadosabertos/v3/api-docs">OpenAPI dos Dados Abertos Legislativos do Senado</a> e <a href="https://legis.senado.leg.br/dadosabertos/docs/">Swagger UI</a>.</p>
