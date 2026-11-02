@@ -108,18 +108,35 @@ mod testes {
                 (primeiro..=ULTIMO_ANO).map(move |ano| (conjunto.to_owned(), ano))
             })
             .collect();
+        // A contagem bruta (antes de virar `BTreeSet`) pega uma duplicata de
+        // `(conjunto, ano)` que o conjunto esconderia.
+        assert_eq!(
+            FonteCamaraVotacoes.criar_tarefas().len(),
+            esperado.len(),
+            "número de tarefas diverge do esperado (duplicata ou lacuna)"
+        );
         assert_eq!(pares(), esperado);
     }
 
     #[test]
-    fn inclui_os_votos_nominais() {
-        // `votacoesVotos` é o coração da fonte: sem ele não há "quem votou em quê".
-        assert!(
-            pares()
-                .iter()
-                .any(|(conjunto, _)| conjunto == "votacoesVotos"),
-            "a fonte precisa ingerir o conjunto votacoesVotos"
-        );
+    fn cobre_os_sete_conjuntos_esperados() {
+        // Lista explícita e independente de `CONJUNTOS`: se um dataset exigido
+        // for removido de `CONJUNTOS`, este teste falha (incluindo `votacoesVotos`,
+        // o voto nominal, sem o qual a fonte perde o sentido).
+        let esperados: BTreeSet<String> = [
+            "proposicoes",
+            "proposicoesAutores",
+            "votacoes",
+            "votacoesVotos",
+            "votacoesObjetos",
+            "votacoesProposicoes",
+            "votacoesOrientacoes",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let gerados: BTreeSet<String> = pares().into_iter().map(|(conjunto, _)| conjunto).collect();
+        assert_eq!(gerados, esperados);
     }
 
     #[test]
