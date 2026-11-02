@@ -8,11 +8,11 @@ Documentação: <https://dadosabertos.tse.jus.br/dataset/?tags=Resultados>.
 
 ## O que é ingerido
 
-Um **ZIP por UF e por eleição** (anos pares de 1998 a 2026), baixado como **arquivo
-grande** (em fluxo, com [download retomável](camara-votacoes.md)) e gravado **opaco** na
-Raw ([ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)):
+Um **ZIP por UF e por eleição** (anos pares de 1998 a 2026), baixado via
+`TarefaDeArquivo` como **arquivo grande** (em fluxo, sem carregar na memória) e gravado
+**opaco** na Raw ([ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)):
 
-- `https://cdn.tse.jus.br/.../votacao_secao_{ano}_{uf}.zip`
+- `https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_secao/votacao_secao_{ano}_{uf}.zip`
 - **408 arquivos** no total. Eleições **gerais** (2002, 2006, 2010…) incluem `DF` e `BR`;
   **municipais** (2000, 2004…) não têm `DF`. Em 2010 há também `VT` e `ZZ` (exterior).
 
@@ -41,9 +41,14 @@ docker compose run --rm --build ingestao executar tse --filtro ano=2022,2024 --f
 
 ## Idempotência
 
-Pré-checagem por versão/tamanho ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)); uma
-carga longa interrompida continua de onde parou (ver o
-[download retomável](camara-votacoes.md)).
+Pré-checagem por versão/tamanho ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)): um
+ZIP **já completo** na Raw (mesmo `ETag`/tamanho) é reaproveitado numa nova rodada, em vez
+de rebaixado.
+
+O [download retomável](camara-votacoes.md) cobre **quedas de conexão durante uma rodada**:
+ao cair, a transferência retoma do byte exato. Ele **não** persiste o progresso **entre
+execuções** — se o processo é encerrado no meio de um ZIP e rodado de novo, aquele ZIP
+(ainda incompleto) **recomeça do zero**; os já completos são pulados pela pré-checagem.
 
 ## Fora de escopo desta camada (fica no refino)
 
