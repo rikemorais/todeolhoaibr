@@ -43,3 +43,10 @@ Thumbs.db
 /docs/diagramas/*.finalize-summary.json
 /docs/diagramas/*.browser-check.json
 /docs/diagramas/*.delivery.json
+
+# Documentação (Material for MkDocs)
+/site
+/.cache
+# rustdoc copiado para dentro do site em tempo de build: só o index.md é versionado
+/docs/api/*
+!/docs/api/index.md

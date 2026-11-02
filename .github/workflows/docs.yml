@@ -1,0 +1,128 @@
+name: docs
+
+# Publica a documentação (Material for MkDocs) no GitHub Pages, versionada com
+# mike. A main publica a versão `dev`; cada tag de release estável `vX.Y.Z`
+# publica a série `X.Y` com o alias `latest` (padrão do site). O toolchain
+# Python fica isolado neste job — não toca o build Rust.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+# Precisa escrever no branch gh-pages que o mike gerencia.
+permissions:
+  contents: write
+
+# Um único grupo para TODOS os deploys (main e tags) — eles disputam o mesmo
+# gh-pages, então serializamos em vez de deixar os pushes correrem em paralelo.
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 para o mike enxergar o histórico do gh-pages.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Segurança: uma tag pode apontar para um commit que nunca passou pela
+      # main (e sua revisão). Como este job tem `contents: write` e roda
+      # `cargo doc` (executa build scripts/proc-macros do commit), recusamos
+      # construir uma tag que não seja ancestral de main.
+      - name: Valida que a tag está em main
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::A tag não aponta para um commit em main; abortando o deploy."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          # O arquivo de dependências não é o requirements.txt padrão.
+          cache-dependency-path: requirements-docs.txt
+
+      - run: pip install -r requirements-docs.txt
+
+      # Cache de ~/.cargo e target/ entre runs, igual ao ci.yml.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      # Referência de API. Limpa a saída antes para que crates removidos/renomeados
+      # não sobrevivam no cache de target/. -D warnings mantém a doc sem regressão,
+      # igual ao gate `docs` do ci.yml.
+      - run: |
+          rm -rf target/doc
+          cargo doc --no-deps --workspace --locked
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+      # Copia o rustdoc para dentro do docs_dir, sob /api. Remove o redirect raiz
+      # do rustdoc para não colidir com a nossa landing (docs/api/index.md).
+      - run: |
+          cp -r target/doc/. docs/api/
+          rm -f docs/api/index.html
+
+      - name: Configura o git do bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Garante o branch gh-pages local para o mike atualizar.
+      - run: git fetch origin gh-pages --depth=1 || true
+
+      - name: Publica a versão
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            # Só tags estáveis vX.Y.Z mexem em latest/default. Pré-lançamentos
+            # (ex.: v0.4.0-rc.1) são publicados sob o próprio nome, sem virar
+            # o `latest` que os visitantes veem por padrão.
+            if [[ ! "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Pré-lançamento ${TAG}: publica sem mover latest."
+              mike deploy --push --branch gh-pages "${TAG}"
+              exit 0
+            fi
+            SERIE="${TAG%.*}"   # 0.4.1 -> 0.4
+            # Maior série já publicada (ignora `dev` e aliases).
+            MAIOR=$(mike list --branch gh-pages 2>/dev/null \
+              | grep -oE '[0-9]+\.[0-9]+' | sort -V | tail -1 || true)
+            NOVA_MAIOR=$(printf '%s\n%s\n' "${MAIOR}" "${SERIE}" \
+              | grep -E '^[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            if [[ "${NOVA_MAIOR}" == "${SERIE}" ]]; then
+              echo "Release ${SERIE} é a mais nova: atualiza latest e o padrão."
+              mike deploy --push --branch gh-pages --update-aliases "${SERIE}" latest
+              mike set-default --push --branch gh-pages latest
+            else
+              echo "Release ${SERIE} é mais antiga que ${MAIOR}: publica sem mover latest."
+              mike deploy --push --branch gh-pages --update-aliases "${SERIE}"
+            fi
+          elif [[ "${GITHUB_REF}" == refs/heads/main ]]; then
+            echo "Publica a doc de desenvolvimento (dev)."
+            mike deploy --push --branch gh-pages --update-aliases dev
+            # Enquanto não houver release (sem `latest`), `dev` é o padrão do
+            # site, para o root não dar 404.
+            if ! mike list --branch gh-pages 2>/dev/null | grep -qw latest; then
+              mike set-default --push --branch gh-pages dev
+            fi
+          else
+            echo "::error::Deploy só a partir de main ou de tags vX.Y.Z (ref: ${GITHUB_REF})."
+            exit 1
+          fi
