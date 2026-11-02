@@ -20,7 +20,7 @@ As tarefas declaram etiquetas, como `ano=2024` e `uf=AC`. Filtros, menu e valida
 etiqueta suas tarefas ganha tudo isso sem código específico, o que mantém o princípio aberto/fechado do
 [ADR 0004](0004-factory-method-para-fontes.md).
 
-- `docker compose run --rm ingestao` abre um menu com o tamanho de cada fonte, ano e UF.
+- `docker compose run --rm ingestao` abre um menu. Fontes `sob_demanda` aparecem sem estimativa antecipada; após a escolha, o tamanho das tarefas selecionadas é consultado antes da confirmação.
 - `executar <fonte> --filtro ano=2024 --filtro uf=AC` faz o mesmo sem o menu. Filtros e valores desconhecidos são erro, nunca ignorados.
 - Fontes muito grandes declaram `sob_demanda` e ficam fora de `executar --todas`, para que ninguém baixe 16 GB por acidente.
 
@@ -57,7 +57,7 @@ estáticos após cada eleição. O formato deve ser reavaliado na transformaçã
 
 - **Exceção ao [ADR 0006](0006-layout-da-camada-raw.md):** `_ultima_versao.json` é sobrescrito. Ele é um ponteiro de controle, não um dado ingerido; os dados continuam imutáveis.
 - Uma pessoa pode ingerir uma única UF de uma única eleição, com poucos megabytes.
-- O menu faz cerca de 400 consultas ao TSE antes de abrir, o que levou alguns segundos no teste.
+- O menu deixou de consultar antecipadamente as fontes `sob_demanda` (incluindo os 408 arquivos do TSE); o custo das consultas de tamanho ocorre apenas para as tarefas escolhidas.
 - O espaço avisado cobre só a camada Raw. A transformação precisará de espaço próprio: os CSVs chegam a 8 vezes o tamanho dos ZIPs.
 - Duas ingestões simultâneas interferem entre si: a limpeza de uma cancela a transferência da outra, que recomeça o arquivo. Nenhum dado se perde, mas há retrabalho.
 - O ETag indica mudança no arquivo, não no conteúdo, então uma republicação idêntica é baixada de novo.

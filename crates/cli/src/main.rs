@@ -157,13 +157,17 @@ async fn selecionar() -> Result<bool> {
     let mut opcoes = Vec::with_capacity(fontes.len());
     for fonte in &fontes {
         let tarefas = fonte.criar_tarefas();
-        let estimativas = match contexto_para_fonte(&contexto, fonte.perfil_http()) {
-            Ok(contexto_da_fonte) => estimar(&tarefas_de(&tarefas), &contexto_da_fonte).await,
-            Err(_) => vec![None; tarefas.len()],
-        };
+        let estimativas = estimativas_para_menu(fonte.sob_demanda(), tarefas.len(), async {
+            match contexto_para_fonte(&contexto, fonte.perfil_http()) {
+                Ok(contexto_da_fonte) => estimar(&tarefas_de(&tarefas), &contexto_da_fonte).await,
+                Err(_) => vec![None; tarefas.len()],
+            }
+        })
+        .await;
         opcoes.push(menu::OpcaoDeFonte {
             nome: fonte.nome().to_owned(),
             descricao: fonte.descricao().to_owned(),
+            sob_demanda: fonte.sob_demanda(),
             tarefas: tarefas
                 .iter()
                 .zip(estimativas)
@@ -192,6 +196,18 @@ async fn selecionar() -> Result<bool> {
         });
     }
     executar(selecionadas, contexto, false).await
+}
+
+async fn estimativas_para_menu(
+    sob_demanda: bool,
+    quantidade: usize,
+    consulta: impl std::future::Future<Output = Vec<Option<u64>>>,
+) -> Vec<Option<u64>> {
+    if sob_demanda {
+        vec![None; quantidade]
+    } else {
+        consulta.await
+    }
 }
 
 async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
@@ -441,5 +457,19 @@ fn concorrencia() -> Result<usize> {
             .parse()
             .with_context(|| format!("TODEOLHO_CONCORRENCIA inválida: {valor}")),
         Err(_) => Ok(2),
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    #[tokio::test]
+    async fn fonte_sob_demanda_nao_consulta_tamanho_ao_abrir_menu() {
+        let estimativas = estimativas_para_menu(true, 3, async {
+            panic!("a consulta de tamanho não deve começar");
+        })
+        .await;
+        assert_eq!(estimativas, vec![None; 3]);
     }
 }

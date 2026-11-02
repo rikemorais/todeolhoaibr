@@ -17,6 +17,7 @@ pub struct OpcaoDeTarefa {
 pub struct OpcaoDeFonte {
     pub nome: String,
     pub descricao: String,
+    pub sob_demanda: bool,
     pub tarefas: Vec<OpcaoDeTarefa>,
 }
 
@@ -33,10 +34,14 @@ pub fn escolher(
     for (indice, fonte) in fontes.iter().enumerate() {
         writeln!(
             saida,
-            "  {}) {:<8} {:>9}  {}",
+            "  {}) {:<16} {:>11}  {}",
             indice + 1,
             fonte.nome,
-            tamanho(&fonte.tarefas),
+            if fonte.sob_demanda {
+                "sob demanda".to_owned()
+            } else {
+                tamanho(&fonte.tarefas)
+            },
             fonte.descricao
         )?;
     }
@@ -178,6 +183,7 @@ mod testes {
             OpcaoDeFonte {
                 nome: "ibge".into(),
                 descricao: "IBGE".into(),
+                sob_demanda: false,
                 tarefas: vec![OpcaoDeTarefa {
                     etiquetas: BTreeMap::new(),
                     bytes: Some(2_000_000),
@@ -186,6 +192,7 @@ mod testes {
             OpcaoDeFonte {
                 nome: "tse".into(),
                 descricao: "TSE".into(),
+                sob_demanda: false,
                 tarefas: vec![
                     tarefa("2022", "AC", 1024),
                     tarefa("2022", "SP", 1_048_576),
@@ -286,5 +293,22 @@ mod testes {
             bytes: None,
         }];
         assert_eq!(tamanho(&tarefas), "?");
+    }
+
+    #[test]
+    fn fonte_sob_demanda_aparece_sem_tamanho_antecipado() {
+        let mut fontes = fontes();
+        fontes[1].sob_demanda = true;
+        for tarefa in &mut fontes[1].tarefas {
+            tarefa.bytes = None;
+        }
+        let mut saida = Vec::new();
+        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
+        let texto = String::from_utf8(saida).unwrap();
+        assert!(
+            texto.contains("tse") && texto.contains("sob demanda"),
+            "{texto}"
+        );
+        assert!(!texto.contains("0 B"), "{texto}");
     }
 }

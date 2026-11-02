@@ -13,6 +13,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Corrigido
 
+- O menu deixa de consultar metadados de todas as fontes `sob_demanda` ao abrir e mostra um erro específico para combinações de filtros sem tarefas (issue #89).
 - Respostas HTTP 401/403 agora falham claramente também nas consultas de metadados de arquivos, sem serem tratadas como tamanho desconhecido.
 
 ## [0.4.0] - 2026-11-02

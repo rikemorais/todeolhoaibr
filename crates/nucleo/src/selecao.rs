@@ -33,6 +33,13 @@ pub enum ErroDeSelecao {
         /// Valores disponíveis para a etiqueta, separados por vírgula.
         disponiveis: String,
     },
+
+    /// Os valores existem isoladamente, mas nenhuma tarefa satisfaz todos.
+    #[error("nenhuma tarefa corresponde à combinação de filtros: {filtros}")]
+    CombinacaoVazia {
+        /// Filtros pedidos, em ordem estável para a mensagem de erro.
+        filtros: String,
+    },
 }
 
 /// Filtros por etiqueta: cada filtro aceita um conjunto de valores.
@@ -85,6 +92,21 @@ impl FiltroDeTarefas {
             .into_iter()
             .filter(|tarefa| self.aceita(tarefa))
             .collect();
+
+        if mantidas.is_empty() && !self.valores.is_empty() {
+            let filtros = self
+                .valores
+                .iter()
+                .map(|(nome, valores)| {
+                    format!(
+                        "{nome}={}",
+                        valores.iter().cloned().collect::<Vec<_>>().join(",")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(ErroDeSelecao::CombinacaoVazia { filtros });
+        }
 
         let nomes: BTreeSet<String> = mantidas
             .iter()
@@ -220,6 +242,12 @@ mod testes {
             nomes(&["ano="]),
             Err(ErroDeSelecao::FormatoInvalido(_))
         ));
+    }
+
+    #[test]
+    fn combinacao_de_valores_validos_sem_tarefas_tem_erro_especifico() {
+        let erro = nomes(&["ano=2024", "uf=SP"]).unwrap_err();
+        assert!(erro.to_string().contains("ano=2024, uf=SP"), "{erro}");
     }
 
     #[test]
