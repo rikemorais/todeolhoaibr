@@ -14,7 +14,7 @@ impl FonteDeDados for FonteIbge {
     }
 
     fn descricao(&self) -> &str {
-        "IBGE - Regiões, Estados e Municípios do Brasil"
+        "IBGE - Localidades e indicadores macro (IPCA, INPC, PIB, PNAD)"
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
@@ -23,10 +23,12 @@ impl FonteDeDados for FonteIbge {
                 .com_tamanho_tipico(tamanho_tipico)
         };
 
-        vec![
+        let mut tarefas = vec![
             TarefaPlanejada::nova(tarefa("regioes", 200)),
             TarefaPlanejada::nova(tarefa("estados", 2_500)).depois_de(["regioes"]),
             TarefaPlanejada::nova(tarefa("municipios", 2_500_000)).depois_de(["estados"]),
-        ]
+        ];
+        tarefas.extend(super::indicadores::tarefas());
+        tarefas
     }
 }
