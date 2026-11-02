@@ -323,6 +323,10 @@ fn jitter(tentativa: u32) -> std::time::Duration {
 #[cfg(test)]
 mod testes {
     use super::*;
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::thread::JoinHandle;
+    use std::time::{Duration, Instant};
 
     /// Lê `nome`, caindo para `alternativa` (as mesmas variáveis do serviço local,
     /// `TODEOLHO_S3_*`) e, por fim, para `padrao`.
@@ -354,6 +358,155 @@ mod testes {
         }
     }
 
+    fn armazenamento_local(endpoint: String) -> ArmazenamentoS3 {
+        ArmazenamentoS3::novo(config_de_teste(endpoint, "teste-raw-79".to_owned()))
+            .expect("configuração S3 válida")
+    }
+
+    struct RespostaS3 {
+        status: u16,
+        cabecalhos: String,
+        corpo: String,
+    }
+
+    fn resposta_s3(status: u16, cabecalhos: &str, corpo: &str) -> RespostaS3 {
+        RespostaS3 {
+            status,
+            cabecalhos: cabecalhos.to_owned(),
+            corpo: corpo.to_owned(),
+        }
+    }
+
+    /// Simula somente o protocolo HTTP que o SDK usa nos cenários exercitados.
+    /// Cada resposta fecha a conexão para manter o teste independente de estado.
+    fn servidor_s3(respostas: Vec<RespostaS3>) -> (String, JoinHandle<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        listener
+            .set_nonblocking(true)
+            .expect("listener não bloqueante");
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        let servidor = std::thread::spawn(move || {
+            let mut requisicoes = Vec::new();
+            for resposta in respostas {
+                let prazo = Instant::now() + Duration::from_secs(10);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock => {
+                            if Instant::now() >= prazo {
+                                return requisicoes;
+                            }
+                            std::thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(erro) => panic!("falha ao aceitar conexão do SDK: {erro}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(10)))
+                    .unwrap();
+
+                let mut leitor = BufReader::new(stream.try_clone().unwrap());
+                let requisicao = ler_requisicao(&mut leitor, &mut stream).unwrap();
+                requisicoes.push(requisicao);
+
+                let texto_status = match resposta.status {
+                    200 => "OK",
+                    204 => "No Content",
+                    404 => "Not Found",
+                    status => panic!("status de mock não previsto: {status}"),
+                };
+                let tamanho_corpo = resposta
+                    .cabecalhos
+                    .lines()
+                    .find_map(|linha| {
+                        let (nome, valor) = linha.split_once(':')?;
+                        nome.eq_ignore_ascii_case("content-length")
+                            .then(|| valor.trim().to_owned())
+                    })
+                    .unwrap_or_else(|| resposta.corpo.len().to_string());
+                let content_length = if resposta
+                    .cabecalhos
+                    .lines()
+                    .any(|linha| linha.to_ascii_lowercase().starts_with("content-length:"))
+                {
+                    String::new()
+                } else {
+                    format!("Content-Length: {tamanho_corpo}\r\n")
+                };
+                let cabecalho = format!(
+                    "HTTP/1.1 {} {}\r\n{}Connection: close\r\n{}\r\n",
+                    resposta.status, texto_status, content_length, resposta.cabecalhos,
+                );
+                stream.write_all(cabecalho.as_bytes()).unwrap();
+                stream.write_all(resposta.corpo.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+            requisicoes
+        });
+
+        (endpoint, servidor)
+    }
+
+    fn ler_requisicao(
+        leitor: &mut BufReader<TcpStream>,
+        stream: &mut TcpStream,
+    ) -> std::io::Result<String> {
+        let mut texto = String::new();
+        let mut linha = String::new();
+        leitor.read_line(&mut linha)?;
+        texto.push_str(&linha);
+        let mut tamanho = 0u64;
+        let mut chunked = false;
+        let mut espera = false;
+        loop {
+            linha.clear();
+            leitor.read_line(&mut linha)?;
+            if linha == "\r\n" || linha.is_empty() {
+                break;
+            }
+            let (nome, valor) = linha.split_once(':').unwrap_or(("", ""));
+            match nome.to_ascii_lowercase().as_str() {
+                "content-length" => tamanho = valor.trim().parse().unwrap_or(0),
+                "transfer-encoding" => chunked = valor.to_ascii_lowercase().contains("chunked"),
+                "expect" => espera = valor.trim().eq_ignore_ascii_case("100-continue"),
+                _ => {}
+            }
+            texto.push_str(&linha);
+        }
+        if espera {
+            stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n")?;
+        }
+
+        if chunked {
+            loop {
+                linha.clear();
+                leitor.read_line(&mut linha)?;
+                let tamanho_chunk =
+                    u64::from_str_radix(linha.trim().split(';').next().unwrap_or("0"), 16)
+                        .unwrap_or(0);
+                if tamanho_chunk == 0 {
+                    loop {
+                        linha.clear();
+                        leitor.read_line(&mut linha)?;
+                        if linha == "\r\n" || linha.is_empty() {
+                            break;
+                        }
+                    }
+                    break;
+                }
+                std::io::copy(
+                    &mut (&mut *leitor).take(tamanho_chunk),
+                    &mut std::io::sink(),
+                )?;
+                let mut crlf = [0; 2];
+                leitor.read_exact(&mut crlf)?;
+            }
+        } else if tamanho > 0 {
+            std::io::copy(&mut (&mut *leitor).take(tamanho), &mut std::io::sink())?;
+        }
+        Ok(texto)
+    }
+
     /// Conecta a um **bucket dedicado e único** por teste, para que um teste não
     /// interfira em outro nem em dados reais — `descartar_envios_incompletos`, por
     /// exemplo, cancela todos os multiparts do bucket. Devolve `None` (pula) quando
@@ -383,6 +536,103 @@ mod testes {
         assert_eq!(ler_parte(&mut fluxo).await.unwrap().len(), TAMANHO_DA_PARTE);
         assert_eq!(ler_parte(&mut fluxo).await.unwrap().len(), 100);
         assert!(ler_parte(&mut fluxo).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn ler_e_tamanho_usam_get_e_head() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "Content-Type: text/plain\r\n", "conteudo"),
+            resposta_s3(200, "Content-Length: 123\r\n", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+
+        assert_eq!(
+            s3.ler("presente").await.unwrap(),
+            Some(b"conteudo".to_vec())
+        );
+        assert_eq!(s3.tamanho("presente").await.unwrap(), Some(123));
+
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/presente "));
+        assert!(requisicoes[1].starts_with("HEAD /teste-raw-79/presente "));
+    }
+
+    #[tokio::test]
+    async fn ler_de_chave_ausente_devolve_none() {
+        let (endpoint, servidor) = servidor_s3(vec![resposta_s3(
+            404,
+            "Content-Type: application/xml\r\n",
+            "<Error><Code>NoSuchKey</Code><Message>ausente</Message></Error>",
+        )]);
+        let s3 = armazenamento_local(endpoint);
+
+        assert_eq!(s3.ler("ausente").await.unwrap(), None);
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/ausente "));
+    }
+
+    #[tokio::test]
+    async fn tamanho_de_chave_ausente_devolve_none() {
+        let (endpoint, servidor) = servidor_s3(vec![resposta_s3(404, "", "")]);
+        let s3 = armazenamento_local(endpoint);
+
+        assert_eq!(s3.tamanho("ausente").await.unwrap(), None);
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[0].starts_with("HEAD /teste-raw-79/ausente "));
+    }
+
+    #[tokio::test]
+    async fn descartar_envios_incompletos_cancela_cada_upload_listado() {
+        let uploads = "<ListMultipartUploadsResult><Bucket>teste-raw-79</Bucket><IsTruncated>false</IsTruncated><Upload><Key>um.bin</Key><UploadId>upload-um</UploadId><Initiated>2026-01-01T00:00:00.000Z</Initiated><StorageClass>STANDARD</StorageClass></Upload><Upload><Key>dois.bin</Key><UploadId>upload-dois</UploadId><Initiated>2026-01-01T00:00:00.000Z</Initiated><StorageClass>STANDARD</StorageClass></Upload></ListMultipartUploadsResult>";
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "Content-Type: application/xml\r\n", uploads),
+            resposta_s3(204, "", ""),
+            resposta_s3(204, "", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+
+        assert_eq!(s3.descartar_envios_incompletos().await.unwrap(), 2);
+
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/?uploads"));
+        assert!(requisicoes[1].starts_with("DELETE /teste-raw-79/um.bin?uploadId=upload-um"));
+        assert!(requisicoes[2].starts_with("DELETE /teste-raw-79/dois.bin?uploadId=upload-dois"));
+    }
+
+    #[tokio::test]
+    async fn gravar_fluxo_envia_partes_e_conclui_upload_multipart() {
+        let iniciada = "<InitiateMultipartUploadResult><Bucket>teste-raw-79</Bucket><Key>grande.bin</Key><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>";
+        let concluida = "<CompleteMultipartUploadResult><Location>http://localhost/grande.bin</Location><Bucket>teste-raw-79</Bucket><Key>grande.bin</Key><ETag>\"final\"</ETag></CompleteMultipartUploadResult>";
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "Content-Type: application/xml\r\n", iniciada),
+            resposta_s3(200, "ETag: \"parte-1\"\r\n", ""),
+            resposta_s3(200, "ETag: \"parte-2\"\r\n", ""),
+            resposta_s3(200, "Content-Type: application/xml\r\n", concluida),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let dados = vec![7u8; TAMANHO_DA_PARTE + 1];
+        let mut fluxo: &[u8] = &dados;
+
+        s3.gravar_fluxo("grande.bin", "application/octet-stream", &mut fluxo)
+            .await
+            .unwrap();
+
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 4, "inicia, envia duas partes e conclui");
+        assert!(requisicoes[0].starts_with("POST /teste-raw-79/grande.bin?uploads"));
+        assert!(requisicoes[1].starts_with("PUT /teste-raw-79/grande.bin?partNumber=1"));
+        assert!(
+            requisicoes[1]
+                .to_ascii_lowercase()
+                .contains(&format!("content-length: {TAMANHO_DA_PARTE}"))
+        );
+        assert!(requisicoes[2].starts_with("PUT /teste-raw-79/grande.bin?partNumber=2"));
+        assert!(
+            requisicoes[2]
+                .to_ascii_lowercase()
+                .contains("content-length: 1")
+        );
+        assert!(requisicoes[3].starts_with("POST /teste-raw-79/grande.bin?uploadId=upload-1"));
     }
 
     #[test]
