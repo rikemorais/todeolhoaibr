@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.5.0] - 2026-11-02
+
 ### Adicionado
 
 - O menu mostra quanto falta baixar por fonte e um total conhecido, sinalizando valores parciais; após a escolha, exibe a estimativa das tarefas selecionadas (issue #96).
