@@ -3,7 +3,7 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 use crate::paginacao::LinksDePaginacao;
 
-use super::camara_api;
+use super::api;
 
 const NOME: &str = "camara";
 const BASE: &str = "https://dadosabertos.camara.leg.br/api/v2";
@@ -21,7 +21,7 @@ impl FonteDeDados for FonteCamara {
     }
 
     fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
-        camara_api::perfil_http()
+        api::perfil_http()
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
