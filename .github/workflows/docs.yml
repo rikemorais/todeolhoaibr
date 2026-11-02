@@ -1,0 +1,80 @@
+name: docs
+
+# Publica a documentação (Material for MkDocs) no GitHub Pages, versionada com
+# mike. A main publica a versão `dev`; cada tag de release `vX.Y.Z` publica a
+# série `X.Y` com o alias `latest` (padrão do site). O toolchain Python fica
+# isolado neste job — não toca o build Rust.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "crates/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+# Precisa escrever no branch gh-pages que o mike gerencia.
+permissions:
+  contents: write
+
+# Evita dois deploys concorrentes mexendo no gh-pages ao mesmo tempo.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 para o mike enxergar o histórico do gh-pages.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements-docs.txt
+
+      # Cache de ~/.cargo e target/ entre runs, igual ao ci.yml.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      # Referência de API. -D warnings mantém a doc de código sem regressão,
+      # igual ao gate `docs` do ci.yml.
+      - run: cargo doc --no-deps --workspace --locked
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+      # Copia o rustdoc para dentro do docs_dir, sob /api. Remove o redirect raiz
+      # do rustdoc para não colidir com a nossa landing (docs/api/index.md).
+      - run: |
+          cp -r target/doc/. docs/api/
+          rm -f docs/api/index.html
+
+      - name: Configura o git do bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Garante o branch gh-pages local para o mike atualizar.
+      - run: git fetch origin gh-pages --depth=1 || true
+
+      - name: Publica a versão
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            SERIE="${TAG%.*}"   # 0.4.1 -> 0.4
+            echo "Publicando release ${TAG} na série ${SERIE} (alias latest)"
+            mike deploy --push --branch gh-pages --update-aliases "${SERIE}" latest
+            mike set-default --push --branch gh-pages latest
+          else
+            echo "Publicando a doc de desenvolvimento (dev)"
+            mike deploy --push --branch gh-pages --update-aliases dev
+          fi

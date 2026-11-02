@@ -1,0 +1,129 @@
+site_name: Tô de Olho AI
+site_author: Henrique Morais
+site_description: >-
+  Documentação do todeolhoaibr: ingestão de dados públicos brasileiros
+  (político-socioeconômicos) com arquitetura hexagonal em Rust, camada Raw
+  opaca e refino em medalhão.
+site_url: https://rikemorais.github.io/todeolhoaibr/
+copyright: Copyright &copy; 2026 Henrique Morais
+
+repo_url: https://github.com/rikemorais/todeolhoaibr
+repo_name: rikemorais/todeolhoaibr
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: pt-BR
+  icon:
+    logo: material/eye-outline
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+  palette:
+    # Alterna claro/escuro; o padrão segue a preferência do sistema.
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Tema do sistema
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Modo escuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      lang: pt
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      zoomable: true
+      draggable: true
+      auto_caption: false
+      caption_position: bottom
+  - mike:
+      canonical_version: latest
+
+extra:
+  version:
+    provider: mike
+    default: latest
+
+nav:
+  - Início: index.md
+  - Arquitetura:
+      - adr/README.md
+      - adr/0001-registrar-decisoes-com-adrs.md
+      - adr/0002-monorepo-em-camadas.md
+      - adr/0003-dagron-core-com-executor-proprio.md
+      - adr/0004-factory-method-para-fontes.md
+      - adr/0005-armazenamento-s3-com-versitygw.md
+      - adr/0006-layout-da-camada-raw.md
+      - adr/0007-docker-para-maquinas-modestas.md
+      - adr/0008-painel-de-execucoes.md
+      - adr/0009-interface-de-arquivos.md
+      - adr/0010-selecao-e-arquivos-grandes.md
+      - adr/0011-versionamento-e-commits.md
+      - adr/0012-pre-checagem-idempotente.md
+      - adr/0013-autenticacao-e-limite-de-taxa-no-cliente-http.md
+      - adr/0014-raw-opaca-e-refino-em-estagio-separado.md
+      - adr/0015-arquitetura-de-dados-em-medalhao.md
+      - adr/0016-documentacao-com-material-for-mkdocs.md
+      - Modelo de ADR: adr/modelo.md
+  - Fontes de dados:
+      - fontes/camara-despesas.md
+  - Diagramas: diagramas/README.md
+  - Referência de API: api/index.md

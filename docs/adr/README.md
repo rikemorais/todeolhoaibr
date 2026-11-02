@@ -23,3 +23,4 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | [0013](0013-autenticacao-e-limite-de-taxa-no-cliente-http.md) | Autenticação e limite de taxa como preocupação de borda no cliente HTTP | Proposto |
 | [0014](0014-raw-opaca-e-refino-em-estagio-separado.md) | Camada Raw opaca em bytes e refino em estágio separado | Proposto |
 | [0015](0015-arquitetura-de-dados-em-medalhao.md) | Arquitetura de dados em medalhão (raw → bronze → silver → gold → diamond) | Proposto |
+| [0016](0016-documentacao-com-material-for-mkdocs.md) | Documentação como site estático com Material for MkDocs no GitHub Pages | Aceito |

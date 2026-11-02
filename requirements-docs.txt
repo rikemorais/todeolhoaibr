@@ -1,0 +1,6 @@
+# Toolchain da documentação (Material for MkDocs). Usado SÓ no job de docs do
+# CI e em `mkdocs serve` local — não faz parte do build Rust. Versões pinadas
+# para builds reproduzíveis; atualizar conscientemente.
+mkdocs-material==9.5.49
+mkdocs-glightbox==0.4.0
+mike==2.1.3
