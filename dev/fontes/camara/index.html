@@ -874,6 +874,8 @@
       
         
       
+        
+      
     
     
       
@@ -1070,6 +1072,27 @@
   
   <span class="md-ellipsis">
     Fonte camara-votacoes — proposições e votações nominais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../camara-tramitacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-tramitacoes — histórico de tramitações
   </span>
   
 
@@ -1307,9 +1330,10 @@ página a página por <code>TarefaDeIngestaoHttp</code> e gravados <strong>opaco
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Outras fontes sob a mesma pasta</p>
-<p>As fontes <a href="../camara-votacoes/"><code>camara-votacoes</code></a> e <a href="../camara-despesas/"><code>camara-despesas</code></a>
-gravam sob <code>raw/camara/votacoes/</code> e <code>raw/camara/despesas/</code>, mas são <strong>fontes
-separadas</strong> no catálogo (para serem <code>sob_demanda</code>). Esta aqui é só o cadastro.</p>
+<p>As fontes <a href="../camara-votacoes/"><code>camara-votacoes</code></a>, <a href="../camara-despesas/"><code>camara-despesas</code></a>
+e <a href="../camara-tramitacoes/"><code>camara-tramitacoes</code></a> gravam sob <code>raw/camara/votacoes/</code>,
+<code>raw/camara/despesas/</code> e <code>raw/camara/tramitacoes/</code>, mas são <strong>fontes separadas</strong>
+no catálogo (para serem <code>sob_demanda</code>). Esta aqui é só o cadastro.</p>
 </div>
 <h2 id="como-rodar">Como rodar<a class="headerlink" href="#como-rodar" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>camara
