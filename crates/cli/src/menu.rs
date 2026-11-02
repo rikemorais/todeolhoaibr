@@ -16,7 +16,6 @@ pub struct OpcaoDeTarefa {
 #[derive(Debug, Clone)]
 pub struct OpcaoDeFonte {
     pub nome: String,
-    pub sob_demanda: bool,
     pub tarefas: Vec<OpcaoDeTarefa>,
 }
 
@@ -42,25 +41,19 @@ pub fn escolher(
             "  {}) {:<16} {:>12}",
             indice + 1,
             fonte.nome,
-            if fonte.sob_demanda {
-                "a consultar".to_owned()
-            } else {
-                tamanho(&fonte.tarefas)
-            }
+            tamanho(&fonte.tarefas)
         )?;
     }
-    let sob_demanda = fontes.iter().filter(|fonte| fonte.sob_demanda).count();
     let espaco = EspacoNecessario::somar(
         fontes
             .iter()
-            .filter(|fonte| !fonte.sob_demanda)
             .flat_map(|fonte| fonte.tarefas.iter().map(|tarefa| &tarefa.bytes)),
     );
     writeln!(saida, "\nTotal conhecido: {}", formatar_bytes(espaco.bytes))?;
-    if sob_demanda > 0 || espaco.sem_estimativa > 0 {
+    if espaco.sem_estimativa > 0 {
         writeln!(
             saida,
-            "Total parcial: fontes a consultar: {sob_demanda}; tarefas sem estimativa: {}. + indica valor parcial.",
+            "Tarefas sem estimativa: {}. + indica valor parcial.",
             espaco.sem_estimativa
         )?;
     }
@@ -242,7 +235,6 @@ mod testes {
         vec![
             OpcaoDeFonte {
                 nome: "ibge".into(),
-                sob_demanda: false,
                 tarefas: vec![OpcaoDeTarefa {
                     etiquetas: BTreeMap::new(),
                     bytes: Some(2_000_000),
@@ -250,7 +242,6 @@ mod testes {
             },
             OpcaoDeFonte {
                 nome: "tse".into(),
-                sob_demanda: false,
                 tarefas: vec![
                     tarefa("2022", "AC", 1024),
                     tarefa("2022", "SP", 1_048_576),
@@ -367,9 +358,8 @@ mod testes {
     }
 
     #[test]
-    fn fonte_sob_demanda_aparece_sem_tamanho_antecipado() {
+    fn tarefa_sem_estimativa_aparece_como_desconhecido() {
         let mut fontes = fontes();
-        fontes[1].sob_demanda = true;
         for tarefa in &mut fontes[1].tarefas {
             tarefa.bytes = None;
         }
@@ -377,10 +367,10 @@ mod testes {
         escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
         let texto = String::from_utf8(saida).unwrap();
         assert!(
-            texto.contains("tse") && texto.contains("a consultar"),
+            texto.contains("tse") && texto.contains("desconhecido"),
             "{texto}"
         );
-        assert!(!texto.contains("0 B"), "{texto}");
+        assert!(!texto.contains("a consultar"), "{texto}");
     }
 
     #[test]
@@ -390,21 +380,17 @@ mod testes {
             etiquetas: BTreeMap::new(),
             bytes: None,
         });
-        fontes[1].sob_demanda = true;
         let mut saida = Vec::new();
         escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
         let texto = String::from_utf8(saida).unwrap();
 
         assert!(texto.contains("Falta baixar"), "{texto}");
+        // Linha do ibge: 2 MB conhecidos + 1 tarefa sem estimativa -> parcial.
         assert!(texto.contains("1,9 MB+"), "{texto}");
-        assert!(
-            texto.contains("tse") && texto.contains("a consultar"),
-            "{texto}"
-        );
-        assert!(texto.contains("Total conhecido: 1,9 MB"), "{texto}");
-        assert!(
-            texto.contains("fontes a consultar: 1; tarefas sem estimativa: 1"),
-            "{texto}"
-        );
+        // tse agora é estimado no menu, em vez de "a consultar".
+        assert!(!texto.contains("a consultar"), "{texto}");
+        // Total conhecido inclui todas as fontes (ibge 2 MB + tse ~1 MB).
+        assert!(texto.contains("Total conhecido: 2,9 MB"), "{texto}");
+        assert!(texto.contains("Tarefas sem estimativa: 1"), "{texto}");
     }
 }
