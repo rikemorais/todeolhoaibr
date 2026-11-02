@@ -2,8 +2,15 @@
 
 A documentação de código dos crates é gerada por `cargo doc` e publicada junto
 com este site. Em produção (GitHub Pages) os links abaixo levam às páginas do
-`rustdoc`; ao rodar `mkdocs serve` **localmente** eles só existem depois de
-`cargo doc --no-deps --workspace` ter copiado a saída para `docs/api/`.
+`rustdoc`. Para vê-los ao rodar `mkdocs serve` **localmente**, gere e **copie** a
+saída para `docs/api/` antes (o `cargo doc` escreve em `target/doc`, não em
+`docs/api`):
+
+```bash
+cargo doc --no-deps --workspace
+cp -r target/doc/. docs/api/
+rm -f docs/api/index.html   # preserva esta landing
+```
 
 | Crate | Papel | API |
 | --- | --- | --- |
@@ -11,7 +18,7 @@ com este site. Em produção (GitHub Pages) os links abaixo levam às páginas d
 | `todeolho-fontes` | Catálogo de fontes públicas e tipos de tarefa | [todeolho_fontes](todeolho_fontes/index.html) |
 | `todeolho-infraestrutura` | Adaptadores: S3, cliente HTTP, disco | [todeolho_infraestrutura](todeolho_infraestrutura/index.html) |
 | `todeolho-painel` | Painel de execuções | [todeolho_painel](todeolho_painel/index.html) |
-| `todeolho-cli` | Interface de linha de comando | [todeolho_cli](todeolho_cli/index.html) |
+| `todeolho-cli` | Interface de linha de comando (binário `todeolho`) | [todeolho](todeolho/index.html) |
 
 !!! tip "Como é gerada"
     O job de documentação roda `cargo doc --no-deps --workspace` e copia

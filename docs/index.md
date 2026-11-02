@@ -17,13 +17,13 @@ e refino em medalhão.
 
 ```bash
 # Lista as fontes disponíveis (offline)
-docker compose run --rm todeolho listar
+docker compose run --rm ingestao listar
 
 # Planeja uma ingestão sem executar
-docker compose run --rm todeolho plano ibge
+docker compose run --rm ingestao plano ibge
 
 # Executa a ingestão de uma fonte
-docker compose run --rm --build todeolho executar ibge
+docker compose run --rm --build ingestao executar ibge
 ```
 
 ## Arquitetura em uma frase
