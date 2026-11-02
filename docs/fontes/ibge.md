@@ -36,3 +36,7 @@ Fonte **leve** (~2,4 MB) e **não** `sob_demanda`: entra no `executar --todas`.
 ## Idempotência
 
 Pré-checagem por versão/tamanho ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)): requisição condicional `If-None-Match` com o `ETag` da rodada anterior; `304` reaproveita o que já está na Raw.
+
+## Fora de escopo desta camada (fica no refino)
+
+A Raw guarda o JSON **opaco**. Interpretar os campos, achatar a hierarquia região → estado → município numa tabela consultável e cruzar com outras fontes por código de município é trabalho do refino ([ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md)).

@@ -44,3 +44,9 @@ Fonte **leve** (~200 KB) e **não** `sob_demanda`: entra no `executar --todas`.
 Pré-checagem por página ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)):
 cada página usa `If-None-Match` com o `ETag` da rodada anterior; páginas inalteradas
 são reaproveitadas, sem regravar.
+
+## Fora de escopo desta camada (fica no refino)
+
+A Raw guarda as páginas JSON **opacas**. Juntar as páginas, interpretar os campos e
+cruzar legislaturas ↔ partidos ↔ deputados numa base consultável é trabalho do refino
+([ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md)).
