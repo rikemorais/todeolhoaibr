@@ -3,6 +3,8 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 
+use super::senado_api;
+
 const NOME: &str = "senado-votacoes";
 const FONTE_RAW: &str = "senado";
 const BASE: &str = "https://legis.senado.leg.br/dadosabertos";
@@ -43,6 +45,10 @@ impl FonteDeDados for FonteSenadoVotacoes {
 
     fn descricao(&self) -> &str {
         "Senado Federal - matérias e votações nominais, uma consulta por ano desde 1991"
+    }
+
+    fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
+        senado_api::perfil_http()
     }
 
     /// São dezenas de anos em lote: não devem entrar em `--todas` por acidente.
