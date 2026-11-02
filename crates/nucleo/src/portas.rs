@@ -33,6 +33,14 @@ pub trait ArmazenamentoRaw: Send + Sync {
         fluxo: &mut (dyn AsyncRead + Send + Unpin),
     ) -> Result<(), ErroDeIngestao>;
 
+    /// Remove um objeto publicado na camada Raw.
+    async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+        Err(ErroDeIngestao::Armazenamento {
+            chave: chave.to_owned(),
+            detalhe: "remoção não implementada pelo adaptador".into(),
+        })
+    }
+
     /// Apaga transferências que nunca terminaram, como as de um processo interrompido,
     /// para que não ocupem disco. Uma ingestão em andamento perde a transferência atual e
     /// a recomeça, então nenhum dado se perde.

@@ -115,6 +115,7 @@ impl TarefaDeArquivo {
         if let Some(total) = total_esperado
             && leitor.bytes != total
         {
+            contexto.armazenamento.remover(&chave).await?;
             return Err(ErroDeIngestao::Http {
                 url: self.url.clone(),
                 detalhe: format!(
@@ -504,6 +505,7 @@ mod testes {
     #[derive(Default)]
     struct ArmazenamentoEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
+        limitar_fluxo: Mutex<bool>,
     }
 
     #[async_trait]
@@ -524,6 +526,11 @@ mod testes {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
         }
 
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.objetos.lock().unwrap().remove(chave);
+            Ok(())
+        }
+
         async fn gravar_fluxo(
             &self,
             chave: &str,
@@ -531,12 +538,23 @@ mod testes {
             fluxo: &mut (dyn AsyncRead + Send + Unpin),
         ) -> Result<(), ErroDeIngestao> {
             let mut conteudo = Vec::new();
-            fluxo.read_to_end(&mut conteudo).await.map_err(|erro| {
-                ErroDeIngestao::Armazenamento {
-                    chave: chave.to_owned(),
-                    detalhe: erro.to_string(),
-                }
-            })?;
+            if *self.limitar_fluxo.lock().unwrap() {
+                (&mut *fluxo)
+                    .take(5)
+                    .read_to_end(&mut conteudo)
+                    .await
+                    .map_err(|erro| ErroDeIngestao::Armazenamento {
+                        chave: chave.to_owned(),
+                        detalhe: erro.to_string(),
+                    })?;
+            } else {
+                fluxo.read_to_end(&mut conteudo).await.map_err(|erro| {
+                    ErroDeIngestao::Armazenamento {
+                        chave: chave.to_owned(),
+                        detalhe: erro.to_string(),
+                    }
+                })?;
+            }
             self.objetos
                 .lock()
                 .unwrap()
@@ -873,6 +891,19 @@ mod testes {
                 .await,
             Err(ErroDeIngestao::NaoEncontrado { .. })
         ));
+    }
+
+    #[tokio::test]
+    async fn remove_parte_quando_o_tamanho_final_nao_confere() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")));
+        *cenario.armazenamento.limitar_fluxo.lock().unwrap() = true;
+        let mut tarefa = tarefa();
+        tarefa.espera_entre_tentativas = Duration::ZERO;
+
+        let erro = tarefa.executar(&cenario.contexto).await.unwrap_err();
+
+        assert!(matches!(erro, ErroDeIngestao::Http { .. }), "{erro:?}");
+        assert!(cenario.armazenamento.objetos.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
