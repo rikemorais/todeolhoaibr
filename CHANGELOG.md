@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- As fontes anuais da Câmara passam a incluir o ano corrente automaticamente; um arquivo do ano corrente ainda não publicado é ignorado sem ocultar a ausência de arquivos históricos (issue #95).
+
 ## [0.5.0] - 2026-11-02
 
 ### Adicionado

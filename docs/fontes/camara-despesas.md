@@ -5,7 +5,7 @@ Despesas da **CEAP** (Cota para o Exercício da Atividade Parlamentar) dos deput
 ## O que é ingerido
 
 - Um **arquivo CSV (zipado) por ano**, nacional, publicado pela Câmara em
-  `https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip`, de **2008** até o ano atual.
+  `https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip`, de **2008** até o ano corrente, calculado ao executar. Se o arquivo do ano corrente ainda não foi publicado (HTTP 404), a tarefa termina sem gravar dados e será tentada novamente na próxima execução; um arquivo histórico ausente continua sendo erro.
 - O arquivo é baixado como **arquivo grande** (em fluxo, sem carregar na memória) e gravado
   **opaco** na camada Raw — a ingestão não descompacta nem interpreta o conteúdo (ver
   [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)).
@@ -28,7 +28,7 @@ O `_ultima_versao.json` é o **ponteiro** que aponta para o manifesto da execuç
 
 Embora a [issue #25](https://github.com/rikemorais/todeolhoaibr/issues/25) falasse em "recurso da
 fonte `camara`", a CEAP é uma **fonte própria `camara-despesas` com `sob_demanda = true`**, para
-**não entrar no `executar --todas`** (são ~19 arquivos anuais em lote). Como `sob_demanda` é por
+**não entrar no `executar --todas`** (são muitos arquivos anuais em lote). Como `sob_demanda` é por
 fonte, não por tarefa, separá-la é a única forma de manter o `camara` (API leve) fora desse peso.
 O dado, ainda assim, mora em `raw/camara/despesas/`.
 
