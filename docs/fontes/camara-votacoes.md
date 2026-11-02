@@ -8,7 +8,7 @@ O voto nominal, na API REST, só sai por votação (`/votacoes/{id}/votos`), o q
 
 ## O que é ingerido
 
-Um CSV por **conjunto** e por **ano**, baixado como **arquivo grande** (em fluxo) e gravado **opaco** na Raw — a ingestão não interpreta o conteúdo ([ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)).
+Um CSV por **conjunto** e por **ano**, até o ano corrente calculado ao executar, baixado como **arquivo grande** (em fluxo) e gravado **opaco** na Raw — a ingestão não interpreta o conteúdo ([ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)). Um conjunto ainda sem arquivo no ano corrente (HTTP 404) é ignorado e tentado novamente na próxima execução; um arquivo histórico ausente continua sendo erro.
 
 | Conjunto | O que traz | Desde |
 | --- | --- | --- |

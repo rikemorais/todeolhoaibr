@@ -1,3 +1,4 @@
+use chrono::{Datelike, Utc};
 use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
@@ -11,8 +12,27 @@ const FONTE_RAW: &str = "camara";
 const BASE_CEAP: &str = "https://www.camara.leg.br/cotas";
 /// Primeiro ano com arquivo anual da CEAP publicado.
 const PRIMEIRO_ANO_CEAP: u16 = 2008;
-/// Último ano disponível. Atualizar a cada ano.
-const ULTIMO_ANO_CEAP: u16 = 2026;
+
+fn ultimo_ano() -> u16 {
+    Utc::now().year() as u16
+}
+
+fn tarefas_ate(ano_final: u16) -> Vec<TarefaPlanejada> {
+    (PRIMEIRO_ANO_CEAP..=ano_final)
+        .map(|ano| {
+            let mut tarefa = TarefaDeArquivo::nova(
+                format!("despesas_{ano}"),
+                FONTE_RAW,
+                format!("despesas/ano={ano}"),
+                format!("{BASE_CEAP}/Ano-{ano}.csv.zip"),
+            );
+            if ano == ano_final {
+                tarefa = tarefa.aceitar_ausencia();
+            }
+            TarefaPlanejada::nova(tarefa).com_etiquetas([("ano", ano.to_string().as_str())])
+        })
+        .collect()
+}
 
 /// Despesas da CEAP (Cota para o Exercício da Atividade Parlamentar) dos deputados.
 ///
@@ -37,23 +57,13 @@ impl FonteDeDados for FonteCamaraDespesas {
         "Câmara dos Deputados - despesas da CEAP, um arquivo por ano desde 2008"
     }
 
-    /// São ~19 arquivos anuais em lote: não devem entrar em `--todas` por acidente.
+    /// Os arquivos anuais em lote não devem entrar em `--todas` por acidente.
     fn sob_demanda(&self) -> bool {
         true
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        (PRIMEIRO_ANO_CEAP..=ULTIMO_ANO_CEAP)
-            .map(|ano| {
-                TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                    format!("despesas_{ano}"),
-                    FONTE_RAW,
-                    format!("despesas/ano={ano}"),
-                    format!("{BASE_CEAP}/Ano-{ano}.csv.zip"),
-                ))
-                .com_etiquetas([("ano", ano.to_string().as_str())])
-            })
-            .collect()
+        tarefas_ate(ultimo_ano())
     }
 }
 
@@ -81,8 +91,18 @@ mod testes {
     #[test]
     fn cobre_exatamente_um_arquivo_por_ano() {
         // Conjunto exato (não só a contagem e os extremos): pega ano faltando no meio.
-        let esperado: BTreeSet<u16> = (PRIMEIRO_ANO_CEAP..=ULTIMO_ANO_CEAP).collect();
+        let esperado: BTreeSet<u16> = (PRIMEIRO_ANO_CEAP..=ultimo_ano()).collect();
         assert_eq!(anos(), esperado);
+    }
+
+    #[test]
+    fn inclui_o_ano_novo_sem_edicao_manual() {
+        let anos: BTreeSet<_> = tarefas_ate(2027)
+            .into_iter()
+            .map(|tarefa| tarefa.etiquetas["ano"].clone())
+            .collect();
+        assert!(anos.contains("2027"));
+        assert!(!anos.contains("2028"));
     }
 
     #[test]

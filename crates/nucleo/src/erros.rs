@@ -6,6 +6,12 @@ use thiserror::Error;
 /// Falhas ao executar uma tarefa de ingestão.
 #[derive(Debug, Error)]
 pub enum ErroDeIngestao {
+    /// O arquivo ainda não existe na origem (HTTP 404).
+    #[error("arquivo não encontrado na origem: {url} (HTTP 404)")]
+    NaoEncontrado {
+        /// URL do arquivo ausente.
+        url: String,
+    },
     /// A API recusou a credencial ou o acesso ao recurso.
     #[error(
         "acesso negado pela API em {url} (HTTP {status}); confira a credencial e as permissões"
