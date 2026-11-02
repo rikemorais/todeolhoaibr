@@ -46,13 +46,7 @@ pub fn escolher(
         )?;
     }
 
-    let Some(numeros) = perguntar_numeros(
-        "\nDigite os números das fontes, separados por vírgula (Enter para sair): ",
-        fontes.len(),
-        entrada,
-        saida,
-    )?
-    else {
+    let Some(numeros) = perguntar_fontes(fontes.len(), entrada, saida)? else {
         return Ok(None);
     };
 
@@ -97,6 +91,40 @@ pub fn escolher(
         escolha.push((indice, filtro));
     }
     Ok(Some(escolha))
+}
+
+/// Na primeira pergunta, Enter inclui todas as fontes; `q` ou fim da entrada sai.
+fn perguntar_fontes(
+    limite: usize,
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+) -> io::Result<Option<Vec<usize>>> {
+    loop {
+        write!(
+            saida,
+            "\nDigite os números das fontes, separados por vírgula (Enter para todas; q para sair): "
+        )?;
+        saida.flush()?;
+
+        let mut linha = String::new();
+        if entrada.read_line(&mut linha)? == 0 {
+            return Ok(None);
+        }
+        let resposta = linha.trim();
+        if resposta.eq_ignore_ascii_case("q") || resposta.eq_ignore_ascii_case("sair") {
+            return Ok(None);
+        }
+        if resposta.is_empty() {
+            return Ok(Some((0..limite).collect()));
+        }
+        match interpretar_numeros(resposta, limite) {
+            Some(numeros) => return Ok(Some(numeros)),
+            None => writeln!(
+                saida,
+                "Resposta inválida. Use números de 1 a {limite} ou q para sair."
+            )?,
+        }
+    }
 }
 
 /// Pergunta até receber uma resposta válida. Enter ou fim da entrada devolvem `None`.
@@ -219,8 +247,19 @@ mod testes {
     }
 
     #[test]
-    fn enter_na_primeira_pergunta_e_desistencia() {
-        assert_eq!(responder("\n").0, None);
+    fn enter_na_primeira_pergunta_seleciona_todas_as_fontes() {
+        assert_eq!(
+            responder("\n").0,
+            Some(vec![
+                (0, FiltroDeTarefas::default()),
+                (1, FiltroDeTarefas::default()),
+            ])
+        );
+    }
+
+    #[test]
+    fn q_na_primeira_pergunta_e_desistencia() {
+        assert_eq!(responder("q\n").0, None);
     }
 
     #[test]
