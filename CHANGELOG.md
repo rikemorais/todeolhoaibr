@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.9.0] - 2026-11-02
+
+### Adicionado
+
+- Fonte sob demanda `camara-tramitacoes` preserva os históricos oficiais das proposições por ano, incluindo órgão, data, situação e descrição dos passos ([issue #113](https://github.com/rikemorais/todeolhoaibr/issues/113)).
+
 ## [0.8.0] - 2026-11-02
 
 ### Adicionado
