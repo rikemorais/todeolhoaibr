@@ -19,8 +19,9 @@ use todeolho_infraestrutura::{
 };
 use todeolho_nucleo::{
     ArmazenamentoRaw, AvaliacaoDeEspaco, ContextoDeExecucao, DagDeIngestao, EspacoNecessario,
-    EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, RegistradorDeExecucao,
-    RegistroDeExecucao, RelatorioDaExecucao, Tarefa, TarefaPlanejada, estimar, formatar_bytes,
+    EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, PerfilHttp,
+    RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa, TarefaPlanejada,
+    estimar, formatar_bytes,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -78,6 +79,7 @@ struct ArgumentosDeExecucao {
 struct FonteSelecionada {
     nome: String,
     tarefas: Vec<TarefaPlanejada>,
+    perfil_http: PerfilHttp,
 }
 
 #[tokio::main]
@@ -155,7 +157,10 @@ async fn selecionar() -> Result<bool> {
     let mut opcoes = Vec::with_capacity(fontes.len());
     for fonte in &fontes {
         let tarefas = fonte.criar_tarefas();
-        let estimativas = estimar(&tarefas_de(&tarefas), &contexto).await;
+        let estimativas = match contexto_para_fonte(&contexto, fonte.perfil_http()) {
+            Ok(contexto_da_fonte) => estimar(&tarefas_de(&tarefas), &contexto_da_fonte).await,
+            Err(_) => vec![None; tarefas.len()],
+        };
         opcoes.push(menu::OpcaoDeFonte {
             nome: fonte.nome().to_owned(),
             descricao: fonte.descricao().to_owned(),
@@ -183,6 +188,7 @@ async fn selecionar() -> Result<bool> {
         selecionadas.push(FonteSelecionada {
             nome: fonte.nome().to_owned(),
             tarefas: filtro.aplicar(fonte.criar_tarefas())?,
+            perfil_http: fonte.perfil_http(),
         });
     }
     executar(selecionadas, contexto, false).await
@@ -202,6 +208,7 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
                 .map(|fonte| FonteSelecionada {
                     nome: fonte.nome().to_owned(),
                     tarefas: fonte.criar_tarefas(),
+                    perfil_http: fonte.perfil_http(),
                 })
                 .collect()
         }
@@ -211,6 +218,7 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
             vec![FonteSelecionada {
                 nome,
                 tarefas: filtro.aplicar(fonte.criar_tarefas())?,
+                perfil_http: fonte.perfil_http(),
             }]
         }
     };
@@ -241,6 +249,24 @@ async fn preparar_contexto() -> Result<ContextoDeExecucao> {
     })
 }
 
+fn contexto_para_fonte(
+    contexto: &ContextoDeExecucao,
+    perfil: PerfilHttp,
+) -> Result<ContextoDeExecucao> {
+    let segredo = perfil
+        .credencial
+        .map(|credencial| obrigatoria(credencial.variavel))
+        .transpose()?;
+    Ok(ContextoDeExecucao {
+        http: Arc::new(ClienteHttpComRetentativas::com_perfil(
+            PoliticaDeRetentativas::default(),
+            perfil,
+            segredo.as_deref(),
+        )?),
+        ..contexto.clone()
+    })
+}
+
 /// Mostra o espaço necessário, recusa o que não cabe, pede confirmação e executa.
 async fn executar(
     selecionadas: Vec<FonteSelecionada>,
@@ -248,19 +274,22 @@ async fn executar(
     sem_confirmacao: bool,
 ) -> Result<bool> {
     let mut dags = Vec::with_capacity(selecionadas.len());
-    let mut tarefas: Vec<Arc<dyn Tarefa>> = Vec::new();
+    let mut contextos = Vec::with_capacity(selecionadas.len());
+    let mut estimativas = Vec::new();
     for fonte in selecionadas {
-        tarefas.extend(tarefas_de(&fonte.tarefas));
+        let contexto_da_fonte = contexto_para_fonte(&contexto, fonte.perfil_http)?;
+        estimativas.extend(estimar(&tarefas_de(&fonte.tarefas), &contexto_da_fonte).await);
         dags.push(DagDeIngestao::construir(&fonte.nome, fonte.tarefas)?);
+        contextos.push(contexto_da_fonte);
     }
 
-    let estimativas = estimar(&tarefas, &contexto).await;
+    let quantidade = estimativas.len();
     let espaco = EspacoNecessario::somar(&estimativas);
     let livre = env::var("TODEOLHO_DIR_DADOS")
         .ok()
         .and_then(|caminho| espaco_livre_em(Path::new(&caminho)));
 
-    if !avisar_sobre_espaco(tarefas.len(), &espaco, livre) {
+    if !avisar_sobre_espaco(quantidade, &espaco, livre) {
         return Ok(false);
     }
     if !sem_confirmacao && !confirmar()? {
@@ -294,9 +323,9 @@ async fn executar(
     let executor = ExecutorDeDag::novo(concorrencia()?);
 
     let mut sucesso = true;
-    for dag in &dags {
+    for (dag, contexto_da_fonte) in dags.iter().zip(&contextos) {
         let relatorio = executor
-            .executar(dag, &contexto, registrador.as_ref())
+            .executar(dag, contexto_da_fonte, registrador.as_ref())
             .await?;
         imprimir(&relatorio);
         sucesso &= relatorio.sucesso();

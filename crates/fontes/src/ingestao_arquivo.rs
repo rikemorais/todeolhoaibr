@@ -186,6 +186,9 @@ impl Tarefa for TarefaDeArquivo {
             match self.transferir(contexto, &local, informacoes.tamanho).await {
                 Ok(arquivo) => break arquivo,
                 Err(erro) => {
+                    if matches!(erro, ErroDeIngestao::Autenticacao { .. }) {
+                        return Err(erro);
+                    }
                     falhas += 1;
                     if falhas >= TENTATIVAS {
                         return Err(erro);
