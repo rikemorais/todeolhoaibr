@@ -9,7 +9,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
-- Enter no primeiro prompt do menu seleciona todas as fontes; `q` sai sem executar (parte da issue #96).
+- O menu mostra quanto falta baixar por fonte e um total conhecido, sinalizando valores parciais; após a escolha, exibe a estimativa das tarefas selecionadas (issue #96).
+- Enter no primeiro prompt do menu seleciona todas as fontes; `q` sai sem executar (issue #96).
 - Perfil HTTP opcional por fonte, com credencial por variável de ambiente e limite de requisições compartilhado por host (issue #70).
 
 ### Corrigido
