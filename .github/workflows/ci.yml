@@ -19,6 +19,17 @@ jobs:
       # roda os testes de todos os crates.
       - run: cargo test --workspace --locked
 
+  # Gate de cobertura: o limite começa na cobertura atual (77,90%) e impede
+  # regressões. cargo-llvm-cov publica o resumo por arquivo no log do job.
+  cobertura:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: rustup component add llvm-tools-preview
+      - run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - run: cargo llvm-cov --workspace --locked --fail-under-lines 77.9
+
   # Formatação e lint: barra PR com código fora do rustfmt ou com qualquer aviso
   # do clippy. `--all-targets` cobre também testes e exemplos.
   lint:

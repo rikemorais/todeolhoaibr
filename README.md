@@ -304,9 +304,22 @@ Para trabalhar no código, instale o [Rust](https://rustup.rs/). Os testes não 
 
 ```bash
 cargo test --workspace
+cargo llvm-cov --workspace --fail-under-lines 77.9
 cargo clippy --workspace --all-targets
 cargo fmt --all
 ```
+
+Para medir cobertura localmente, instale as ferramentas uma vez e rode o mesmo
+comando usado pelo CI:
+
+```bash
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov --version 0.9.1 --locked
+cargo llvm-cov --workspace --locked --fail-under-lines 77.9
+```
+
+O resumo por arquivo é exibido no terminal. O limite inicial é 77,9% de linhas,
+medido em 2 de novembro de 2026; aumente-o quando a cobertura crescer.
 
 Os testes de integração do adaptador S3 (`armazenamento_s3`) são marcados com `#[ignore]` — o `cargo test` padrão os reporta como *ignored*, não como aprovados. Para rodá-los contra o versitygw local, suba-o e passe o endpoint:
 
