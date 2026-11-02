@@ -282,9 +282,11 @@ function plural(quantidade, singular, varias) {
 // desconhecido: dá para mostrar o baixado, mas não o percentual.
 function progressoDaTarefa(tarefa, execucao) {
   if (tarefa.estado !== "em_execucao" || execucao.situacao !== "em_andamento") return null;
-  const baixados = tarefa.bytes_baixados;
-  if (baixados === null || baixados === undefined) return null;
+  const baixados = tarefa.bytes_baixados || 0;
   const total = tarefa.bytes_total;
+  // Sem total conhecido e sem nada baixado não há progresso a mostrar: é o caso das
+  // fontes de API (fan-out sem Content-Length), que seguem exibindo só a duração.
+  if (!total && !baixados) return null;
   if (!total) return { baixados, total: null, fracao: null };
   return { baixados, total, fracao: Math.min(1, baixados / total) };
 }
