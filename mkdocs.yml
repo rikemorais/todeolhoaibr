@@ -124,8 +124,11 @@ nav:
       - adr/0016-documentacao-com-material-for-mkdocs.md
       - Modelo de ADR: adr/modelo.md
   - Fontes de dados:
+      - fontes/ibge.md
+      - fontes/camara.md
       - fontes/camara-despesas.md
       - fontes/camara-votacoes.md
       - fontes/senado-votacoes.md
+      - fontes/tse.md
   - Diagramas: diagramas/README.md
   - Referência de API: api/index.md
