@@ -3,6 +3,8 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
 
+use super::camara_api;
+
 const NOME: &str = "camara-votacoes";
 
 /// A Raw guarda as votações sob a mesma fonte `camara` (`raw/camara/votacoes/...`),
@@ -83,6 +85,10 @@ impl FonteDeDados for FonteCamaraVotacoes {
     /// São dezenas de arquivos anuais em lote: não devem entrar em `--todas` por acidente.
     fn sob_demanda(&self) -> bool {
         true
+    }
+
+    fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
+        camara_api::perfil_http()
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {

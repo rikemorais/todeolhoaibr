@@ -28,9 +28,10 @@ raw/camara/<recurso>/data_ingestao=AAAA-MM-DD/execucao=<id>/_manifesto.json
 ```
 
 !!! note "Outras fontes sob a mesma pasta"
-    As fontes [`camara-votacoes`](camara-votacoes.md) e [`camara-despesas`](camara-despesas.md)
-    gravam sob `raw/camara/votacoes/` e `raw/camara/despesas/`, mas são **fontes
-    separadas** no catálogo (para serem `sob_demanda`). Esta aqui é só o cadastro.
+    As fontes [`camara-votacoes`](camara-votacoes.md), [`camara-despesas`](camara-despesas.md)
+    e [`camara-tramitacoes`](camara-tramitacoes.md) gravam sob `raw/camara/votacoes/`,
+    `raw/camara/despesas/` e `raw/camara/tramitacoes/`, mas são **fontes separadas**
+    no catálogo (para serem `sob_demanda`). Esta aqui é só o cadastro.
 
 ## Como rodar
 

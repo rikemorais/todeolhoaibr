@@ -1,5 +1,7 @@
 pub mod camara;
+mod camara_api;
 pub mod camara_despesas;
+pub mod camara_proposicoes_tramitacoes;
 pub mod camara_votacoes;
 pub mod ibge;
 mod senado_api;
