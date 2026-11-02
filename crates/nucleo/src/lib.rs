@@ -19,7 +19,7 @@ pub mod raw;
 pub mod selecao;
 pub mod tarefa;
 
-pub use contexto::ContextoDeExecucao;
+pub use contexto::{ContextoDeExecucao, ProgressoDaTarefa};
 pub use dag::DagDeIngestao;
 pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
 pub use erros::{ErroDeDag, ErroDeIngestao};
