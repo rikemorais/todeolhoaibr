@@ -8,7 +8,7 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 use crate::paginacao::EstrategiaDePaginacao;
 
-use super::camara_api;
+use super::api;
 
 const NOME: &str = "camara-tramitacoes";
 const FONTE_RAW: &str = "camara";
@@ -138,7 +138,7 @@ impl FonteDeDados for FonteCamaraTramitacoes {
     }
 
     fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
-        camara_api::perfil_http()
+        api::perfil_http()
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {

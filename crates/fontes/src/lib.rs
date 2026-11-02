@@ -1,7 +1,8 @@
 //! Catálogo das APIs públicas ingeridas pelo projeto.
 //!
-//! Para adicionar uma fonte: crie um módulo em `fontes/` que implemente
-//! `FonteDeDados` e registre-a em [`catalogo`]. Nada mais precisa mudar.
+//! Para adicionar uma fonte: crie uma pasta em `fontes/` com um módulo por
+//! recurso que implemente `FonteDeDados` e registre-a em [`catalogo`]. Nada
+//! mais precisa mudar.
 
 #![warn(missing_docs)]
 
@@ -12,15 +13,14 @@ pub mod paginacao;
 
 use todeolho_nucleo::FonteDeDados;
 
-pub use fontes::camara::FonteCamara;
-pub use fontes::camara_despesas::FonteCamaraDespesas;
-pub use fontes::camara_proposicoes_tramitacoes::FonteCamaraTramitacoes;
-pub use fontes::camara_votacoes::FonteCamaraVotacoes;
+pub use fontes::camara::{
+    FonteCamara, FonteCamaraDespesas, FonteCamaraTramitacoes, FonteCamaraVotacoes,
+};
 pub use fontes::ibge::FonteIbge;
-pub use fontes::senado_parlamentares::FonteSenadoParlamentares;
-pub use fontes::senado_processos::FonteSenadoProcessos;
-pub use fontes::senado_processos_detalhes::FonteSenadoProcessosDetalhes;
-pub use fontes::senado_votacoes::FonteSenadoVotacoes;
+pub use fontes::senado::{
+    FonteSenadoParlamentares, FonteSenadoProcessos, FonteSenadoProcessosDetalhes,
+    FonteSenadoVotacoes,
+};
 pub use fontes::tse::FonteTse;
 
 /// Todas as fontes disponíveis. Único ponto a alterar ao adicionar uma nova.

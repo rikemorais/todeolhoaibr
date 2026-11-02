@@ -3,7 +3,7 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
 
-use super::camara_api;
+use super::api;
 
 const NOME: &str = "camara-votacoes";
 
@@ -88,7 +88,7 @@ impl FonteDeDados for FonteCamaraVotacoes {
     }
 
     fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
-        camara_api::perfil_http()
+        api::perfil_http()
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
