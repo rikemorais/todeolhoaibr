@@ -51,18 +51,22 @@ docker compose run --rm --build ingestao
 
 ### Escolhendo o que ingerir
 
-Nem todo computador tem espaço para tudo, então **você escolhe o que baixar e vê o tamanho antes de começar**. O menu mostra o tamanho de cada fonte e, quando
-ela permite, de cada ano e UF:
+Nem todo computador tem espaço para tudo, então **você escolhe o que baixar e vê o tamanho antes de começar**. O menu mostra o tamanho das fontes pequenas. As fontes `sob demanda` aparecem sem tamanho antecipado para evitar centenas de consultas à origem só para abrir o menu. Depois da escolha, a CLI estima apenas as tarefas selecionadas e mostra o espaço necessário antes de pedir confirmação:
 
 ```text
 Fontes disponíveis:
 
-  1) ibge        2,4 MB  IBGE - Regiões, Estados e Municípios do Brasil
-  2) camara    196,3 KB  Câmara dos Deputados - legislaturas, partidos e deputados em exercício
-  3) tse        16,4 GB  TSE - Votos por seção eleitoral, de 1998 a 2026
+  1) ibge                  2,4 MB  IBGE - Regiões, Estados e Municípios do Brasil
+  2) camara              196,3 KB  Câmara dos Deputados - legislaturas, partidos e deputados em exercício
+  3) camara-despesas  sob demanda  Câmara dos Deputados - despesas da CEAP, um arquivo por ano desde 2008
+  4) camara-votacoes  sob demanda  Câmara dos Deputados - proposições e votações nominais, um arquivo por ano desde 2001
+  5) senado-votacoes  sob demanda  Senado Federal - matérias e votações nominais, uma consulta por ano desde 1991
+  6) tse              sob demanda  TSE - Votos por seção eleitoral, de 1998 a 2026
 ```
 
 Antes de executar, o projeto compara o espaço necessário com o espaço livre e pede confirmação. **Se não couber, a execução é recusada.**
+No primeiro prompt, **Enter seleciona todas as fontes e tarefas sem perguntas adicionais**, inclusive as `sob demanda`; digite `q` para sair sem executar. Isso é diferente de `executar --todas`, que exclui as fontes `sob demanda`.
+Uma combinação de filtros sem tarefas, mesmo quando cada valor existe isoladamente, produz um erro que mostra a combinação solicitada.
 
 A ingestão é **idempotente**: antes de baixar, o projeto confere o que já existe na camada Raw e só (re)ingere o que está **ausente, desatualizado, menor ou incompleto**. O que continua igual é reaproveitado; as APIs paginadas usam requisição condicional (`If-None-Match`), e uma carga longa interrompida continua de onde parou. O painel indica, por tarefa, se foi reaproveitada ou reingerida e por quê (ver [ADR 0012](docs/adr/0012-pre-checagem-idempotente.md)).
 

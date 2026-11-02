@@ -17,11 +17,17 @@ pub struct OpcaoDeTarefa {
 pub struct OpcaoDeFonte {
     pub nome: String,
     pub descricao: String,
+    pub sob_demanda: bool,
     pub tarefas: Vec<OpcaoDeTarefa>,
 }
 
 /// O que foi escolhido: o índice da fonte e o filtro a aplicar nela.
 pub type Escolha = Vec<(usize, FiltroDeTarefas)>;
+
+enum EscolhaInicial {
+    Todas,
+    Numeros(Vec<usize>),
+}
 
 /// Conduz a escolha. `None` significa que a pessoa desistiu.
 pub fn escolher(
@@ -33,22 +39,30 @@ pub fn escolher(
     for (indice, fonte) in fontes.iter().enumerate() {
         writeln!(
             saida,
-            "  {}) {:<8} {:>9}  {}",
+            "  {}) {:<16} {:>11}  {}",
             indice + 1,
             fonte.nome,
-            tamanho(&fonte.tarefas),
+            if fonte.sob_demanda {
+                "sob demanda".to_owned()
+            } else {
+                tamanho(&fonte.tarefas)
+            },
             fonte.descricao
         )?;
     }
 
-    let Some(numeros) = perguntar_numeros(
-        "\nDigite os números das fontes, separados por vírgula (Enter para sair): ",
-        fontes.len(),
-        entrada,
-        saida,
-    )?
-    else {
+    let Some(resposta) = perguntar_fontes(fontes.len(), entrada, saida)? else {
         return Ok(None);
+    };
+    let numeros = match resposta {
+        EscolhaInicial::Todas => {
+            return Ok(Some(
+                (0..fontes.len())
+                    .map(|indice| (indice, FiltroDeTarefas::default()))
+                    .collect(),
+            ));
+        }
+        EscolhaInicial::Numeros(numeros) => numeros,
     };
 
     let mut escolha = Vec::new();
@@ -92,6 +106,40 @@ pub fn escolher(
         escolha.push((indice, filtro));
     }
     Ok(Some(escolha))
+}
+
+/// Na primeira pergunta, Enter inclui todas as fontes; `q` ou fim da entrada sai.
+fn perguntar_fontes(
+    limite: usize,
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+) -> io::Result<Option<EscolhaInicial>> {
+    loop {
+        write!(
+            saida,
+            "\nDigite os números das fontes, separados por vírgula (Enter para todas; q para sair): "
+        )?;
+        saida.flush()?;
+
+        let mut linha = String::new();
+        if entrada.read_line(&mut linha)? == 0 {
+            return Ok(None);
+        }
+        let resposta = linha.trim();
+        if resposta.eq_ignore_ascii_case("q") || resposta.eq_ignore_ascii_case("sair") {
+            return Ok(None);
+        }
+        if resposta.is_empty() {
+            return Ok(Some(EscolhaInicial::Todas));
+        }
+        match interpretar_numeros(resposta, limite) {
+            Some(numeros) => return Ok(Some(EscolhaInicial::Numeros(numeros))),
+            None => writeln!(
+                saida,
+                "Resposta inválida. Use números de 1 a {limite} ou q para sair."
+            )?,
+        }
+    }
 }
 
 /// Pergunta até receber uma resposta válida. Enter ou fim da entrada devolvem `None`.
@@ -178,6 +226,7 @@ mod testes {
             OpcaoDeFonte {
                 nome: "ibge".into(),
                 descricao: "IBGE".into(),
+                sob_demanda: false,
                 tarefas: vec![OpcaoDeTarefa {
                     etiquetas: BTreeMap::new(),
                     bytes: Some(2_000_000),
@@ -186,6 +235,7 @@ mod testes {
             OpcaoDeFonte {
                 nome: "tse".into(),
                 descricao: "TSE".into(),
+                sob_demanda: false,
                 tarefas: vec![
                     tarefa("2022", "AC", 1024),
                     tarefa("2022", "SP", 1_048_576),
@@ -212,8 +262,21 @@ mod testes {
     }
 
     #[test]
-    fn enter_na_primeira_pergunta_e_desistencia() {
-        assert_eq!(responder("\n").0, None);
+    fn enter_na_primeira_pergunta_seleciona_todas_as_fontes() {
+        let (escolha, saida) = responder("\n");
+        assert_eq!(
+            escolha,
+            Some(vec![
+                (0, FiltroDeTarefas::default()),
+                (1, FiltroDeTarefas::default()),
+            ])
+        );
+        assert!(!saida.contains("escolha ano"), "{saida}");
+    }
+
+    #[test]
+    fn q_na_primeira_pergunta_e_desistencia() {
+        assert_eq!(responder("q\n").0, None);
     }
 
     #[test]
@@ -286,5 +349,22 @@ mod testes {
             bytes: None,
         }];
         assert_eq!(tamanho(&tarefas), "?");
+    }
+
+    #[test]
+    fn fonte_sob_demanda_aparece_sem_tamanho_antecipado() {
+        let mut fontes = fontes();
+        fontes[1].sob_demanda = true;
+        for tarefa in &mut fontes[1].tarefas {
+            tarefa.bytes = None;
+        }
+        let mut saida = Vec::new();
+        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
+        let texto = String::from_utf8(saida).unwrap();
+        assert!(
+            texto.contains("tse") && texto.contains("sob demanda"),
+            "{texto}"
+        );
+        assert!(!texto.contains("0 B"), "{texto}");
     }
 }
