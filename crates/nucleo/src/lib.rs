@@ -28,7 +28,7 @@ pub use estado_raw::{estado_na_raw, manifesto_vigente, publicar_ponteiro};
 pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
 };
-pub use fonte::FonteDeDados;
+pub use fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp};
 pub use historico::{
     ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
     RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,

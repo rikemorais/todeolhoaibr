@@ -28,6 +28,8 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `ibge` | regiões, estados, municípios | [API de Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) |
 | `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
 | `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
+| `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
+| `senado-votacoes` | matérias e votos nominais do Senado, por ano (sob demanda) | [doc da fonte](docs/fontes/senado-votacoes.md) |
 | `tse` | votos por seção eleitoral, de 1998 a 2026 (16,4 GB) | [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) |
 
 ## Como rodar
@@ -106,6 +108,24 @@ cp .env.example .env
 
 Todas as variáveis estão descritas em [`.env.example`](.env.example). O `.env` fica fora do Git. Se a compilação ficar
 pesada na sua máquina, use `TODEOLHO_BUILD_JOBS=1`.
+
+### Fontes com autenticação ou limite de taxa
+
+As fontes atuais são anônimas. Para uma fonte que exija token, o código declara em `perfil_http()`
+o nome da variável de ambiente, o cabeçalho, o prefixo e o host autorizado. A CLI lê o valor
+da variável antes de executar a fonte e falha com o nome da variável se ela estiver ausente.
+O token deve ser obtido no portal da respectiva fonte, conforme a documentação dessa fonte,
+e passado ao container `ingestao` por variável de ambiente; nunca deve ser incluído no Git
+ou em um comando que fique registrado no histórico do shell. O token é enviado apenas ao host
+declarado e redirecionamentos automáticos são desativados para esse cliente. Respostas 401/403
+marcam a tarefa como falha e indicam que é preciso conferir a credencial e as permissões.
+O limite declarado também vale para novas tentativas e é compartilhado entre fontes que usam
+o mesmo host. Detalhes da decisão: [ADR 0013](docs/adr/0013-autenticacao-e-limite-de-taxa-no-cliente-http.md).
+
+Depois de obter o token, exporte a variável indicada pela documentação da fonte em seu ambiente
+e passe apenas o nome dela ao Compose: `docker compose run --rm --build --env NOME_DA_VARIAVEL
+ingestao executar NOME_DA_FONTE`. O Compose não repassa automaticamente variáveis novas do `.env`
+ao serviço `ingestao`.
 
 ### Acompanhando as execuções
 

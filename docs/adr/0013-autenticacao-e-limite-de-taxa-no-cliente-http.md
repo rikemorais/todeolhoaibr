@@ -1,6 +1,6 @@
 # 0013. Autenticação e limite de taxa no cliente HTTP
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-01
 
 ## Contexto
@@ -22,15 +22,16 @@ Tratar autenticação e limite de taxa como **preocupações de borda, resolvida
 **Perfil de acesso declarado pela fonte.** `FonteDeDados` ganha um método opcional `perfil_http()` (padrão: anônimo, sem limite). A fonte declara:
 
 - **a credencial**, pelo **nome da variável de ambiente** (p.ex. `PORTAL_TRANSPARENCIA_TOKEN`), **o nome do cabeçalho** e **o esquema** (p.ex. cabeçalho `chave-api-dados`, ou `Authorization: Bearer <token>`) — não só o nome, para que a infraestrutura monte exatamente a requisição que a API exige;
-- **o limite de taxa** (requisições por intervalo) e **o host** a que ele se aplica.
+- **o limite de taxa** (requisições por intervalo) e **o host** a que ele se aplica. Para cada fonte nova, sua documentação deve indicar o portal onde o token é obtido.
 
 É aditivo: com a implementação padrão, nenhuma fonte existente muda.
 
-**A autenticação é configurada no adapter HTTP, não num decorador sobre o porto.** O porto `ClienteHttp` só recebe URL (e `aceita` nos GETs), então um invólucro que delega aos seus métodos **não teria como injetar cabeçalho**. Por isso a credencial é aplicada **dentro do adapter de infraestrutura** (o cliente `reqwest`), configurado com os cabeçalhos padrão da fonte; o rate limit é uma camada (`tower`) no mesmo adapter. Cada fonte autenticada recebe um adapter configurado com o seu perfil; o resto do sistema continua vendo apenas `ClienteHttp`.
+**A autenticação é configurada no adapter HTTP, não num decorador sobre o porto.** O porto `ClienteHttp` só recebe URL (e `aceita` nos GETs), então um invólucro que delega aos seus métodos **não teria como injetar cabeçalho**. Por isso a credencial é aplicada **dentro do adapter de infraestrutura** (o cliente `reqwest`), configurado com os cabeçalhos padrão da fonte; o rate limit é aplicado antes de cada envio pelo mesmo adapter. Cada fonte autenticada recebe um adapter configurado com o seu perfil; o resto do sistema continua vendo apenas `ClienteHttp`.
 
 **Ordem explícita: throttle por dentro, retentativa por fora.** O throttle é a camada **mais interna**, de modo que **toda tentativa HTTP — inclusive as novas tentativas** do `ClienteHttpComRetentativas` — passe por ele. A retentativa envolve o throttle, nunca o contrário, senão os reenvios furariam o limite declarado.
 
 **O limite é por host e o estado é compartilhado.** O throttle é chaveado pelo **host**, com estado **compartilhado entre todos os clientes que acessam o mesmo host**, para que fontes distintas que batem na mesma API não somem tráfego acima do limite e tomem 429.
+As requisições são espaçadas uniformemente pelo intervalo declarado; quando duas fontes declaram limites distintos para o mesmo host, prevalece o intervalo mais conservador. Requisições anônimas ao mesmo host também passam pelo limite já registrado.
 
 **A credencial não vaza em redirecionamento.** O adapter autenticado **não segue redirect para outro host carregando o cabeçalho de credencial**: ou remove o cabeçalho antes de seguir para host diferente, ou não segue redirect cross-host automaticamente. O segredo só vai ao host para o qual foi configurado.
 
