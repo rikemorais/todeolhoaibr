@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Indicadores macro do IBGE na fonte `ibge`: IPCA e INPC (inflação mensal), PIB trimestral e PNAD Contínua (desocupação por UF), baixando a série completa do SIDRA (agregados v3) e gravando a resposta opaca na Raw para o refino ([issue #57](https://github.com/rikemorais/todeolhoaibr/issues/57)).
+
 ## [0.9.0] - 2026-11-02
 
 ### Adicionado
