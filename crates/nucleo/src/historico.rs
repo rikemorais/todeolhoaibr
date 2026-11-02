@@ -2,8 +2,9 @@
 //! É o contrato entre a ingestão e o painel, que rodam em processos separados
 //! (ver `docs/adr/0008`).
 
-use std::sync::Arc;
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex as MutexSincrono};
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -11,13 +12,18 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::warn;
 
+use crate::contexto::ProgressoDaTarefa;
 use crate::dag::DagDeIngestao;
 use crate::decisao::MotivoDeIngestao;
 use crate::erros::{ErroDeDag, ErroDeIngestao};
 use crate::executor::{EstadoDaTarefa, ObservadorDeExecucao, ResultadoDaTarefa};
 
-/// Intervalo entre publicações enquanto nenhuma tarefa muda de estado.
+/// Intervalo máximo entre publicações: mesmo sem mudança, republica para sinalizar
+/// que o processo segue vivo.
 const INTERVALO_DE_BATIMENTO: Duration = Duration::from_secs(30);
+/// Com que frequência o batimento confere o progresso parcial e republica se ele
+/// avançou, para o painel mostrar o percentual quase em tempo real.
+const INTERVALO_DE_PROGRESSO: Duration = Duration::from_secs(2);
 /// Sem publicações por este tempo, a execução é considerada interrompida.
 const TOLERANCIA_SEM_BATIMENTO: TimeDelta = TimeDelta::minutes(5);
 
@@ -69,6 +75,10 @@ pub struct RegistroDeTarefa {
     pub partes: Option<usize>,
     /// Quantos bytes gravou, quando concluída.
     pub bytes: Option<u64>,
+    /// Bytes baixados até agora, enquanto em execução (progresso parcial).
+    pub bytes_baixados: Option<u64>,
+    /// Tamanho total esperado, enquanto em execução, quando a origem o informa.
+    pub bytes_total: Option<u64>,
     /// Mensagem da falha, nome da tarefa que causou a ignorada ou observação sobre a conclusão.
     pub detalhe: Option<String>,
 }
@@ -132,6 +142,8 @@ impl RegistroDeExecucao {
                         duracao_ms: None,
                         partes: None,
                         bytes: None,
+                        bytes_baixados: None,
+                        bytes_total: None,
                         detalhe: None,
                     });
                 }
@@ -190,6 +202,23 @@ impl RegistroDeExecucao {
         }
     }
 
+    /// Atualiza o progresso parcial de uma tarefa ainda em execução. Ignora tarefas
+    /// que já terminaram: o resultado final é mais autoritativo que o parcial.
+    fn registrar_progresso(
+        &mut self,
+        fonte: &str,
+        tarefa: &str,
+        baixados: u64,
+        total: Option<u64>,
+    ) {
+        if let Some(registro) = self.tarefa_mut(fonte, tarefa)
+            && registro.estado == EstadoRegistrado::EmExecucao
+        {
+            registro.bytes_baixados = Some(baixados);
+            registro.bytes_total = total;
+        }
+    }
+
     fn registrar_resultado(&mut self, fonte: &str, resultado: &ResultadoDaTarefa) {
         let Some(registro) = self.tarefa_mut(fonte, &resultado.nome) else {
             return;
@@ -241,6 +270,9 @@ pub trait ConsultaDeExecucoes: Send + Sync {
 pub struct RegistradorDeExecucao {
     registro: Mutex<RegistroDeExecucao>,
     gravador: Arc<dyn GravadorDeExecucoes>,
+    /// Acompanhadores de progresso por tarefa `(fonte, tarefa)`, alimentados pela
+    /// tarefa em execução e lidos a cada publicação.
+    progresso: MutexSincrono<HashMap<(String, String), Arc<ProgressoDaTarefa>>>,
 }
 
 impl RegistradorDeExecucao {
@@ -249,7 +281,18 @@ impl RegistradorDeExecucao {
         Self {
             registro: Mutex::new(registro),
             gravador,
+            progresso: MutexSincrono::new(HashMap::new()),
         }
+    }
+
+    /// Fotografa o progresso de cada tarefa: `(fonte, tarefa, baixados, total)`.
+    fn instantaneos_de_progresso(&self) -> Vec<(String, String, u64, Option<u64>)> {
+        self.progresso
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .map(|((fonte, tarefa), p)| (fonte.clone(), tarefa.clone(), p.baixados(), p.total()))
+            .collect()
     }
 
     /// Publica o estado inicial.
@@ -257,14 +300,28 @@ impl RegistradorDeExecucao {
         self.alterar(|_| {}).await;
     }
 
-    /// Republica periodicamente até a conclusão, indicando que o processo segue vivo.
+    /// Republica até a conclusão: a cada `INTERVALO_DE_PROGRESSO` confere o progresso
+    /// parcial e, se ele avançou, republica para o painel mostrar o percentual quase
+    /// em tempo real; de toda forma republica ao menos a cada `INTERVALO_DE_BATIMENTO`
+    /// para sinalizar que o processo segue vivo.
     pub async fn manter_batimento(&self) {
+        let mut ultima_publicacao = Instant::now();
+        let mut ultimo_baixado = 0u64;
         loop {
-            tokio::time::sleep(INTERVALO_DE_BATIMENTO).await;
+            tokio::time::sleep(INTERVALO_DE_PROGRESSO).await;
             if self.registro.lock().await.concluida_em.is_some() {
                 return;
             }
-            self.publicar().await;
+            let baixado: u64 = self
+                .instantaneos_de_progresso()
+                .iter()
+                .map(|(_, _, baixados, _)| baixados)
+                .sum();
+            if baixado != ultimo_baixado || ultima_publicacao.elapsed() >= INTERVALO_DE_BATIMENTO {
+                self.publicar().await;
+                ultima_publicacao = Instant::now();
+                ultimo_baixado = baixado;
+            }
         }
     }
 
@@ -275,8 +332,14 @@ impl RegistradorDeExecucao {
     }
 
     async fn alterar(&self, alteracao: impl FnOnce(&mut RegistroDeExecucao)) {
+        // Fotografa o progresso antes de travar o registro, para não segurar as duas
+        // travas ao mesmo tempo.
+        let instantaneos = self.instantaneos_de_progresso();
         let mut registro = self.registro.lock().await;
         alteracao(&mut registro);
+        for (fonte, tarefa, baixados, total) in instantaneos {
+            registro.registrar_progresso(&fonte, &tarefa, baixados, total);
+        }
         registro.atualizada_em = Utc::now();
         if let Err(erro) = self.gravador.salvar(&registro).await {
             warn!(%erro, "não foi possível atualizar o histórico da execução");
@@ -286,7 +349,11 @@ impl RegistradorDeExecucao {
 
 #[async_trait]
 impl ObservadorDeExecucao for RegistradorDeExecucao {
-    async fn tarefa_iniciada(&self, fonte: &str, tarefa: &str) {
+    async fn tarefa_iniciada(&self, fonte: &str, tarefa: &str, progresso: Arc<ProgressoDaTarefa>) {
+        self.progresso
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert((fonte.to_owned(), tarefa.to_owned()), progresso);
         self.alterar(|registro| registro.registrar_inicio(fonte, tarefa, Utc::now()))
             .await;
     }
@@ -330,6 +397,8 @@ mod testes {
                         duracao_ms: None,
                         partes: None,
                         bytes: None,
+                        bytes_baixados: None,
+                        bytes_total: None,
                         detalhe: None,
                     })
                     .collect(),
@@ -394,7 +463,9 @@ mod testes {
         );
 
         registrador.publicar().await;
-        registrador.tarefa_iniciada("fonte", "t0").await;
+        registrador
+            .tarefa_iniciada("fonte", "t0", Arc::new(ProgressoDaTarefa::default()))
+            .await;
         registrador
             .tarefa_finalizada(
                 "fonte",
@@ -434,5 +505,77 @@ mod testes {
             (Some(2), Some(10), Some(1500))
         );
         assert!(ultima.concluida_em.is_some());
+    }
+
+    #[tokio::test]
+    async fn publica_o_progresso_parcial_da_tarefa_em_execucao() {
+        let gravador = Arc::new(GravadorEmMemoria::default());
+        let registrador = RegistradorDeExecucao::novo(
+            registro(&[EstadoRegistrado::Pendente], false),
+            gravador.clone(),
+        );
+
+        let progresso = Arc::new(ProgressoDaTarefa::default());
+        registrador
+            .tarefa_iniciada("fonte", "t0", Arc::clone(&progresso))
+            .await;
+
+        // A tarefa anuncia o total e vai baixando; cada publicação reflete o parcial.
+        progresso.definir_total(200);
+        progresso.avancar(50);
+        registrador.publicar().await;
+        progresso.avancar(30);
+        registrador.publicar().await;
+
+        let tarefa = |versao: &RegistroDeExecucao| versao.fontes[0].tarefas[0].clone();
+        let versoes = gravador.versoes.lock().unwrap();
+        let penultima = tarefa(&versoes[versoes.len() - 2]);
+        assert_eq!(
+            (penultima.bytes_baixados, penultima.bytes_total),
+            (Some(50), Some(200))
+        );
+        let ultima = tarefa(versoes.last().unwrap());
+        assert_eq!(
+            (ultima.bytes_baixados, ultima.bytes_total),
+            (Some(80), Some(200))
+        );
+    }
+
+    #[tokio::test]
+    async fn o_progresso_nao_sobrescreve_a_tarefa_ja_concluida() {
+        let gravador = Arc::new(GravadorEmMemoria::default());
+        let registrador = RegistradorDeExecucao::novo(
+            registro(&[EstadoRegistrado::Pendente], false),
+            gravador.clone(),
+        );
+
+        let progresso = Arc::new(ProgressoDaTarefa::default());
+        registrador
+            .tarefa_iniciada("fonte", "t0", Arc::clone(&progresso))
+            .await;
+        progresso.definir_total(200);
+        progresso.avancar(200);
+        registrador
+            .tarefa_finalizada(
+                "fonte",
+                &ResultadoDaTarefa {
+                    nome: "t0".into(),
+                    estado: EstadoDaTarefa::Concluida(ResumoDaTarefa {
+                        partes: 1,
+                        bytes: 200,
+                        reaproveitada: false,
+                        motivo: None,
+                    }),
+                    duracao: Duration::from_millis(10),
+                },
+            )
+            .await;
+        // Uma publicação depois da conclusão não deve reabrir o parcial.
+        registrador.publicar().await;
+
+        let versoes = gravador.versoes.lock().unwrap();
+        let tarefa = versoes.last().unwrap().fontes[0].tarefas[0].clone();
+        assert_eq!(tarefa.estado, EstadoRegistrado::Concluida);
+        assert_eq!(tarefa.bytes, Some(200));
     }
 }

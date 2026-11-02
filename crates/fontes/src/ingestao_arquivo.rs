@@ -13,8 +13,8 @@ use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
-    LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao,
-    decidir, estado_na_raw, publicar_ponteiro,
+    LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, ProgressoDaTarefa, ResumoDaTarefa, Tarefa,
+    UltimaVersao, decidir, estado_na_raw, publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tracing::warn;
@@ -95,6 +95,12 @@ impl TarefaDeArquivo {
         let total_esperado = primeiro.tamanho_total.or(tamanho_informado);
         let chave = local.parte(1, extensao(&tipo_de_conteudo));
 
+        // Anuncia o total ao acompanhador de progresso, para o painel calcular o
+        // percentual enquanto o download acontece.
+        if let (Some(progresso), Some(total)) = (&contexto.progresso, total_esperado) {
+            progresso.definir_total(total);
+        }
+
         // O fluxo se retoma via Range quando a conexão cai, sem perder nem
         // duplicar byte, entregando ao `gravar_fluxo` um fluxo contínuo.
         let fluxo = FluxoRetomavel::novo(
@@ -104,7 +110,7 @@ impl TarefaDeArquivo {
             self.espera_entre_retomadas,
             total_esperado,
         );
-        let mut leitor = LeitorComResumo::novo(Box::new(fluxo));
+        let mut leitor = LeitorComResumo::novo(Box::new(fluxo), contexto.progresso.clone());
 
         contexto
             .armazenamento
@@ -281,19 +287,22 @@ async fn gravar_json(
         .await
 }
 
-/// Calcula tamanho e hash enquanto os bytes passam.
+/// Calcula tamanho e hash enquanto os bytes passam, e reporta o avanço ao
+/// acompanhador de progresso, quando há um.
 struct LeitorComResumo {
     fluxo: FluxoDeBytes,
     hash: Sha256,
     bytes: u64,
+    progresso: Option<Arc<ProgressoDaTarefa>>,
 }
 
 impl LeitorComResumo {
-    fn novo(fluxo: FluxoDeBytes) -> Self {
+    fn novo(fluxo: FluxoDeBytes, progresso: Option<Arc<ProgressoDaTarefa>>) -> Self {
         Self {
             fluxo,
             hash: Sha256::new(),
             bytes: 0,
+            progresso,
         }
     }
 }
@@ -311,6 +320,9 @@ impl AsyncRead for LeitorComResumo {
             let novos = &destino.filled()[antes..];
             este.hash.update(novos);
             este.bytes += novos.len() as u64;
+            if let Some(progresso) = &este.progresso {
+                progresso.avancar(novos.len() as u64);
+            }
         }
         resultado
     }
@@ -729,6 +741,7 @@ mod testes {
                 iniciada_em: Utc::now(),
                 armazenamento: armazenamento.clone(),
                 http: http.clone(),
+                progresso: None,
             },
             armazenamento,
             http,
@@ -785,6 +798,19 @@ mod testes {
             manifesto.partes[0].sha256,
             hex::encode(Sha256::digest(CONTEUDO))
         );
+    }
+
+    #[tokio::test]
+    async fn alimenta_o_progresso_durante_o_download() {
+        let mut cenario = cenario(HttpFalso::novo(Some("v1")));
+        let progresso = Arc::new(ProgressoDaTarefa::default());
+        cenario.contexto.progresso = Some(Arc::clone(&progresso));
+
+        tarefa().executar(&cenario.contexto).await.unwrap();
+
+        // O total vem do HEAD/GET e os bytes baixados somam o arquivo inteiro.
+        assert_eq!(progresso.total(), Some(CONTEUDO.len() as u64));
+        assert_eq!(progresso.baixados(), CONTEUDO.len() as u64);
     }
 
     #[tokio::test]
