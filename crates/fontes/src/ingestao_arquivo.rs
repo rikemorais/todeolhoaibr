@@ -41,6 +41,7 @@ pub struct TarefaDeArquivo {
     url: String,
     espera_entre_tentativas: Duration,
     espera_entre_retomadas: Duration,
+    aceitar_ausencia: bool,
 }
 
 struct ArquivoGravado {
@@ -58,7 +59,15 @@ impl TarefaDeArquivo {
             url,
             espera_entre_tentativas: ESPERA_ENTRE_TENTATIVAS,
             espera_entre_retomadas: ESPERA_ENTRE_RETOMADAS,
+            aceitar_ausencia: false,
         }
+    }
+
+    /// Um arquivo do ano corrente pode ainda não ter sido publicado. Só nesse caso
+    /// o 404 é aceito, e apenas enquanto não houver versão anterior na Raw.
+    pub(crate) fn aceitar_ausencia(mut self) -> Self {
+        self.aceitar_ausencia = true;
+        self
     }
 
     async fn transferir(
@@ -186,6 +195,13 @@ impl Tarefa for TarefaDeArquivo {
             match self.transferir(contexto, &local, informacoes.tamanho).await {
                 Ok(arquivo) => break arquivo,
                 Err(erro) => {
+                    if matches!(erro, ErroDeIngestao::NaoEncontrado { .. }) {
+                        if self.aceitar_ausencia && estado.is_none() {
+                            warn!(tarefa = %self.nome, "arquivo do ano corrente ainda não publicado; tarefa ignorada");
+                            return Ok(ResumoDaTarefa::default());
+                        }
+                        return Err(erro);
+                    }
                     if matches!(erro, ErroDeIngestao::Autenticacao { .. }) {
                         return Err(erro);
                     }
@@ -545,6 +561,7 @@ mod testes {
         ignora_range: bool,
         /// Se `true`, toda requisição falha de imediato (origem indisponível).
         sempre_falha: bool,
+        ausente: Mutex<bool>,
         cortes: Mutex<VecDeque<Option<usize>>>,
         pedidos: Mutex<Vec<u64>>,
         downloads: Mutex<u32>,
@@ -558,6 +575,7 @@ mod testes {
                 versao_na_retomada: Mutex::new(None),
                 ignora_range: false,
                 sempre_falha: false,
+                ausente: Mutex::new(false),
                 cortes: Mutex::new(VecDeque::new()),
                 pedidos: Mutex::new(Vec::new()),
                 downloads: Mutex::new(0),
@@ -578,6 +596,9 @@ mod testes {
         }
 
         async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+            if *self.ausente.lock().unwrap() {
+                return Ok(InformacoesDoArquivo::default());
+            }
             Ok(InformacoesDoArquivo {
                 versao: self.versao.lock().unwrap().clone(),
                 tamanho: Some(self.conteudo.len() as u64),
@@ -596,6 +617,12 @@ mod testes {
         ) -> Result<DownloadHttp, ErroDeIngestao> {
             *self.downloads.lock().unwrap() += 1;
             self.pedidos.lock().unwrap().push(inicio);
+
+            if *self.ausente.lock().unwrap() {
+                return Err(ErroDeIngestao::NaoEncontrado {
+                    url: url.to_owned(),
+                });
+            }
 
             if self.sempre_falha {
                 return Err(ErroDeIngestao::Http {
@@ -811,6 +838,41 @@ mod testes {
 
         let depois = tarefa().bytes_a_baixar(&cenario.contexto).await.unwrap();
         assert_eq!(depois, Some(0));
+    }
+
+    #[tokio::test]
+    async fn aceita_404_apenas_para_arquivo_atual_sem_versao_anterior() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")));
+        *cenario.http.ausente.lock().unwrap() = true;
+
+        let resumo = tarefa()
+            .aceitar_ausencia()
+            .executar(&cenario.contexto)
+            .await
+            .unwrap();
+        assert_eq!(resumo.bytes, 0);
+        assert!(cenario.armazenamento.objetos.lock().unwrap().is_empty());
+        assert_eq!(*cenario.http.downloads.lock().unwrap(), 1);
+
+        assert!(matches!(
+            tarefa().executar(&cenario.contexto).await,
+            Err(ErroDeIngestao::NaoEncontrado { .. })
+        ));
+
+        *cenario.http.ausente.lock().unwrap() = false;
+        tarefa()
+            .aceitar_ausencia()
+            .executar(&cenario.contexto)
+            .await
+            .unwrap();
+        *cenario.http.ausente.lock().unwrap() = true;
+        assert!(matches!(
+            tarefa()
+                .aceitar_ausencia()
+                .executar(&cenario.contexto)
+                .await,
+            Err(ErroDeIngestao::NaoEncontrado { .. })
+        ));
     }
 
     #[tokio::test]
