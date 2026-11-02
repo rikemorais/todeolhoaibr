@@ -191,14 +191,12 @@ async fn montar_opcao_de_menu(
     tarefas: &[TarefaPlanejada],
     consulta: impl std::future::Future<Output = Vec<Option<u64>>>,
 ) -> menu::OpcaoDeFonte {
-    let estimativas = if fonte.sob_demanda() {
-        vec![None; tarefas.len()]
-    } else {
-        consulta.await
-    };
+    // Estimar é barato mesmo nas fontes sob_demanda: as tarefas HTTP só leem o
+    // estado local na Raw e as de arquivo fazem um HEAD. O crawl pesado só ocorre
+    // no `executar`, nunca aqui.
+    let estimativas = consulta.await;
     menu::OpcaoDeFonte {
         nome: fonte.nome().to_owned(),
-        sob_demanda: fonte.sob_demanda(),
         tarefas: tarefas
             .iter()
             .zip(estimativas)
@@ -466,16 +464,13 @@ mod testes {
     use todeolho_fontes::{FonteIbge, FonteTse};
 
     #[tokio::test]
-    async fn fonte_sob_demanda_nao_consulta_tamanho_ao_abrir_menu() {
+    async fn fonte_sob_demanda_tambem_estima_tamanho_ao_abrir_menu() {
         let fonte = FonteTse;
         let tarefas = fonte.criar_tarefas();
-        let opcao = montar_opcao_de_menu(&fonte, &tarefas, async {
-            panic!("a consulta de tamanho não deve começar");
-        })
-        .await;
-        assert!(opcao.sob_demanda);
+        let estimativas = vec![Some(7); tarefas.len()];
+        let opcao = montar_opcao_de_menu(&fonte, &tarefas, async { estimativas }).await;
         assert_eq!(opcao.tarefas.len(), tarefas.len());
-        assert!(opcao.tarefas.iter().all(|tarefa| tarefa.bytes.is_none()));
+        assert!(opcao.tarefas.iter().all(|tarefa| tarefa.bytes == Some(7)));
     }
 
     #[tokio::test]
@@ -484,7 +479,6 @@ mod testes {
         let tarefas = fonte.criar_tarefas();
         let estimativas = vec![Some(42); tarefas.len()];
         let opcao = montar_opcao_de_menu(&fonte, &tarefas, async { estimativas }).await;
-        assert!(!opcao.sob_demanda);
         assert_eq!(opcao.tarefas.len(), tarefas.len());
         assert!(opcao.tarefas.iter().all(|tarefa| tarefa.bytes == Some(42)));
     }
