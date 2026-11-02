@@ -4,7 +4,8 @@ Dados cadastrais da Câmara: legislaturas, partidos e deputados em exercício, d
 **API de Dados Abertos** (v2). É a fonte "leve" da Câmara — as de volume (votações,
 despesas) são separadas e `sob_demanda`.
 
-Documentação: <https://dadosabertos.camara.leg.br/swagger/api.html>.
+- **Origem (base da API):** `https://dadosabertos.camara.leg.br/api/v2` (ex.: `.../deputados?itens=100`).
+- **Documentação:** <https://dadosabertos.camara.leg.br/swagger/api.html>.
 
 ## O que é ingerido
 

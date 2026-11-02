@@ -2,7 +2,8 @@
 
 Regiões, estados e municípios do Brasil, da **API de Localidades do IBGE** — a base territorial para cruzar qualquer outra fonte por UF/município.
 
-Documentação: <https://servicodados.ibge.gov.br/api/docs/localidades>.
+- **Origem (base da API):** `https://servicodados.ibge.gov.br/api/v1/localidades` (ex.: `.../regioes`).
+- **Documentação:** <https://servicodados.ibge.gov.br/api/docs/localidades>.
 
 ## O que é ingerido
 
