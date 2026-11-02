@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":["FonteDeDados"]};
+window.SIDEBAR_ITEMS = {"struct":["CredencialHttp","LimiteHttp","PerfilHttp"],"trait":["FonteDeDados"]};
