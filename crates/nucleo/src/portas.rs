@@ -94,6 +94,14 @@ pub struct DownloadHttp {
     pub tipo_de_conteudo: String,
     /// Identifica a versão do arquivo na origem (ETag), quando informada.
     pub versao: Option<String>,
+    /// Deslocamento, em bytes, onde este fluxo começa no arquivo. `0` num
+    /// download do início; numa retomada (`206 Partial Content`) é o início do
+    /// `Content-Range`. Quem retoma compara com o offset pedido: se não bater, a
+    /// origem não honrou a retomada e o download deve recomeçar do zero.
+    pub inicio: u64,
+    /// Tamanho total do arquivo em bytes, quando a origem informa
+    /// (`Content-Length` de um `200`, ou o total do `Content-Range` de um `206`).
+    pub tamanho_total: Option<u64>,
     /// Fluxo do corpo, lido sob demanda.
     pub fluxo: FluxoDeBytes,
 }
@@ -126,4 +134,25 @@ pub trait ClienteHttp: Send + Sync {
 
     /// Baixa um arquivo como fluxo, para gravá-lo sem carregá-lo na memória.
     async fn baixar(&self, url: &str) -> Result<DownloadHttp, ErroDeIngestao>;
+
+    /// Baixa a partir de `inicio` (em bytes; `0` é do começo), para **retomar**
+    /// um download interrompido sem perder nem duplicar byte. `versao` é o
+    /// validador (ETag) da primeira resposta: a implementação deve enviar
+    /// `If-Range`, de modo a só retomar se o arquivo não mudou. O
+    /// [`DownloadHttp::inicio`] devolvido diz onde o fluxo realmente começa — se
+    /// não for igual a `inicio`, a origem não honrou a retomada e o chamador deve
+    /// recomeçar do zero em vez de emendar.
+    ///
+    /// A implementação padrão ignora `inicio`/`versao` e baixa do começo, para
+    /// clientes que não suportam `Range`; quem retoma detecta o `inicio` devolvido
+    /// (`0`) diferente do pedido e recomeça.
+    async fn baixar_a_partir_de(
+        &self,
+        url: &str,
+        inicio: u64,
+        versao: Option<&str>,
+    ) -> Result<DownloadHttp, ErroDeIngestao> {
+        let _ = (inicio, versao);
+        self.baixar(url).await
+    }
 }

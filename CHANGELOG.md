@@ -12,6 +12,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Fonte `camara-despesas` (sob demanda) com as despesas da CEAP (Cota para o Exercício da Atividade Parlamentar): um arquivo anual, desde 2008, filtrável por `ano` e guardado em `raw/camara/despesas/` ([issue #25](https://github.com/rikemorais/todeolhoaibr/issues/25)).
 - Fonte `camara-votacoes` (sob demanda) com proposições e votações nominais da Câmara ("quem votou em quê"): arquivos anuais em lote de 7 conjuntos (incluindo `votacoesVotos`, o voto de cada deputado), desde 2001, filtráveis por `ano` e `conjunto`, guardados em `raw/camara/votacoes/` ([issue #86](https://github.com/rikemorais/todeolhoaibr/issues/86)).
 
+### Corrigido
+
+- Download de arquivos grandes resiliente a quedas de conexão: ao cair no meio, a `TarefaDeArquivo` **retoma** do byte exato já recebido via HTTP `Range` (com `If-Range` para garantir o mesmo arquivo), em vez de recomeçar do zero. Resolve as falhas dos CSVs grandes da Câmara (30–56 MB), que a origem derruba no meio, sem perder nem duplicar byte ([issue #92](https://github.com/rikemorais/todeolhoaibr/issues/92)).
+
 ## [0.3.0] - 2026-11-01
 
 ### Adicionado

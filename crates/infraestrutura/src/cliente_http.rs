@@ -209,15 +209,46 @@ impl ClienteHttp for ClienteHttpComRetentativas {
     }
 
     async fn baixar(&self, url: &str) -> Result<DownloadHttp, ErroDeIngestao> {
+        self.baixar_a_partir_de(url, 0, None).await
+    }
+
+    async fn baixar_a_partir_de(
+        &self,
+        url: &str,
+        inicio: u64,
+        versao: Option<&str>,
+    ) -> Result<DownloadHttp, ErroDeIngestao> {
         let resposta = self
             .com_retentativas(url, || {
-                enviar(self.cliente.get(url).timeout(TEMPO_LIMITE_DE_DOWNLOAD))
+                let mut requisicao = self.cliente.get(url).timeout(TEMPO_LIMITE_DE_DOWNLOAD);
+                if inicio > 0 {
+                    // Retomada: pede do offset em diante e só aceita se o arquivo
+                    // não mudou (If-Range com o ETag da primeira resposta).
+                    requisicao = requisicao.header(header::RANGE, format!("bytes={inicio}-"));
+                    if let Some(validador) = versao {
+                        requisicao = requisicao.header(header::IF_RANGE, validador);
+                    }
+                }
+                enviar(requisicao)
             })
             .await?;
+
+        // `206` traz o início e o total no Content-Range; `200` (inclusive quando
+        // a origem ignora o Range) começa do zero, com o total no Content-Length.
+        let (inicio_real, tamanho_total) = if resposta.status() == StatusCode::PARTIAL_CONTENT {
+            faixa_de_conteudo(&resposta).unwrap_or((0, None))
+        } else {
+            (
+                0,
+                cabecalho(&resposta, header::CONTENT_LENGTH).and_then(|total| total.parse().ok()),
+            )
+        };
 
         Ok(DownloadHttp {
             tipo_de_conteudo: tipo_de_conteudo(&resposta),
             versao: etag(&resposta),
+            inicio: inicio_real,
+            tamanho_total,
             fluxo: Box::new(StreamReader::new(
                 resposta
                     .bytes_stream()
@@ -225,6 +256,16 @@ impl ClienteHttp for ClienteHttpComRetentativas {
             )),
         })
     }
+}
+
+/// Lê o `Content-Range: bytes INICIO-FIM/TOTAL` de uma resposta `206` e devolve
+/// `(inicio, total)`. `total` é `None` quando a origem manda `*`.
+fn faixa_de_conteudo(resposta: &Response) -> Option<(u64, Option<u64>)> {
+    let valor = cabecalho(resposta, header::CONTENT_RANGE)?;
+    let resto = valor.strip_prefix("bytes ")?;
+    let (faixa, total) = resto.split_once('/')?;
+    let inicio = faixa.split('-').next()?.trim().parse().ok()?;
+    Some((inicio, total.trim().parse().ok()))
 }
 
 async fn enviar(requisicao: RequestBuilder) -> Result<Response, Falha> {
