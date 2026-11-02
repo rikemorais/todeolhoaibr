@@ -3,6 +3,8 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 
+use super::senado_api;
+
 const NOME: &str = "senado-parlamentares";
 const FONTE_RAW: &str = "senado";
 const BASE: &str = "https://legis.senado.leg.br/dadosabertos/senador/lista/legislatura";
@@ -25,6 +27,10 @@ impl FonteDeDados for FonteSenadoParlamentares {
 
     fn descricao(&self) -> &str {
         "Senado Federal - senadores, partidos, UFs e mandatos por legislatura desde 1991"
+    }
+
+    fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
+        senado_api::perfil_http()
     }
 
     fn sob_demanda(&self) -> bool {

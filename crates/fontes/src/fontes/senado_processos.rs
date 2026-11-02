@@ -3,6 +3,8 @@ use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 
+use super::senado_api;
+
 const NOME: &str = "senado-processos";
 const FONTE_RAW: &str = "senado";
 const BASE: &str = "https://legis.senado.leg.br/dadosabertos/processo";
@@ -24,6 +26,10 @@ impl FonteDeDados for FonteSenadoProcessos {
 
     fn descricao(&self) -> &str {
         "Senado Federal - catálogo de processos legislativos, uma consulta por ano desde 1826"
+    }
+
+    fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
+        senado_api::perfil_http()
     }
 
     fn sob_demanda(&self) -> bool {

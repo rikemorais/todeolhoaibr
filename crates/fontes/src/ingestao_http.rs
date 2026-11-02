@@ -74,6 +74,13 @@ impl TarefaDeIngestaoHttp {
         self
     }
 
+    /// Substitui o limite padrão de páginas para APIs que expandem cada item em
+    /// uma consulta adicional. O limite mínimo é uma página.
+    pub fn com_limite_de_paginas(mut self, limite: usize) -> Self {
+        self.limite_de_paginas = limite.max(1);
+        self
+    }
+
     fn erro_de_paginacao(&self, detalhe: String) -> ErroDeIngestao {
         ErroDeIngestao::Paginacao {
             recurso: self.recurso.clone(),
