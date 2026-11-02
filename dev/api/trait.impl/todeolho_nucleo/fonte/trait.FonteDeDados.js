@@ -1,9 +1,9 @@
 (function() {
-    const implementors = Object.fromEntries([["todeolho_fontes",[["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteCamara.html\" title=\"struct todeolho_fontes::FonteCamara\">FonteCamara</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteCamaraDespesas.html\" title=\"struct todeolho_fontes::FonteCamaraDespesas\">FonteCamaraDespesas</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteIbge.html\" title=\"struct todeolho_fontes::FonteIbge\">FonteIbge</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteTse.html\" title=\"struct todeolho_fontes::FonteTse\">FonteTse</a>",0]]]]);
+    const implementors = Object.fromEntries([["todeolho_fontes",[["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteCamara.html\" title=\"struct todeolho_fontes::FonteCamara\">FonteCamara</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteCamaraDespesas.html\" title=\"struct todeolho_fontes::FonteCamaraDespesas\">FonteCamaraDespesas</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteCamaraVotacoes.html\" title=\"struct todeolho_fontes::FonteCamaraVotacoes\">FonteCamaraVotacoes</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteIbge.html\" title=\"struct todeolho_fontes::FonteIbge\">FonteIbge</a>",0],["impl FonteDeDados for <a class=\"struct\" href=\"todeolho_fontes/struct.FonteTse.html\" title=\"struct todeolho_fontes::FonteTse\">FonteTse</a>",0]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":59,"fragment_lengths":[666]}
+//{"start":59,"fragment_lengths":[849]}
