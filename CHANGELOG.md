@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- Remove da Raw o objeto da parte quando a transferência falha na validação final de tamanho (issue #97).
+
 ## [0.5.1] - 2026-11-02
 
 ### Corrigido
