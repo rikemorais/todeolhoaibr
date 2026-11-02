@@ -1122,6 +1122,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#compatibilidade-com-a-api-atual" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compatibilidade com a API atual
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#processos-legislativos" class="md-nav__link">
     <span class="md-ellipsis">
       Processos legislativos
@@ -1182,6 +1191,9 @@
 
 <h1 id="fontes-senado-processos-e-senado-parlamentares">Fontes <code>senado-processos</code> e <code>senado-parlamentares</code><a class="headerlink" href="#fontes-senado-processos-e-senado-parlamentares" title="Permanent link">&para;</a></h1>
 <p>Estas fontes complementam <a href="../senado-votacoes/"><code>senado-votacoes</code></a> e implementam a <a href="https://github.com/rikemorais/todeolhoaibr/issues/94">issue #94</a>: catalogam processos legislativos que não chegaram a votação e os parlamentares por legislatura, para que o refino possa relacioná-los aos votos nominais.</p>
+<h2 id="compatibilidade-com-a-api-atual">Compatibilidade com a API atual<a class="headerlink" href="#compatibilidade-com-a-api-atual" title="Permanent link">&para;</a></h2>
+<p>A <a href="https://legis.senado.leg.br/dadosabertos/v3/api-docs">OpenAPI v3 do Senado</a> marca rotas antigas de matéria e autoria como depreciadas. Para processos, prefira <code>/dadosabertos/processo</code>, <code>/dadosabertos/processo/{idProcesso}</code> e <code>/dadosabertos/processo/tipos-autor</code> às rotas legadas <code>/dadosabertos/materia/*</code> e <code>/dadosabertos/autor/tiposAutor</code>. Esta ingestão preserva as listagens e detalhes de processo; o catálogo de tipos de autoria não é coletado.</p>
+<p>Os filtros são específicos de cada operação: parâmetros presentes em uma rota de votação por matéria não devem ser presumidos na listagem <code>/processo</code>. Consulte o schema dessa operação antes de adicionar filtros à ingestão.</p>
 <h2 id="processos-legislativos">Processos legislativos<a class="headerlink" href="#processos-legislativos" title="Permanent link">&para;</a></h2>
 <p><code>senado-processos</code> consulta <code>GET /dadosabertos/processo?ano=AAAA</code>, uma vez por ano, de <strong>1826</strong> (instalação do Senado) ao ano corrente. A listagem inclui identificação da matéria, ementa, autoria, datas, situação e link para o documento quando publicados pela API. A API também oferece filtros de tipo (<code>sigla</code>) e consultas de detalhe (<code>/dadosabertos/processo/{id}</code>); a ingestão anual preserva a listagem completa para que matérias nunca votadas também sejam incluídas.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Todos os anos</span>
