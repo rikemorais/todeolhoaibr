@@ -2,6 +2,12 @@
 
 Estas fontes complementam [`senado-votacoes`](senado-votacoes.md) e implementam a [issue #94](https://github.com/rikemorais/todeolhoaibr/issues/94): catalogam processos legislativos que não chegaram a votação e os parlamentares por legislatura, para que o refino possa relacioná-los aos votos nominais.
 
+## Compatibilidade com a API atual
+
+A [OpenAPI v3 do Senado](https://legis.senado.leg.br/dadosabertos/v3/api-docs) marca rotas antigas de matéria e autoria como depreciadas. Para processos, prefira `/dadosabertos/processo`, `/dadosabertos/processo/{idProcesso}` e `/dadosabertos/processo/tipos-autor` às rotas legadas `/dadosabertos/materia/*` e `/dadosabertos/autor/tiposAutor`. Esta ingestão preserva as listagens e detalhes de processo; o catálogo de tipos de autoria não é coletado.
+
+Os filtros são específicos de cada operação: parâmetros presentes em uma rota de votação por matéria não devem ser presumidos na listagem `/processo`. Consulte o schema dessa operação antes de adicionar filtros à ingestão.
+
 ## Processos legislativos
 
 `senado-processos` consulta `GET /dadosabertos/processo?ano=AAAA`, uma vez por ano, de **1826** (instalação do Senado) ao ano corrente. A listagem inclui identificação da matéria, ementa, autoria, datas, situação e link para o documento quando publicados pela API. A API também oferece filtros de tipo (`sigla`) e consultas de detalhe (`/dadosabertos/processo/{id}`); a ingestão anual preserva a listagem completa para que matérias nunca votadas também sejam incluídas.
