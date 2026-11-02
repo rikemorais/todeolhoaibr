@@ -30,6 +30,8 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
 | `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
 | `senado-votacoes` | matérias e votos nominais do Senado, por ano (sob demanda) | [doc da fonte](docs/fontes/senado-votacoes.md) |
+| `senado-processos` | processos legislativos do Senado, por ano desde 1826 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
+| `senado-parlamentares` | senadores, partidos, UFs e mandatos por legislatura desde 1991 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
 | `tse` | votos por seção eleitoral, de 1998 a 2026 (16,4 GB) | [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) |
 
 ## Como rodar
