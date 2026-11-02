@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.7.0] - 2026-11-02
+
+### Adicionado
+
+- Fontes sob demanda `senado-processos` (matérias desde 1826) e `senado-parlamentares` (composição por legislatura desde 1991), com respostas preservadas na Raw para o refino ([issue #94](https://github.com/rikemorais/todeolhoaibr/issues/94)).
+
 ## [0.6.0] - 2026-11-02
 
 ### Adicionado
