@@ -1285,7 +1285,7 @@
 <h2 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Um <strong>arquivo CSV (zipado) por ano</strong>, nacional, publicado pela Câmara em
-  <code>https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip</code>, de <strong>2008</strong> até o ano atual.</li>
+  <code>https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip</code>, de <strong>2008</strong> até o ano corrente, calculado ao executar. Se o arquivo do ano corrente ainda não foi publicado (HTTP 404), a tarefa termina sem gravar dados e será tentada novamente na próxima execução; um arquivo histórico ausente continua sendo erro.</li>
 <li>O arquivo é baixado como <strong>arquivo grande</strong> (em fluxo, sem carregar na memória) e gravado
   <strong>opaco</strong> na camada Raw — a ingestão não descompacta nem interpreta o conteúdo (ver
   <a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>).</li>
@@ -1302,7 +1302,7 @@
 <h2 id="fonte-separada-sob_demanda">Fonte separada, <code>sob_demanda</code><a class="headerlink" href="#fonte-separada-sob_demanda" title="Permanent link">&para;</a></h2>
 <p>Embora a <a href="https://github.com/rikemorais/todeolhoaibr/issues/25">issue #25</a> falasse em "recurso da
 fonte <code>camara</code>", a CEAP é uma <strong>fonte própria <code>camara-despesas</code> com <code>sob_demanda = true</code></strong>, para
-<strong>não entrar no <code>executar --todas</code></strong> (são ~19 arquivos anuais em lote). Como <code>sob_demanda</code> é por
+<strong>não entrar no <code>executar --todas</code></strong> (são muitos arquivos anuais em lote). Como <code>sob_demanda</code> é por
 fonte, não por tarefa, separá-la é a única forma de manter o <code>camara</code> (API leve) fora desse peso.
 O dado, ainda assim, mora em <code>raw/camara/despesas/</code>.</p>
 <h2 id="como-rodar">Como rodar<a class="headerlink" href="#como-rodar" title="Permanent link">&para;</a></h2>

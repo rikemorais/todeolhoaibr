@@ -1303,7 +1303,7 @@
 <h2 id="por-que-arquivos-em-lote-e-nao-a-api-votacoesidvotos">Por que arquivos em lote, e não a API <code>/votacoes/{id}/votos</code><a class="headerlink" href="#por-que-arquivos-em-lote-e-nao-a-api-votacoesidvotos" title="Permanent link">&para;</a></h2>
 <p>O voto nominal, na API REST, só sai por votação (<code>/votacoes/{id}/votos</code>), o que exigiria um <strong>fan-out por id</strong> — incompatível com o modelo de tarefa linear da ingestão. A Câmara publica os mesmos dados como <strong>arquivos anuais em lote</strong> em <code>/arquivos/{conjunto}/csv/{conjunto}-{ano}.csv</code>, então cada <code>(conjunto, ano)</code> vira <strong>um download</strong> ([<code>TarefaDeArquivo</code>]), sem fan-out. É o mesmo padrão da <a href="../camara-despesas/"><code>camara-despesas</code></a>.</p>
 <h2 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h2>
-<p>Um CSV por <strong>conjunto</strong> e por <strong>ano</strong>, baixado como <strong>arquivo grande</strong> (em fluxo) e gravado <strong>opaco</strong> na Raw — a ingestão não interpreta o conteúdo (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>).</p>
+<p>Um CSV por <strong>conjunto</strong> e por <strong>ano</strong>, até o ano corrente calculado ao executar, baixado como <strong>arquivo grande</strong> (em fluxo) e gravado <strong>opaco</strong> na Raw — a ingestão não interpreta o conteúdo (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>). Um conjunto ainda sem arquivo no ano corrente (HTTP 404) é ignorado e tentado novamente na próxima execução; um arquivo histórico ausente continua sendo erro.</p>
 <table>
 <thead>
 <tr>
