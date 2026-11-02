@@ -145,6 +145,9 @@ main {
 .nome-tarefa { font-weight: 600; }
 .detalhe-tarefa { color: var(--texto-2); font-size: 13px; margin-top: 3px; overflow-wrap: anywhere; }
 .detalhe-tarefa.erro { color: var(--falha); }
+.barra-progresso { height: 5px; border-radius: 999px; background: var(--superficie-2);
+  overflow: hidden; margin-top: 6px; max-width: 240px; }
+.barra-progresso > span { display: block; height: 100%; background: var(--andamento); border-radius: 999px; }
 
 .vazio { text-align: center; padding: 56px 24px; grid-column: 1 / -1; }
 .vazio h2 { font-size: 20px; margin-bottom: 6px; }
@@ -274,6 +277,28 @@ function plural(quantidade, singular, varias) {
   return `${quantidade} ${quantidade === 1 ? singular : varias}`;
 }
 
+// Progresso parcial de uma tarefa em execução. Null quando não se aplica (tarefa
+// não está baixando) ou ainda não há número. `fracao` é null quando o total é
+// desconhecido: dá para mostrar o baixado, mas não o percentual.
+function progressoDaTarefa(tarefa, execucao) {
+  if (tarefa.estado !== "em_execucao" || execucao.situacao !== "em_andamento") return null;
+  const baixados = tarefa.bytes_baixados;
+  if (baixados === null || baixados === undefined) return null;
+  const total = tarefa.bytes_total;
+  if (!total) return { baixados, total: null, fracao: null };
+  return { baixados, total, fracao: Math.min(1, baixados / total) };
+}
+
+function percentual(fracao) {
+  return `${Math.round(fracao * 100)}%`;
+}
+
+function barraDeProgresso(fracao) {
+  return el("div", { class: "barra-progresso", role: "progressbar",
+    "aria-valuenow": Math.round(fracao * 100), "aria-valuemin": 0, "aria-valuemax": 100 },
+    el("span", { style: `width: ${(fracao * 100).toFixed(1)}%` }));
+}
+
 function tarefasDe(execucao) {
   return execucao.fontes.flatMap((fonte) => fonte.tarefas);
 }
@@ -364,9 +389,12 @@ function desenharGrafo(fonte, execucao) {
   for (const tarefa of fonte.tarefas) {
     const { x, y } = posicoes.get(tarefa.nome);
     const estado = estadoVisivel(tarefa, execucao);
+    const progresso = progressoDaTarefa(tarefa, execucao);
     const subtitulo = tarefa.estado === "concluida"
       ? `${formatarDuracao(tarefa.duracao_ms)} - ${formatarBytes(tarefa.bytes)}`
-      : estado.texto;
+      : (progresso && progresso.fracao !== null
+        ? `${estado.texto} - ${percentual(progresso.fracao)}`
+        : estado.texto);
     const ponto = svg("circle", { cx: x + 16, cy: y + 18, r: 5,
       class: `ponto-${estado.classe}${estado.classe === "andamento" ? " pulsa" : ""}` });
     desenho.append(
@@ -441,13 +469,21 @@ function telaResumo(execucao) {
 
 function linhaDaTarefa(tarefa, execucao) {
   const detalhe = resumoDoDetalhe(tarefa);
+  const progresso = progressoDaTarefa(tarefa, execucao);
+  const comFracao = progresso && progresso.fracao !== null;
+  const volume = progresso
+    ? (comFracao ? percentual(progresso.fracao) : formatarBytes(progresso.baixados))
+    : formatarBytes(tarefa.bytes);
   return el("tr", null,
     el("td", null,
       el("div", { class: "nome-tarefa" }, tarefa.nome),
-      detalhe ? el("div", { class: `detalhe-tarefa${detalhe.erro ? " erro" : ""}` }, detalhe.texto) : null),
+      detalhe ? el("div", { class: `detalhe-tarefa${detalhe.erro ? " erro" : ""}` }, detalhe.texto) : null,
+      comFracao ? el("div", { class: "detalhe-tarefa tabular" },
+        `${formatarBytes(progresso.baixados)} de ${formatarBytes(progresso.total)}`) : null,
+      comFracao ? barraDeProgresso(progresso.fracao) : null),
     el("td", null, selo(estadoVisivel(tarefa, execucao))),
     el("td", { class: "num tabular opcional" }, tarefa.partes ?? "-"),
-    el("td", { class: "num tabular estreita-oculta" }, formatarBytes(tarefa.bytes)),
+    el("td", { class: "num tabular estreita-oculta" }, volume),
     el("td", { class: "num tabular" }, formatarDuracao(duracaoDaTarefa(tarefa, execucao))));
 }
 

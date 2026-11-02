@@ -260,6 +260,7 @@ async fn preparar_contexto() -> Result<ContextoDeExecucao> {
         http: Arc::new(ClienteHttpComRetentativas::novo(
             PoliticaDeRetentativas::default(),
         )?),
+        progresso: None,
     })
 }
 

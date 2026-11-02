@@ -2,13 +2,14 @@
 //! limitada, e avisa um observador sobre o início e o fim de cada tarefa.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use futures::{StreamExt, stream};
 use tracing::{error, info, warn};
 
-use crate::contexto::ContextoDeExecucao;
+use crate::contexto::{ContextoDeExecucao, ProgressoDaTarefa};
 use crate::dag::DagDeIngestao;
 use crate::erros::ErroDeDag;
 use crate::tarefa::ResumoDaTarefa;
@@ -62,8 +63,9 @@ impl RelatorioDaExecucao {
 /// propósito: quem observa não pode interferir na ingestão.
 #[async_trait]
 pub trait ObservadorDeExecucao: Send + Sync {
-    /// Avisado quando uma tarefa começa.
-    async fn tarefa_iniciada(&self, fonte: &str, tarefa: &str);
+    /// Avisado quando uma tarefa começa, com o acompanhador de progresso que ela
+    /// vai alimentar enquanto baixa.
+    async fn tarefa_iniciada(&self, fonte: &str, tarefa: &str, progresso: Arc<ProgressoDaTarefa>);
     /// Avisado quando uma tarefa termina, com o resultado.
     async fn tarefa_finalizada(&self, fonte: &str, resultado: &ResultadoDaTarefa);
 }
@@ -119,9 +121,16 @@ impl ExecutorDeDag {
             let concluidas: Vec<ResultadoDaTarefa> = stream::iter(a_executar)
                 .map(|(tarefa, nome)| async move {
                     info!(fonte = dag.fonte(), tarefa = %nome, "tarefa iniciada");
-                    observador.tarefa_iniciada(dag.fonte(), &nome).await;
+                    let progresso = Arc::new(ProgressoDaTarefa::default());
+                    observador
+                        .tarefa_iniciada(dag.fonte(), &nome, Arc::clone(&progresso))
+                        .await;
+                    let contexto_da_tarefa = ContextoDeExecucao {
+                        progresso: Some(progresso),
+                        ..contexto.clone()
+                    };
                     let inicio = Instant::now();
-                    let estado = match tarefa.executar(contexto).await {
+                    let estado = match tarefa.executar(&contexto_da_tarefa).await {
                         Ok(resumo) => {
                             info!(
                                 fonte = dag.fonte(),
@@ -229,6 +238,7 @@ mod testes {
             iniciada_em: Utc::now(),
             armazenamento: Arc::new(Inerte),
             http: Arc::new(Inerte),
+            progresso: None,
         }
     }
 
@@ -239,7 +249,7 @@ mod testes {
 
     #[async_trait]
     impl ObservadorDeExecucao for ObservadorDeTeste {
-        async fn tarefa_iniciada(&self, _: &str, tarefa: &str) {
+        async fn tarefa_iniciada(&self, _: &str, tarefa: &str, _: Arc<ProgressoDaTarefa>) {
             self.eventos
                 .lock()
                 .unwrap()

@@ -10,6 +10,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 ### Adicionado
 
 - Indicadores macro do IBGE na fonte `ibge`: IPCA e INPC (inflação mensal), PIB trimestral e PNAD Contínua (desocupação por UF), baixando a série completa do SIDRA (agregados v3) e gravando a resposta opaca na Raw para o refino ([issue #57](https://github.com/rikemorais/todeolhoaibr/issues/57)).
+- Percentual de progresso por tarefa em tempo real no painel: tarefas que baixam arquivo reportam bytes baixados e total durante a execução, e o painel mostra a porcentagem, uma barra e `baixado de total` enquanto a tarefa roda ([issue #128](https://github.com/rikemorais/todeolhoaibr/issues/128)).
 
 ### Mudado
 

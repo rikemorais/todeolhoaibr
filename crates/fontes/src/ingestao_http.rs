@@ -498,6 +498,7 @@ mod testes {
             iniciada_em: Utc::now(),
             armazenamento: armazenamento.clone(),
             http: Arc::new(HttpFalso(respostas.iter().copied().collect())),
+            progresso: None,
         };
         (contexto, armazenamento)
     }
@@ -657,6 +658,7 @@ mod testes {
             iniciada_em: Utc::now(),
             armazenamento: armazenamento.clone(),
             http: http.clone(),
+            progresso: None,
         };
         let tarefa =
             TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
@@ -679,6 +681,7 @@ mod testes {
             iniciada_em: Utc::now(),
             armazenamento: armazenamento.clone(),
             http: http.clone(),
+            progresso: None,
         };
         let tarefa =
             TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
@@ -752,6 +755,7 @@ mod testes {
             iniciada_em: Utc::now(),
             armazenamento: armazenamento.clone(),
             http: http.clone(),
+            progresso: None,
         };
         let tarefa =
             TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
