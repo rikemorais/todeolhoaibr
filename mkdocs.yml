@@ -126,5 +126,6 @@ nav:
   - Fontes de dados:
       - fontes/camara-despesas.md
       - fontes/camara-votacoes.md
+      - fontes/senado-votacoes.md
   - Diagramas: diagramas/README.md
   - Referência de API: api/index.md

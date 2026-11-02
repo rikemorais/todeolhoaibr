@@ -16,6 +16,7 @@ pub use fontes::camara::FonteCamara;
 pub use fontes::camara_despesas::FonteCamaraDespesas;
 pub use fontes::camara_votacoes::FonteCamaraVotacoes;
 pub use fontes::ibge::FonteIbge;
+pub use fontes::senado_votacoes::FonteSenadoVotacoes;
 pub use fontes::tse::FonteTse;
 
 /// Todas as fontes disponíveis. Único ponto a alterar ao adicionar uma nova.
@@ -32,6 +33,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteCamara),
         Box::new(FonteCamaraDespesas),
         Box::new(FonteCamaraVotacoes),
+        Box::new(FonteSenadoVotacoes),
         Box::new(FonteTse),
     ]
 }
