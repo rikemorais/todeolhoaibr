@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead, Write};
 
-use todeolho_nucleo::{FiltroDeTarefas, formatar_bytes};
+use todeolho_nucleo::{EspacoNecessario, FiltroDeTarefas, formatar_bytes};
 
 /// O que o menu precisa saber de uma tarefa.
 #[derive(Debug, Clone)]
@@ -35,19 +35,35 @@ pub fn escolher(
     entrada: &mut impl BufRead,
     saida: &mut impl Write,
 ) -> io::Result<Option<Escolha>> {
-    writeln!(saida, "\nFontes disponíveis:\n")?;
+    writeln!(saida, "\nFontes disponíveis:")?;
+    writeln!(saida, "  {:<19} {:>12}  Descrição", "Fonte", "Falta baixar")?;
     for (indice, fonte) in fontes.iter().enumerate() {
         writeln!(
             saida,
-            "  {}) {:<16} {:>11}  {}",
+            "  {}) {:<16} {:>12}  {}",
             indice + 1,
             fonte.nome,
             if fonte.sob_demanda {
-                "sob demanda".to_owned()
+                "a consultar".to_owned()
             } else {
                 tamanho(&fonte.tarefas)
             },
             fonte.descricao
+        )?;
+    }
+    let sob_demanda = fontes.iter().filter(|fonte| fonte.sob_demanda).count();
+    let espaco = EspacoNecessario::somar(
+        fontes
+            .iter()
+            .filter(|fonte| !fonte.sob_demanda)
+            .flat_map(|fonte| fonte.tarefas.iter().map(|tarefa| &tarefa.bytes)),
+    );
+    writeln!(saida, "\nTotal conhecido: {}", formatar_bytes(espaco.bytes))?;
+    if sob_demanda > 0 || espaco.sem_estimativa > 0 {
+        writeln!(
+            saida,
+            "Total parcial: fontes a consultar: {sob_demanda}; tarefas sem estimativa: {}. + indica valor parcial.",
+            espaco.sem_estimativa
         )?;
     }
 
@@ -198,11 +214,14 @@ fn valores_com_tamanho(tarefas: &[&OpcaoDeTarefa], dimensao: &str) -> Vec<(Strin
 }
 
 fn tamanho(tarefas: &[OpcaoDeTarefa]) -> String {
-    let soma: u64 = tarefas.iter().filter_map(|tarefa| tarefa.bytes).sum();
-    if soma == 0 && tarefas.iter().any(|tarefa| tarefa.bytes.is_none()) {
-        return "?".to_owned();
+    let espaco = EspacoNecessario::somar(tarefas.iter().map(|tarefa| &tarefa.bytes));
+    if espaco.sem_estimativa > 0 {
+        if espaco.bytes == 0 {
+            return "desconhecido".to_owned();
+        }
+        return format!("{}+", formatar_bytes(espaco.bytes));
     }
-    formatar_bytes(soma)
+    formatar_bytes(espaco.bytes)
 }
 
 #[cfg(test)]
@@ -348,7 +367,7 @@ mod testes {
             etiquetas: BTreeMap::new(),
             bytes: None,
         }];
-        assert_eq!(tamanho(&tarefas), "?");
+        assert_eq!(tamanho(&tarefas), "desconhecido");
     }
 
     #[test]
@@ -362,9 +381,34 @@ mod testes {
         escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
         let texto = String::from_utf8(saida).unwrap();
         assert!(
-            texto.contains("tse") && texto.contains("sob demanda"),
+            texto.contains("tse") && texto.contains("a consultar"),
             "{texto}"
         );
         assert!(!texto.contains("0 B"), "{texto}");
+    }
+
+    #[test]
+    fn menu_mostra_total_conhecido_e_distingue_estimativas_parciais() {
+        let mut fontes = fontes();
+        fontes[0].tarefas.push(OpcaoDeTarefa {
+            etiquetas: BTreeMap::new(),
+            bytes: None,
+        });
+        fontes[1].sob_demanda = true;
+        let mut saida = Vec::new();
+        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
+        let texto = String::from_utf8(saida).unwrap();
+
+        assert!(texto.contains("Falta baixar"), "{texto}");
+        assert!(texto.contains("1,9 MB+"), "{texto}");
+        assert!(
+            texto.contains("tse") && texto.contains("a consultar"),
+            "{texto}"
+        );
+        assert!(texto.contains("Total conhecido: 1,9 MB"), "{texto}");
+        assert!(
+            texto.contains("fontes a consultar: 1; tarefas sem estimativa: 1"),
+            "{texto}"
+        );
     }
 }

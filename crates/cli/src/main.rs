@@ -356,7 +356,7 @@ async fn executar(
 /// Devolve `false` quando a seleção não cabe no disco.
 fn avisar_sobre_espaco(quantidade: usize, espaco: &EspacoNecessario, livre: Option<u64>) -> bool {
     println!("\nSelecionado: {quantidade} tarefa(s)");
-    println!("Espaço necessário: {}", formatar_bytes(espaco.bytes));
+    println!("Falta baixar (estimado): {}", formatar_bytes(espaco.bytes));
     if espaco.maior_arquivo > 0 {
         println!(
             "Pico durante a gravação: {} (o maior arquivo ocupa o dobro enquanto é gravado)",
