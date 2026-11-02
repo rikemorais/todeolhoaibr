@@ -65,7 +65,7 @@ Fontes disponíveis:
 ```
 
 Antes de executar, o projeto compara o espaço necessário com o espaço livre e pede confirmação. **Se não couber, a execução é recusada.**
-No primeiro prompt, **Enter seleciona todas as fontes**, inclusive as `sob demanda`; digite `q` para sair sem executar. Isso é diferente de `executar --todas`, que exclui as fontes `sob demanda`.
+No primeiro prompt, **Enter seleciona todas as fontes e tarefas sem perguntas adicionais**, inclusive as `sob demanda`; digite `q` para sair sem executar. Isso é diferente de `executar --todas`, que exclui as fontes `sob demanda`.
 Uma combinação de filtros sem tarefas, mesmo quando cada valor existe isoladamente, produz um erro que mostra a combinação solicitada.
 
 A ingestão é **idempotente**: antes de baixar, o projeto confere o que já existe na camada Raw e só (re)ingere o que está **ausente, desatualizado, menor ou incompleto**. O que continua igual é reaproveitado; as APIs paginadas usam requisição condicional (`If-None-Match`), e uma carga longa interrompida continua de onde parou. O painel indica, por tarefa, se foi reaproveitada ou reingerida e por quê (ver [ADR 0012](docs/adr/0012-pre-checagem-idempotente.md)).

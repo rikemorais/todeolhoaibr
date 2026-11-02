@@ -21,7 +21,7 @@ etiqueta suas tarefas ganha tudo isso sem código específico, o que mantém o p
 [ADR 0004](0004-factory-method-para-fontes.md).
 
 - `docker compose run --rm ingestao` abre um menu. Fontes `sob_demanda` aparecem sem estimativa antecipada; após a escolha, o tamanho das tarefas selecionadas é consultado antes da confirmação.
-- Enter no primeiro prompt seleciona todas as fontes, inclusive as `sob_demanda`; `q` sai sem executar. A checagem de espaço e a confirmação continuam obrigatórias antes de baixar.
+- Enter no primeiro prompt seleciona todas as fontes e tarefas sem perguntas adicionais, inclusive as `sob_demanda`; `q` sai sem executar. A checagem de espaço e a confirmação continuam obrigatórias antes de baixar.
 - `executar <fonte> --filtro ano=2024 --filtro uf=AC` faz o mesmo sem o menu. Filtros e valores desconhecidos são erro, nunca ignorados.
 - Fontes muito grandes declaram `sob_demanda` e ficam fora de `executar --todas`, para que ninguém baixe 16 GB por acidente.
 

@@ -24,6 +24,11 @@ pub struct OpcaoDeFonte {
 /// O que foi escolhido: o índice da fonte e o filtro a aplicar nela.
 pub type Escolha = Vec<(usize, FiltroDeTarefas)>;
 
+enum EscolhaInicial {
+    Todas,
+    Numeros(Vec<usize>),
+}
+
 /// Conduz a escolha. `None` significa que a pessoa desistiu.
 pub fn escolher(
     fontes: &[OpcaoDeFonte],
@@ -46,8 +51,18 @@ pub fn escolher(
         )?;
     }
 
-    let Some(numeros) = perguntar_fontes(fontes.len(), entrada, saida)? else {
+    let Some(resposta) = perguntar_fontes(fontes.len(), entrada, saida)? else {
         return Ok(None);
+    };
+    let numeros = match resposta {
+        EscolhaInicial::Todas => {
+            return Ok(Some(
+                (0..fontes.len())
+                    .map(|indice| (indice, FiltroDeTarefas::default()))
+                    .collect(),
+            ));
+        }
+        EscolhaInicial::Numeros(numeros) => numeros,
     };
 
     let mut escolha = Vec::new();
@@ -98,7 +113,7 @@ fn perguntar_fontes(
     limite: usize,
     entrada: &mut impl BufRead,
     saida: &mut impl Write,
-) -> io::Result<Option<Vec<usize>>> {
+) -> io::Result<Option<EscolhaInicial>> {
     loop {
         write!(
             saida,
@@ -115,10 +130,10 @@ fn perguntar_fontes(
             return Ok(None);
         }
         if resposta.is_empty() {
-            return Ok(Some((0..limite).collect()));
+            return Ok(Some(EscolhaInicial::Todas));
         }
         match interpretar_numeros(resposta, limite) {
-            Some(numeros) => return Ok(Some(numeros)),
+            Some(numeros) => return Ok(Some(EscolhaInicial::Numeros(numeros))),
             None => writeln!(
                 saida,
                 "Resposta inválida. Use números de 1 a {limite} ou q para sair."
@@ -248,13 +263,15 @@ mod testes {
 
     #[test]
     fn enter_na_primeira_pergunta_seleciona_todas_as_fontes() {
+        let (escolha, saida) = responder("\n");
         assert_eq!(
-            responder("\n").0,
+            escolha,
             Some(vec![
                 (0, FiltroDeTarefas::default()),
                 (1, FiltroDeTarefas::default()),
             ])
         );
+        assert!(!saida.contains("escolha ano"), "{saida}");
     }
 
     #[test]
