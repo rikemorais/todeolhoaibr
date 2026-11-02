@@ -1,13 +1,15 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::io;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::TryStreamExt;
 use reqwest::{RequestBuilder, Response, StatusCode, header};
 use todeolho_nucleo::{
-    ClienteHttp, DownloadHttp, ErroDeIngestao, InformacoesDoArquivo, RespostaCondicional,
-    RespostaHttp,
+    ClienteHttp, DownloadHttp, ErroDeIngestao, InformacoesDoArquivo, PerfilHttp,
+    RespostaCondicional, RespostaHttp,
 };
 use tokio_util::io::StreamReader;
 use tracing::warn;
@@ -56,31 +58,124 @@ impl PoliticaDeRetentativas {
 pub struct ClienteHttpComRetentativas {
     cliente: reqwest::Client,
     politica: PoliticaDeRetentativas,
+    host_da_credencial: Option<String>,
 }
+
+struct EstadoDoHost {
+    proxima: tokio::time::Instant,
+    intervalo_entre_requisicoes: Duration,
+}
+
+static LIMITES_POR_HOST: OnceLock<Mutex<HashMap<String, EstadoDoHost>>> = OnceLock::new();
 
 impl ClienteHttpComRetentativas {
     /// Cria o cliente com a política de retentativas dada.
     pub fn novo(politica: PoliticaDeRetentativas) -> Result<Self, ErroDeIngestao> {
-        let cliente = reqwest::Client::builder()
+        Self::com_perfil(politica, PerfilHttp::default(), None)
+    }
+
+    /// Configura uma fonte. `segredo` vem do ambiente e nunca é incluído em erros ou logs.
+    pub fn com_perfil(
+        politica: PoliticaDeRetentativas,
+        perfil: PerfilHttp,
+        segredo: Option<&str>,
+    ) -> Result<Self, ErroDeIngestao> {
+        let mut construtor = reqwest::Client::builder()
             .user_agent(AGENTE)
             .connect_timeout(TEMPO_DE_CONEXAO)
-            .read_timeout(TEMPO_SEM_DADOS)
+            .read_timeout(TEMPO_SEM_DADOS);
+
+        let host_da_credencial = if let Some(credencial) = perfil.credencial {
+            let valor = segredo
+                .filter(|valor| !valor.trim().is_empty())
+                .ok_or_else(|| {
+                    erro_de_configuracao(format!(
+                        "variável de ambiente ausente ou vazia: {}",
+                        credencial.variavel
+                    ))
+                })?;
+            let nome = header::HeaderName::from_bytes(credencial.cabecalho.as_bytes())
+                .map_err(|_| erro_de_configuracao("nome de cabeçalho HTTP inválido".into()))?;
+            let mut valor =
+                header::HeaderValue::from_str(&format!("{}{}", credencial.prefixo, valor))
+                    .map_err(|_| {
+                        erro_de_configuracao("valor de credencial HTTP inválido".into())
+                    })?;
+            valor.set_sensitive(true);
+            let mut cabecalhos = header::HeaderMap::new();
+            cabecalhos.insert(nome, valor);
+            // Mesmo um redirect válido nunca transporta o segredo para outro host.
+            construtor = construtor
+                .default_headers(cabecalhos)
+                .redirect(reqwest::redirect::Policy::none());
+            Some(credencial.host.to_ascii_lowercase())
+        } else {
+            None
+        };
+
+        let limite = perfil
+            .limite
+            .map(|limite| {
+                if limite.requisicoes == 0 || limite.intervalo.is_zero() || limite.host.is_empty() {
+                    return Err(erro_de_configuracao("limite HTTP inválido".into()));
+                }
+                Ok((
+                    limite.host.to_ascii_lowercase(),
+                    (limite.intervalo / limite.requisicoes).max(Duration::from_nanos(1)),
+                ))
+            })
+            .transpose()?;
+
+        let cliente = construtor.build().map_err(|erro| ErroDeIngestao::Http {
+            url: String::new(),
+            detalhe: erro.to_string(),
+        })?;
+        if let Some((host, intervalo)) = limite {
+            registrar_limite(&host, intervalo);
+        }
+        Ok(Self {
+            cliente,
+            politica,
+            host_da_credencial,
+        })
+    }
+
+    async fn enviar(&self, requisicao: RequestBuilder) -> Result<Response, Falha> {
+        classificar_resposta(self.enviar_bruto(requisicao).await)
+    }
+
+    async fn enviar_bruto(&self, requisicao: RequestBuilder) -> Result<Response, Falha> {
+        let requisicao = requisicao
             .build()
-            .map_err(|erro| ErroDeIngestao::Http {
-                url: String::new(),
-                detalhe: erro.to_string(),
-            })?;
-        Ok(Self { cliente, politica })
+            .map_err(|erro| Falha::definitiva(descrever(erro)))?;
+        let host = requisicao
+            .url()
+            .host_str()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if let Some(autorizado) = &self.host_da_credencial
+            && &host != autorizado
+        {
+            return Err(Falha::definitiva(format!(
+                "host HTTP não autorizado para a credencial: {host}"
+            )));
+        }
+        aguardar_limite(&host).await;
+        self.cliente
+            .execute(requisicao)
+            .await
+            .map_err(|erro| Falha::transitoria(descrever(erro)))
     }
 
     async fn tentar_obter(&self, url: &str, aceita: &str) -> Result<RespostaHttp, Falha> {
-        let resposta = enviar(
-            self.cliente
-                .get(url)
-                .timeout(TEMPO_LIMITE)
-                .header(header::ACCEPT, aceita),
-        )
-        .await?;
+        let resposta = self
+            .enviar(
+                self.cliente
+                    .get(url)
+                    .timeout(TEMPO_LIMITE)
+                    .header(header::ACCEPT, aceita),
+            )
+            .await?;
 
         let tipo_de_conteudo = tipo_de_conteudo(&resposta);
         let corpo = resposta
@@ -109,23 +204,13 @@ impl ClienteHttpComRetentativas {
             requisicao = requisicao.header(header::IF_NONE_MATCH, validador);
         }
 
-        let resposta = requisicao
-            .send()
-            .await
-            .map_err(|erro| Falha::transitoria(descrever(erro)))?;
+        let resposta = self.enviar_bruto(requisicao).await?;
 
         let status = resposta.status();
         if status == StatusCode::NOT_MODIFIED {
             return Ok(RespostaCondicional::NaoModificado);
         }
-        if !status.is_success() {
-            let detalhe = format!("status {status}");
-            return Err(if eh_transitorio(status) {
-                Falha::transitoria(detalhe)
-            } else {
-                Falha::definitiva(detalhe)
-            });
-        }
+        verificar_status(status)?;
 
         let tipo_de_conteudo = tipo_de_conteudo(&resposta);
         let versao = etag(&resposta);
@@ -158,6 +243,12 @@ impl ClienteHttpComRetentativas {
             };
 
             falhas += 1;
+            if let Some(status) = falha.status_de_autenticacao {
+                return Err(ErroDeIngestao::Autenticacao {
+                    url: url.to_owned(),
+                    status,
+                });
+            }
             if !falha.transitoria || falhas >= self.politica.tentativas {
                 return Err(ErroDeIngestao::Http {
                     url: url.to_owned(),
@@ -191,7 +282,9 @@ impl ClienteHttp for ClienteHttpComRetentativas {
 
     async fn informacoes(&self, url: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
         let resposta = self
-            .com_retentativas(url, || enviar(self.cliente.head(url).timeout(TEMPO_LIMITE)))
+            .com_retentativas(url, || {
+                self.enviar(self.cliente.head(url).timeout(TEMPO_LIMITE))
+            })
             .await;
 
         // Sem essas informações, a estimativa fica desconhecida e o arquivo é baixado de novo.
@@ -201,6 +294,7 @@ impl ClienteHttp for ClienteHttpComRetentativas {
                 tamanho: cabecalho(&resposta, header::CONTENT_LENGTH)
                     .and_then(|tamanho| tamanho.parse().ok()),
             },
+            Err(erro @ ErroDeIngestao::Autenticacao { .. }) => return Err(erro),
             Err(erro) => {
                 warn!(%erro, "não foi possível consultar as informações do arquivo");
                 InformacoesDoArquivo::default()
@@ -233,7 +327,7 @@ impl ClienteHttp for ClienteHttpComRetentativas {
                         requisicao = requisicao.header(header::IF_RANGE, validador);
                     }
                 }
-                enviar(requisicao)
+                self.enviar(requisicao)
             })
             .await?;
 
@@ -272,23 +366,62 @@ fn faixa_de_conteudo(resposta: &Response) -> Option<(u64, Option<u64>)> {
     Some((inicio, total.trim().parse().ok()))
 }
 
-async fn enviar(requisicao: RequestBuilder) -> Result<Response, Falha> {
-    let resposta = requisicao
-        .send()
-        .await
-        .map_err(|erro| Falha::transitoria(descrever(erro)))?;
+fn classificar_resposta(resposta: Result<Response, Falha>) -> Result<Response, Falha> {
+    let resposta = resposta?;
+    verificar_status(resposta.status())?;
+    Ok(resposta)
+}
 
-    let status = resposta.status();
+fn verificar_status(status: StatusCode) -> Result<(), Falha> {
     if status.is_success() {
-        return Ok(resposta);
+        return Ok(());
     }
-
+    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
+        return Err(Falha::autenticacao(status.as_u16()));
+    }
     let detalhe = format!("status {status}");
     Err(if eh_transitorio(status) {
         Falha::transitoria(detalhe)
     } else {
         Falha::definitiva(detalhe)
     })
+}
+
+fn erro_de_configuracao(detalhe: String) -> ErroDeIngestao {
+    ErroDeIngestao::Http {
+        url: String::new(),
+        detalhe,
+    }
+}
+
+async fn aguardar_limite(host: &str) {
+    if let Some(instante) = reservar_limite(host) {
+        tokio::time::sleep_until(instante).await;
+    }
+}
+
+fn registrar_limite(host: &str, intervalo: Duration) {
+    let mut limites = LIMITES_POR_HOST
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let agora = tokio::time::Instant::now();
+    let estado = limites.entry(host.to_owned()).or_insert(EstadoDoHost {
+        proxima: agora,
+        intervalo_entre_requisicoes: intervalo,
+    });
+    estado.intervalo_entre_requisicoes = estado.intervalo_entre_requisicoes.max(intervalo);
+}
+
+fn reservar_limite(host: &str) -> Option<tokio::time::Instant> {
+    let mut limites = LIMITES_POR_HOST
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let estado = limites.get_mut(host)?;
+    let instante = estado.proxima.max(tokio::time::Instant::now());
+    estado.proxima = instante + estado.intervalo_entre_requisicoes;
+    Some(instante)
 }
 
 fn tipo_de_conteudo(resposta: &Response) -> String {
@@ -310,6 +443,7 @@ fn cabecalho(resposta: &Response, nome: header::HeaderName) -> Option<String> {
 struct Falha {
     detalhe: String,
     transitoria: bool,
+    status_de_autenticacao: Option<u16>,
 }
 
 impl Falha {
@@ -317,6 +451,7 @@ impl Falha {
         Self {
             detalhe,
             transitoria: true,
+            status_de_autenticacao: None,
         }
     }
 
@@ -324,6 +459,15 @@ impl Falha {
         Self {
             detalhe,
             transitoria: false,
+            status_de_autenticacao: None,
+        }
+    }
+
+    fn autenticacao(status: u16) -> Self {
+        Self {
+            detalhe: format!("status {status}"),
+            transitoria: false,
+            status_de_autenticacao: Some(status),
         }
     }
 }
@@ -350,6 +494,119 @@ fn eh_transitorio(status: StatusCode) -> bool {
 #[cfg(test)]
 mod testes {
     use super::*;
+    use todeolho_nucleo::{CredencialHttp, LimiteHttp};
+
+    const PERFIL_DE_TESTE: PerfilHttp = PerfilHttp {
+        credencial: Some(CredencialHttp {
+            host: "127.0.0.1",
+            variavel: "TESTE_TOKEN",
+            cabecalho: "chave-api-dados",
+            prefixo: "",
+        }),
+        limite: None,
+    };
+
+    #[test]
+    fn credencial_ausente_ou_invalida_nao_expoe_segredo() {
+        let politica = PoliticaDeRetentativas::default();
+        let erro = ClienteHttpComRetentativas::com_perfil(politica, PERFIL_DE_TESTE, None)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(erro.contains("TESTE_TOKEN"));
+
+        let erro = ClienteHttpComRetentativas::com_perfil(
+            politica,
+            PERFIL_DE_TESTE,
+            Some("segredo\nquebrado"),
+        )
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(!erro.contains("segredo"));
+    }
+
+    #[tokio::test]
+    async fn host_diferente_e_recusado_antes_de_enviar() {
+        let cliente = ClienteHttpComRetentativas::com_perfil(
+            PoliticaDeRetentativas::default(),
+            PERFIL_DE_TESTE,
+            Some("segredo"),
+        )
+        .unwrap();
+        let erro = cliente
+            .obter("https://example.org/recurso", "application/json")
+            .await
+            .unwrap_err();
+        assert!(erro.to_string().contains("host HTTP não autorizado"));
+        assert!(!erro.to_string().contains("segredo"));
+    }
+
+    #[test]
+    fn limite_e_compartilhado_por_host_e_respeita_o_mais_restritivo() {
+        let host = "teste-limite-compartilhado.example";
+        registrar_limite(host, Duration::from_millis(100));
+        let primeira = reservar_limite(host).unwrap();
+        registrar_limite(host, Duration::from_millis(200));
+        let segunda = reservar_limite(host).unwrap();
+        let terceira = reservar_limite(host).unwrap();
+        assert!(segunda.duration_since(primeira) >= Duration::from_millis(100));
+        assert!(terceira.duration_since(segunda) >= Duration::from_millis(200));
+    }
+
+    #[test]
+    fn perfil_com_limite_invalido_e_recusado() {
+        let perfil = PerfilHttp {
+            credencial: None,
+            limite: Some(LimiteHttp {
+                host: "example.org",
+                requisicoes: 0,
+                intervalo: Duration::from_secs(1),
+            }),
+        };
+        assert!(
+            ClienteHttpComRetentativas::com_perfil(PoliticaDeRetentativas::default(), perfil, None)
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn head_com_credencial_e_401_falha_sem_vazar_o_segredo() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!(
+            "http://127.0.0.1:{}/arquivo",
+            ouvinte.local_addr().unwrap().port()
+        );
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let lidos = conexao.read(&mut buf).unwrap();
+            conexao
+                .write_all(
+                    b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .unwrap();
+            String::from_utf8_lossy(&buf[..lidos]).into_owned()
+        });
+        let cliente = ClienteHttpComRetentativas::com_perfil(
+            PoliticaDeRetentativas::default(),
+            PERFIL_DE_TESTE,
+            Some("token-secreto"),
+        )
+        .unwrap();
+        let erro = cliente.informacoes(&url).await.unwrap_err();
+        assert!(matches!(
+            erro,
+            ErroDeIngestao::Autenticacao { status: 401, .. }
+        ));
+        assert!(!erro.to_string().contains("token-secreto"));
+        let requisicao = servidor.join().unwrap().to_ascii_lowercase();
+        assert!(requisicao.starts_with("head /arquivo "));
+        assert!(requisicao.contains("chave-api-dados: token-secreto"));
+    }
 
     /// Exercita o adaptador real: pede uma retomada e confere que ele envia
     /// `Range`/`If-Range` e lê o `Content-Range` de um `206`, entregando o resto.
@@ -431,6 +688,13 @@ mod testes {
         ] {
             assert!(!eh_transitorio(status), "{status}");
         }
+    }
+
+    #[test]
+    fn status_403_e_falha_de_autenticacao_definitiva() {
+        let falha = verificar_status(StatusCode::FORBIDDEN).err().unwrap();
+        assert_eq!(falha.status_de_autenticacao, Some(403));
+        assert!(!falha.transitoria);
     }
 
     #[test]

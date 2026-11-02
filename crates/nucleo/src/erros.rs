@@ -6,6 +6,16 @@ use thiserror::Error;
 /// Falhas ao executar uma tarefa de ingestão.
 #[derive(Debug, Error)]
 pub enum ErroDeIngestao {
+    /// A API recusou a credencial ou o acesso ao recurso.
+    #[error(
+        "acesso negado pela API em {url} (HTTP {status}); confira a credencial e as permissões"
+    )]
+    Autenticacao {
+        /// URL do recurso, sem credenciais.
+        url: String,
+        /// Código HTTP 401 ou 403.
+        status: u16,
+    },
     /// A requisição HTTP falhou (rede, status não transitório ou corpo ilegível).
     #[error("falha na requisição para {url}: {detalhe}")]
     Http {

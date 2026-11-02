@@ -7,6 +7,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Perfil HTTP opcional por fonte, com credencial por variável de ambiente e limite de requisições compartilhado por host (issue #70).
+
+### Corrigido
+
+- Respostas HTTP 401/403 agora falham claramente também nas consultas de metadados de arquivos, sem serem tratadas como tamanho desconhecido.
+
 ## [0.4.0] - 2026-11-02
 
 ### Adicionado
