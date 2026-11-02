@@ -209,15 +209,50 @@ impl ClienteHttp for ClienteHttpComRetentativas {
     }
 
     async fn baixar(&self, url: &str) -> Result<DownloadHttp, ErroDeIngestao> {
+        self.baixar_a_partir_de(url, 0, None).await
+    }
+
+    async fn baixar_a_partir_de(
+        &self,
+        url: &str,
+        inicio: u64,
+        versao: Option<&str>,
+    ) -> Result<DownloadHttp, ErroDeIngestao> {
         let resposta = self
             .com_retentativas(url, || {
-                enviar(self.cliente.get(url).timeout(TEMPO_LIMITE_DE_DOWNLOAD))
+                let mut requisicao = self.cliente.get(url).timeout(TEMPO_LIMITE_DE_DOWNLOAD);
+                if inicio > 0 {
+                    // Retomada: pede do offset em diante e só aceita se o arquivo
+                    // não mudou (If-Range com o ETag da primeira resposta). If-Range
+                    // só aceita validador FORTE; um ETag fraco (`W/"..."`) faria a
+                    // origem devolver o arquivo inteiro (200), impedindo a retomada.
+                    requisicao = requisicao.header(header::RANGE, format!("bytes={inicio}-"));
+                    if let Some(validador) = versao
+                        && !validador.trim_start().starts_with("W/")
+                    {
+                        requisicao = requisicao.header(header::IF_RANGE, validador);
+                    }
+                }
+                enviar(requisicao)
             })
             .await?;
+
+        // `206` traz o início e o total no Content-Range; `200` (inclusive quando
+        // a origem ignora o Range) começa do zero, com o total no Content-Length.
+        let (inicio_real, tamanho_total) = if resposta.status() == StatusCode::PARTIAL_CONTENT {
+            faixa_de_conteudo(&resposta).unwrap_or((0, None))
+        } else {
+            (
+                0,
+                cabecalho(&resposta, header::CONTENT_LENGTH).and_then(|total| total.parse().ok()),
+            )
+        };
 
         Ok(DownloadHttp {
             tipo_de_conteudo: tipo_de_conteudo(&resposta),
             versao: etag(&resposta),
+            inicio: inicio_real,
+            tamanho_total,
             fluxo: Box::new(StreamReader::new(
                 resposta
                     .bytes_stream()
@@ -225,6 +260,16 @@ impl ClienteHttp for ClienteHttpComRetentativas {
             )),
         })
     }
+}
+
+/// Lê o `Content-Range: bytes INICIO-FIM/TOTAL` de uma resposta `206` e devolve
+/// `(inicio, total)`. `total` é `None` quando a origem manda `*`.
+fn faixa_de_conteudo(resposta: &Response) -> Option<(u64, Option<u64>)> {
+    let valor = cabecalho(resposta, header::CONTENT_RANGE)?;
+    let resto = valor.strip_prefix("bytes ")?;
+    let (faixa, total) = resto.split_once('/')?;
+    let inicio = faixa.split('-').next()?.trim().parse().ok()?;
+    Some((inicio, total.trim().parse().ok()))
 }
 
 async fn enviar(requisicao: RequestBuilder) -> Result<Response, Falha> {
@@ -305,6 +350,69 @@ fn eh_transitorio(status: StatusCode) -> bool {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    /// Exercita o adaptador real: pede uma retomada e confere que ele envia
+    /// `Range`/`If-Range` e lê o `Content-Range` de um `206`, entregando o resto.
+    #[tokio::test]
+    async fn baixar_a_partir_de_envia_range_e_le_content_range() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        use tokio::io::AsyncReadExt;
+
+        const CORPO: &[u8] = b"0123456789abcdefghij"; // 20 bytes
+        let total = CORPO.len();
+        let inicio = 5usize;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let porta = ouvinte.local_addr().unwrap().port();
+        let (enviar_requisicao, receber_requisicao) = std::sync::mpsc::channel::<String>();
+
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let lidos = conexao.read(&mut buf).unwrap();
+            enviar_requisicao
+                .send(String::from_utf8_lossy(&buf[..lidos]).into_owned())
+                .unwrap();
+
+            let resto = &CORPO[inicio..];
+            let cabecalho = format!(
+                "HTTP/1.1 206 Partial Content\r\nContent-Type: application/zip\r\n\
+                 ETag: \"etag\"\r\nContent-Range: bytes {inicio}-{fim}/{total}\r\n\
+                 Content-Length: {len}\r\nConnection: close\r\n\r\n",
+                fim = total - 1,
+                len = resto.len(),
+            );
+            conexao.write_all(cabecalho.as_bytes()).unwrap();
+            conexao.write_all(resto).unwrap();
+            conexao.flush().unwrap();
+        });
+
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas::default()).unwrap();
+        let url = format!("http://127.0.0.1:{porta}/arquivo.zip");
+        let download = cliente
+            .baixar_a_partir_de(&url, inicio as u64, Some("\"etag\""))
+            .await
+            .unwrap();
+
+        // O adaptador leu o Content-Range: começa em `inicio`, com o total certo.
+        assert_eq!(download.inicio, inicio as u64);
+        assert_eq!(download.tamanho_total, Some(total as u64));
+        assert_eq!(download.versao.as_deref(), Some("\"etag\""));
+
+        let mut corpo = Vec::new();
+        let mut fluxo = download.fluxo;
+        fluxo.read_to_end(&mut corpo).await.unwrap();
+        assert_eq!(corpo, &CORPO[inicio..]);
+
+        // E enviou os cabeçalhos de retomada (nome do cabeçalho é case-insensitive).
+        let requisicao = receber_requisicao.recv().unwrap().to_lowercase();
+        assert!(requisicao.contains("range: bytes=5-"), "{requisicao}");
+        assert!(requisicao.contains("if-range: \"etag\""), "{requisicao}");
+
+        servidor.join().unwrap();
+    }
 
     #[test]
     fn somente_erros_temporarios_sao_repetidos() {
