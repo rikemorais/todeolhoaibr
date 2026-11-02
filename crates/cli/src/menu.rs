@@ -16,7 +16,6 @@ pub struct OpcaoDeTarefa {
 #[derive(Debug, Clone)]
 pub struct OpcaoDeFonte {
     pub nome: String,
-    pub descricao: String,
     pub sob_demanda: bool,
     pub tarefas: Vec<OpcaoDeTarefa>,
 }
@@ -36,19 +35,18 @@ pub fn escolher(
     saida: &mut impl Write,
 ) -> io::Result<Option<Escolha>> {
     writeln!(saida, "\nFontes disponíveis:")?;
-    writeln!(saida, "  {:<19} {:>12}  Descrição", "Fonte", "Falta baixar")?;
+    writeln!(saida, "  {:<19} {:>12}", "Fonte", "Falta baixar")?;
     for (indice, fonte) in fontes.iter().enumerate() {
         writeln!(
             saida,
-            "  {}) {:<16} {:>12}  {}",
+            "  {}) {:<16} {:>12}",
             indice + 1,
             fonte.nome,
             if fonte.sob_demanda {
                 "a consultar".to_owned()
             } else {
                 tamanho(&fonte.tarefas)
-            },
-            fonte.descricao
+            }
         )?;
     }
     let sob_demanda = fontes.iter().filter(|fonte| fonte.sob_demanda).count();
@@ -244,7 +242,6 @@ mod testes {
         vec![
             OpcaoDeFonte {
                 nome: "ibge".into(),
-                descricao: "IBGE".into(),
                 sob_demanda: false,
                 tarefas: vec![OpcaoDeTarefa {
                     etiquetas: BTreeMap::new(),
@@ -253,7 +250,6 @@ mod testes {
             },
             OpcaoDeFonte {
                 nome: "tse".into(),
-                descricao: "TSE".into(),
                 sob_demanda: false,
                 tarefas: vec![
                     tarefa("2022", "AC", 1024),
