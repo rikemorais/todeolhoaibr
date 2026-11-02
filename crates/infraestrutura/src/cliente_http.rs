@@ -249,6 +249,11 @@ impl ClienteHttpComRetentativas {
                     status,
                 });
             }
+            if falha.nao_encontrado {
+                return Err(ErroDeIngestao::NaoEncontrado {
+                    url: url.to_owned(),
+                });
+            }
             if !falha.transitoria || falhas >= self.politica.tentativas {
                 return Err(ErroDeIngestao::Http {
                     url: url.to_owned(),
@@ -379,6 +384,9 @@ fn verificar_status(status: StatusCode) -> Result<(), Falha> {
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
         return Err(Falha::autenticacao(status.as_u16()));
     }
+    if status == StatusCode::NOT_FOUND {
+        return Err(Falha::nao_encontrado());
+    }
     let detalhe = format!("status {status}");
     Err(if eh_transitorio(status) {
         Falha::transitoria(detalhe)
@@ -444,6 +452,7 @@ struct Falha {
     detalhe: String,
     transitoria: bool,
     status_de_autenticacao: Option<u16>,
+    nao_encontrado: bool,
 }
 
 impl Falha {
@@ -452,6 +461,7 @@ impl Falha {
             detalhe,
             transitoria: true,
             status_de_autenticacao: None,
+            nao_encontrado: false,
         }
     }
 
@@ -460,6 +470,7 @@ impl Falha {
             detalhe,
             transitoria: false,
             status_de_autenticacao: None,
+            nao_encontrado: false,
         }
     }
 
@@ -468,6 +479,16 @@ impl Falha {
             detalhe: format!("status {status}"),
             transitoria: false,
             status_de_autenticacao: Some(status),
+            nao_encontrado: false,
+        }
+    }
+
+    fn nao_encontrado() -> Self {
+        Self {
+            detalhe: "status 404 Not Found".into(),
+            transitoria: false,
+            status_de_autenticacao: None,
+            nao_encontrado: true,
         }
     }
 }
@@ -608,6 +629,35 @@ mod testes {
         assert!(requisicao.contains("chave-api-dados: token-secreto"));
     }
 
+    #[tokio::test]
+    async fn download_404_devolve_ausencia_tipificada() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!(
+            "http://127.0.0.1:{}/arquivo",
+            ouvinte.local_addr().unwrap().port()
+        );
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let lidos = conexao.read(&mut buf).unwrap();
+            assert!(lidos > 0);
+            conexao
+                .write_all(
+                    b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .unwrap();
+        });
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas::default()).unwrap();
+        assert!(matches!(
+            cliente.baixar(&url).await,
+            Err(ErroDeIngestao::NaoEncontrado { url: ausente }) if ausente == url
+        ));
+        servidor.join().unwrap();
+    }
+
     /// Exercita o adaptador real: pede uma retomada e confere que ele envia
     /// `Range`/`If-Range` e lê o `Content-Range` de um `206`, entregando o resto.
     #[tokio::test]
@@ -694,6 +744,13 @@ mod testes {
     fn status_403_e_falha_de_autenticacao_definitiva() {
         let falha = verificar_status(StatusCode::FORBIDDEN).err().unwrap();
         assert_eq!(falha.status_de_autenticacao, Some(403));
+        assert!(!falha.transitoria);
+    }
+
+    #[test]
+    fn status_404_e_ausencia_definitiva() {
+        let falha = verificar_status(StatusCode::NOT_FOUND).err().unwrap();
+        assert!(falha.nao_encontrado);
         assert!(!falha.transitoria);
     }
 

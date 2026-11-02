@@ -1,3 +1,4 @@
+use chrono::{Datelike, Utc};
 use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
@@ -9,8 +10,31 @@ const NOME: &str = "camara-votacoes";
 const FONTE_RAW: &str = "camara";
 /// Arquivos anuais em lote dos Dados Abertos da Câmara.
 const BASE_ARQUIVOS: &str = "https://dadosabertos.camara.leg.br/arquivos";
-/// Último ano disponível. Atualizar a cada ano.
-const ULTIMO_ANO: u16 = 2026;
+
+fn ultimo_ano() -> u16 {
+    Utc::now().year() as u16
+}
+
+fn tarefas_ate(ano_final: u16) -> Vec<TarefaPlanejada> {
+    CONJUNTOS
+        .iter()
+        .flat_map(|&(conjunto, primeiro_ano)| {
+            (primeiro_ano..=ano_final).map(move |ano| {
+                let mut tarefa = TarefaDeArquivo::nova(
+                    format!("{conjunto}_{ano}"),
+                    FONTE_RAW,
+                    format!("votacoes/{conjunto}/ano={ano}"),
+                    format!("{BASE_ARQUIVOS}/{conjunto}/csv/{conjunto}-{ano}.csv"),
+                );
+                if ano == ano_final {
+                    tarefa = tarefa.aceitar_ausencia();
+                }
+                TarefaPlanejada::nova(tarefa)
+                    .com_etiquetas([("ano", ano.to_string().as_str()), ("conjunto", conjunto)])
+            })
+        })
+        .collect()
+}
 
 /// Conjuntos (datasets) anuais ingeridos e o primeiro ano publicado de cada um.
 ///
@@ -62,20 +86,7 @@ impl FonteDeDados for FonteCamaraVotacoes {
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        CONJUNTOS
-            .iter()
-            .flat_map(|&(conjunto, primeiro_ano)| {
-                (primeiro_ano..=ULTIMO_ANO).map(move |ano| {
-                    TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                        format!("{conjunto}_{ano}"),
-                        FONTE_RAW,
-                        format!("votacoes/{conjunto}/ano={ano}"),
-                        format!("{BASE_ARQUIVOS}/{conjunto}/csv/{conjunto}-{ano}.csv"),
-                    ))
-                    .com_etiquetas([("ano", ano.to_string().as_str()), ("conjunto", conjunto)])
-                })
-            })
-            .collect()
+        tarefas_ate(ultimo_ano())
     }
 }
 
@@ -105,7 +116,7 @@ mod testes {
         let esperado: BTreeSet<(String, u16)> = CONJUNTOS
             .iter()
             .flat_map(|&(conjunto, primeiro)| {
-                (primeiro..=ULTIMO_ANO).map(move |ano| (conjunto.to_owned(), ano))
+                (primeiro..=ultimo_ano()).map(move |ano| (conjunto.to_owned(), ano))
             })
             .collect();
         // A contagem bruta (antes de virar `BTreeSet`) pega uma duplicata de
@@ -137,6 +148,22 @@ mod testes {
         .collect();
         let gerados: BTreeSet<String> = pares().into_iter().map(|(conjunto, _)| conjunto).collect();
         assert_eq!(gerados, esperados);
+    }
+
+    #[test]
+    fn inclui_o_ano_novo_em_todos_os_conjuntos() {
+        let tarefas = tarefas_ate(2027);
+        let atuais: BTreeSet<_> = tarefas
+            .iter()
+            .filter(|tarefa| tarefa.etiquetas["ano"] == "2027")
+            .map(|tarefa| tarefa.etiquetas["conjunto"].as_str())
+            .collect();
+        assert_eq!(atuais.len(), CONJUNTOS.len());
+        assert!(
+            !tarefas
+                .iter()
+                .any(|tarefa| tarefa.etiquetas["ano"] == "2028")
+        );
     }
 
     #[test]
