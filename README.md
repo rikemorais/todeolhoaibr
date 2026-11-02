@@ -51,17 +51,21 @@ docker compose run --rm --build ingestao
 
 ### Escolhendo o que ingerir
 
-Nem todo computador tem espaço para tudo, então **você escolhe o que baixar e vê o tamanho antes de começar**. O menu mostra o tamanho das fontes pequenas. As fontes `sob demanda` aparecem sem tamanho antecipado para evitar centenas de consultas à origem só para abrir o menu. Depois da escolha, a CLI estima apenas as tarefas selecionadas e mostra o espaço necessário antes de pedir confirmação:
+Nem todo computador tem espaço para tudo, então **você escolhe o que baixar e vê quanto falta baixar antes de começar**. A coluna “Falta baixar” considera o que já está íntegro na camada Raw: uma tarefa reaproveitada mostra 0 B. O rodapé soma as estimativas conhecidas. Um `+` indica que há tarefas sem estimativa e que o valor da linha é parcial. As fontes `sob demanda` aparecem como “a consultar” para evitar centenas de consultas à origem só para abrir o menu. Depois da escolha, a CLI estima apenas as tarefas selecionadas e mostra quanto falta baixar antes de pedir confirmação:
 
 ```text
 Fontes disponíveis:
 
-  1) ibge                  2,4 MB  IBGE - Regiões, Estados e Municípios do Brasil
-  2) camara              196,3 KB  Câmara dos Deputados - legislaturas, partidos e deputados em exercício
-  3) camara-despesas  sob demanda  Câmara dos Deputados - despesas da CEAP, um arquivo por ano desde 2008
-  4) camara-votacoes  sob demanda  Câmara dos Deputados - proposições e votações nominais, um arquivo por ano desde 2001
-  5) senado-votacoes  sob demanda  Senado Federal - matérias e votações nominais, uma consulta por ano desde 1991
-  6) tse              sob demanda  TSE - Votos por seção eleitoral, de 1998 a 2026
+  Fonte                Falta baixar  Descrição
+  1) ibge                    2,4 MB  IBGE - Regiões, Estados e Municípios do Brasil
+  2) camara                196,3 KB  Câmara dos Deputados - legislaturas, partidos e deputados em exercício
+  3) camara-despesas    a consultar  Câmara dos Deputados - despesas da CEAP, um arquivo por ano desde 2008
+  4) camara-votacoes    a consultar  Câmara dos Deputados - proposições e votações nominais, um arquivo por ano desde 2001
+  5) senado-votacoes    a consultar  Senado Federal - matérias e votações nominais, uma consulta por ano desde 1991
+  6) tse                a consultar  TSE - Votos por seção eleitoral, de 1998 a 2026
+
+Total conhecido: 2,6 MB
+Total parcial: fontes a consultar: 4; tarefas sem estimativa: 0. + indica valor parcial.
 ```
 
 Antes de executar, o projeto compara o espaço necessário com o espaço livre e pede confirmação. **Se não couber, a execução é recusada.**
