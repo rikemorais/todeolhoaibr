@@ -247,7 +247,12 @@ mod testes {
     #[test]
     fn combinacao_de_valores_validos_sem_tarefas_tem_erro_especifico() {
         let erro = nomes(&["ano=2024", "uf=SP"]).unwrap_err();
-        assert!(erro.to_string().contains("ano=2024, uf=SP"), "{erro}");
+        assert_eq!(
+            erro,
+            ErroDeSelecao::CombinacaoVazia {
+                filtros: "ano=2024, uf=SP".to_owned(),
+            }
+        );
     }
 
     #[test]
