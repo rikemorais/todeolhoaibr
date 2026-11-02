@@ -29,6 +29,7 @@ segredos.*
 *.swp
 .DS_Store
 Thumbs.db
+/docker-compose.override.yml
 
 # Registros de execução
 *.log
