@@ -1,3 +1,4 @@
+use chrono::{Datelike, Utc};
 use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
@@ -7,8 +8,13 @@ const FONTE_RAW: &str = "senado";
 const BASE: &str = "https://legis.senado.leg.br/dadosabertos";
 /// Primeiro ano com votação registrada na API (1990 e antes retornam vazio).
 const PRIMEIRO_ANO: u16 = 1991;
-/// Último ano disponível. Atualizar a cada ano.
-const ULTIMO_ANO: u16 = 2026;
+
+/// Último ano coberto: o **ano corrente**, derivado do relógio, para a fonte não
+/// deixar de cobrir o ano novo sem edição manual. Um ano ainda sem votações volta
+/// vazio da API, o que é inofensivo.
+fn ultimo_ano() -> u16 {
+    Utc::now().year() as u16
+}
 
 /// Matérias e votações nominais do Senado Federal — "quais projetos foram votados
 /// e quem votou em quê".
@@ -45,7 +51,7 @@ impl FonteDeDados for FonteSenadoVotacoes {
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        (PRIMEIRO_ANO..=ULTIMO_ANO)
+        (PRIMEIRO_ANO..=ultimo_ano())
             .map(|ano| {
                 let url = format!("{BASE}/votacao?dataInicio={ano}-01-01&dataFim={ano}-12-31");
                 TarefaPlanejada::nova(
@@ -85,7 +91,7 @@ mod testes {
 
     #[test]
     fn cobre_exatamente_um_ano_por_tarefa_de_1991_ate_o_ultimo() {
-        let esperado: BTreeSet<u16> = (PRIMEIRO_ANO..=ULTIMO_ANO).collect();
+        let esperado: BTreeSet<u16> = (PRIMEIRO_ANO..=ultimo_ano()).collect();
         // A contagem bruta pega um ano duplicado que o conjunto esconderia.
         assert_eq!(
             FonteSenadoVotacoes.criar_tarefas().len(),
