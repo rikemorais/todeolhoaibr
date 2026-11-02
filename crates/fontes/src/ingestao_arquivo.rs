@@ -65,11 +65,25 @@ impl TarefaDeArquivo {
         &self,
         contexto: &ContextoDeExecucao,
         local: &LocalizacaoRaw,
+        tamanho_informado: Option<u64>,
     ) -> Result<ArquivoGravado, ErroDeIngestao> {
         let primeiro = contexto.http.baixar_a_partir_de(&self.url, 0, None).await?;
+        // A primeira resposta tem de começar do início: um 206 fora de posição
+        // seria um pedaço tratado como o arquivo inteiro.
+        if primeiro.inicio != 0 {
+            return Err(ErroDeIngestao::Http {
+                url: self.url.clone(),
+                detalhe: format!(
+                    "a origem respondeu um pedaço (offset {}) em vez do arquivo inteiro",
+                    primeiro.inicio
+                ),
+            });
+        }
         let tipo_de_conteudo = primeiro.tipo_de_conteudo.clone();
         let versao = primeiro.versao.clone();
-        let tamanho_total = primeiro.tamanho_total;
+        // Total autoritativo: o do GET ou, se ele omitir, o que o HEAD informou.
+        // É o que a guarda final e a checagem de completude usam.
+        let total_esperado = primeiro.tamanho_total.or(tamanho_informado);
         let chave = local.parte(1, extensao(&tipo_de_conteudo));
 
         // O fluxo se retoma via Range quando a conexão cai, sem perder nem
@@ -79,6 +93,7 @@ impl TarefaDeArquivo {
             self.url.clone(),
             primeiro,
             self.espera_entre_retomadas,
+            total_esperado,
         );
         let mut leitor = LeitorComResumo::novo(Box::new(fluxo));
 
@@ -87,9 +102,8 @@ impl TarefaDeArquivo {
             .gravar_fluxo(&chave, &tipo_de_conteudo, &mut leitor)
             .await?;
 
-        // Garantia final: o que foi gravado precisa ter o tamanho que a origem
-        // anunciou. Nunca publicamos arquivo incompleto.
-        if let Some(total) = tamanho_total
+        // Garantia final: só publicamos se o tamanho bater com o esperado.
+        if let Some(total) = total_esperado
             && leitor.bytes != total
         {
             return Err(ErroDeIngestao::Http {
@@ -169,7 +183,7 @@ impl Tarefa for TarefaDeArquivo {
         // antes do fim da transferência, então basta recomeçar.
         let mut falhas = 0;
         let arquivo = loop {
-            match self.transferir(contexto, &local).await {
+            match self.transferir(contexto, &local, informacoes.tamanho).await {
                 Ok(arquivo) => break arquivo,
                 Err(erro) => {
                     falhas += 1;
@@ -309,18 +323,27 @@ struct FluxoRetomavel {
 /// Uma reconexão em andamento: busca o próximo pedaço do download via Range.
 type Reconexao = Pin<Box<dyn Future<Output = Result<DownloadHttp, ErroDeIngestao>> + Send>>;
 
+/// Um ETag fraco (`W/"..."`) não é validador forte: a origem não o aceita no
+/// `If-Range` e ele não prova identidade byte a byte, então não serve para retomar.
+fn validador_forte(etag: &str) -> bool {
+    !etag.trim_start().starts_with("W/")
+}
+
 impl FluxoRetomavel {
     fn novo(
         http: Arc<dyn ClienteHttp>,
         url: String,
         primeiro: DownloadHttp,
         espera: Duration,
+        tamanho_total: Option<u64>,
     ) -> Self {
         Self {
             http,
             url,
-            versao: primeiro.versao,
-            tamanho_total: primeiro.tamanho_total,
+            // Só um ETag forte serve de validador para retomar; sem ele, uma queda
+            // recomeça o arquivo do zero (nunca emendamos sem garantia de identidade).
+            versao: primeiro.versao.filter(|etag| validador_forte(etag)),
+            tamanho_total,
             entregue: 0,
             retomadas: 0,
             fluxo: primeiro.fluxo,
@@ -331,6 +354,14 @@ impl FluxoRetomavel {
 
     /// Agenda uma reconexão do offset já entregue. Erra se estourar o limite.
     fn agendar_reconexao(&mut self) -> io::Result<()> {
+        // Sem validador forte não dá para garantir que a origem serviria o MESMO
+        // arquivo numa nova conexão: retomar poderia emendar versões diferentes do
+        // mesmo tamanho. Falha, e a tarefa recomeça o arquivo do zero.
+        if self.versao.is_none() {
+            return Err(io::Error::other(
+                "origem sem validador forte (ETag): retomada insegura, recomeçando do zero",
+            ));
+        }
         self.retomadas += 1;
         if self.retomadas > LIMITE_DE_RETOMADAS {
             return Err(io::Error::other(format!(
@@ -383,6 +414,11 @@ impl AsyncRead for FluxoRetomavel {
                                 "o arquivo mudou na origem durante o download (ETag divergente)",
                             )));
                         }
+                        // Se não conhecíamos o total, adota o que a retomada informa
+                        // (passa a valer para a checagem de EOF e a guarda final).
+                        if este.tamanho_total.is_none() {
+                            este.tamanho_total = download.tamanho_total;
+                        }
                         if let (Some(antes), Some(agora)) =
                             (este.tamanho_total, download.tamanho_total)
                             && antes != agora
@@ -393,9 +429,11 @@ impl AsyncRead for FluxoRetomavel {
                         }
                         este.fluxo = download.fluxo;
                     }
-                    Poll::Ready(Err(erro)) => {
+                    Poll::Ready(Err(_)) => {
+                        // Falha ao reconectar: tenta de novo do mesmo offset (até o
+                        // limite) antes de desistir e recomeçar o arquivo do zero.
                         este.reconectando = None;
-                        return Poll::Ready(Err(io::Error::other(erro.to_string())));
+                        este.agendar_reconexao()?;
                     }
                 }
             }
@@ -415,7 +453,16 @@ impl AsyncRead for FluxoRetomavel {
                         _ => return Poll::Ready(Ok(())),
                     }
                 }
-                Poll::Ready(Err(_)) => este.agendar_reconexao()?,
+                Poll::Ready(Err(_)) => {
+                    // Erro de transporte após já termos entregue tudo que a origem
+                    // anunciou não é perda: a transferência está completa.
+                    if let Some(total) = este.tamanho_total
+                        && este.entregue >= total
+                    {
+                        return Poll::Ready(Ok(()));
+                    }
+                    este.agendar_reconexao()?;
+                }
             }
         }
     }
@@ -562,9 +609,11 @@ mod testes {
             };
             let corte = self.cortes.lock().unwrap().pop_front().flatten();
             let resto = &self.conteudo[inicio_real..];
+            // `Some(n)`: serve `n` bytes (limitado ao que resta) e CAI a conexão —
+            // mesmo quando `n` cobre o resto, para simular queda após entregar tudo.
             let (dados, cai) = match corte {
-                Some(n) if n < resto.len() => (resto[..n].to_vec(), true),
-                _ => (resto.to_vec(), false),
+                Some(n) => (resto[..n.min(resto.len())].to_vec(), true),
+                None => (resto.to_vec(), false),
             };
 
             // Numa retomada pode mudar o ETag, simulando arquivo alterado no meio.
@@ -817,6 +866,34 @@ mod testes {
         assert_eq!(parte_gravada(&cenario), CONTEUDO);
         assert_eq!(resumo.bytes, CONTEUDO.len() as u64);
         assert_eq!(*cenario.http.pedidos.lock().unwrap(), vec![0, 10, 0]);
+    }
+
+    #[tokio::test]
+    async fn sem_etag_nao_retoma_e_recomeca_do_zero() {
+        // Origem sem validador (ETag): retomar poderia emendar versões diferentes
+        // do mesmo tamanho. Ao cair em 10 bytes, recomeça o arquivo do zero em vez
+        // de pedir `bytes=10-`.
+        let cenario = cenario(HttpFalso::novo(None).com_cortes([10]));
+
+        let resumo = tarefa().executar(&cenario.contexto).await.unwrap();
+
+        assert_eq!(parte_gravada(&cenario), CONTEUDO);
+        assert_eq!(resumo.bytes, CONTEUDO.len() as u64);
+        // Nunca pediu retomada (offset > 0): só recomeços do zero.
+        assert_eq!(*cenario.http.pedidos.lock().unwrap(), vec![0, 0]);
+    }
+
+    #[tokio::test]
+    async fn conclui_quando_cai_apos_entregar_tudo() {
+        // A origem entrega o arquivo inteiro e só então a conexão cai: não é perda,
+        // a transferência está completa — não reconecta pedindo `bytes=<total>-`.
+        let cenario = cenario(HttpFalso::novo(Some("v1")).com_cortes([CONTEUDO.len()]));
+
+        let resumo = tarefa().executar(&cenario.contexto).await.unwrap();
+
+        assert_eq!(parte_gravada(&cenario), CONTEUDO);
+        assert_eq!(resumo.bytes, CONTEUDO.len() as u64);
+        assert_eq!(*cenario.http.pedidos.lock().unwrap(), vec![0]);
     }
 
     #[tokio::test]
