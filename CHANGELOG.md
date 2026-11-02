@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.10.0] - 2026-11-02
+
 ### Adicionado
 
 - Indicadores macro do IBGE na fonte `ibge`: IPCA e INPC (inflação mensal), PIB trimestral e PNAD Contínua (desocupação por UF), baixando a série completa do SIDRA (agregados v3) e gravando a resposta opaca na Raw para o refino ([issue #57](https://github.com/rikemorais/todeolhoaibr/issues/57)).
@@ -15,6 +17,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 ### Mudado
 
 - `camara-tramitacoes` passa a baixar os arquivos anuais em lote dos Dados Abertos (um por ano) em vez de percorrer a API proposição a proposição, trocando centenas de milhares de requisições por ~26 downloads e tornando a rodada incremental: o ano sem mudança responde `304` (`If-None-Match`) e é pulado ([issue #127](https://github.com/rikemorais/todeolhoaibr/issues/127)).
+
+### Corrigido
+
+- Painel volta a mostrar `-` (em vez de `0 B`) no volume das tarefas de API em execução, que não baixam arquivo e não têm tamanho total conhecido ([issue #131](https://github.com/rikemorais/todeolhoaibr/issues/131)).
 
 ## [0.9.0] - 2026-11-02
 
