@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ContextoDeExecucao"]};
+window.SIDEBAR_ITEMS = {"struct":["ContextoDeExecucao","ProgressoDaTarefa"]};
