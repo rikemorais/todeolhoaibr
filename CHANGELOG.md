@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.8.0] - 2026-11-02
+
+### Adicionado
+
+- Fonte sob demanda `senado-processos-detalhes` preserva detalhes, informes e movimentações por processo para registrar o histórico de tramitação e os eventos de arquivamento publicados pela API ([issue #112](https://github.com/rikemorais/todeolhoaibr/issues/112)).
+
 ## [0.7.0] - 2026-11-02
 
 ### Adicionado
