@@ -300,7 +300,7 @@ for diferente, implemente `Tarefa` diretamente.
 
 ## Desenvolvimento
 
-Para trabalhar no código, instale o [Rust](https://rustup.rs/). Os testes não precisam de Docker nem de rede:
+Para trabalhar no código, instale o [Rust](https://rustup.rs/). Os testes não precisam de Docker nem de rede externa; os testes HTTP e S3 usam servidores locais em loopback:
 
 ```bash
 cargo test --workspace
