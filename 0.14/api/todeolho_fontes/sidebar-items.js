@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["catalogo"],"mod":["ingestao_arquivo","ingestao_http","paginacao"],"struct":["FonteBcb","FonteCamara","FonteCamaraDespesas","FonteCamaraTramitacoes","FonteCamaraVotacoes","FonteIbge","FonteSenadoDespesas","FonteSenadoParlamentares","FonteSenadoProcessos","FonteSenadoProcessosDetalhes","FonteSenadoVotacoes","FonteTse","FonteTsePrestacaoContas"]};
