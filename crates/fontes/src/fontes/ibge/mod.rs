@@ -2,5 +2,7 @@
 
 mod indicadores;
 pub mod localidades;
+pub mod pib_municipios;
 
 pub use localidades::FonteIbge;
+pub use pib_municipios::FonteIbgePibMunicipios;
