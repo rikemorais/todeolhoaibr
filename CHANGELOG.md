@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.10.1] - 2026-11-03
+
+### Corrigido
+
+- Menu de fontes alinha a coluna `Falta baixar` uma coluna depois do nome de fonte mais longo: a largura da coluna de nomes passa a ser calculada em tempo de execução, então nomes longos (`senado-processos-detalhes`, `camara-tramitacoes`) não empurram mais os valores para a direita ([issue #134](https://github.com/rikemorais/todeolhoaibr/issues/134)).
+
 ## [0.10.0] - 2026-11-02
 
 ### Adicionado
