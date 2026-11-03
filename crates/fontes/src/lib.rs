@@ -13,6 +13,7 @@ pub mod paginacao;
 
 use todeolho_nucleo::FonteDeDados;
 
+pub use fontes::bcb::FonteBcb;
 pub use fontes::camara::{
     FonteCamara, FonteCamaraDespesas, FonteCamaraTramitacoes, FonteCamaraVotacoes,
 };
@@ -34,6 +35,7 @@ pub use fontes::tse::{FonteTse, FonteTsePrestacaoContas};
 pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
     vec![
         Box::new(FonteIbge),
+        Box::new(FonteBcb),
         Box::new(FonteCamara),
         Box::new(FonteCamaraDespesas),
         Box::new(FonteCamaraTramitacoes),
