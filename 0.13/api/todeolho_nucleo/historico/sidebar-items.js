@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EstadoRegistrado","SituacaoDaExecucao"],"struct":["RegistradorDeExecucao","RegistroDeExecucao","RegistroDeFonte","RegistroDeTarefa"],"trait":["ConsultaDeExecucoes","GravadorDeExecucoes"]};
