@@ -24,6 +24,7 @@ use todeolho_nucleo::{
     RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa, TarefaPlanejada,
     estimar, formatar_bytes,
 };
+use todeolho_refino::{TarefaDeBronze, catalogo_refino};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
@@ -57,6 +58,13 @@ enum Comando {
     },
     /// Executa a ingestão sem o menu e grava os dados na camada Raw
     Executar(ArgumentosDeExecucao),
+    /// Refina a camada Raw para o medalhão (hoje: `bronze`, em Parquet)
+    Refinar {
+        /// Camada de destino (por ora, apenas `bronze`)
+        camada: String,
+        /// Fonte de refino (veja o catálogo do refino, ex.: `camara-despesas`)
+        fonte: String,
+    },
     /// Inicia o painel web com o histórico das execuções
     Painel {
         /// Endereço em que o painel fica disponível
@@ -129,6 +137,7 @@ async fn rodar(cli: Cli) -> Result<bool> {
             Ok(true)
         }
         Comando::Executar(argumentos) => executar_sem_menu(argumentos).await,
+        Comando::Refinar { camada, fonte } => refinar(camada, fonte).await,
         Comando::Painel { endereco } => {
             let historico = historico()?;
             historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
@@ -375,6 +384,101 @@ async fn executar(
 
     println!("\nexecução: {}", contexto.id_execucao);
     Ok(sucesso)
+}
+
+/// Decodifica a camada Raw de uma fonte para o bronze (Parquet), reusando o executor e o painel.
+async fn refinar(camada: String, fonte: String) -> Result<bool> {
+    if camada != "bronze" {
+        bail!("camada desconhecida: {camada}. Hoje o refino só produz 'bronze'.");
+    }
+    let Some(fonte_refino) = catalogo_refino().into_iter().find(|f| f.nome == fonte) else {
+        bail!("fonte de refino desconhecida: {fonte}");
+    };
+
+    // Descobre os recursos já ingeridos no raw (os que têm ponteiro vigente).
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let prefixo = format!(
+        "{}/{}",
+        fonte_refino.fonte_raw, fonte_refino.prefixo_recurso
+    );
+    let chaves = raw_s3
+        .listar_chaves(&prefixo)
+        .await
+        .context(ERRO_DE_ARMAZENAMENTO)?;
+    let prefixo_fonte = format!("{}/", fonte_refino.fonte_raw);
+    let mut recursos: Vec<String> = chaves
+        .iter()
+        .filter_map(|chave| chave.strip_suffix("/_ultima_versao.json"))
+        .filter_map(|recurso| recurso.strip_prefix(&prefixo_fonte))
+        .map(str::to_owned)
+        .collect();
+    recursos.sort();
+    if recursos.is_empty() {
+        bail!("nada ingerido no raw para {fonte} (prefixo {prefixo}). Rode a ingestão primeiro.");
+    }
+    println!(
+        "Refinando {} recurso(s) de {fonte} para o bronze...",
+        recursos.len()
+    );
+
+    let raw: Arc<dyn ArmazenamentoRaw> = Arc::new(raw_s3);
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    let decodificador = fonte_refino.decodificador();
+    let tarefas: Vec<TarefaPlanejada> = recursos
+        .iter()
+        .map(|recurso| {
+            TarefaPlanejada::nova(TarefaDeBronze::nova(
+                Arc::clone(&raw),
+                fonte_refino.fonte_raw,
+                recurso.clone(),
+                Arc::clone(&decodificador),
+            ))
+        })
+        .collect();
+
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            &Uuid::new_v4().simple().to_string()[..8]
+        ),
+        iniciada_em,
+        armazenamento: bronze,
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+
+    let dag = DagDeIngestao::construir(&fonte, tarefas)?;
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(
+            &contexto.id_execucao,
+            iniciada_em,
+            std::slice::from_ref(&dag),
+        )?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+
+    let executor = ExecutorDeDag::novo(concorrencia()?);
+    let relatorio = executor
+        .executar(&dag, &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Devolve `false` quando a seleção não cabe no disco.
