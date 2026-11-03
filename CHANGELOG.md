@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.11.0] - 2026-11-03
+
+### Mudado
+
+- O menu carrega muito mais rápido no passo "Consultando o tamanho dos dados...": a estimativa ganha dois modos (`PrecisaoDaEstimativa`). O menu usa o modo rápido, em que uma cópia completa e íntegra na Raw vale zero sem consultar a origem (o mesmo atalho que as fontes de API já usavam), evitando um `HEAD` por arquivo num host limitado (a Câmara serve 5 req/s e `camara-votacoes` tem centenas de arquivos); a checagem de espaço em disco antes de executar mantém o modo exato (confere a origem), só nas tarefas escolhidas. As fontes passam a ser estimadas em paralelo. A idempotência não muda: a rodada real continua fazendo a pré-checagem condicional por arquivo ([issue #137](https://github.com/rikemorais/todeolhoaibr/issues/137)).
+
 ## [0.10.1] - 2026-11-03
 
 ### Corrigido
