@@ -12,10 +12,13 @@
 
 #![warn(missing_docs)]
 
+pub mod csv_zip;
 pub mod decodificador;
 pub mod escritor;
+pub mod fontes;
 pub mod tarefa;
 
 pub use decodificador::{Decodificador, TabelaNomeada};
 pub use escritor::{ErroDeRefino, Tabela};
+pub use fontes::DecodificadorCamaraDespesas;
 pub use tarefa::TarefaDeBronze;

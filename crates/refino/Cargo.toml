@@ -16,6 +16,9 @@ parquet = "60.1.0"
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+zip = { version = "9.3.0", default-features = false, features = ["deflate"] }
+csv = "1.4.0"
+encoding_rs = "0.8.44"
 
 [dev-dependencies]
 bytes = "1.12.1"

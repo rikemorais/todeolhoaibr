@@ -36,6 +36,18 @@ pub enum ErroDeRefino {
     /// Erro vindo do escritor Parquet.
     #[error("erro do Parquet: {0}")]
     Parquet(#[from] parquet::errors::ParquetError),
+    /// Erro ao abrir ou percorrer um arquivo ZIP.
+    #[error("erro no ZIP: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    /// Erro ao ler um CSV.
+    #[error("erro no CSV: {0}")]
+    Csv(#[from] csv::Error),
+    /// Erro de I/O ao decodificar o conteúdo.
+    #[error("erro de I/O: {0}")]
+    Io(#[from] std::io::Error),
+    /// Conteúdo inesperado para o decodificador (estrutura ou formato inválido).
+    #[error("conteúdo inválido: {0}")]
+    Decodificacao(String),
 }
 
 /// Uma tabela colunar simples: nomes de colunas e linhas de texto.
