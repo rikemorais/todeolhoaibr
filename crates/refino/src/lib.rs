@@ -12,6 +12,10 @@
 
 #![warn(missing_docs)]
 
+pub mod decodificador;
 pub mod escritor;
+pub mod tarefa;
 
+pub use decodificador::{Decodificador, TabelaNomeada};
 pub use escritor::{ErroDeRefino, Tabela};
+pub use tarefa::TarefaDeBronze;
