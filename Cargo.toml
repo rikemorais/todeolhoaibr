@@ -12,6 +12,7 @@ todeolho-nucleo = { path = "crates/nucleo" }
 todeolho-infraestrutura = { path = "crates/infraestrutura" }
 todeolho-fontes = { path = "crates/fontes" }
 todeolho-painel = { path = "crates/painel" }
+todeolho-refino = { path = "crates/refino" }
 
 anyhow = "1"
 async-trait = "0.1"
