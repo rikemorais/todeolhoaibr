@@ -130,6 +130,7 @@ nav:
       - fontes/camara-despesas.md
       - fontes/camara-votacoes.md
       - fontes/camara-tramitacoes.md
+      - fontes/senado-despesas.md
       - fontes/senado-votacoes.md
       - fontes/tse.md
   - Diagramas: diagramas/README.md
