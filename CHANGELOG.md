@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.14.0] - 2026-11-03
+
 ### Adicionado
 
 - Fonte `bcb` com séries macroeconômicas do SGS (Sistema Gerenciador de Séries Temporais) do Banco Central: juros (SELIC, CDI), câmbio (dólar), inflação (IPCA, IPCA 12m, INPC, IGP-M), atividade (IBC-Br), crédito (inadimplência, crédito/PIB) e fiscal (dívida líquida/PIB). Uma requisição por série traz a história completa em JSON, guardada opaca em `raw/bcb/series/`, filtrável por `serie` ([issue #56](https://github.com/rikemorais/todeolhoaibr/issues/56)).
