@@ -9,6 +9,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+- Fonte sob demanda `tse-candidaturas` com o registro de candidaturas (desde 1994) e os bens declarados dos candidatos (desde 2006) do TSE, um arquivo por eleição, nacional, filtrável por `ano` e `tipo` e guardado opaco em `raw/tse/` ([issue #58](https://github.com/rikemorais/todeolhoaibr/issues/58)).
 - Fonte sob demanda `ibge-pib-municipios` com o PIB dos Municípios (agregado 5938) e a população residente estimada (agregado 6579) do IBGE, por ano e por município (`N6`), desde 2001/2002. Cada ano é uma tarefa (a API dá erro ao pedir todos os municípios de vários períodos de uma vez), guardada opaca em `raw/ibge/`; o PIB per capita é derivado no refino a partir de PIB ÷ população. Filtrável por `ano` e `indicador` ([issue #30](https://github.com/rikemorais/todeolhoaibr/issues/30)).
 
 ## [0.14.0] - 2026-11-03
