@@ -136,5 +136,6 @@ nav:
       - fontes/senado-votacoes.md
       - fontes/tse.md
       - fontes/tse-prestacao-contas.md
+      - fontes/tse-candidaturas.md
   - Diagramas: diagramas/README.md
   - Referência de API: api/index.md
