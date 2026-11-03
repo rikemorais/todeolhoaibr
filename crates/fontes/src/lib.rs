@@ -18,8 +18,8 @@ pub use fontes::camara::{
 };
 pub use fontes::ibge::FonteIbge;
 pub use fontes::senado::{
-    FonteSenadoParlamentares, FonteSenadoProcessos, FonteSenadoProcessosDetalhes,
-    FonteSenadoVotacoes,
+    FonteSenadoDespesas, FonteSenadoParlamentares, FonteSenadoProcessos,
+    FonteSenadoProcessosDetalhes, FonteSenadoVotacoes,
 };
 pub use fontes::tse::FonteTse;
 
@@ -38,6 +38,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteCamaraDespesas),
         Box::new(FonteCamaraTramitacoes),
         Box::new(FonteCamaraVotacoes),
+        Box::new(FonteSenadoDespesas),
         Box::new(FonteSenadoVotacoes),
         Box::new(FonteSenadoProcessos),
         Box::new(FonteSenadoProcessosDetalhes),
