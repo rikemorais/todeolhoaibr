@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Fonte sob demanda `senado-despesas` com as despesas da CEAPS (Cota para o Exercício da Atividade Parlamentar dos Senadores): um arquivo CSV por ano, nacional, desde 2008, filtrável por `ano` e guardado opaco em `raw/senado/despesas/` ([issue #26](https://github.com/rikemorais/todeolhoaibr/issues/26)).
+
 ## [0.11.0] - 2026-11-03
 
 ### Mudado
