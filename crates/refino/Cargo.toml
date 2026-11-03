@@ -6,9 +6,17 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+todeolho-nucleo.workspace = true
+
 arrow = "60.1.0"
+async-trait.workspace = true
+chrono.workspace = true
+hex.workspace = true
 parquet = "60.1.0"
+serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 bytes = "1.12.1"
+tokio.workspace = true
