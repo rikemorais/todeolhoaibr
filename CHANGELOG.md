@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.15.0] - 2026-11-03
+
 ### Adicionado
 
 - Fonte `ipeadata` com séries socioeconômicas regionais do Ipeadata (IPEA): renda per capita, índice de Gini, proporção de pobres e de extremamente pobres (Atlas do Desenvolvimento Humano, por município) e o IVS (Índice de Vulnerabilidade Social). Uma requisição por série traz todos os valores em JSON OData, guardados opacos em `raw/ipeadata/series/`, filtrável por `serie` ([issue #32](https://github.com/rikemorais/todeolhoaibr/issues/32)).
