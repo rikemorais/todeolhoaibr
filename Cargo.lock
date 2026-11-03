@@ -1804,6 +1804,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "futures",
  "todeolho-fontes",
  "todeolho-infraestrutura",
  "todeolho-nucleo",

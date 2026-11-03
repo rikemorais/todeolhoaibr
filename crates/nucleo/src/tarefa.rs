@@ -24,6 +24,23 @@ pub struct ResumoDaTarefa {
     pub motivo: Option<MotivoDeIngestao>,
 }
 
+/// Quão exata a estimativa de [`Tarefa::bytes_a_baixar`] precisa ser.
+///
+/// O menu estima **todas** as fontes de uma vez, inclusive as sob demanda, só para
+/// mostrar quanto falta baixar. Consultar a origem de cada arquivo ali é caro — no host
+/// da Câmara, limitado a 5 requisições por segundo, centenas de arquivos travam a tela.
+/// No modo [`Rapida`](Self::Rapida), a tarefa pode confiar numa cópia completa e íntegra
+/// já presente na Raw e evitar a ida à origem; a rodada real ainda faz a pré-checagem
+/// condicional, então a idempotência não muda. O modo [`Exata`](Self::Exata) confere a
+/// origem para o número mais fiel, usado na checagem de espaço em disco antes de executar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrecisaoDaEstimativa {
+    /// Confia no que já está na Raw e evita consultar a origem quando possível (menu).
+    Rapida,
+    /// Confere a origem para a estimativa mais exata (checagem de disco antes de executar).
+    Exata,
+}
+
 /// Unidade de trabalho de uma DAG (o "produto" do Factory Method).
 #[async_trait]
 pub trait Tarefa: Send + Sync {
@@ -31,9 +48,13 @@ pub trait Tarefa: Send + Sync {
     fn nome(&self) -> &str;
 
     /// Quanto esta tarefa deve gravar, antes de executá-la. `None` significa desconhecido.
+    ///
+    /// `precisao` diz se a estimativa pode confiar na Raw para evitar consultar a origem
+    /// (ver [`PrecisaoDaEstimativa`]).
     async fn bytes_a_baixar(
         &self,
         _contexto: &ContextoDeExecucao,
+        _precisao: PrecisaoDaEstimativa,
     ) -> Result<Option<u64>, ErroDeIngestao> {
         Ok(None)
     }

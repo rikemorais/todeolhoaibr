@@ -12,6 +12,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
+use futures::stream::{self, StreamExt};
 use todeolho_fontes::catalogo;
 use todeolho_infraestrutura::{
     ArmazenamentoS3, ClienteHttpComRetentativas, ConfiguracaoS3, HistoricoS3,
@@ -19,7 +20,7 @@ use todeolho_infraestrutura::{
 };
 use todeolho_nucleo::{
     ArmazenamentoRaw, AvaliacaoDeEspaco, ContextoDeExecucao, DagDeIngestao, EspacoNecessario,
-    EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, PerfilHttp,
+    EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, PerfilHttp, PrecisaoDaEstimativa,
     RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa, TarefaPlanejada,
     estimar, formatar_bytes,
 };
@@ -27,6 +28,10 @@ use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
 const ERRO_DE_ARMAZENAMENTO: &str = "não foi possível acessar o armazenamento; ele está no ar?";
+
+/// Quantas fontes têm o tamanho estimado ao mesmo tempo ao montar o menu. Hosts distintos
+/// trabalham em paralelo sem exagerar na carga do gateway de armazenamento local.
+const FONTES_SIMULTANEAS: usize = 4;
 
 #[derive(Parser)]
 #[command(
@@ -154,18 +159,32 @@ async fn selecionar() -> Result<bool> {
     println!("Consultando o tamanho dos dados...");
 
     let fontes = catalogo();
-    let mut opcoes = Vec::with_capacity(fontes.len());
-    for fonte in &fontes {
-        let tarefas = fonte.criar_tarefas();
-        let opcao = montar_opcao_de_menu(fonte.as_ref(), &tarefas, async {
-            match contexto_para_fonte(&contexto, fonte.perfil_http()) {
-                Ok(contexto_da_fonte) => estimar(&tarefas_de(&tarefas), &contexto_da_fonte).await,
-                Err(_) => vec![None; tarefas.len()],
+    // As fontes consultam hosts diferentes (e lêem o estado na Raw), então estimá-las em
+    // paralelo sobrepõe o trabalho em vez de somá-lo; `buffered` preserva a ordem do catálogo.
+    let opcoes: Vec<menu::OpcaoDeFonte> = stream::iter(fontes.iter())
+        .map(|fonte| {
+            let contexto = &contexto;
+            async move {
+                let tarefas = fonte.criar_tarefas();
+                montar_opcao_de_menu(fonte.as_ref(), &tarefas, async {
+                    match contexto_para_fonte(contexto, fonte.perfil_http()) {
+                        Ok(contexto_da_fonte) => {
+                            estimar(
+                                &tarefas_de(&tarefas),
+                                &contexto_da_fonte,
+                                PrecisaoDaEstimativa::Rapida,
+                            )
+                            .await
+                        }
+                        Err(_) => vec![None; tarefas.len()],
+                    }
+                })
+                .await
             }
         })
+        .buffered(FONTES_SIMULTANEAS)
+        .collect()
         .await;
-        opcoes.push(opcao);
-    }
 
     let mut entrada = io::stdin().lock();
     let Some(escolha) = menu::escolher(&opcoes, &mut entrada, &mut io::stdout())? else {
@@ -293,7 +312,14 @@ async fn executar(
     let mut estimativas = Vec::new();
     for fonte in selecionadas {
         let contexto_da_fonte = contexto_para_fonte(&contexto, fonte.perfil_http)?;
-        estimativas.extend(estimar(&tarefas_de(&fonte.tarefas), &contexto_da_fonte).await);
+        estimativas.extend(
+            estimar(
+                &tarefas_de(&fonte.tarefas),
+                &contexto_da_fonte,
+                PrecisaoDaEstimativa::Exata,
+            )
+            .await,
+        );
         dags.push(DagDeIngestao::construir(&fonte.nome, fonte.tarefas)?);
         contextos.push(contexto_da_fonte);
     }

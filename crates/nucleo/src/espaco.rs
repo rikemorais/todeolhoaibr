@@ -5,19 +5,27 @@ use std::sync::Arc;
 use futures::{StreamExt, stream};
 
 use crate::contexto::ContextoDeExecucao;
-use crate::tarefa::Tarefa;
+use crate::tarefa::{PrecisaoDaEstimativa, Tarefa};
 
 const CONSULTAS_SIMULTANEAS: usize = 8;
 
 /// Tamanho previsto de cada tarefa, na mesma ordem. `None` significa desconhecido.
+///
+/// `precisao` define se a estimativa pode confiar na Raw para evitar consultar a origem
+/// (ver [`PrecisaoDaEstimativa`]).
 pub async fn estimar(
     tarefas: &[Arc<dyn Tarefa>],
     contexto: &ContextoDeExecucao,
+    precisao: PrecisaoDaEstimativa,
 ) -> Vec<Option<u64>> {
     stream::iter(tarefas)
         .map(|tarefa| async move {
             // Falhar na estimativa não impede a escolha: o tamanho só fica desconhecido.
-            tarefa.bytes_a_baixar(contexto).await.ok().flatten()
+            tarefa
+                .bytes_a_baixar(contexto, precisao)
+                .await
+                .ok()
+                .flatten()
         })
         .buffered(CONSULTAS_SIMULTANEAS)
         .collect()
