@@ -126,6 +126,7 @@ nav:
       - Modelo de ADR: adr/modelo.md
   - Fontes de dados:
       - fontes/ibge.md
+      - fontes/bcb.md
       - fontes/camara.md
       - fontes/camara-despesas.md
       - fontes/camara-votacoes.md
