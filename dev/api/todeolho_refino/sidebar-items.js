@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["decodificador","escritor","tarefa"]};
+window.SIDEBAR_ITEMS = {"mod":["csv_zip","decodificador","escritor","fontes","tarefa"]};
