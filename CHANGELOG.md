@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.13.0] - 2026-11-03
+
 ### Adicionado
 
 - Fonte sob demanda `tse-prestacao-contas` com a prestação de contas de campanha do TSE (receitas e despesas dos candidatos): um arquivo ZIP por eleição, nacional, desde 2002, filtrável por `ano` e guardado opaco em `raw/tse/prestacao-contas/`. A convenção de nome do arquivo varia por era eleitoral e é resolvida pela fonte ([issue #28](https://github.com/rikemorais/todeolhoaibr/issues/28)).
