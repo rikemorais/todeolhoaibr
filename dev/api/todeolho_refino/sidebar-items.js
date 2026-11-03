@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["escritor"]};
+window.SIDEBAR_ITEMS = {"mod":["decodificador","escritor","tarefa"]};
