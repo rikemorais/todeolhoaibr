@@ -34,11 +34,24 @@ pub fn escolher(
     saida: &mut impl Write,
 ) -> io::Result<Option<Escolha>> {
     writeln!(saida, "\nFontes disponíveis:")?;
-    writeln!(saida, "  {:<19} {:>12}", "Fonte", "Falta baixar")?;
+    // A coluna "Falta baixar" começa uma coluna depois do nome mais longo, então calculamos a
+    // largura da coluna de nomes em tempo de execução em vez de fixá-la (nomes maiores que o
+    // palpite antigo transbordavam e empurravam os valores para a direita).
+    let largura_nome = fontes
+        .iter()
+        .map(|fonte| fonte.nome.chars().count())
+        .chain(["Fonte".chars().count()])
+        .max()
+        .unwrap_or(0);
+    writeln!(
+        saida,
+        "      {:<largura_nome$} {:>12}",
+        "Fonte", "Falta baixar"
+    )?;
     for (indice, fonte) in fontes.iter().enumerate() {
         writeln!(
             saida,
-            "  {}) {:<16} {:>12}",
+            "  {:>2}) {:<largura_nome$} {:>12}",
             indice + 1,
             fonte.nome,
             tamanho(&fonte.tarefas)
@@ -371,6 +384,60 @@ mod testes {
             "{texto}"
         );
         assert!(!texto.contains("a consultar"), "{texto}");
+    }
+
+    #[test]
+    fn a_coluna_falta_baixar_alinha_uma_coluna_depois_do_nome_mais_longo() {
+        // O nome mais longo passa da largura antiga fixa (16/19) e empurrava os valores para a
+        // direita. A coluna de valores deve começar sempre na mesma posição, logo após o nome.
+        let fontes = vec![
+            OpcaoDeFonte {
+                nome: "ibge".into(),
+                tarefas: vec![OpcaoDeTarefa {
+                    etiquetas: BTreeMap::new(),
+                    bytes: Some(2_000_000),
+                }],
+            },
+            OpcaoDeFonte {
+                nome: "senado-processos-detalhes".into(),
+                tarefas: vec![OpcaoDeTarefa {
+                    etiquetas: BTreeMap::new(),
+                    bytes: Some(0),
+                }],
+            },
+        ];
+        let mut saida = Vec::new();
+        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
+        let texto = String::from_utf8(saida).unwrap();
+
+        let coluna_valor = |linha: &str, marca: &str| linha.rfind(marca);
+        let linha = |marca: &str| {
+            texto
+                .lines()
+                .find(|l| l.contains(marca))
+                .unwrap_or_else(|| panic!("sem a linha de {marca}:\n{texto}"))
+                .to_owned()
+        };
+
+        let cabecalho = linha("Falta baixar");
+        let linha_curta = linha(") ibge");
+        let linha_longa = linha("senado-processos-detalhes");
+
+        let col_cabecalho = coluna_valor(&cabecalho, "Falta baixar").unwrap();
+        let col_curta = coluna_valor(&linha_curta, "1,9 MB").unwrap();
+        let col_longa = coluna_valor(&linha_longa, "0 B").unwrap();
+
+        // O fim das colunas de valor (borda direita do campo) coincide em todas as linhas.
+        assert_eq!(
+            col_cabecalho + "Falta baixar".len(),
+            col_curta + "1,9 MB".len(),
+            "cabeçalho x linha curta desalinhados:\n{texto}"
+        );
+        assert_eq!(
+            col_curta + "1,9 MB".len(),
+            col_longa + "0 B".len(),
+            "linha curta x linha longa desalinhadas:\n{texto}"
+        );
     }
 
     #[test]
