@@ -2376,6 +2376,7 @@ dependencies = [
  "todeolho-infraestrutura",
  "todeolho-nucleo",
  "todeolho-painel",
+ "todeolho-refino",
  "tokio",
  "tracing-subscriber",
  "uuid",

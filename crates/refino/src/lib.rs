@@ -12,12 +12,14 @@
 
 #![warn(missing_docs)]
 
+pub mod catalogo;
 pub mod csv_zip;
 pub mod decodificador;
 pub mod escritor;
 pub mod fontes;
 pub mod tarefa;
 
+pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, TabelaNomeada};
 pub use escritor::{ErroDeRefino, Tabela};
 pub use fontes::DecodificadorCamaraDespesas;

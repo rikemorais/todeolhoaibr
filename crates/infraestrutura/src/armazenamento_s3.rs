@@ -98,6 +98,21 @@ impl ArmazenamentoS3 {
             detalhe: detalhe.to_string(),
         }
     }
+
+    /// Lista todas as chaves sob um prefixo (percorrendo as páginas). Usado pelo refino
+    /// para descobrir quais recursos já foram ingeridos no bucket.
+    pub async fn listar_chaves(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
+        let paginas = self
+            .bucket
+            .list(prefixo.to_owned(), None)
+            .await
+            .map_err(|e| self.erro(prefixo, e))?;
+        Ok(paginas
+            .into_iter()
+            .flat_map(|pagina| pagina.contents)
+            .map(|objeto| objeto.key)
+            .collect())
+    }
 }
 
 #[async_trait]

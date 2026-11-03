@@ -14,6 +14,7 @@ todeolho-fontes.workspace = true
 todeolho-infraestrutura.workspace = true
 todeolho-nucleo.workspace = true
 todeolho-painel.workspace = true
+todeolho-refino.workspace = true
 
 anyhow.workspace = true
 chrono.workspace = true
