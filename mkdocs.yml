@@ -133,5 +133,6 @@ nav:
       - fontes/senado-despesas.md
       - fontes/senado-votacoes.md
       - fontes/tse.md
+      - fontes/tse-prestacao-contas.md
   - Diagramas: diagramas/README.md
   - Referência de API: api/index.md
