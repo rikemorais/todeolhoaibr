@@ -13,8 +13,8 @@ use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
-    LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, ProgressoDaTarefa, ResumoDaTarefa, Tarefa,
-    UltimaVersao, decidir, estado_na_raw, publicar_ponteiro,
+    LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa, ProgressoDaTarefa,
+    ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw, publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tracing::warn;
@@ -162,10 +162,20 @@ impl Tarefa for TarefaDeArquivo {
     async fn bytes_a_baixar(
         &self,
         contexto: &ContextoDeExecucao,
+        precisao: PrecisaoDaEstimativa,
     ) -> Result<Option<u64>, ErroDeIngestao> {
-        let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
             estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
+        // No modo rápido (menu), uma cópia completa e íntegra na Raw quase sempre é
+        // reaproveitada, então evitamos o HEAD na origem — custoso quando são centenas
+        // de arquivos num host limitado a 5 req/s. A rodada real ainda faz a pré-checagem
+        // condicional, então nada é baixado indevidamente.
+        if precisao == PrecisaoDaEstimativa::Rapida
+            && estado.as_ref().is_some_and(|e| e.completa && e.integra)
+        {
+            return Ok(Some(0));
+        }
+        let informacoes = contexto.http.informacoes(&self.url).await?;
         match decidir(&informacoes, estado.as_ref()) {
             DecisaoDeIngestao::Reaproveitar => Ok(Some(0)),
             DecisaoDeIngestao::Ingerir(_) => Ok(informacoes.tamanho),
@@ -595,6 +605,7 @@ mod testes {
         cortes: Mutex<VecDeque<Option<usize>>>,
         pedidos: Mutex<Vec<u64>>,
         downloads: Mutex<u32>,
+        consultas: Mutex<u32>,
     }
 
     impl HttpFalso {
@@ -609,6 +620,7 @@ mod testes {
                 cortes: Mutex::new(VecDeque::new()),
                 pedidos: Mutex::new(Vec::new()),
                 downloads: Mutex::new(0),
+                consultas: Mutex::new(0),
             }
         }
 
@@ -626,6 +638,7 @@ mod testes {
         }
 
         async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+            *self.consultas.lock().unwrap() += 1;
             if *self.ausente.lock().unwrap() {
                 return Ok(InformacoesDoArquivo::default());
             }
@@ -875,13 +888,54 @@ mod testes {
     #[tokio::test]
     async fn estima_o_tamanho_e_zero_para_o_que_ja_esta_atualizado() {
         let cenario = cenario(HttpFalso::novo(Some("v1")));
-        let antes = tarefa().bytes_a_baixar(&cenario.contexto).await.unwrap();
+        let antes = tarefa()
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Exata)
+            .await
+            .unwrap();
         assert_eq!(antes, Some(CONTEUDO.len() as u64));
 
         tarefa().executar(&cenario.contexto).await.unwrap();
 
-        let depois = tarefa().bytes_a_baixar(&cenario.contexto).await.unwrap();
+        let depois = tarefa()
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Exata)
+            .await
+            .unwrap();
         assert_eq!(depois, Some(0));
+    }
+
+    #[tokio::test]
+    async fn o_modo_rapido_nao_consulta_a_origem_quando_a_raw_esta_completa() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")));
+
+        // Sem nada na Raw, mesmo o modo rápido precisa consultar a origem para saber o tamanho.
+        let antes = tarefa()
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Rapida)
+            .await
+            .unwrap();
+        assert_eq!(antes, Some(CONTEUDO.len() as u64));
+        assert_eq!(*cenario.http.consultas.lock().unwrap(), 1);
+
+        tarefa().executar(&cenario.contexto).await.unwrap();
+        let consultas_ate_aqui = *cenario.http.consultas.lock().unwrap();
+
+        // Com a cópia completa e íntegra na Raw, o modo rápido devolve 0 sem novo HEAD.
+        let depois = tarefa()
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Rapida)
+            .await
+            .unwrap();
+        assert_eq!(depois, Some(0));
+        assert_eq!(*cenario.http.consultas.lock().unwrap(), consultas_ate_aqui);
+
+        // Já o modo exato confere a origem (faz o HEAD) mesmo com a Raw completa.
+        let exato = tarefa()
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Exata)
+            .await
+            .unwrap();
+        assert_eq!(exato, Some(0));
+        assert_eq!(
+            *cenario.http.consultas.lock().unwrap(),
+            consultas_ate_aqui + 1
+        );
     }
 
     #[tokio::test]

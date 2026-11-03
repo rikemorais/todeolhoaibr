@@ -10,8 +10,8 @@ use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
-    ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw,
-    manifesto_vigente, publicar_ponteiro,
+    ParteRaw, PrecisaoDaEstimativa, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao,
+    estado_na_raw, manifesto_vigente, publicar_ponteiro,
 };
 use tracing::warn;
 
@@ -227,6 +227,7 @@ impl Tarefa for TarefaDeIngestaoHttp {
     async fn bytes_a_baixar(
         &self,
         contexto: &ContextoDeExecucao,
+        _precisao: PrecisaoDaEstimativa,
     ) -> Result<Option<u64>, ErroDeIngestao> {
         // Uma rodada sobre uma ingestão completa e íntegra não baixa dado novo no
         // caso comum (páginas reaproveitadas via requisição condicional), então

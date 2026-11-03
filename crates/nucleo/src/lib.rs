@@ -39,4 +39,4 @@ pub use portas::{
 };
 pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
 pub use selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
-pub use tarefa::{ResumoDaTarefa, Tarefa, TarefaPlanejada};
+pub use tarefa::{PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada};

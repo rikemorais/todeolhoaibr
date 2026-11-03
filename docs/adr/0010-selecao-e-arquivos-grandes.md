@@ -29,6 +29,12 @@ etiqueta suas tarefas ganha tudo isso sem código específico, o que mantém o p
 
 - O tamanho vem da origem, via `HEAD`. APIs que não o informam declaram um tamanho típico, medido em uma ingestão real.
 - Arquivos que já estão atualizados contam como zero.
+- A estimativa tem dois modos (`PrecisaoDaEstimativa`). O **menu** usa o modo rápido: uma cópia completa e íntegra na Raw é
+  estimada como zero sem consultar a origem — o mesmo atalho que as fontes de API já faziam —, evitando um `HEAD` por arquivo num
+  host limitado (a Câmara serve 5 req/s, e `camara-votacoes` sozinha tem centenas de arquivos). A **checagem de espaço** antes de
+  executar usa o modo exato: confere a origem com `HEAD` para o número mais fiel, mas só nas tarefas escolhidas. A idempotência não
+  muda, porque a rodada real continua fazendo a pré-checagem condicional por arquivo ([ADR 0012](0012-pre-checagem-idempotente.md)).
+- O menu estima as fontes em paralelo: hosts diferentes trabalham ao mesmo tempo em vez de somar o tempo um do outro.
 - O espaço livre é medido no volume real, montado como somente leitura na ingestão. Em Mac e Windows, esse é o disco virtual do Docker, não
   o do computador.
 - A comparação usa o **pico**: o total mais o maior arquivo. Ao unir as partes, o armazenamento mantém partes e arquivo final ao mesmo
