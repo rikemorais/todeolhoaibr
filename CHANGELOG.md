@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.17.0] - 2026-11-04
+
 ### Adicionado
 
 - Bronze para mais fontes (CSV solto): `senado-despesas` (CEAPS, `;`, Latin-1, com linha de preâmbulo) e `camara-votacoes` (`;`, UTF-8 com BOM). Reusa o escritor Parquet em lotes; novo `DecodificadorCsv` parametrizável (separador, linhas de preâmbulo) e remoção de BOM ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
