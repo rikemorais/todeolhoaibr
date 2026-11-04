@@ -108,8 +108,9 @@ services:
     restart: unless-stopped
 
   # Consulta analítica do medalhão com DuckDB ("Athena local"), somente-leitura (docs/adr/0018).
-  # UI:  docker compose up -d consulta  -> http://localhost:4213 (frontend vem de ui.duckdb.org).
+  # Web: docker compose up -d consulta  -> http://localhost:4213 (console SQL nosso, self-hosted).
   # SQL: docker compose run --rm consulta sql  (CLI offline, com as views do bronze já criadas).
+  # UI:  docker compose run --rm --service-ports consulta ui  (DuckDB Local UI; instável, ver #167).
   consulta:
     build:
       context: .

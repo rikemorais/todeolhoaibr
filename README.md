@@ -187,15 +187,15 @@ Também é possível usar um cliente S3 em `http://localhost:7070`. A região e 
 As tabelas em Parquet do `bronze` são consultadas com SQL pelo **[DuckDB](https://duckdb.org/)** — uma "Athena local" que lê o Parquet **no lugar**, sem mover os dados ([ADR 0018](docs/adr/0018-motor-de-consulta-duckdb.md)). O serviço `consulta` sobe somente-leitura e já cria uma view por tabela (`bronze_<fonte>_<recurso>`, ex.: `bronze_camara_despesas`), com `ano`, `data_ingestao` e `execucao` vindos do caminho.
 
 ```bash
-# Interface gráfica (explorador de tabelas + editor SQL) em http://localhost:4213
+# Console SQL web (editor + lista de tabelas), self-hosted, em http://localhost:4213
 docker compose up -d --build consulta
 
-# SQL no terminal (offline, sem depender de internet), com as views já carregadas
+# SQL no terminal (offline), com as views já carregadas
 docker compose run --rm --build consulta sql
 ```
 
 ```sql
--- Exemplos (no editor da UI ou no CLI)
+-- Exemplos (no console web ou no CLI)
 SELECT ano, count(*) FROM bronze_camara_despesas GROUP BY ano ORDER BY ano;
 SELECT * FROM bronze_camara_despesas LIMIT 10;
 
@@ -203,7 +203,7 @@ SELECT * FROM bronze_camara_despesas LIMIT 10;
 SELECT count(*) FROM read_parquet('s3://bronze/camara/despesas/ano=2024/**/*.parquet');
 ```
 
-> A **UI** (`localhost:4213`) carrega o frontend de `ui.duckdb.org`, então precisa de internet aberta no navegador; as **queries rodam 100% locais**. Sem internet, use `consulta sql`, que é totalmente offline.
+> O **console web** (`localhost:4213`) é nosso, self-hosted: não depende de serviço externo e as queries rodam 100% locais. A DuckDB Local UI oficial (`docker compose run --rm --service-ports consulta ui`) existe, mas depende da nuvem MotherDuck e costuma falhar na inicialização ([issue #167](https://github.com/rikemorais/todeolhoaibr/issues/167)); prefira o console web ou o `consulta sql`.
 
 ### Encerrando
 
