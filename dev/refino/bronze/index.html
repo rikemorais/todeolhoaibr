@@ -1641,7 +1641,26 @@
 </tbody>
 </table>
 <h2 id="consultar-o-bronze">Consultar o bronze<a class="headerlink" href="#consultar-o-bronze" title="Permanent link">&para;</a></h2>
-<p>As tabelas Parquet são consultadas com <strong>DuckDB</strong> (<a href="../../adr/0018-motor-de-consulta-duckdb/">ADR 0018</a>) — SQL sobre o Parquet no lugar, sem mover os dados.</p>
+<p>As tabelas Parquet são consultadas com <strong>DuckDB</strong> (<a href="../../adr/0018-motor-de-consulta-duckdb/">ADR 0018</a>) — uma "Athena local": SQL sobre o Parquet <strong>no lugar</strong>, sem mover os dados. O serviço <code>consulta</code> sobe o DuckDB <strong>somente-leitura</strong> sobre os buckets e já cria uma <strong>view por tabela</strong>, nomeada <code>bronze_&lt;fonte&gt;_&lt;recurso&gt;</code> (ex.: <code>bronze_camara_despesas</code>).</p>
+<p>As views são montadas a partir do <strong>ponteiro de versão vigente</strong> (<code>_ultima_versao.json</code>) de cada partição, então consultam só a versão atual — o histórico não entra em dobro. As colunas de partição (ex.: <code>ano</code>) e de procedência (<code>data_ingestao</code>, <code>execucao</code>) vêm do caminho.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Interface gráfica (explorador + editor SQL) em http://localhost:4213</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build<span class="w"> </span>consulta
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># SQL no terminal, totalmente offline, com as views já carregadas</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>consulta<span class="w"> </span>sql
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">-- Quantas linhas por ano das despesas da Câmara</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">ano</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">linhas</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">FROM</span><span class="w"> </span><span class="n">bronze_camara_despesas</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">ano</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">ano</span><span class="p">;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1">-- Ler direto do versitygw (sem a view), via httpfs</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">read_parquet</span><span class="p">(</span><span class="s1">'s3://bronze/camara/despesas/ano=2024/**/*.parquet'</span><span class="p">);</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">UI precisa de internet; o CLI não</p>
+<p>A <strong>UI</strong> (<code>localhost:4213</code>) baixa o frontend de <code>ui.duckdb.org</code>, então precisa de internet no navegador; as <strong>queries rodam 100% locais</strong>. Sem internet, use <code>consulta sql</code>, que é offline. A UI faz <em>bind</em> em loopback dentro do container, e o serviço expõe a porta por uma ponte (<code>socat</code>).</p>
+</div>
 <h2 id="limitacoes-conhecidas">Limitações conhecidas<a class="headerlink" href="#limitacoes-conhecidas" title="Permanent link">&para;</a></h2>
 <ul>
 <li>O decodificador carrega o CSV inteiro em memória. Para arquivos anuais (dezenas de MB) é aceitável; arquivos gigantes (ex.: CNPJ) pedirão escrita por <em>row-group</em> em fluxo — ver <a href="../../adr/0007-docker-para-maquinas-modestas/">ADR 0007</a>.</li>
