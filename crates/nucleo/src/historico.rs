@@ -92,6 +92,17 @@ pub struct RegistroDeFonte {
     pub tarefas: Vec<RegistroDeTarefa>,
 }
 
+/// Camada do medalhão que uma execução produz (ver `docs/adr/0015`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Camada {
+    /// Ingestão: grava a camada `raw`.
+    #[default]
+    Raw,
+    /// Refino: grava a camada `bronze`.
+    Bronze,
+}
+
 /// Situação geral de uma execução, calculada a partir do registro.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -111,6 +122,10 @@ pub enum SituacaoDaExecucao {
 pub struct RegistroDeExecucao {
     /// Identificador da execução.
     pub id: String,
+    /// Camada que a execução produz: `raw` (ingestão) ou `bronze` (refino). Registros
+    /// antigos, sem o campo, assumem `raw`.
+    #[serde(default)]
+    pub camada: Camada,
     /// Quando a execução começou.
     pub iniciada_em: DateTime<Utc>,
     /// Último batimento: quando o registro foi atualizado pela última vez.
@@ -125,6 +140,7 @@ impl RegistroDeExecucao {
     /// Cria o registro com todas as tarefas pendentes, para que apareçam desde o início.
     pub fn novo(
         id: &str,
+        camada: Camada,
         iniciada_em: DateTime<Utc>,
         dags: &[DagDeIngestao],
     ) -> Result<Self, ErroDeDag> {
@@ -156,6 +172,7 @@ impl RegistroDeExecucao {
 
         Ok(Self {
             id: id.to_owned(),
+            camada,
             iniciada_em,
             atualizada_em: iniciada_em,
             concluida_em: None,
@@ -380,6 +397,7 @@ mod testes {
     fn registro(estados: &[EstadoRegistrado], concluida: bool) -> RegistroDeExecucao {
         RegistroDeExecucao {
             id: "exec".into(),
+            camada: Camada::Raw,
             iniciada_em: instante(0),
             atualizada_em: instante(0),
             concluida_em: concluida.then(|| instante(1)),
