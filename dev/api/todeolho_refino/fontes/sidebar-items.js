@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["csv","zip_csv"]};
+window.SIDEBAR_ITEMS = {"mod":["csv","json","zip_csv"]};
