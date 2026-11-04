@@ -6,7 +6,9 @@
 use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
-use crate::fontes::{DecodificadorCsv, DecodificadorJson, DecodificadorZipCsv};
+use crate::fontes::{
+    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorZipCsv,
+};
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
 pub struct FonteDeRefino {
@@ -136,6 +138,45 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "senado",
             prefixo_recurso: "votacoes/",
             cria_decodificador: || Arc::new(DecodificadorJson::novo("votacoes")),
+        },
+        // --- IBGE agregados (API v3): série aninhada explodida em linhas ---
+        FonteDeRefino {
+            nome: "ibge-ipca",
+            fonte_raw: "ibge",
+            prefixo_recurso: "ipca/",
+            cria_decodificador: || Arc::new(DecodificadorIbgeAgregados::novo("ipca")),
+        },
+        FonteDeRefino {
+            nome: "ibge-inpc",
+            fonte_raw: "ibge",
+            prefixo_recurso: "inpc/",
+            cria_decodificador: || Arc::new(DecodificadorIbgeAgregados::novo("inpc")),
+        },
+        FonteDeRefino {
+            nome: "ibge-pib-municipios",
+            fonte_raw: "ibge",
+            prefixo_recurso: "pib-municipios/",
+            cria_decodificador: || Arc::new(DecodificadorIbgeAgregados::novo("pib-municipios")),
+        },
+        FonteDeRefino {
+            nome: "ibge-pib-trimestral",
+            fonte_raw: "ibge",
+            prefixo_recurso: "pib-trimestral/",
+            cria_decodificador: || Arc::new(DecodificadorIbgeAgregados::novo("pib-trimestral")),
+        },
+        FonteDeRefino {
+            nome: "ibge-pnad-desocupacao",
+            fonte_raw: "ibge",
+            prefixo_recurso: "pnad-desocupacao/",
+            cria_decodificador: || Arc::new(DecodificadorIbgeAgregados::novo("pnad-desocupacao")),
+        },
+        FonteDeRefino {
+            nome: "ibge-populacao-municipios",
+            fonte_raw: "ibge",
+            prefixo_recurso: "populacao-municipios/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorIbgeAgregados::novo("populacao-municipios"))
+            },
         },
     ]
 }
