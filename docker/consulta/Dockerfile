@@ -29,9 +29,11 @@ ENV HOME=/home/consulta
 RUN duckdb -c "INSTALL httpfs; INSTALL parquet; INSTALL ui;"
 
 COPY --chown=consulta:consulta docker/consulta/entrypoint.sh /app/entrypoint.sh
+COPY --chown=consulta:consulta docker/consulta/gerar_init.sh /app/gerar_init.sh
 COPY --chown=consulta:consulta docker/consulta/gerar_views.py /app/gerar_views.py
+COPY --chown=consulta:consulta docker/consulta/servidor.py /app/servidor.py
 
 EXPOSE 4213
 # Invoca via sh para não depender do bit de execução (nem de BuildKit no COPY).
 ENTRYPOINT ["sh", "/app/entrypoint.sh"]
-CMD ["ui"]
+CMD ["web"]
