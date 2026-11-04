@@ -40,7 +40,7 @@ impl Decodificador for DecodificadorCsv {
 #[cfg(test)]
 mod testes {
     use super::*;
-    use crate::csv_zip::testes::ler_parquet;
+    use crate::csv_zip::testes::ler_parte;
 
     fn c(s: &str) -> Option<String> {
         Some(s.to_owned())
@@ -55,7 +55,7 @@ mod testes {
             .unwrap();
         assert_eq!(partes.len(), 1);
         assert_eq!(partes[0].nome, "despesas");
-        let (colunas, linhas) = ler_parquet(&partes[0].parquet);
+        let (colunas, linhas) = ler_parte(&partes[0]);
         assert_eq!(colunas, vec!["ano", "valor"]);
         assert_eq!(linhas, vec![vec![c("2014"), c("52,38")]]);
     }
@@ -68,7 +68,7 @@ mod testes {
         let partes = DecodificadorCsv::novo("votacoes", b';', 0)
             .decodificar(&csv, "application/octet-stream")
             .unwrap();
-        let (colunas, linhas) = ler_parquet(&partes[0].parquet);
+        let (colunas, linhas) = ler_parte(&partes[0]);
         assert_eq!(colunas, vec!["idVotacao", "orientacao"]);
         assert_eq!(linhas, vec![vec![c("1"), c("Sim")]]);
     }

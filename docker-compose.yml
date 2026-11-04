@@ -81,9 +81,9 @@ services:
     mem_limit: 256m
 
   # Refina o raw para o bronze (Parquet): docker compose run --rm refino refinar bronze <fonte>
-  # Decodificar CSV/JSON para colunar consome mais memória que a ingestão (que vai em fluxo),
-  # então este serviço tem um limite maior. Reduzir isso depende da decodificação por
-  # row-group em fluxo (ver issue de follow-up).
+  # Decodificar consome mais memória que a ingestão (que vai em fluxo): a tarefa ainda carrega
+  # o ZIP inteiro do raw em memória, e os pacotes do TSE são grandes. O limite acomoda a maior
+  # fonte; reduzir isso depende da decodificação em fluxo (issue #164).
   refino:
     <<: *aplicacao
     profiles: ["ingestao"]
@@ -91,7 +91,7 @@ services:
     environment:
       <<: *ambiente-s3
       TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
-    mem_limit: 1g
+    mem_limit: 2g
 
   # Agendador do bronze (docs/adr/0019): reconcilia o bronze a partir da raw a cada intervalo
   # (TODEOLHO_REFINO_INTERVALO, padrão 1h). Como o bronze é idempotente, passadas sem mudança
@@ -103,7 +103,8 @@ services:
     environment:
       <<: *ambiente-s3
       TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
-    mem_limit: 1g
+    # Acomoda a maior fonte (TSE) para o laço não entrar em crash-loop por OOM; ver #164.
+    mem_limit: 2g
     restart: unless-stopped
 
   # Consulta analítica do medalhão com DuckDB ("Athena local"), somente-leitura (docs/adr/0018).

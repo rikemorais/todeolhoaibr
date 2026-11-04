@@ -159,13 +159,17 @@ impl Tarefa for TarefaDeBronze {
         let mut total_bytes = 0u64;
         for (indice, conteudo) in conteudos.into_iter().enumerate() {
             let chave = local.parte(indice + 1, "parquet");
-            let bytes = conteudo.parquet.len() as u64;
+            // Lê o Parquet do arquivo temporário só na hora de enviar: uma parte por vez na
+            // memória, não todas de uma vez (ver issue #164).
+            let parquet = std::fs::read(&conteudo.parquet)
+                .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
+            let bytes = parquet.len() as u64;
             total_bytes += bytes;
-            let sha256 = hex::encode(Sha256::digest(&conteudo.parquet));
+            let sha256 = hex::encode(Sha256::digest(&parquet));
             bronze
                 .gravar(ObjetoRaw {
                     chave: chave.clone(),
-                    conteudo: conteudo.parquet,
+                    conteudo: parquet,
                     tipo_de_conteudo: TIPO_PARQUET.to_owned(),
                 })
                 .await?;

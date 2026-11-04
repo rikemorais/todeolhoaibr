@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
-use crate::fontes::{DecodificadorCamaraDespesas, DecodificadorCsv};
+use crate::fontes::{DecodificadorCsv, DecodificadorZipCsv};
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
 pub struct FonteDeRefino {
@@ -29,11 +29,27 @@ impl FonteDeRefino {
 /// Fontes do bronze disponíveis. Cresce conforme novos decodificadores entram.
 pub fn catalogo_refino() -> Vec<FonteDeRefino> {
     vec![
+        // CEAP da Câmara: ZIP com um CSV anual (`;`).
         FonteDeRefino {
             nome: "camara-despesas",
             fonte_raw: "camara",
             prefixo_recurso: "despesas/",
-            cria_decodificador: || Arc::new(DecodificadorCamaraDespesas),
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
+        // Pacotes do TSE: ZIP com vários CSVs por UF (`;`, Latin-1).
+        // `tse-prestacao-contas` fica de fora por ora: tem CSVs consolidados de vários GB
+        // (precisam de decodificação em fluxo) e anos antigos em `.txt` aninhado (ver #171).
+        FonteDeRefino {
+            nome: "tse-candidaturas",
+            fonte_raw: "tse",
+            prefixo_recurso: "candidaturas/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
+        FonteDeRefino {
+            nome: "tse-bens",
+            fonte_raw: "tse",
+            prefixo_recurso: "bens/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
         },
         // CEAPS do Senado: CSV solto em Latin-1 com uma linha de preâmbulo antes do cabeçalho.
         FonteDeRefino {
