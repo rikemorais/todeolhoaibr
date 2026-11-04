@@ -12,6 +12,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Bronze para fontes em **JSON de API**, via um `DecodificadorJson` genérico (array de registros no topo ou sob uma chave; campos viram colunas de texto, aninhados viram JSON compacto): `bcb`, `ipeadata`, `camara-tramitacoes`, `camara-deputados`, `camara-partidos`, `camara-legislaturas`, `ibge-estados`, `ibge-regioes`, `ibge-municipios`, `senado-processos` e `senado-votacoes` ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 - Bronze para os **agregados do IBGE** (API v3, JSON aninhado): `ibge-ipca`, `ibge-inpc`, `ibge-pib-municipios`, `ibge-pib-trimestral`, `ibge-pnad-desocupacao` e `ibge-populacao-municipios`. Um `DecodificadorIbgeAgregados` explode a série aninhada em uma linha por (variável, localidade, período) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 - Bronze para `senado-parlamentares` (array aninhado fundo no JSON do Senado); o `DecodificadorJson` passou a aceitar um **caminho** de chaves até o array ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
+- O decodificador ZIP passou a aceitar também arquivos `.txt` (os anos antigos do TSE usam `.txt` no lugar de `.csv`, mesmo formato `;`/Latin-1) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 
 ## [0.18.0] - 2026-11-04
 
