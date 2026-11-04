@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
@@ -24,7 +25,7 @@ use todeolho_nucleo::{
     RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa, TarefaPlanejada,
     estimar, formatar_bytes,
 };
-use todeolho_refino::{TarefaDeBronze, catalogo_refino};
+use todeolho_refino::{FonteDeRefino, TarefaDeBronze, catalogo_refino};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
@@ -63,7 +64,14 @@ enum Comando {
         /// Camada de destino (por ora, apenas `bronze`)
         camada: String,
         /// Fonte de refino (veja o catálogo do refino, ex.: `camara-despesas`)
-        fonte: String,
+        fonte: Option<String>,
+        /// Refina todas as fontes do catálogo de refino
+        #[arg(long, conflicts_with = "fonte")]
+        todas: bool,
+        /// Repete a reconciliação a cada N segundos (0 ou ausente: roda uma vez).
+        /// Como o bronze é idempotente, passadas sem mudança são quase instantâneas.
+        #[arg(long, value_name = "SEGUNDOS")]
+        intervalo: Option<u64>,
     },
     /// Inicia o painel web com o histórico das execuções
     Painel {
@@ -137,7 +145,12 @@ async fn rodar(cli: Cli) -> Result<bool> {
             Ok(true)
         }
         Comando::Executar(argumentos) => executar_sem_menu(argumentos).await,
-        Comando::Refinar { camada, fonte } => refinar(camada, fonte).await,
+        Comando::Refinar {
+            camada,
+            fonte,
+            todas,
+            intervalo,
+        } => refinar(camada, fonte, todas, intervalo).await,
         Comando::Painel { endereco } => {
             let historico = historico()?;
             historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
@@ -387,25 +400,74 @@ async fn executar(
 }
 
 /// Decodifica a camada Raw de uma fonte para o bronze (Parquet), reusando o executor e o painel.
-async fn refinar(camada: String, fonte: String) -> Result<bool> {
+async fn refinar(
+    camada: String,
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
     if camada != "bronze" {
         bail!("camada desconhecida: {camada}. Hoje o refino só produz 'bronze'.");
     }
-    let Some(fonte_refino) = catalogo_refino().into_iter().find(|f| f.nome == fonte) else {
-        bail!("fonte de refino desconhecida: {fonte}");
-    };
+    let fontes = fontes_de_refino(fonte, todas)?;
 
-    // Descobre os recursos já ingeridos no raw (os que têm ponteiro vigente).
+    // Um cliente S3 concreto para listar os recursos (`listar_chaves` não está no trait) e
+    // um por porta para as tarefas; o bronze é a camada de escrita.
     let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
-    let prefixo = format!(
-        "{}/{}",
-        fonte_refino.fonte_raw, fonte_refino.prefixo_recurso
-    );
+    let raw: Arc<dyn ArmazenamentoRaw> = Arc::new(ArmazenamentoS3::novo(configuracao_s3("raw")?)?);
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    match intervalo.filter(|segundos| *segundos > 0) {
+        // Rodada única: refina tudo que existe (as reaproveitadas aparecem no painel).
+        None => passada(&fontes, &raw_s3, &raw, &bronze, false).await,
+        // Reconciliação: repete e, para não poluir o painel, só registra execução nas
+        // passadas em que há trabalho (pré-checagem por recurso).
+        Some(segundos) => {
+            println!(
+                "Agendador do bronze: reconciliando {} fonte(s) a cada {segundos}s. Ctrl+C para sair.",
+                fontes.len()
+            );
+            loop {
+                if let Err(erro) = passada(&fontes, &raw_s3, &raw, &bronze, true).await {
+                    eprintln!("Atenção: falha na passada de reconciliação: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+/// Resolve quais fontes do catálogo de refino serão processadas.
+fn fontes_de_refino(fonte: Option<String>, todas: bool) -> Result<Vec<FonteDeRefino>> {
+    match (fonte, todas) {
+        (Some(_), true) => bail!("informe uma fonte ou --todas, não os dois"),
+        (None, false) => bail!("informe uma fonte ou --todas"),
+        (None, true) => Ok(catalogo_refino()),
+        (Some(nome), false) => {
+            let catalogo = catalogo_refino();
+            let disponiveis = catalogo
+                .iter()
+                .map(|f| f.nome)
+                .collect::<Vec<_>>()
+                .join(", ");
+            match catalogo.into_iter().find(|f| f.nome == nome) {
+                Some(fonte) => Ok(vec![fonte]),
+                None => bail!("fonte de refino desconhecida: {nome}. Disponíveis: {disponiveis}"),
+            }
+        }
+    }
+}
+
+/// Lista os recursos já ingeridos no raw de uma fonte (os que têm ponteiro vigente).
+async fn recursos_no_raw(raw_s3: &ArmazenamentoS3, fonte: &FonteDeRefino) -> Result<Vec<String>> {
+    let prefixo = format!("{}/{}", fonte.fonte_raw, fonte.prefixo_recurso);
     let chaves = raw_s3
         .listar_chaves(&prefixo)
         .await
         .context(ERRO_DE_ARMAZENAMENTO)?;
-    let prefixo_fonte = format!("{}/", fonte_refino.fonte_raw);
+    let prefixo_fonte = format!("{}/", fonte.fonte_raw);
     let mut recursos: Vec<String> = chaves
         .iter()
         .filter_map(|chave| chave.strip_suffix("/_ultima_versao.json"))
@@ -413,31 +475,49 @@ async fn refinar(camada: String, fonte: String) -> Result<bool> {
         .map(str::to_owned)
         .collect();
     recursos.sort();
-    if recursos.is_empty() {
-        bail!("nada ingerido no raw para {fonte} (prefixo {prefixo}). Rode a ingestão primeiro.");
-    }
-    println!(
-        "Refinando {} recurso(s) de {fonte} para o bronze...",
-        recursos.len()
-    );
+    recursos.dedup();
+    Ok(recursos)
+}
 
-    let raw: Arc<dyn ArmazenamentoRaw> = Arc::new(raw_s3);
-    let bronze: Arc<dyn ArmazenamentoRaw> =
-        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
-    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
-
-    let decodificador = fonte_refino.decodificador();
-    let tarefas: Vec<TarefaPlanejada> = recursos
-        .iter()
-        .map(|recurso| {
-            TarefaPlanejada::nova(TarefaDeBronze::nova(
-                Arc::clone(&raw),
-                fonte_refino.fonte_raw,
-                recurso.clone(),
+/// Uma passada de refino sobre as `fontes`. Com `so_pendentes`, pula os recursos cujo
+/// bronze já está na versão vigente do raw e, se nada sobrar, nem registra execução.
+async fn passada(
+    fontes: &[FonteDeRefino],
+    raw_s3: &ArmazenamentoS3,
+    raw: &Arc<dyn ArmazenamentoRaw>,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    so_pendentes: bool,
+) -> Result<bool> {
+    let mut dags = Vec::new();
+    for fonte in fontes {
+        let decodificador = fonte.decodificador();
+        let mut tarefas = Vec::new();
+        for recurso in recursos_no_raw(raw_s3, fonte).await? {
+            let tarefa = TarefaDeBronze::nova(
+                Arc::clone(raw),
+                fonte.fonte_raw,
+                recurso,
                 Arc::clone(&decodificador),
-            ))
-        })
-        .collect();
+            );
+            if so_pendentes
+                && !tarefa
+                    .pendente(bronze.as_ref())
+                    .await
+                    .context(ERRO_DE_ARMAZENAMENTO)?
+            {
+                continue;
+            }
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+        if !tarefas.is_empty() {
+            dags.push(DagDeIngestao::construir(fonte.nome, tarefas)?);
+        }
+    }
+
+    if dags.is_empty() {
+        println!("Nada a refinar (recursos em dia ou não ingeridos).");
+        return Ok(true);
+    }
 
     let iniciada_em = Utc::now();
     let contexto = ContextoDeExecucao {
@@ -447,22 +527,17 @@ async fn refinar(camada: String, fonte: String) -> Result<bool> {
             &Uuid::new_v4().simple().to_string()[..8]
         ),
         iniciada_em,
-        armazenamento: bronze,
+        armazenamento: Arc::clone(bronze),
         http: Arc::new(ClienteHttpComRetentativas::novo(
             PoliticaDeRetentativas::default(),
         )?),
         progresso: None,
     };
 
-    let dag = DagDeIngestao::construir(&fonte, tarefas)?;
     let historico = Arc::new(historico()?);
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
-        RegistroDeExecucao::novo(
-            &contexto.id_execucao,
-            iniciada_em,
-            std::slice::from_ref(&dag),
-        )?,
+        RegistroDeExecucao::novo(&contexto.id_execucao, iniciada_em, &dags)?,
         historico,
     ));
     registrador.publicar().await;
@@ -472,13 +547,17 @@ async fn refinar(camada: String, fonte: String) -> Result<bool> {
     });
 
     let executor = ExecutorDeDag::novo(concorrencia()?);
-    let relatorio = executor
-        .executar(&dag, &contexto, registrador.as_ref())
-        .await?;
-    imprimir(&relatorio);
+    let mut sucesso = true;
+    for dag in &dags {
+        let relatorio = executor
+            .executar(dag, &contexto, registrador.as_ref())
+            .await?;
+        imprimir(&relatorio);
+        sucesso &= relatorio.sucesso();
+    }
     registrador.concluir().await;
     println!("\nexecução: {}", contexto.id_execucao);
-    Ok(relatorio.sucesso())
+    Ok(sucesso)
 }
 
 /// Devolve `false` quando a seleção não cabe no disco.

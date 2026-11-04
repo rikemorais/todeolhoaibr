@@ -73,6 +73,38 @@ impl TarefaDeBronze {
         }
         Ok(manifesto_raw.id_execucao.clone())
     }
+
+    /// Lê a procedência do `raw` e decide se o `bronze` precisa reprocessar.
+    ///
+    /// Devolve `None` quando não há recurso vigente no `raw` (nada a refinar) e, caso
+    /// contrário, `(manifesto do raw, versão de origem, reaproveitar)` — `reaproveitar` é
+    /// `true` quando o `bronze` já está íntegro e na mesma versão do `raw`.
+    async fn avaliar(
+        &self,
+        bronze: &dyn ArmazenamentoRaw,
+    ) -> Result<Option<(ManifestoRaw, String, bool)>, ErroDeIngestao> {
+        let Some(manifesto_raw) =
+            manifesto_vigente(self.origem.as_ref(), &self.fonte, &self.recurso).await?
+        else {
+            return Ok(None);
+        };
+        let versao_origem = self.versao_de_origem(&manifesto_raw).await?;
+        let reaproveitar = match estado_na_raw(bronze, &self.fonte, &self.recurso).await? {
+            Some(estado) => {
+                estado.completa
+                    && estado.integra
+                    && estado.versao.as_deref() == Some(versao_origem.as_str())
+            }
+            None => false,
+        };
+        Ok(Some((manifesto_raw, versao_origem, reaproveitar)))
+    }
+
+    /// Há trabalho a fazer? `true` quando o `raw` tem recurso vigente e o `bronze` ainda
+    /// não está nessa versão. Usado pela reconciliação para pular passadas sem mudança.
+    pub async fn pendente(&self, bronze: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
+        Ok(matches!(self.avaliar(bronze).await?, Some((_, _, false))))
+    }
 }
 
 #[async_trait]
@@ -87,20 +119,14 @@ impl Tarefa for TarefaDeBronze {
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let bronze = contexto.armazenamento.as_ref();
 
-        // 1. Procedência do raw. Sem ingestão na origem não há o que refinar.
-        let manifesto_raw = manifesto_vigente(self.origem.as_ref(), &self.fonte, &self.recurso)
-            .await?
-            .ok_or_else(|| ErroDeIngestao::NaoEncontrado {
+        // 1-2. Procedência do raw + idempotência. Sem ingestão na origem não há o que
+        // refinar; bronze íntegro e na mesma versão do raw é reaproveitado.
+        let Some((manifesto_raw, versao_origem, reaproveitar)) = self.avaliar(bronze).await? else {
+            return Err(ErroDeIngestao::NaoEncontrado {
                 url: format!("raw/{}/{}", self.fonte, self.recurso),
-            })?;
-        let versao_origem = self.versao_de_origem(&manifesto_raw).await?;
-
-        // 2. Idempotência: bronze íntegro e na mesma versão do raw é reaproveitado.
-        if let Some(estado) = estado_na_raw(bronze, &self.fonte, &self.recurso).await?
-            && estado.completa
-            && estado.integra
-            && estado.versao.as_deref() == Some(versao_origem.as_str())
-        {
+            });
+        };
+        if reaproveitar {
             return Ok(ResumoDaTarefa {
                 reaproveitada: true,
                 ..ResumoDaTarefa::default()
@@ -378,6 +404,31 @@ mod testes {
 
         assert!(!depois.reaproveitada, "raw mudou: deveria reprocessar");
         assert_eq!(depois.partes, 1);
+    }
+
+    #[tokio::test]
+    async fn pendente_reflete_se_ha_trabalho() {
+        let raw = Arc::new(RawEmMemoria::default());
+        semear_raw(&raw, "etag-1");
+        let bronze = Arc::new(RawEmMemoria::default());
+
+        // Antes de refinar há trabalho; depois fica em dia; se o raw muda, volta a pender.
+        assert!(tarefa(raw.clone()).pendente(bronze.as_ref()).await.unwrap());
+        tarefa(raw.clone())
+            .executar(&contexto(bronze.clone(), "BR1"))
+            .await
+            .unwrap();
+        assert!(!tarefa(raw.clone()).pendente(bronze.as_ref()).await.unwrap());
+
+        semear_raw(&raw, "etag-2");
+        assert!(tarefa(raw.clone()).pendente(bronze.as_ref()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn nao_pende_sem_recurso_no_raw() {
+        let raw = Arc::new(RawEmMemoria::default());
+        let bronze = Arc::new(RawEmMemoria::default());
+        assert!(!tarefa(raw).pendente(bronze.as_ref()).await.unwrap());
     }
 
     #[tokio::test]
