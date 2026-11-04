@@ -17,15 +17,39 @@ const LINHAS_POR_LOTE: usize = 50_000;
 
 /// Decodifica, para UTF-8, os bytes de um CSV que pode estar em UTF-8 ou em Windows-1252
 /// (Latin-1). Tenta UTF-8 primeiro; se não for válido, assume Windows-1252, que nunca falha.
+/// Remove o BOM de UTF-8 quando presente (ex.: arquivos da Câmara).
 fn para_utf8(bytes: &[u8]) -> String {
-    match std::str::from_utf8(bytes) {
+    let mut texto = match std::str::from_utf8(bytes) {
         Ok(texto) => texto.to_owned(),
         Err(_) => encoding_rs::WINDOWS_1252.decode(bytes).0.into_owned(),
+    };
+    if texto.starts_with('\u{feff}') {
+        texto.drain(..'\u{feff}'.len_utf8());
     }
+    texto
 }
 
-/// Lê um CSV (já em UTF-8) com o delimitador dado e grava Parquet em lotes.
-fn parquet_de_csv(texto: &str, delimitador: u8) -> Result<Vec<u8>, ErroDeRefino> {
+/// Descarta `n` linhas físicas do início do texto (preâmbulo antes do cabeçalho, ex.: a
+/// linha "ULTIMA ATUALIZACAO" do CEAPS do Senado).
+fn descartar_linhas(texto: &str, n: usize) -> &str {
+    let mut resto = texto;
+    for _ in 0..n {
+        match resto.find('\n') {
+            Some(fim) => resto = &resto[fim + 1..],
+            None => return "",
+        }
+    }
+    resto
+}
+
+/// Lê um CSV (já em UTF-8) com o delimitador dado e grava Parquet em lotes. `linhas_a_pular`
+/// descarta um preâmbulo antes do cabeçalho.
+fn parquet_de_csv(
+    texto: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<u8>, ErroDeRefino> {
+    let texto = descartar_linhas(texto, linhas_a_pular);
     let mut leitor = csv::ReaderBuilder::new()
         .delimiter(delimitador)
         .flexible(true)
@@ -85,7 +109,7 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
         entrada.read_to_end(&mut conteudo)?;
         let texto = para_utf8(&conteudo);
         drop(conteudo);
-        let parquet = parquet_de_csv(&texto, delimitador)?;
+        let parquet = parquet_de_csv(&texto, delimitador, 0)?;
         partes.push(ParteBronze::nova(nome_logico(&nome_interno), parquet));
     }
 
@@ -95,6 +119,19 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
         ));
     }
     Ok(partes)
+}
+
+/// Decodifica um CSV "solto" (não zipado) em uma única parte Parquet, com o `nome` lógico
+/// dado. `linhas_a_pular` descarta um preâmbulo antes do cabeçalho (ex.: CEAPS do Senado).
+pub fn partes_de_csv(
+    bytes: &[u8],
+    nome: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    let texto = para_utf8(bytes);
+    let parquet = parquet_de_csv(&texto, delimitador, linhas_a_pular)?;
+    Ok(vec![ParteBronze::nova(nome, parquet)])
 }
 
 #[cfg(test)]
