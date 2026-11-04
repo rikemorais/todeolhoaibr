@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Bronze para fontes em **JSON de API**, via um `DecodificadorJson` genérico (array de registros no topo ou sob uma chave; campos viram colunas de texto, aninhados viram JSON compacto): `bcb`, `ipeadata`, `camara-tramitacoes`, `camara-deputados`, `camara-partidos`, `camara-legislaturas`, `ibge-estados`, `ibge-regioes`, `ibge-municipios`, `senado-processos` e `senado-votacoes` ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
+
 ## [0.18.0] - 2026-11-04
 
 ### Adicionado
