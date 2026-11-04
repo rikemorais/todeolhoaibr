@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
-use crate::fontes::{DecodificadorCsv, DecodificadorZipCsv};
+use crate::fontes::{DecodificadorCsv, DecodificadorJson, DecodificadorZipCsv};
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
 pub struct FonteDeRefino {
@@ -64,6 +64,78 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "camara",
             prefixo_recurso: "votacoes/",
             cria_decodificador: || Arc::new(DecodificadorCsv::novo("votacoes", b';', 0)),
+        },
+        // --- JSON de API: array de registros (no topo, ou sob uma chave) ---
+        // BCB (SGS): array no topo [{data, valor}].
+        FonteDeRefino {
+            nome: "bcb",
+            fonte_raw: "bcb",
+            prefixo_recurso: "series/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("serie")),
+        },
+        // Ipeadata (OData): registros sob a chave `value`.
+        FonteDeRefino {
+            nome: "ipeadata",
+            fonte_raw: "ipeadata",
+            prefixo_recurso: "series/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("serie", "value")),
+        },
+        // APIs de dados abertos da Câmara: registros sob a chave `dados`.
+        FonteDeRefino {
+            nome: "camara-tramitacoes",
+            fonte_raw: "camara",
+            prefixo_recurso: "tramitacoes/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("tramitacoes", "dados")),
+        },
+        FonteDeRefino {
+            nome: "camara-deputados",
+            fonte_raw: "camara",
+            prefixo_recurso: "deputados/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("deputados", "dados")),
+        },
+        FonteDeRefino {
+            nome: "camara-partidos",
+            fonte_raw: "camara",
+            prefixo_recurso: "partidos/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("partidos", "dados")),
+        },
+        FonteDeRefino {
+            nome: "camara-legislaturas",
+            fonte_raw: "camara",
+            prefixo_recurso: "legislaturas/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("legislaturas", "dados")),
+        },
+        // Listas do IBGE (localidades): array de objetos no topo.
+        FonteDeRefino {
+            nome: "ibge-estados",
+            fonte_raw: "ibge",
+            prefixo_recurso: "estados/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("estados")),
+        },
+        FonteDeRefino {
+            nome: "ibge-regioes",
+            fonte_raw: "ibge",
+            prefixo_recurso: "regioes/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("regioes")),
+        },
+        FonteDeRefino {
+            nome: "ibge-municipios",
+            fonte_raw: "ibge",
+            prefixo_recurso: "municipios/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("municipios")),
+        },
+        // Senado (dados abertos): array de objetos no topo.
+        FonteDeRefino {
+            nome: "senado-processos",
+            fonte_raw: "senado",
+            prefixo_recurso: "processos/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("processos")),
+        },
+        FonteDeRefino {
+            nome: "senado-votacoes",
+            fonte_raw: "senado",
+            prefixo_recurso: "votacoes/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("votacoes")),
         },
     ]
 }

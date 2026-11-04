@@ -59,6 +59,17 @@ O catálogo de refino cresce por fonte. Hoje:
 | `camara-votacoes` | `camara/votacoes/*` | CSV solto (`;`, UTF-8 com BOM) |
 | `tse-candidaturas` | `tse/candidaturas/*` | ZIP + CSVs por UF (`;`, Latin-1) |
 | `tse-bens` | `tse/bens/*` | ZIP + CSVs por UF (`;`, Latin-1) |
+| `bcb` | `bcb/series/*` | JSON (array no topo) |
+| `ipeadata` | `ipeadata/series/*` | JSON (array em `value`) |
+| `camara-tramitacoes` | `camara/tramitacoes/*` | JSON (array em `dados`) |
+| `camara-deputados` | `camara/deputados/*` | JSON (array em `dados`) |
+| `camara-partidos` | `camara/partidos/*` | JSON (array em `dados`) |
+| `camara-legislaturas` | `camara/legislaturas/*` | JSON (array em `dados`) |
+| `ibge-estados` | `ibge/estados/*` | JSON (array no topo) |
+| `ibge-regioes` | `ibge/regioes/*` | JSON (array no topo) |
+| `ibge-municipios` | `ibge/municipios/*` | JSON (array no topo) |
+| `senado-processos` | `senado/processos/*` | JSON (array no topo) |
+| `senado-votacoes` | `senado/votacoes/*` | JSON (array no topo) |
 
 ## Consultar o bronze
 
