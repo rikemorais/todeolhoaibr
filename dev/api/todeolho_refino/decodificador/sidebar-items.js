@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["TabelaNomeada"],"trait":["Decodificador"]};
+window.SIDEBAR_ITEMS = {"struct":["ParteBronze"],"trait":["Decodificador"]};
