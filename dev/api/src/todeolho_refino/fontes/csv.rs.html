@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a><span class="attr">#[cfg(test)]
 <a href=#41 id=41 data-nosnippet>41</a></span><span class="kw">mod </span>testes {
 <a href=#42 id=42 data-nosnippet>42</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">use </span><span class="kw">crate</span>::csv_zip::testes::ler_parquet;
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">use </span><span class="kw">crate</span>::csv_zip::testes::ler_parte;
 <a href=#44 id=44 data-nosnippet>44</a>
 <a href=#45 id=45 data-nosnippet>45</a>    <span class="kw">fn </span>c(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
 <a href=#46 id=46 data-nosnippet>46</a>        <span class="prelude-val">Some</span>(s.to_owned())
@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a>            .unwrap();
 <a href=#56 id=56 data-nosnippet>56</a>        <span class="macro">assert_eq!</span>(partes.len(), <span class="number">1</span>);
 <a href=#57 id=57 data-nosnippet>57</a>        <span class="macro">assert_eq!</span>(partes[<span class="number">0</span>].nome, <span class="string">"despesas"</span>);
-<a href=#58 id=58 data-nosnippet>58</a>        <span class="kw">let </span>(colunas, linhas) = ler_parquet(<span class="kw-2">&amp;</span>partes[<span class="number">0</span>].parquet);
+<a href=#58 id=58 data-nosnippet>58</a>        <span class="kw">let </span>(colunas, linhas) = ler_parte(<span class="kw-2">&amp;</span>partes[<span class="number">0</span>]);
 <a href=#59 id=59 data-nosnippet>59</a>        <span class="macro">assert_eq!</span>(colunas, <span class="macro">vec!</span>[<span class="string">"ano"</span>, <span class="string">"valor"</span>]);
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="macro">assert_eq!</span>(linhas, <span class="macro">vec!</span>[<span class="macro">vec!</span>[c(<span class="string">"2014"</span>), c(<span class="string">"52,38"</span>)]]);
 <a href=#61 id=61 data-nosnippet>61</a>    }
@@ -68,7 +68,7 @@
 <a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">let </span>partes = DecodificadorCsv::novo(<span class="string">"votacoes"</span>, <span class="string">b';'</span>, <span class="number">0</span>)
 <a href=#69 id=69 data-nosnippet>69</a>            .decodificar(<span class="kw-2">&amp;</span>csv, <span class="string">"application/octet-stream"</span>)
 <a href=#70 id=70 data-nosnippet>70</a>            .unwrap();
-<a href=#71 id=71 data-nosnippet>71</a>        <span class="kw">let </span>(colunas, linhas) = ler_parquet(<span class="kw-2">&amp;</span>partes[<span class="number">0</span>].parquet);
+<a href=#71 id=71 data-nosnippet>71</a>        <span class="kw">let </span>(colunas, linhas) = ler_parte(<span class="kw-2">&amp;</span>partes[<span class="number">0</span>]);
 <a href=#72 id=72 data-nosnippet>72</a>        <span class="macro">assert_eq!</span>(colunas, <span class="macro">vec!</span>[<span class="string">"idVotacao"</span>, <span class="string">"orientacao"</span>]);
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="macro">assert_eq!</span>(linhas, <span class="macro">vec!</span>[<span class="macro">vec!</span>[c(<span class="string">"1"</span>), c(<span class="string">"Sim"</span>)]]);
 <a href=#74 id=74 data-nosnippet>74</a>    }

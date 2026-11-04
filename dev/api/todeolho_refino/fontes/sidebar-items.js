@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["camara_despesas","csv"]};
+window.SIDEBAR_ITEMS = {"mod":["csv","zip_csv"]};
