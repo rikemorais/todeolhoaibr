@@ -7,6 +7,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Bronze para os pacotes do **TSE** (ZIP com vários CSVs por UF, `;`, Latin-1): `tse-candidaturas` e `tse-bens`. Um `DecodificadorZipCsv` parametrizável passa a atender tanto a CEAP da Câmara quanto o TSE (o decodificador específico da Câmara foi removido). `tse-prestacao-contas` ficou de fora por ora (CSVs consolidados de vários GB e anos antigos em `.txt` aninhado — [issue #171](https://github.com/rikemorais/todeolhoaibr/issues/171)) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
+
+### Corrigido
+
+- Refino não estoura mais a memória em ZIPs com muitas tabelas (ex.: um CSV por UF no TSE): cada Parquet decodificado vai para um **arquivo temporário em disco** assim que é gerado, e o envio ao bronze lê uma parte por vez, em vez de manter todas em memória ([issue #164](https://github.com/rikemorais/todeolhoaibr/issues/164)).
+
 ## [0.17.0] - 2026-11-04
 
 ### Adicionado
