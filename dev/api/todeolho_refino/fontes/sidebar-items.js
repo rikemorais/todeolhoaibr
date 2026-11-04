@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["camara_despesas"]};
+window.SIDEBAR_ITEMS = {"mod":["camara_despesas","csv"]};
