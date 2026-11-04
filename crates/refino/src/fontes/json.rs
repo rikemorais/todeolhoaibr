@@ -14,22 +14,20 @@ use crate::escritor::{ErroDeRefino, Tabela};
 /// Decodifica um JSON de API em uma parte Parquet, a partir do array de registros.
 pub struct DecodificadorJson {
     nome: &'static str,
-    /// Chave do array de registros; `None` quando o array está no topo.
-    raiz: Option<&'static str>,
+    /// Caminho de chaves até o array de registros; vazio = array no topo.
+    caminho: &'static [&'static str],
 }
 
 impl DecodificadorJson {
     /// Para JSON cujo array de registros está no **topo** (ex.: `bcb`).
     pub const fn novo(nome: &'static str) -> Self {
-        Self { nome, raiz: None }
+        Self { nome, caminho: &[] }
     }
 
-    /// Para JSON cujo array de registros está **sob uma chave** (ex.: `value`, `dados`).
-    pub const fn com_raiz(nome: &'static str, raiz: &'static str) -> Self {
-        Self {
-            nome,
-            raiz: Some(raiz),
-        }
+    /// Para JSON cujo array está sob um **caminho** de chaves (ex.: `["value"]`, `["dados"]`,
+    /// ou aninhado como `["ListaParlamentarLegislatura", "Parlamentares", "Parlamentar"]`).
+    pub const fn com_caminho(nome: &'static str, caminho: &'static [&'static str]) -> Self {
+        Self { nome, caminho }
     }
 }
 
@@ -53,15 +51,16 @@ impl Decodificador for DecodificadorJson {
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
         let raiz: Value = serde_json::from_slice(bytes)
             .map_err(|erro| ErroDeRefino::Decodificacao(format!("JSON inválido: {erro}")))?;
-        let registros = match self.raiz {
-            Some(chave) => raiz.get(chave),
-            None => Some(&raiz),
-        };
-        let Some(Value::Array(registros)) = registros else {
-            let onde = self
-                .raiz
-                .map(|chave| format!(" na chave '{chave}'"))
-                .unwrap_or_default();
+        let mut atual = Some(&raiz);
+        for chave in self.caminho {
+            atual = atual.and_then(|v| v.get(chave));
+        }
+        let Some(Value::Array(registros)) = atual else {
+            let onde = if self.caminho.is_empty() {
+                String::new()
+            } else {
+                format!(" em '{}'", self.caminho.join("."))
+            };
             return Err(ErroDeRefino::Decodificacao(format!(
                 "esperava um array de registros{onde}"
             )));
@@ -123,7 +122,7 @@ mod testes {
     #[test]
     fn decodifica_array_sob_uma_chave_com_numeros_e_nulos() {
         let json = br#"{"value":[{"a":5.78,"b":"x"},{"a":null,"b":"y","c":true}]}"#;
-        let partes = DecodificadorJson::com_raiz("v", "value")
+        let partes = DecodificadorJson::com_caminho("v", &["value"])
             .decodificar(json, "application/json")
             .unwrap();
         let (colunas, linhas) = ler_parte(&partes[0]);
@@ -145,8 +144,19 @@ mod testes {
     }
 
     #[test]
+    fn decodifica_array_em_caminho_profundo() {
+        let json = br#"{"raiz":{"meio":{"itens":[{"a":"1"},{"a":"2"}]}}}"#;
+        let partes = DecodificadorJson::com_caminho("x", &["raiz", "meio", "itens"])
+            .decodificar(json, "application/json")
+            .unwrap();
+        let (colunas, linhas) = ler_parte(&partes[0]);
+        assert_eq!(colunas, vec!["a"]);
+        assert_eq!(linhas, vec![vec![c("1")], vec![c("2")]]);
+    }
+
+    #[test]
     fn falha_quando_nao_ha_array() {
-        let erro = DecodificadorJson::com_raiz("x", "dados")
+        let erro = DecodificadorJson::com_caminho("x", &["dados"])
             .decodificar(b"{\"dados\":{}}", "application/json")
             .unwrap_err();
         assert!(matches!(erro, ErroDeRefino::Decodificacao(_)), "{erro:?}");

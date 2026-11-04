@@ -80,32 +80,38 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             nome: "ipeadata",
             fonte_raw: "ipeadata",
             prefixo_recurso: "series/",
-            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("serie", "value")),
+            cria_decodificador: || Arc::new(DecodificadorJson::com_caminho("serie", &["value"])),
         },
         // APIs de dados abertos da Câmara: registros sob a chave `dados`.
         FonteDeRefino {
             nome: "camara-tramitacoes",
             fonte_raw: "camara",
             prefixo_recurso: "tramitacoes/",
-            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("tramitacoes", "dados")),
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho("tramitacoes", &["dados"]))
+            },
         },
         FonteDeRefino {
             nome: "camara-deputados",
             fonte_raw: "camara",
             prefixo_recurso: "deputados/",
-            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("deputados", "dados")),
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho("deputados", &["dados"]))
+            },
         },
         FonteDeRefino {
             nome: "camara-partidos",
             fonte_raw: "camara",
             prefixo_recurso: "partidos/",
-            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("partidos", "dados")),
+            cria_decodificador: || Arc::new(DecodificadorJson::com_caminho("partidos", &["dados"])),
         },
         FonteDeRefino {
             nome: "camara-legislaturas",
             fonte_raw: "camara",
             prefixo_recurso: "legislaturas/",
-            cria_decodificador: || Arc::new(DecodificadorJson::com_raiz("legislaturas", "dados")),
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho("legislaturas", &["dados"]))
+            },
         },
         // Listas do IBGE (localidades): array de objetos no topo.
         FonteDeRefino {
@@ -138,6 +144,22 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "senado",
             prefixo_recurso: "votacoes/",
             cria_decodificador: || Arc::new(DecodificadorJson::novo("votacoes")),
+        },
+        // Senadores por legislatura: array aninhado fundo no JSON do Senado.
+        FonteDeRefino {
+            nome: "senado-parlamentares",
+            fonte_raw: "senado",
+            prefixo_recurso: "parlamentares/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho(
+                    "parlamentares",
+                    &[
+                        "ListaParlamentarLegislatura",
+                        "Parlamentares",
+                        "Parlamentar",
+                    ],
+                ))
+            },
         },
         // --- IBGE agregados (API v3): série aninhada explodida em linhas ---
         FonteDeRefino {
