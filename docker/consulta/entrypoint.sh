@@ -1,8 +1,9 @@
 #!/bin/sh
 # Ponto de entrada do serviço de consulta (DuckDB). Monta o init SQL (extensões,
-# limites, segredo S3 do versitygw e as views do bronze) e sobe a UI ou o SQL.
+# limites, segredo S3 do versitygw e as views do bronze) e sobe o console web, a UI ou o SQL.
 #
-#   ui   (padrão)  Sobe a DuckDB Local UI; fica em primeiro plano.
+#   web  (padrão)  Sobe o console SQL web (nosso, self-hosted) em primeiro plano.
+#   ui             Sobe a DuckDB Local UI (frontend vem de ui.duckdb.org; instável — ver #167).
 #   sql            Abre o CLI do DuckDB já com as views carregadas (offline).
 #   <cmd...>       Executa o comando como veio (escape hatch).
 set -eu
@@ -12,29 +13,15 @@ BANCO="${TODEOLHO_DUCKDB_BANCO:-/tmp/consulta.duckdb}"
 UI_PORT_INTERNO="${TODEOLHO_UI_PORT_INTERNO:-4200}"
 UI_PORT="${TODEOLHO_UI_PORT:-4213}"
 
-# A UI faz bind em 127.0.0.1 dentro do container; servimos o init num arquivo.
-{
-    echo "INSTALL httpfs; LOAD httpfs;"
-    echo "INSTALL parquet; LOAD parquet;"
-    echo "SET memory_limit = '${TODEOLHO_DUCKDB_MEMORIA:-384MB}';"
-    echo "SET threads = ${TODEOLHO_DUCKDB_THREADS:-2};"
-    # Segredo opcional: permite consultar via s3://bronze/... além do filesystem.
-    cat <<SQL
-CREATE OR REPLACE SECRET versitygw (
-  TYPE s3,
-  KEY_ID '${TODEOLHO_S3_CHAVE_DE_ACESSO:-todeolho}',
-  SECRET '${TODEOLHO_S3_CHAVE_SECRETA:-todeolho-local}',
-  ENDPOINT '${TODEOLHO_S3_ENDPOINT_HOST:-armazenamento:7070}',
-  URL_STYLE 'path',
-  USE_SSL false,
-  REGION '${TODEOLHO_S3_REGIAO:-sa-east-1}'
-);
-SQL
-    python3 /app/gerar_views.py
-} >"$INIT"
-
-case "${1:-ui}" in
+case "${1:-web}" in
+web)
+    # O console constrói seu próprio prefixo (views por filesystem); não usa o init.
+    export TODEOLHO_CONSULTA_PORTA_INTERNA="${UI_PORT}"
+    exec python3 /app/servidor.py
+    ;;
 ui)
+    # Gera o init SQL (extensões, limites, segredo S3 e as views do bronze) num arquivo.
+    sh /app/gerar_init.sh >"$INIT"
     echo "SET ui_local_port = ${UI_PORT_INTERNO};" >>"$INIT"
     echo "CALL start_ui_server();" >>"$INIT"
     # A UI faz bind em localhost -> ::1 (loopback IPv6); a ponte a expõe na porta
@@ -45,6 +32,7 @@ ui)
     exec sh -c "tail -f /dev/null | duckdb '${BANCO}' -init '${INIT}'"
     ;;
 sql)
+    sh /app/gerar_init.sh >"$INIT"
     exec duckdb "${BANCO}" -init "${INIT}"
     ;;
 *)
