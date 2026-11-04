@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Camada **bronze** do medalhão: o novo crate `refino` decodifica a camada `raw` (descompacta ZIP, reencoda para UTF-8, parseia CSV/JSON) e grava **Parquet** no bucket `bronze`, 1:1 com a origem e sem regra de negócio. O comando `todeolho refinar bronze <fonte>` descobre os recursos ingeridos, roda no mesmo executor e painel da ingestão, e é idempotente (só reprocessa quando o `raw` muda). Primeira fonte: `camara-despesas`. As tabelas são consultadas com DuckDB ([ADR 0018](docs/adr/0018-motor-de-consulta-duckdb.md)) ([issue #151](https://github.com/rikemorais/todeolhoaibr/issues/151)).
+
 ## [0.15.0] - 2026-11-03
 
 ### Adicionado

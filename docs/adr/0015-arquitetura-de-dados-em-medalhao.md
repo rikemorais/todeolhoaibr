@@ -1,7 +1,7 @@
 # 0015. Arquitetura de dados em medalhão: raw → bronze → silver → gold → diamond
 
-- **Status:** Proposto
-- **Data:** 2026-11-01
+- **Status:** Aceito
+- **Data:** 2026-11-01 (aceito em 2026-11-03, com a materialização do `bronze`)
 
 ## Contexto
 

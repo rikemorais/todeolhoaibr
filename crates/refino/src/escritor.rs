@@ -9,13 +9,85 @@
 
 use std::sync::Arc;
 
-use arrow::array::StringArray;
+use arrow::array::{ArrayRef, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use parquet::arrow::ArrowWriter;
 use parquet::basic::{Compression, ZstdLevel};
 use parquet::file::properties::WriterProperties;
 use thiserror::Error;
+
+/// Monta o esquema (todas as colunas `Utf8`, anuláveis) a partir dos nomes.
+fn esquema_de(colunas: &[String]) -> Arc<Schema> {
+    let campos: Vec<Field> = colunas
+        .iter()
+        .map(|nome| Field::new(nome, DataType::Utf8, true))
+        .collect();
+    Arc::new(Schema::new(campos))
+}
+
+/// Converte um lote de linhas de texto em arrays Arrow (um `StringArray` por coluna).
+fn arrays_de_linhas(linhas: &[Vec<Option<String>>], num_colunas: usize) -> Vec<ArrayRef> {
+    (0..num_colunas)
+        .map(|c| {
+            let coluna: StringArray = linhas.iter().map(|linha| linha[c].clone()).collect();
+            Arc::new(coluna) as ArrayRef
+        })
+        .collect()
+}
+
+/// Escreve Parquet **em lotes** (um row group por lote), sem manter a tabela inteira em
+/// memória. É o caminho do bronze para arquivos grandes: o decodificador alimenta lotes de
+/// algumas dezenas de milhares de linhas e o pico de memória fica no tamanho de um lote.
+pub struct EscritorParquet {
+    escritor: ArrowWriter<Vec<u8>>,
+    esquema: Arc<Schema>,
+    num_colunas: usize,
+}
+
+impl EscritorParquet {
+    /// Cria um escritor para as colunas dadas (todas `Utf8`).
+    pub fn novo(colunas: &[String]) -> Result<Self, ErroDeRefino> {
+        let esquema = esquema_de(colunas);
+        let propriedades = WriterProperties::builder()
+            .set_compression(Compression::ZSTD(ZstdLevel::default()))
+            .build();
+        let escritor = ArrowWriter::try_new(Vec::new(), Arc::clone(&esquema), Some(propriedades))?;
+        Ok(Self {
+            escritor,
+            esquema,
+            num_colunas: colunas.len(),
+        })
+    }
+
+    /// Escreve um lote de linhas como um row group. Linhas devem ter uma célula por coluna.
+    pub fn escrever_lote(&mut self, linhas: &[Vec<Option<String>>]) -> Result<(), ErroDeRefino> {
+        if linhas.is_empty() {
+            return Ok(());
+        }
+        if let Some((indice, linha)) = linhas
+            .iter()
+            .enumerate()
+            .find(|(_, l)| l.len() != self.num_colunas)
+        {
+            return Err(ErroDeRefino::LinhaForaDoFormato {
+                linha: indice,
+                celulas: linha.len(),
+                colunas: self.num_colunas,
+            });
+        }
+        let colunas = arrays_de_linhas(linhas, self.num_colunas);
+        let lote = RecordBatch::try_new(Arc::clone(&self.esquema), colunas)?;
+        self.escritor.write(&lote)?;
+        Ok(())
+    }
+
+    /// Fecha o Parquet e devolve os bytes. Um escritor sem lotes gera um Parquet válido e
+    /// vazio (só o esquema).
+    pub fn finalizar(self) -> Result<Vec<u8>, ErroDeRefino> {
+        Ok(self.escritor.into_inner()?)
+    }
+}
 
 /// Falhas ao converter uma [`Tabela`] em Parquet.
 #[derive(Debug, Error)]
@@ -77,59 +149,18 @@ impl Tabela {
         self
     }
 
-    fn esquema(&self) -> Schema {
-        let campos: Vec<Field> = self
-            .colunas
-            .iter()
-            .map(|nome| Field::new(nome, DataType::Utf8, true))
-            .collect();
-        Schema::new(campos)
-    }
-
     /// Serializa a tabela em Parquet (bytes), com todas as colunas como texto.
     ///
-    /// Usa compressão Zstd — o Parquet é guardado no armazenamento, então vale trocar um
-    /// pouco de CPU por espaço.
+    /// Caminho conveniente para tabelas pequenas (JSON, testes). Arquivos grandes usam o
+    /// [`EscritorParquet`] em lotes, para não manter tudo em memória.
     ///
     /// # Erros
     ///
     /// Falha se alguma linha não tiver exatamente uma célula por coluna.
     pub fn para_parquet(&self) -> Result<Vec<u8>, ErroDeRefino> {
-        let esquema = Arc::new(self.esquema());
-        let num_colunas = self.colunas.len();
-
-        for (indice, linha) in self.linhas.iter().enumerate() {
-            if linha.len() != num_colunas {
-                return Err(ErroDeRefino::LinhaForaDoFormato {
-                    linha: indice,
-                    celulas: linha.len(),
-                    colunas: num_colunas,
-                });
-            }
-        }
-
-        let colunas: Vec<arrow::array::ArrayRef> = (0..num_colunas)
-            .map(|c| {
-                let coluna: StringArray =
-                    self.linhas.iter().map(|linha| linha[c].clone()).collect();
-                Arc::new(coluna) as arrow::array::ArrayRef
-            })
-            .collect();
-
-        let propriedades = WriterProperties::builder()
-            .set_compression(Compression::ZSTD(ZstdLevel::default()))
-            .build();
-
-        let mut buffer = Vec::new();
-        let mut escritor =
-            ArrowWriter::try_new(&mut buffer, Arc::clone(&esquema), Some(propriedades))?;
-        // Sem linhas ainda assim gravamos só o esquema: um Parquet válido e vazio.
-        if !self.linhas.is_empty() {
-            let lote = RecordBatch::try_new(esquema, colunas)?;
-            escritor.write(&lote)?;
-        }
-        escritor.close()?;
-        Ok(buffer)
+        let mut escritor = EscritorParquet::novo(&self.colunas)?;
+        escritor.escrever_lote(&self.linhas)?;
+        escritor.finalizar()
     }
 }
 

@@ -1,36 +1,42 @@
-//! O contrato que cada fonte implementa para traduzir seus bytes do raw em tabelas.
+//! O contrato que cada fonte implementa para traduzir seus bytes do raw em Parquet.
 //!
 //! O [`Decodificador`] é o único lugar que conhece o **formato** de uma fonte (ZIP, CSV
 //! em Latin-1, JSON de API) — o conhecimento que o [ADR 0014] mantém fora da ingestão.
-//! Ele não grava nada: só transforma bytes em [`Tabela`]s; a `TarefaDeBronze` cuida de
-//! ler o raw e gravar o Parquet.
+//! Ele devolve o Parquet **já pronto** (uma [`ParteBronze`] por tabela), para poder
+//! escrever em lotes e não manter arquivos grandes inteiros em memória.
 //!
 //! [ADR 0014]: ../../docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md
 
 use crate::escritor::{ErroDeRefino, Tabela};
 
-/// Uma tabela com o nome lógico que ela terá no bronze (ex.: o CSV interno de um ZIP).
+/// Uma tabela do bronze já serializada em Parquet, com o nome lógico que terá.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TabelaNomeada {
-    /// Nome lógico (vira parte da procedência; um CSV por tabela, por exemplo).
+pub struct ParteBronze {
+    /// Nome lógico (ex.: o CSV interno de um ZIP; vira parte da procedência).
     pub nome: String,
-    /// A tabela colunar em si.
-    pub tabela: Tabela,
+    /// Bytes do Parquet.
+    pub parquet: Vec<u8>,
 }
 
-impl TabelaNomeada {
-    /// Cria uma tabela nomeada.
-    pub fn nova(nome: impl Into<String>, tabela: Tabela) -> Self {
+impl ParteBronze {
+    /// Cria a parte a partir de bytes de Parquet já prontos.
+    pub fn nova(nome: impl Into<String>, parquet: Vec<u8>) -> Self {
         Self {
             nome: nome.into(),
-            tabela,
+            parquet,
         }
+    }
+
+    /// Conveniência para decodificadores que montam uma [`Tabela`] pequena (ex.: JSON):
+    /// serializa a tabela em Parquet e empacota como parte.
+    pub fn de_tabela(nome: impl Into<String>, tabela: &Tabela) -> Result<Self, ErroDeRefino> {
+        Ok(Self::nova(nome, tabela.para_parquet()?))
     }
 }
 
-/// Traduz os bytes de **um part** do raw em uma ou mais tabelas.
+/// Traduz os bytes de **um part** do raw em uma ou mais partes de bronze (Parquet).
 ///
-/// Um recurso de API costuma render uma tabela; um ZIP com vários CSVs rende uma por CSV.
+/// Um recurso de API costuma render uma parte; um ZIP com vários CSVs rende uma por CSV.
 pub trait Decodificador: Send + Sync {
     /// Decodifica os bytes de um part do raw, usando o `tipo_de_conteudo` registrado no
     /// manifesto quando precisar distinguir formatos.
@@ -38,5 +44,5 @@ pub trait Decodificador: Send + Sync {
         &self,
         bytes: &[u8],
         tipo_de_conteudo: &str,
-    ) -> Result<Vec<TabelaNomeada>, ErroDeRefino>;
+    ) -> Result<Vec<ParteBronze>, ErroDeRefino>;
 }
