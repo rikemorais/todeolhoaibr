@@ -124,6 +124,7 @@ nav:
       - adr/0016-documentacao-com-material-for-mkdocs.md
       - adr/0017-fontes-organizadas-por-pasta.md
       - adr/0018-motor-de-consulta-duckdb.md
+      - adr/0019-disparo-do-bronze-por-reconciliacao.md
       - Modelo de ADR: adr/modelo.md
   - Refino:
       - refino/bronze.md

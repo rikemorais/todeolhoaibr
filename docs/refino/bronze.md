@@ -30,9 +30,23 @@ Um ZIP com N CSVs vira N Parquets, nomeados pelo CSV interno (registrado no mani
 ```bash
 # Decodifica para bronze os recursos já ingeridos de uma fonte
 docker compose run --rm refino refinar bronze camara-despesas
+
+# Ou todas as fontes do catálogo de refino de uma vez
+docker compose run --rm refino refinar bronze --todas
 ```
 
 O serviço `refino` tem um `mem_limit` maior que o da ingestão porque decodificar CSV/JSON para colunar consome mais memória do que a ingestão, que vai em fluxo.
+
+### Disparo automático (reconciliação)
+
+O serviço `agendador` roda `refinar bronze --todas --intervalo <segundos>` em laço e sobe junto com o stack ([ADR 0019](../adr/0019-disparo-do-bronze-por-reconciliacao.md)). A cada passada ele compara a versão vigente do `raw` com o ponteiro do bronze e **só reprocessa o que mudou**; quando nada mudou, a passada é quase instantânea e **não registra execução no painel**.
+
+```bash
+# O agendador já sobe no 'up'; o intervalo (padrão 1h) é configurável:
+TODEOLHO_REFINO_INTERVALO=900 docker compose up -d agendador
+```
+
+Assim o bronze converge para o `raw` sem ninguém rodar o comando à mão — no pior caso, fica um intervalo atrás.
 
 ## Fontes cobertas
 
