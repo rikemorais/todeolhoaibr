@@ -81,11 +81,23 @@ fn parquet_de_csv(
     escritor.finalizar()
 }
 
-/// Nome lógico de um CSV interno do ZIP: o basename sem a extensão `.csv`.
+/// Extensões tabulares aceitas dentro do ZIP (o TSE usa `.csv` nos anos recentes e `.txt`
+/// nos antigos, com o mesmo formato `;`/Latin-1).
+fn e_tabular(nome: &str) -> bool {
+    let n = nome.to_ascii_lowercase();
+    n.ends_with(".csv") || n.ends_with(".txt")
+}
+
+/// Nome lógico de um arquivo interno do ZIP: o basename sem a extensão `.csv`/`.txt`.
 fn nome_logico(nome_interno: &str) -> String {
     let base = nome_interno.rsplit('/').next().unwrap_or(nome_interno);
     match base.len() {
-        n if n >= 4 && base[n - 4..].eq_ignore_ascii_case(".csv") => base[..n - 4].to_owned(),
+        n if n >= 4
+            && (base[n - 4..].eq_ignore_ascii_case(".csv")
+                || base[n - 4..].eq_ignore_ascii_case(".txt")) =>
+        {
+            base[..n - 4].to_owned()
+        }
         _ => base.to_owned(),
     }
 }
@@ -102,7 +114,7 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
             continue;
         }
         let nome_interno = entrada.name()?.into_owned();
-        if !nome_interno.to_ascii_lowercase().ends_with(".csv") {
+        if !e_tabular(&nome_interno) {
             continue;
         }
         let mut conteudo = Vec::new();
@@ -222,11 +234,19 @@ pub(crate) mod testes {
     }
 
     #[test]
+    fn aceita_txt_alem_de_csv() {
+        let partes =
+            partes_de_zip_csv(&zip_com("votacao_1998_BR.txt", b"a;b\n1;2\n"), b';').unwrap();
+        assert_eq!(partes.len(), 1);
+        assert_eq!(partes[0].nome, "votacao_1998_BR");
+    }
+
+    #[test]
     fn ignora_entradas_que_nao_sao_csv() {
         let mut buffer = Vec::new();
         {
             let mut zw = zip::ZipWriter::new(Cursor::new(&mut buffer));
-            zw.start_file("leia-me.txt", SimpleFileOptions::default())
+            zw.start_file("leia-me.pdf", SimpleFileOptions::default())
                 .unwrap();
             zw.write_all(b"ignore").unwrap();
             zw.start_file("dados.csv", SimpleFileOptions::default())
