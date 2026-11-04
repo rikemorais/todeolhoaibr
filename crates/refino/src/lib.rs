@@ -22,5 +22,7 @@ pub mod tarefa;
 pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, Tabela};
-pub use fontes::{DecodificadorCsv, DecodificadorJson, DecodificadorZipCsv};
+pub use fontes::{
+    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorZipCsv,
+};
 pub use tarefa::TarefaDeBronze;
