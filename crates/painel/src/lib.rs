@@ -137,6 +137,7 @@ mod testes {
         let instante = Utc::now() - atraso;
         RegistroDeExecucao {
             id: id.into(),
+            camada: todeolho_nucleo::Camada::Raw,
             iniciada_em: instante,
             atualizada_em: instante,
             concluida_em: None,

@@ -20,10 +20,10 @@ use todeolho_infraestrutura::{
     PoliticaDeRetentativas, espaco_livre_em,
 };
 use todeolho_nucleo::{
-    ArmazenamentoRaw, AvaliacaoDeEspaco, ContextoDeExecucao, DagDeIngestao, EspacoNecessario,
-    EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, PerfilHttp, PrecisaoDaEstimativa,
-    RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa, TarefaPlanejada,
-    estimar, formatar_bytes,
+    ArmazenamentoRaw, AvaliacaoDeEspaco, Camada, ContextoDeExecucao, DagDeIngestao,
+    EspacoNecessario, EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, PerfilHttp,
+    PrecisaoDaEstimativa, RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa,
+    TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{FonteDeRefino, TarefaDeBronze, catalogo_refino};
 use tracing_subscriber::EnvFilter;
@@ -374,7 +374,12 @@ async fn executar(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
 
     let registrador = Arc::new(RegistradorDeExecucao::novo(
-        RegistroDeExecucao::novo(&contexto.id_execucao, contexto.iniciada_em, &dags)?,
+        RegistroDeExecucao::novo(
+            &contexto.id_execucao,
+            Camada::Raw,
+            contexto.iniciada_em,
+            &dags,
+        )?,
         historico,
     ));
     registrador.publicar().await;
@@ -537,7 +542,7 @@ async fn passada(
     let historico = Arc::new(historico()?);
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
-        RegistroDeExecucao::novo(&contexto.id_execucao, iniciada_em, &dags)?,
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Bronze, iniciada_em, &dags)?,
         historico,
     ));
     registrador.publicar().await;

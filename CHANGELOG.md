@@ -9,6 +9,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+- O painel distingue a **camada** de cada execução com um selo **Raw** (ingestão) ou **Bronze** (refino), no cartão e no detalhe. Registros antigos, sem o campo, aparecem como `raw` ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 - Bronze para os pacotes do **TSE** (ZIP com vários CSVs por UF, `;`, Latin-1): `tse-candidaturas` e `tse-bens`. Um `DecodificadorZipCsv` parametrizável passa a atender tanto a CEAP da Câmara quanto o TSE (o decodificador específico da Câmara foi removido). `tse-prestacao-contas` ficou de fora por ora (CSVs consolidados de vários GB e anos antigos em `.txt` aninhado — [issue #171](https://github.com/rikemorais/todeolhoaibr/issues/171)) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 
 ### Corrigido
