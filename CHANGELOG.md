@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.18.0] - 2026-11-04
+
 ### Adicionado
 
 - **Console SQL web** próprio e self-hosted para o bronze, no serviço `consulta` (`docker compose up -d consulta` → `http://localhost:4213`): editor SQL + lista de tabelas, rodando DuckDB nativo sobre as views do bronze, sem depender da nuvem MotherDuck (que derrubava a UI oficial — [issue #167](https://github.com/rikemorais/todeolhoaibr/issues/167)). A Local UI oficial segue disponível em `docker compose run --rm --service-ports consulta ui`, e o CLI offline em `consulta sql`.
