@@ -7,30 +7,41 @@
 //!
 //! [ADR 0014]: ../../docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md
 
+use std::io::Write;
+
+use tempfile::{NamedTempFile, TempPath};
+
 use crate::escritor::{ErroDeRefino, Tabela};
 
-/// Uma tabela do bronze já serializada em Parquet, com o nome lógico que terá.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Uma tabela do bronze já serializada em Parquet, gravada em um **arquivo temporário em
+/// disco**, com o nome lógico que terá.
+///
+/// Guardar em disco — e não em memória — mantém o pico baixo mesmo quando um ZIP rende
+/// dezenas de partes (ex.: um CSV por UF nos pacotes do TSE); ver issue #164. O arquivo é
+/// apagado quando a parte é descartada.
+#[derive(Debug)]
 pub struct ParteBronze {
     /// Nome lógico (ex.: o CSV interno de um ZIP; vira parte da procedência).
     pub nome: String,
-    /// Bytes do Parquet.
-    pub parquet: Vec<u8>,
+    /// Caminho do Parquet em disco.
+    pub parquet: TempPath,
 }
 
 impl ParteBronze {
-    /// Cria a parte a partir de bytes de Parquet já prontos.
-    pub fn nova(nome: impl Into<String>, parquet: Vec<u8>) -> Self {
-        Self {
+    /// Cria a parte gravando os bytes do Parquet em um arquivo temporário.
+    pub fn nova(nome: impl Into<String>, parquet: &[u8]) -> Result<Self, ErroDeRefino> {
+        let mut arquivo = NamedTempFile::new()?;
+        arquivo.write_all(parquet)?;
+        Ok(Self {
             nome: nome.into(),
-            parquet,
-        }
+            parquet: arquivo.into_temp_path(),
+        })
     }
 
     /// Conveniência para decodificadores que montam uma [`Tabela`] pequena (ex.: JSON):
     /// serializa a tabela em Parquet e empacota como parte.
     pub fn de_tabela(nome: impl Into<String>, tabela: &Tabela) -> Result<Self, ErroDeRefino> {
-        Ok(Self::nova(nome, tabela.para_parquet()?))
+        Self::nova(nome, &tabela.para_parquet()?)
     }
 }
 

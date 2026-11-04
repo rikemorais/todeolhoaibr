@@ -110,7 +110,7 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
         let texto = para_utf8(&conteudo);
         drop(conteudo);
         let parquet = parquet_de_csv(&texto, delimitador, 0)?;
-        partes.push(ParteBronze::nova(nome_logico(&nome_interno), parquet));
+        partes.push(ParteBronze::nova(nome_logico(&nome_interno), &parquet)?);
     }
 
     if partes.is_empty() {
@@ -131,7 +131,7 @@ pub fn partes_de_csv(
 ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
     let texto = para_utf8(bytes);
     let parquet = parquet_de_csv(&texto, delimitador, linhas_a_pular)?;
-    Ok(vec![ParteBronze::nova(nome, parquet)])
+    Ok(vec![ParteBronze::nova(nome, &parquet)?])
 }
 
 #[cfg(test)]
@@ -153,7 +153,12 @@ pub(crate) mod testes {
         buffer
     }
 
-    /// Lê um Parquet de volta em (colunas, linhas) para as asserções.
+    /// Lê o Parquet de uma [`ParteBronze`] (em disco) de volta em (colunas, linhas).
+    pub(crate) fn ler_parte(parte: &ParteBronze) -> (Vec<String>, Vec<Vec<Option<String>>>) {
+        ler_parquet(&std::fs::read(&parte.parquet).unwrap())
+    }
+
+    /// Lê um Parquet (bytes) de volta em (colunas, linhas) para as asserções.
     pub(crate) fn ler_parquet(bytes: &[u8]) -> (Vec<String>, Vec<Vec<Option<String>>>) {
         let builder =
             ParquetRecordBatchReaderBuilder::try_new(bytes::Bytes::from(bytes.to_vec())).unwrap();
@@ -197,7 +202,7 @@ pub(crate) mod testes {
         let partes = partes_de_zip_csv(&zip_com("Ano-2024.csv", csv.as_bytes()), b';').unwrap();
         assert_eq!(partes.len(), 1);
         assert_eq!(partes[0].nome, "Ano-2024");
-        let (colunas, linhas) = ler_parquet(&partes[0].parquet);
+        let (colunas, linhas) = ler_parte(&partes[0]);
         assert_eq!(colunas, vec!["id", "nome"]);
         assert_eq!(
             linhas,
@@ -212,7 +217,7 @@ pub(crate) mod testes {
         csv.extend_from_slice(&[0x4A, 0x6F, 0xE3, 0x6F]);
         csv.push(b'\n');
         let partes = partes_de_zip_csv(&zip_com("x.csv", &csv), b';').unwrap();
-        let (_, linhas) = ler_parquet(&partes[0].parquet);
+        let (_, linhas) = ler_parte(&partes[0]);
         assert_eq!(linhas, vec![vec![c("João")]]);
     }
 
@@ -243,7 +248,7 @@ pub(crate) mod testes {
             csv.push_str(&format!("{i}\n"));
         }
         let partes = partes_de_zip_csv(&zip_com("g.csv", csv.as_bytes()), b';').unwrap();
-        let (_, linhas) = ler_parquet(&partes[0].parquet);
+        let (_, linhas) = ler_parte(&partes[0]);
         assert_eq!(linhas.len(), total);
         assert_eq!(linhas[0], vec![c("0")]);
         assert_eq!(linhas[total - 1], vec![c(&(total - 1).to_string())]);
