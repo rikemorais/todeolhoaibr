@@ -125,6 +125,8 @@ nav:
       - adr/0017-fontes-organizadas-por-pasta.md
       - adr/0018-motor-de-consulta-duckdb.md
       - Modelo de ADR: adr/modelo.md
+  - Refino:
+      - refino/bronze.md
   - Fontes de dados:
       - fontes/ibge.md
       - fontes/ibge-pib-municipios.md

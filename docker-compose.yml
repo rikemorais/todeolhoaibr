@@ -80,5 +80,18 @@ services:
       - dados-raw:/dados:ro
     mem_limit: 256m
 
+  # Refina o raw para o bronze (Parquet): docker compose run --rm refino refinar bronze <fonte>
+  # Decodificar CSV/JSON para colunar consome mais memória que a ingestão (que vai em fluxo),
+  # então este serviço tem um limite maior. Reduzir isso depende da decodificação por
+  # row-group em fluxo (ver issue de follow-up).
+  refino:
+    <<: *aplicacao
+    profiles: ["ingestao"]
+    command: ["refinar", "bronze", "camara-despesas"]
+    environment:
+      <<: *ambiente-s3
+      TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
+    mem_limit: 1g
+
 volumes:
   dados-raw:
