@@ -107,8 +107,8 @@ impl Tarefa for TarefaDeBronze {
             });
         }
 
-        // 3. Decodifica cada part do raw em tabelas.
-        let mut tabelas = Vec::new();
+        // 3. Decodifica cada part do raw em partes de bronze (Parquet já pronto).
+        let mut conteudos = Vec::new();
         for parte in &manifesto_raw.partes {
             let bytes = self.origem.ler(&parte.chave).await?.ok_or_else(|| {
                 ErroDeIngestao::NaoEncontrado {
@@ -119,7 +119,7 @@ impl Tarefa for TarefaDeBronze {
                 .decodificador
                 .decodificar(&bytes, &parte.tipo_de_conteudo)
                 .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
-            tabelas.extend(decodificadas);
+            conteudos.extend(decodificadas);
         }
 
         // 4. Grava uma parte Parquet por tabela no bronze.
@@ -129,27 +129,23 @@ impl Tarefa for TarefaDeBronze {
             contexto.iniciada_em,
             &contexto.id_execucao,
         );
-        let mut partes = Vec::with_capacity(tabelas.len());
+        let mut partes = Vec::with_capacity(conteudos.len());
         let mut total_bytes = 0u64;
-        for (indice, tabela) in tabelas.iter().enumerate() {
-            let parquet = tabela
-                .tabela
-                .para_parquet()
-                .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
+        for (indice, conteudo) in conteudos.into_iter().enumerate() {
             let chave = local.parte(indice + 1, "parquet");
-            let bytes = parquet.len() as u64;
+            let bytes = conteudo.parquet.len() as u64;
             total_bytes += bytes;
-            let sha256 = hex::encode(Sha256::digest(&parquet));
+            let sha256 = hex::encode(Sha256::digest(&conteudo.parquet));
             bronze
                 .gravar(ObjetoRaw {
                     chave: chave.clone(),
-                    conteudo: parquet,
+                    conteudo: conteudo.parquet,
                     tipo_de_conteudo: TIPO_PARQUET.to_owned(),
                 })
                 .await?;
             partes.push(ParteRaw {
                 chave,
-                url: tabela.nome.clone(),
+                url: conteudo.nome,
                 bytes,
                 sha256,
                 tipo_de_conteudo: TIPO_PARQUET.to_owned(),
@@ -203,7 +199,7 @@ mod testes {
     use todeolho_nucleo::{ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp};
 
     use super::*;
-    use crate::decodificador::TabelaNomeada;
+    use crate::decodificador::ParteBronze;
     use crate::escritor::{ErroDeRefino, Tabela};
 
     #[derive(Default)]
@@ -254,13 +250,11 @@ mod testes {
     /// Decodificador de teste: ignora os bytes e devolve uma tabela fixa.
     struct DecodificadorFixo;
     impl Decodificador for DecodificadorFixo {
-        fn decodificar(&self, _: &[u8], _: &str) -> Result<Vec<TabelaNomeada>, ErroDeRefino> {
-            Ok(vec![TabelaNomeada::nova(
-                "despesas",
-                Tabela::nova(["id", "valor"])
-                    .com_linha([Some("1".into()), Some("10,00".into())])
-                    .com_linha([Some("2".into()), None]),
-            )])
+        fn decodificar(&self, _: &[u8], _: &str) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+            let tabela = Tabela::nova(["id", "valor"])
+                .com_linha([Some("1".into()), Some("10,00".into())])
+                .com_linha([Some("2".into()), None]);
+            Ok(vec![ParteBronze::de_tabela("despesas", &tabela)?])
         }
     }
 

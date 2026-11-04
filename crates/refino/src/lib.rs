@@ -20,7 +20,7 @@ pub mod fontes;
 pub mod tarefa;
 
 pub use catalogo::{FonteDeRefino, catalogo_refino};
-pub use decodificador::{Decodificador, TabelaNomeada};
-pub use escritor::{ErroDeRefino, Tabela};
+pub use decodificador::{Decodificador, ParteBronze};
+pub use escritor::{ErroDeRefino, EscritorParquet, Tabela};
 pub use fontes::DecodificadorCamaraDespesas;
 pub use tarefa::TarefaDeBronze;
