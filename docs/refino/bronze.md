@@ -70,6 +70,7 @@ O catálogo de refino cresce por fonte. Hoje:
 | `ibge-municipios` | `ibge/municipios/*` | JSON (array no topo) |
 | `senado-processos` | `senado/processos/*` | JSON (array no topo) |
 | `senado-votacoes` | `senado/votacoes/*` | JSON (array no topo) |
+| `senado-parlamentares` | `senado/parlamentares/*` | JSON (array aninhado) |
 | `ibge-ipca`, `ibge-inpc` | `ibge/{ipca,inpc}/*` | JSON agregado (série → linhas) |
 | `ibge-pib-municipios`, `ibge-pib-trimestral` | `ibge/{pib-municipios,pib-trimestral}/*` | JSON agregado (série → linhas) |
 | `ibge-pnad-desocupacao`, `ibge-populacao-municipios` | `ibge/{pnad-desocupacao,populacao-municipios}/*` | JSON agregado (série → linhas) |
