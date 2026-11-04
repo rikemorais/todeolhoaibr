@@ -30,7 +30,7 @@ pub use executor::{
 };
 pub use fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp};
 pub use historico::{
-    ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
+    Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
     RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
 };
 pub use portas::{

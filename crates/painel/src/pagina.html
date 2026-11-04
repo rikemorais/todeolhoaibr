@@ -103,6 +103,13 @@ main {
 .e-andamento { color: var(--andamento); background: var(--andamento-fundo); }
 .e-alerta { color: var(--alerta); background: var(--alerta-fundo); }
 .e-neutro { color: var(--neutro); background: var(--neutro-fundo); }
+.selo-camada {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.c-raw { color: var(--neutro); background: var(--neutro-fundo); }
+.c-bronze { color: #b07a26; background: rgba(176, 122, 38, 0.16); }
+.cartao-selos { display: inline-flex; align-items: center; gap: 6px; }
 
 #detalhe { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .painel { background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px; padding: 18px 20px; }
@@ -243,6 +250,13 @@ function icone(classe) {
 
 function selo({ texto, classe }) {
   return el("span", { class: `selo e-${classe}` }, icone(classe), texto);
+}
+
+const CAMADAS = { raw: "Raw", bronze: "Bronze" };
+
+function seloCamada(camada) {
+  const chave = camada || "raw";
+  return el("span", { class: `selo-camada c-${chave}` }, CAMADAS[chave] || chave);
 }
 
 const formatoData = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" });
@@ -434,7 +448,7 @@ function cartao(execucao) {
   },
     el("div", { class: "cartao-topo" },
       el("span", { class: "cartao-data tabular" }, formatarData(execucao.iniciada_em)),
-      selo(SITUACOES[execucao.situacao])),
+      el("span", { class: "cartao-selos" }, seloCamada(execucao.camada), selo(SITUACOES[execucao.situacao]))),
     el("div", { class: "cartao-info" },
       [nomes, `${feitas} de ${tarefas.length} tarefas`, duracao].filter(Boolean).join(" - ")));
 }
@@ -459,6 +473,7 @@ function telaResumo(execucao) {
   return el("section", { class: "painel" },
     el("div", { class: "titulo-execucao" },
       el("h2", { class: "tabular" }, formatarData(execucao.iniciada_em)),
+      seloCamada(execucao.camada),
       selo(SITUACOES[execucao.situacao])),
     el("p", { class: "id-execucao mono" }, execucao.id),
     explicacao,
