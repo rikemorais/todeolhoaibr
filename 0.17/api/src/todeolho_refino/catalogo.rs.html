@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/refino/src/catalogo.rs`."><title>catalogo.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="todeolho_refino" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">todeolho_refino/</div>catalogo.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-2"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Catálogo de refino: liga cada fonte do bronze ao seu decodificador e ao recurso no raw.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! Espelha o papel do catálogo da ingestão (`fontes::catalogo`), mas para a decodificação:
+<a href=#4 id=4 data-nosnippet>4</a>//! diz de qual fonte/prefixo do raw cada refino lê e qual [`Decodificador`] usa.
+<a href=#5 id=5 data-nosnippet>5</a>
+<a href=#6 id=6 data-nosnippet>6</a></span><span class="kw">use </span>std::sync::Arc;
+<a href=#7 id=7 data-nosnippet>7</a>
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span><span class="kw">crate</span>::decodificador::Decodificador;
+<a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span><span class="kw">crate</span>::fontes::{DecodificadorCamaraDespesas, DecodificadorCsv};
+<a href=#10 id=10 data-nosnippet>10</a>
+<a href=#11 id=11 data-nosnippet>11</a><span class="doccomment">/// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
+<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">pub struct </span>FonteDeRefino {
+<a href=#13 id=13 data-nosnippet>13</a>    <span class="doccomment">/// Nome usado na CLI e no painel (ex.: `camara-despesas`).
+<a href=#14 id=14 data-nosnippet>14</a>    </span><span class="kw">pub </span>nome: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// Fonte no raw de onde os recursos são lidos (ex.: `camara`).
+<a href=#16 id=16 data-nosnippet>16</a>    </span><span class="kw">pub </span>fonte_raw: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// Prefixo dos recursos desta fonte dentro do raw (ex.: `despesas/`).
+<a href=#18 id=18 data-nosnippet>18</a>    </span><span class="kw">pub </span>prefixo_recurso: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#19 id=19 data-nosnippet>19</a>    cria_decodificador: <span class="kw">fn</span>() -&gt; Arc&lt;<span class="kw">dyn </span>Decodificador&gt;,
+<a href=#20 id=20 data-nosnippet>20</a>}
+<a href=#21 id=21 data-nosnippet>21</a>
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">impl </span>FonteDeRefino {
+<a href=#23 id=23 data-nosnippet>23</a>    <span class="doccomment">/// Cria o decodificador desta fonte.
+<a href=#24 id=24 data-nosnippet>24</a>    </span><span class="kw">pub fn </span>decodificador(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="kw">dyn </span>Decodificador&gt; {
+<a href=#25 id=25 data-nosnippet>25</a>        (<span class="self">self</span>.cria_decodificador)()
+<a href=#26 id=26 data-nosnippet>26</a>    }
+<a href=#27 id=27 data-nosnippet>27</a>}
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="doccomment">/// Fontes do bronze disponíveis. Cresce conforme novos decodificadores entram.
+<a href=#30 id=30 data-nosnippet>30</a></span><span class="kw">pub fn </span>catalogo_refino() -&gt; Vec&lt;FonteDeRefino&gt; {
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="macro">vec!</span>[
+<a href=#32 id=32 data-nosnippet>32</a>        FonteDeRefino {
+<a href=#33 id=33 data-nosnippet>33</a>            nome: <span class="string">"camara-despesas"</span>,
+<a href=#34 id=34 data-nosnippet>34</a>            fonte_raw: <span class="string">"camara"</span>,
+<a href=#35 id=35 data-nosnippet>35</a>            prefixo_recurso: <span class="string">"despesas/"</span>,
+<a href=#36 id=36 data-nosnippet>36</a>            cria_decodificador: || Arc::new(DecodificadorCamaraDespesas),
+<a href=#37 id=37 data-nosnippet>37</a>        },
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="comment">// CEAPS do Senado: CSV solto em Latin-1 com uma linha de preâmbulo antes do cabeçalho.
+<a href=#39 id=39 data-nosnippet>39</a>        </span>FonteDeRefino {
+<a href=#40 id=40 data-nosnippet>40</a>            nome: <span class="string">"senado-despesas"</span>,
+<a href=#41 id=41 data-nosnippet>41</a>            fonte_raw: <span class="string">"senado"</span>,
+<a href=#42 id=42 data-nosnippet>42</a>            prefixo_recurso: <span class="string">"despesas/"</span>,
+<a href=#43 id=43 data-nosnippet>43</a>            cria_decodificador: || Arc::new(DecodificadorCsv::novo(<span class="string">"despesas"</span>, <span class="string">b';'</span>, <span class="number">1</span>)),
+<a href=#44 id=44 data-nosnippet>44</a>        },
+<a href=#45 id=45 data-nosnippet>45</a>        <span class="comment">// Orientações de votação da Câmara: CSV solto em UTF-8 com BOM.
+<a href=#46 id=46 data-nosnippet>46</a>        </span>FonteDeRefino {
+<a href=#47 id=47 data-nosnippet>47</a>            nome: <span class="string">"camara-votacoes"</span>,
+<a href=#48 id=48 data-nosnippet>48</a>            fonte_raw: <span class="string">"camara"</span>,
+<a href=#49 id=49 data-nosnippet>49</a>            prefixo_recurso: <span class="string">"votacoes/"</span>,
+<a href=#50 id=50 data-nosnippet>50</a>            cria_decodificador: || Arc::new(DecodificadorCsv::novo(<span class="string">"votacoes"</span>, <span class="string">b';'</span>, <span class="number">0</span>)),
+<a href=#51 id=51 data-nosnippet>51</a>        },
+<a href=#52 id=52 data-nosnippet>52</a>    ]
+<a href=#53 id=53 data-nosnippet>53</a>}
+<a href=#54 id=54 data-nosnippet>54</a>
+<a href=#55 id=55 data-nosnippet>55</a><span class="attr">#[cfg(test)]
+<a href=#56 id=56 data-nosnippet>56</a></span><span class="kw">mod </span>testes {
+<a href=#57 id=57 data-nosnippet>57</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#58 id=58 data-nosnippet>58</a>
+<a href=#59 id=59 data-nosnippet>59</a>    <span class="attr">#[test]
+<a href=#60 id=60 data-nosnippet>60</a>    </span><span class="kw">fn </span>o_catalogo_tem_a_camara_despesas_apontando_para_o_raw_camara() {
+<a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">let </span>fonte = catalogo_refino()
+<a href=#62 id=62 data-nosnippet>62</a>            .into_iter()
+<a href=#63 id=63 data-nosnippet>63</a>            .find(|f| f.nome == <span class="string">"camara-despesas"</span>)
+<a href=#64 id=64 data-nosnippet>64</a>            .expect(<span class="string">"camara-despesas no catálogo"</span>);
+<a href=#65 id=65 data-nosnippet>65</a>        <span class="macro">assert_eq!</span>(fonte.fonte_raw, <span class="string">"camara"</span>);
+<a href=#66 id=66 data-nosnippet>66</a>        <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, <span class="string">"despesas/"</span>);
+<a href=#67 id=67 data-nosnippet>67</a>        <span class="comment">// O decodificador é construível.
+<a href=#68 id=68 data-nosnippet>68</a>        </span><span class="kw">let _ </span>= fonte.decodificador();
+<a href=#69 id=69 data-nosnippet>69</a>    }
+<a href=#70 id=70 data-nosnippet>70</a>}
+</code></pre></div></section></main></body></html>
