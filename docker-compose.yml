@@ -93,6 +93,19 @@ services:
       TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
     mem_limit: 1g
 
+  # Agendador do bronze (docs/adr/0019): reconcilia o bronze a partir da raw a cada intervalo
+  # (TODEOLHO_REFINO_INTERVALO, padrão 1h). Como o bronze é idempotente, passadas sem mudança
+  # são quase instantâneas e não registram execução no painel. Sobe por padrão com o stack.
+  agendador:
+    <<: *aplicacao
+    command:
+      ["refinar", "bronze", "--todas", "--intervalo", "${TODEOLHO_REFINO_INTERVALO:-3600}"]
+    environment:
+      <<: *ambiente-s3
+      TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
+    mem_limit: 1g
+    restart: unless-stopped
+
   # Consulta analítica do medalhão com DuckDB ("Athena local"), somente-leitura (docs/adr/0018).
   # UI:  docker compose up -d consulta  -> http://localhost:4213 (frontend vem de ui.duckdb.org).
   # SQL: docker compose run --rm consulta sql  (CLI offline, com as views do bronze já criadas).
