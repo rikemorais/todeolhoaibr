@@ -44,7 +44,30 @@ O catálogo de refino cresce por fonte. Hoje:
 
 ## Consultar o bronze
 
-As tabelas Parquet são consultadas com **DuckDB** ([ADR 0018](../adr/0018-motor-de-consulta-duckdb.md)) — SQL sobre o Parquet no lugar, sem mover os dados.
+As tabelas Parquet são consultadas com **DuckDB** ([ADR 0018](../adr/0018-motor-de-consulta-duckdb.md)) — uma "Athena local": SQL sobre o Parquet **no lugar**, sem mover os dados. O serviço `consulta` sobe o DuckDB **somente-leitura** sobre os buckets e já cria uma **view por tabela**, nomeada `bronze_<fonte>_<recurso>` (ex.: `bronze_camara_despesas`).
+
+As views são montadas a partir do **ponteiro de versão vigente** (`_ultima_versao.json`) de cada partição, então consultam só a versão atual — o histórico não entra em dobro. As colunas de partição (ex.: `ano`) e de procedência (`data_ingestao`, `execucao`) vêm do caminho.
+
+```bash
+# Interface gráfica (explorador + editor SQL) em http://localhost:4213
+docker compose up -d --build consulta
+
+# SQL no terminal, totalmente offline, com as views já carregadas
+docker compose run --rm --build consulta sql
+```
+
+```sql
+-- Quantas linhas por ano das despesas da Câmara
+SELECT ano, count(*) AS linhas
+FROM bronze_camara_despesas
+GROUP BY ano ORDER BY ano;
+
+-- Ler direto do versitygw (sem a view), via httpfs
+SELECT count(*) FROM read_parquet('s3://bronze/camara/despesas/ano=2024/**/*.parquet');
+```
+
+!!! note "UI precisa de internet; o CLI não"
+    A **UI** (`localhost:4213`) baixa o frontend de `ui.duckdb.org`, então precisa de internet no navegador; as **queries rodam 100% locais**. Sem internet, use `consulta sql`, que é offline. A UI faz *bind* em loopback dentro do container, e o serviço expõe a porta por uma ponte (`socat`).
 
 ## Limitações conhecidas
 

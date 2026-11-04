@@ -158,7 +158,7 @@ exponha na internet.
 
 ### Acessando os dados
 
-O armazenamento é o **[versitygw](https://github.com/versity/versitygw)**, um gateway S3 que roda localmente no Docker ([ADR 0005](docs/adr/0005-armazenamento-s3-com-versitygw.md)). É nele que os dados vivem, hoje no bucket `raw` e, no futuro, nas camadas `bronze`, `silver`, `gold` e `diamond` (ver [Camadas de dados](#camadas-de-dados)).
+O armazenamento é o **[versitygw](https://github.com/versity/versitygw)**, um gateway S3 que roda localmente no Docker ([ADR 0005](docs/adr/0005-armazenamento-s3-com-versitygw.md)). É nele que os dados vivem, hoje nos buckets `raw` e `bronze` e, no futuro, nas camadas `silver`, `gold` e `diamond` (ver [Camadas de dados](#camadas-de-dados)).
 
 A forma mais simples de ver os arquivos é o **navegador de arquivos do versitygw**, em **<http://localhost:7071>**. Entre com a chave de acesso e a chave secreta
 do `.env` (`TODEOLHO_S3_CHAVE_DE_ACESSO` e `TODEOLHO_S3_CHAVE_SECRETA`) e abra o bucket `raw` em **Explorer**. Use `localhost`: o
@@ -181,6 +181,29 @@ docker compose cp armazenamento:/dados/raw ./raw-local
 Também é possível usar um cliente S3 em `http://localhost:7070`. A região e as credenciais são as de
 `TODEOLHO_S3_REGIAO`, `TODEOLHO_S3_CHAVE_DE_ACESSO` e `TODEOLHO_S3_CHAVE_SECRETA`, descritas em
 [`.env.example`](.env.example).
+
+### Consultando o bronze com DuckDB
+
+As tabelas em Parquet do `bronze` são consultadas com SQL pelo **[DuckDB](https://duckdb.org/)** — uma "Athena local" que lê o Parquet **no lugar**, sem mover os dados ([ADR 0018](docs/adr/0018-motor-de-consulta-duckdb.md)). O serviço `consulta` sobe somente-leitura e já cria uma view por tabela (`bronze_<fonte>_<recurso>`, ex.: `bronze_camara_despesas`), com `ano`, `data_ingestao` e `execucao` vindos do caminho.
+
+```bash
+# Interface gráfica (explorador de tabelas + editor SQL) em http://localhost:4213
+docker compose up -d --build consulta
+
+# SQL no terminal (offline, sem depender de internet), com as views já carregadas
+docker compose run --rm --build consulta sql
+```
+
+```sql
+-- Exemplos (no editor da UI ou no CLI)
+SELECT ano, count(*) FROM bronze_camara_despesas GROUP BY ano ORDER BY ano;
+SELECT * FROM bronze_camara_despesas LIMIT 10;
+
+-- Também dá para ler direto do versitygw, sem a view:
+SELECT count(*) FROM read_parquet('s3://bronze/camara/despesas/ano=2024/**/*.parquet');
+```
+
+> A **UI** (`localhost:4213`) carrega o frontend de `ui.duckdb.org`, então precisa de internet aberta no navegador; as **queries rodam 100% locais**. Sem internet, use `consulta sql`, que é totalmente offline.
 
 ### Encerrando
 
@@ -218,12 +241,12 @@ O manifesto é gravado por último, então um prefixo sem ele é de uma ingestã
 
 ### Camadas de dados
 
-Os dados ficam no versitygw organizados em **medalhão**: cada camada é um bucket, e cada estágio lê a anterior e escreve a próxima, sem nunca reescrever a montante. Hoje só existe o `raw`; as demais são o destino do refino, a jusante da ingestão ([ADR 0014](docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md) e [ADR 0015](docs/adr/0015-arquitetura-de-dados-em-medalhao.md)).
+Os dados ficam no versitygw organizados em **medalhão**: cada camada é um bucket, e cada estágio lê a anterior e escreve a próxima, sem nunca reescrever a montante. Hoje existem o `raw` e o `bronze`; as demais são o destino do refino, a jusante da ingestão ([ADR 0014](docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md) e [ADR 0015](docs/adr/0015-arquitetura-de-dados-em-medalhao.md)).
 
 ![Camadas de dados raw, bronze, silver, gold e diamond no versitygw](docs/img/camadas-dados.svg)
 
 - **`raw`** — bytes fiéis da origem, imutável (existe hoje).
-- **`bronze`** — decodificado e estruturado (descompactado, UTF-8), 1:1 com a origem.
+- **`bronze`** — decodificado e estruturado (descompactado, UTF-8), 1:1 com a origem (existe hoje; consultável com DuckDB, ver [Consultando o bronze com DuckDB](#consultando-o-bronze-com-duckdb)).
 - **`silver`** — limpo, tipado e conformado, com a chave canônica `município + ano`.
 - **`gold`** — agregado e modelado para análise e consumo (os cruzamentos).
 - **`diamond`** — produtos finais curados (índices, datasets de correlação, *features*).
@@ -232,10 +255,11 @@ Os dados ficam no versitygw organizados em **medalhão**: cada camada é um buck
 crates/
   nucleo/          Contratos, DAG (Dagron), executor e contrato da camada Raw
   fontes/          As APIs públicas e o catálogo
+  refino/          Decodifica a Raw para o medalhão (bronze em Parquet)
   infraestrutura/  Implementações de S3 e HTTP
   painel/          Painel web das execuções
   cli/             Comandos e composição da aplicação
-docker/            Imagem da ingestão
+docker/            Imagem da ingestão/refino e o serviço de consulta (DuckDB)
 docs/adr/          Decisões de arquitetura
 ```
 

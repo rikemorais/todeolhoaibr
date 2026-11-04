@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Serviço `consulta` com **DuckDB** como "Athena local" ([ADR 0018](docs/adr/0018-motor-de-consulta-duckdb.md)): consulta o `bronze` em Parquet **somente-leitura**, lendo no lugar (filesystem e `s3://` via `httpfs`), sem mover os dados. Cria uma view por tabela (`bronze_<fonte>_<recurso>`) a partir da versão vigente de cada partição. A **Local UI** abre em `http://localhost:4213` (`docker compose up -d consulta`) e há um caminho **SQL offline** (`docker compose run --rm consulta sql`). Documentado no README e em `docs/refino/bronze.md` ([issue #158](https://github.com/rikemorais/todeolhoaibr/issues/158)).
+
 ## [0.16.0] - 2026-11-04
 
 ### Adicionado

@@ -93,5 +93,31 @@ services:
       TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
     mem_limit: 1g
 
+  # Consulta analítica do medalhão com DuckDB ("Athena local"), somente-leitura (docs/adr/0018).
+  # UI:  docker compose up -d consulta  -> http://localhost:4213 (frontend vem de ui.duckdb.org).
+  # SQL: docker compose run --rm consulta sql  (CLI offline, com as views do bronze já criadas).
+  consulta:
+    build:
+      context: .
+      dockerfile: docker/consulta/Dockerfile
+    image: todeolhoai/consulta:local
+    profiles: ["consulta"]
+    depends_on:
+      armazenamento:
+        condition: service_healthy
+    # Encaminha sinais ao DuckDB/socat para o down ser imediato.
+    init: true
+    environment:
+      <<: *ambiente-s3
+      # O segredo S3 do DuckDB quer host:porta, sem esquema.
+      TODEOLHO_S3_ENDPOINT_HOST: armazenamento:7070
+    volumes:
+      - dados-raw:/dados:ro
+    ports:
+      # Só acessível a partir da própria máquina.
+      - "127.0.0.1:${TODEOLHO_CONSULTA_PORTA:-4213}:4213"
+    mem_limit: 512m
+    restart: unless-stopped
+
 volumes:
   dados-raw:
