@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
-use crate::fontes::DecodificadorCamaraDespesas;
+use crate::fontes::{DecodificadorCamaraDespesas, DecodificadorCsv};
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
 pub struct FonteDeRefino {
@@ -28,12 +28,28 @@ impl FonteDeRefino {
 
 /// Fontes do bronze disponíveis. Cresce conforme novos decodificadores entram.
 pub fn catalogo_refino() -> Vec<FonteDeRefino> {
-    vec![FonteDeRefino {
-        nome: "camara-despesas",
-        fonte_raw: "camara",
-        prefixo_recurso: "despesas/",
-        cria_decodificador: || Arc::new(DecodificadorCamaraDespesas),
-    }]
+    vec![
+        FonteDeRefino {
+            nome: "camara-despesas",
+            fonte_raw: "camara",
+            prefixo_recurso: "despesas/",
+            cria_decodificador: || Arc::new(DecodificadorCamaraDespesas),
+        },
+        // CEAPS do Senado: CSV solto em Latin-1 com uma linha de preâmbulo antes do cabeçalho.
+        FonteDeRefino {
+            nome: "senado-despesas",
+            fonte_raw: "senado",
+            prefixo_recurso: "despesas/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("despesas", b';', 1)),
+        },
+        // Orientações de votação da Câmara: CSV solto em UTF-8 com BOM.
+        FonteDeRefino {
+            nome: "camara-votacoes",
+            fonte_raw: "camara",
+            prefixo_recurso: "votacoes/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("votacoes", b';', 0)),
+        },
+    ]
 }
 
 #[cfg(test)]
