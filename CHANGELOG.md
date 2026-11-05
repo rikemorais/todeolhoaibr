@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.22.0] - 2026-11-05
+
+### Adicionado
+
+- Snapshot de leitura da versão Bronze vigente: valida ponteiro, manifesto, fonte e recurso; baixa apenas partes listadas em fluxo e confere tamanho e SHA-256 antes de entregar lotes à Silver ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.21.0] - 2026-11-05
 
 ### Adicionado
