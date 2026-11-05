@@ -23,6 +23,7 @@ pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, Tabela};
 pub use fontes::{
-    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorZipCsv,
+    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use tarefa::TarefaDeBronze;

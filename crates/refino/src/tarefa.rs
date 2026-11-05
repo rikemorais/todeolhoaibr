@@ -134,8 +134,14 @@ impl Tarefa for TarefaDeBronze {
         }
 
         // 3. Baixa cada part para um arquivo temporário (em fluxo, sem carregar o part — que
-        // pode ter vários GB — na memória) e decodifica a partir do disco.
-        let mut conteudos = Vec::new();
+        // pode ter vários GB — na memória) e decodifica a partir do disco. Os arquivos são
+        // decodificados em bloco, para o decodificador poder agregar quando houver muitos.
+        let mut arquivos = Vec::with_capacity(manifesto_raw.partes.len());
+        let tipo_de_conteudo = manifesto_raw
+            .partes
+            .first()
+            .map(|p| p.tipo_de_conteudo.clone())
+            .unwrap_or_default();
         for parte in &manifesto_raw.partes {
             let arquivo = tempfile::NamedTempFile::new()
                 .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
@@ -154,13 +160,13 @@ impl Tarefa for TarefaDeBronze {
                     url: parte.chave.clone(),
                 });
             }
-            let caminho = arquivo.into_temp_path();
-            let decodificadas = self
-                .decodificador
-                .decodificar_arquivo(&caminho, &parte.tipo_de_conteudo)
-                .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
-            conteudos.extend(decodificadas);
+            arquivos.push(arquivo.into_temp_path());
         }
+        let caminhos: Vec<std::path::PathBuf> = arquivos.iter().map(|a| a.to_path_buf()).collect();
+        let conteudos = self
+            .decodificador
+            .decodificar_arquivos(&caminhos, &tipo_de_conteudo)
+            .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
 
         // 4. Grava uma parte Parquet por tabela no bronze.
         let local = LocalizacaoRaw::nova(
