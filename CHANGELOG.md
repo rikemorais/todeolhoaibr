@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.21.0] - 2026-11-05
+
+### Adicionado
+
+- Leitor em lotes das partes Bronze com referência técnica por manifesto, parte, tabela e ordinal da linha. Preserva variantes e duplicatas do TSE para os futuros contratos Silver, sem reprocessar o Bronze ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.20.6] - 2026-11-05
 
 ### Documentação
