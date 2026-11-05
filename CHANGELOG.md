@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.3] - 2026-11-05
+
+### Documentação
+
+- Valida chaves candidatas das candidaturas e dos bens do TSE em consolidados históricos, identifica colisões das chaves curtas e linhas divergentes nas partes por UF de 2000; registra a pesquisa oficial que mantém pendente o leiaute das receitas partidárias de 2012 ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.20.2] - 2026-11-05
 
 ### Documentação

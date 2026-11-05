@@ -21,8 +21,8 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | `senado-parlamentares` | Legislativo | parlamentar em legislatura | `IdentificacaoParlamentar.CodigoParlamentar` e `legislatura` no bronze local |
 | `senado-processos` | Legislativo | processo | ID oficial e vigência |
 | `senado-processos-detalhes` | Legislativo | detalhe de processo | `id` do processo (presente no fixture); eventos aninhados exigem decisão de tabela |
-| `tse-candidaturas` | Eleitoral | candidatura por eleição | eleição, cargo, UF e identificador oficial |
-| `tse-bens` | Eleitoral | bem declarado | candidatura e sequência do bem |
+| `tse-candidaturas` | Eleitoral | candidatura por eleição | ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; [validação histórica abaixo](#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05) |
+| `tse-bens` | Eleitoral | bem declarado | ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano |
 | `tse-prestacao-contas` | Eleitoral | lançamento por tabela interna | chave própria de receitas/despesas por ano; validar layouts |
 | `tse-votacao-secao` | Eleitoral | voto agregado por seção | eleição, turno, seção, cargo e candidato; validar tabelas |
 | `bcb` | Série | observação SGS | série (do recurso) e `data`; `valor` decimal; data no formato `DD/MM/AAAA` no fixture |
@@ -93,8 +93,8 @@ As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retor
 | Senado processos, `id`, ano 2024 | 4.947 | 4.947 | Único no recorte; glob completo contém Parquet antigo de zero colunas. |
 | Senado processos-detalhes, `id` | 163.156 | 163.156 | Sem nulos no conjunto local consultado. |
 | TSE votação por seção 2014/AC, (`CD_ELEICAO`, `NR_TURNO`, `CD_MUNICIPIO`, `NR_ZONA`, `NR_SECAO`, `CD_CARGO`, `NR_VOTAVEL`) | 224.661 | 224.661 | Única no recorte. |
-| TSE candidaturas 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`) | 879 | 879 | Única na parte; conferir entre UFs/partes. |
-| TSE bens 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`, `NR_ORDEM_BEM_CANDIDATO`) | 3.588 | 3.588 | Única na parte; conferir entre UFs/partes. |
+| TSE candidaturas 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`) | 879 | 879 | Única na parte; validação dos consolidados por ano abaixo. |
+| TSE bens 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`, `NR_ORDEM_BEM_CANDIDATO`) | 3.588 | 3.588 | Única na parte; validação dos consolidados por ano abaixo. |
 
 ### Séries BCB no bronze local (2026-11-05)
 
@@ -113,6 +113,50 @@ Há uma versão Parquet por recurso nas 11 séries disponíveis. Em cada série,
 | `ipca-12-meses` | 550 | 550 |
 | `ipca-mensal` | 561 | 561 |
 | `selic-mensal` | 483 | 483 |
+
+### Candidaturas e bens do TSE no bronze local (2026-11-05)
+
+As contagens abaixo usam **somente** a parte `BRASIL` indicada pelo manifesto vigente de cada ano. Os ZIPs também contêm partes por UF; somá-las ao consolidado duplica candidaturas. Na amostra de 2000, as partes por UF têm 457.171 linhas e 399.455 chaves contextuais, enquanto `BRASIL` tem 399.455 linhas e chaves. Os conjuntos de chaves das duas representações são iguais, mas cinco partes por UF repetem internamente 57.716 chaves com linhas diferentes. A Silver precisa escolher uma representação e definir a política para divergências de atributos antes de publicar candidatos.
+
+Para candidaturas, a chave curta (`CD_ELEICAO`, `SQ_CANDIDATO`) colide em 2000, 2002, 2004, 2006 e 2008. A chave candidata completa é (`ANO_ELEICAO`, `CD_ELEICAO`, `SG_UF`, `SG_UE`, `CD_CARGO`, `NR_CANDIDATO`, `SQ_CANDIDATO`). Nos 17 consolidados, ela é única por ano e seus campos não são SQL `NULL`. `ANO_ELEICAO` delimita anos distintos; a tabela mostra a contagem da chave sem ele, por já estar agrupada por ano.
+
+| Ano | Linhas `BRASIL` | Chave curta distinta | Chave completa distinta |
+| --- | ---: | ---: | ---: |
+| 1994 | 12.035 | 12.035 | 12.035 |
+| 1996 | 321.790 | 321.790 | 321.790 |
+| 1998 | 15.092 | 15.092 | 15.092 |
+| 2000 | 399.455 | 3.243 | 399.455 |
+| 2002 | 18.109 | 5.169 | 18.109 |
+| 2004 | 402.157 | 1.874 | 402.157 |
+| 2006 | 19.303 | 3.205 | 19.303 |
+| 2008 | 382.079 | 69.286 | 382.079 |
+| 2010 | 22.577 | 22.577 | 22.577 |
+| 2012 | 483.741 | 483.741 | 483.741 |
+| 2014 | 26.263 | 26.263 | 26.263 |
+| 2016 | 498.391 | 498.391 | 498.391 |
+| 2018 | 29.287 | 29.287 | 29.287 |
+| 2020 | 558.804 | 558.804 | 558.804 |
+| 2022 | 29.322 | 29.322 | 29.322 |
+| 2024 | 463.885 | 463.885 | 463.885 |
+| 2026 | 21.017 | 21.017 | 21.017 |
+
+Nos bens, o campo de ordem é `NR_ORDEM_CANDIDATO` em 2006–2012 e 2016, e `NR_ORDEM_BEM_CANDIDATO` em 2014 e 2018–2026. A mudança **não é monotônica por ano**. A chave candidata (`ANO_ELEICAO`, `CD_ELEICAO`, `SG_UF`, `SG_UE`, `SQ_CANDIDATO`, ordem) é única por ano nos 11 consolidados; seus campos não são SQL `NULL`. A chave curta (`CD_ELEICAO`, `SQ_CANDIDATO`, ordem) colide em 2006 e 2008. A associação (`ANO_ELEICAO`, `CD_ELEICAO`, `SG_UF`, `SG_UE`, `SQ_CANDIDATO`) encontrou uma candidatura única para cada linha de bem nos 11 anos locais.
+
+| Ano | Bens `BRASIL` | Chave curta distinta | Chave completa distinta | Sem candidatura |
+| --- | ---: | ---: | ---: | ---: |
+| 2006 | 82.361 | 33.317 | 82.361 | 0 |
+| 2008 | 791.319 | 345.796 | 791.319 | 0 |
+| 2010 | 81.226 | 81.226 | 81.226 | 0 |
+| 2012 | 895.663 | 895.663 | 895.663 | 0 |
+| 2014 | 83.053 | 83.053 | 83.053 | 0 |
+| 2016 | 977.510 | 977.510 | 977.510 | 0 |
+| 2018 | 93.527 | 93.527 | 93.527 | 0 |
+| 2020 | 1.015.279 | 1.015.279 | 1.015.279 | 0 |
+| 2022 | 92.559 | 92.559 | 92.559 | 0 |
+| 2024 | 911.185 | 911.185 | 911.185 | 0 |
+| 2026 | 77.446 | 77.446 | 77.446 | 0 |
+
+Esses números verificam as versões locais vigentes, não mudanças futuras da origem. Antes de materializar, validar também sentinelas de texto, correções entre versões e a cobertura do consolidado em todos os anos. As partes por UF de 2000 mostram que unicidade de chave não resolve sozinha divergências de atributos.
 
 ### Conjuntos da Câmara
 
@@ -134,7 +178,7 @@ Os sete conjuntos abaixo foram validados **apenas no ano de 2024**. Cada conjunt
 - Câmara tramitações: `idTramitacao` tem apenas 988 valores distintos em 1.879.478 linhas, com 174 ausentes. Mesmo (`uriProposicao`, `idTramitacao`) tem 1.871.298 combinações. Em 2024, há 112.979 linhas, 112.916 linhas distintas sem a procedência e 112.915 combinações de (`uriProposicao`, `idTramitacao`, `sequencia`, `dataHora`). Há duplicatas exatas e ao menos uma colisão semântica nessa chave composta; a política precisa distingui-las.
 - Senado despesas: `COD_DOCUMENTO` tem 398.170 valores distintos em 398.172 linhas, com dois ausentes. A combinação com `ANO` ainda não é única (398.171 combinações), enquanto **todas as 398.172 linhas são distintas** sem a procedência. Revisar os documentos ausentes e não eliminar linhas por esse código.
 - Senado processos: o glob local inclui um Parquet antigo com zero colunas, que o DuckDB não consegue ler; a validação de `id` sobre o conjunto completo ficou pendente. O decodificador atual já evita produzir esse formato em arrays vazios (PR #183), mas a amostra antiga permanece no armazenamento.
-- A tabela `receitas_partidos_2012_MT` da prestação de contas do TSE (parte bronze `00150`, ano 2012) tinha uma data de registro como nome de coluna. A Raw confirmou que os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. O [portal oficial do TSE](https://dadosabertos.tse.jus.br/group/about/prestacao-de-contas-eleitorais) adverte que as regras e estruturas mudam por eleição e remete ao PDF do ZIP. O `LEIAME.pdf` do ZIP local não descreve as 19 posições dessa tabela. A chave silver continua pendente de um leiaute oficial específico e da validação entre siglas/anos.
+- A tabela `receitas_partidos_2012_MT` da prestação de contas do TSE (parte bronze `00150`, ano 2012) tinha uma data de registro como nome de coluna. Os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. A [pesquisa do leiaute de 2012](pesquisa-tse-2012.md) mostra que o `LEIAME.pdf` do ZIP não descreve as 19 posições e que o cabeçalho de 25 campos do consolidado não serve para mapeá-las. A chave silver continua pendente de leiaute oficial específico.
 
 As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.
 
