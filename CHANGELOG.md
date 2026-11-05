@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.5] - 2026-11-05
+
+### Documentação
+
+- Rejeita as chaves sequenciais simples dos quatro conjuntos de prestação de contas do TSE em 2024 após validar colisões nos consolidados locais; documenta variantes de atributos e a necessidade de contratos por conjunto e ano ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.20.4] - 2026-11-05
 
 ### Documentação

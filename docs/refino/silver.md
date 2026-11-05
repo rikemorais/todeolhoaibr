@@ -23,7 +23,7 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | `senado-processos-detalhes` | Legislativo | detalhe de processo | `id` do processo (presente no fixture); eventos aninhados exigem decisão de tabela |
 | `tse-candidaturas` | Eleitoral | candidatura por eleição | ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; [validação histórica abaixo](#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05) |
 | `tse-bens` | Eleitoral | bem declarado | ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano |
-| `tse-prestacao-contas` | Eleitoral | lançamento por tabela interna | chave própria de receitas/despesas por ano; validar layouts |
+| `tse-prestacao-contas` | Eleitoral | lançamento por tabela interna | contrato por conjunto e ano; sequências de 2024 colidem no consolidado, conforme [validação abaixo](#prestacao-de-contas-do-tse-em-2024) |
 | `tse-votacao-secao` | Eleitoral | voto agregado por seção e votável | ano, eleição, UF, turno, município, zona, seção, cargo e votável; [recortes validados abaixo](#votacao-por-secao-do-tse-no-bronze-local-2026-11-05) |
 | `bcb` | Série | observação SGS | série (do recurso) e `data`; `valor` decimal; data no formato `DD/MM/AAAA` no fixture |
 | `ipeadata` | Série | observação OData | `SERCODIGO`, `TERCODIGO` e `VALDATA` candidatos; `NIVNOME` distingue Brasil, estados, municípios e regiões |
@@ -181,6 +181,21 @@ Cada recurso `ano` × `uf` de AC e RO tem uma única versão Parquet local. Nas 
 | 2026 | 754.814 | 754.814 |
 
 Como recorte de uma UF grande, SP/2024 tem 9.611.657 linhas e o mesmo número de chaves distintas, sem campos da chave vazios ou UF divergente. A regra ainda precisa ser validada nos outros recursos, inclusive `uf=BR` nos anos em que existe, e em versões futuras. A Silver deve ler a versão apontada por `_ultima_versao.json` de cada recurso, não um glob que reúna execuções antigas.
+
+### Prestação de contas do TSE em 2024
+
+O manifesto vigente de `tse/prestacao-contas/ano=2024` contém quatro conjuntos diferentes, cada um com 26 partes por UF e um consolidado `BRASIL`: `despesas_contratadas_candidatos`, `receitas_candidatos`, `despesas_pagas_candidatos` e `receitas_candidatos_doador_originario`. Cada conjunto precisa de contrato Silver próprio. As contagens abaixo usam **somente** a parte `BRASIL` de cada um; nenhum identificador pessoal foi exibido.
+
+| Conjunto | Chave sequencial testada, além de `CD_ELEICAO` e `SQ_PRESTADOR_CONTAS` | Linhas | Chaves distintas | Hashes de linha distintos |
+| --- | --- | ---: | ---: | ---: |
+| Despesas contratadas | `SQ_DESPESA` | 4.452.310 | 3.125.686 | 4.380.965 |
+| Receitas | `SQ_RECEITA` | 2.041.059 | 1.898.067 | 2.038.794 |
+| Despesas pagas | (`SQ_DESPESA`, `SQ_PARCELAMENTO_DESPESA`) | 3.719.729 | 3.719.650 | 3.719.650 |
+| Doador originário | `SQ_RECEITA` | 534.344 | 452.567 | 533.011 |
+
+Os campos das chaves testadas não são SQL `NULL`. Nenhuma das quatro combinações é única. Acrescentar `TP_PRESTACAO_CONTAS` ou `DT_PRESTACAO_CONTAS` não resolve as colisões nas três primeiras tabelas; na de doador originário, a data aumenta a cardinalidade para 529.130, ainda abaixo das 534.344 linhas. O número de hashes de linha acima do número de chaves prova que há variantes de atributos em despesas contratadas, receitas e doador originário. Em despesas pagas, os hashes não revelam variantes nas 79 repetições; comparação exata e regra de deduplicação continuam pendentes. Hash é apenas diagnóstico, não chave de negócio nem critério final de descarte.
+
+O ano de 2002 contém quatro conjuntos internos com outros nomes (`DespesaCandidato`, `ReceitaCandidato`, `DespesaComite`, `ReceitaComite`); 2012 mistura partes por sigla e consolidados com leiautes diferentes. Não aplicar a chave de 2024 retroativamente. A próxima validação deve separar os conjuntos por ano, comparar o consolidado com as partes por UF e definir se as variantes são correções, linhas de detalhe ou duplicações da origem.
 
 ### Conjuntos da Câmara
 
