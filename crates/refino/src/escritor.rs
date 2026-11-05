@@ -7,6 +7,7 @@
 //!
 //! [ADR 0015]: ../../docs/adr/0015-arquitetura-de-dados-em-medalhao.md
 
+use std::io::Write;
 use std::sync::Arc;
 
 use arrow::array::{ArrayRef, StringArray};
@@ -39,25 +40,54 @@ fn arrays_de_linhas(linhas: &[Vec<Option<String>>], num_colunas: usize) -> Vec<A
 /// Escreve Parquet **em lotes** (um row group por lote), sem manter a tabela inteira em
 /// memória. É o caminho do bronze para arquivos grandes: o decodificador alimenta lotes de
 /// algumas dezenas de milhares de linhas e o pico de memória fica no tamanho de um lote.
-pub struct EscritorParquet {
-    escritor: ArrowWriter<Vec<u8>>,
+pub struct EscritorParquet<W: Write + Send> {
+    escritor: ArrowWriter<W>,
     esquema: Arc<Schema>,
     num_colunas: usize,
 }
 
-impl EscritorParquet {
-    /// Cria um escritor para as colunas dadas (todas `Utf8`).
+fn propriedades() -> WriterProperties {
+    WriterProperties::builder()
+        .set_compression(Compression::ZSTD(ZstdLevel::default()))
+        .build()
+}
+
+impl EscritorParquet<Vec<u8>> {
+    /// Cria um escritor **em memória** (devolve os bytes). Bom para tabelas pequenas.
     pub fn novo(colunas: &[String]) -> Result<Self, ErroDeRefino> {
         let esquema = esquema_de(colunas);
-        let propriedades = WriterProperties::builder()
-            .set_compression(Compression::ZSTD(ZstdLevel::default()))
-            .build();
-        let escritor = ArrowWriter::try_new(Vec::new(), Arc::clone(&esquema), Some(propriedades))?;
+        let escritor =
+            ArrowWriter::try_new(Vec::new(), Arc::clone(&esquema), Some(propriedades()))?;
         Ok(Self {
             escritor,
             esquema,
             num_colunas: colunas.len(),
         })
+    }
+
+    /// Fecha o Parquet e devolve os bytes.
+    pub fn finalizar(self) -> Result<Vec<u8>, ErroDeRefino> {
+        Ok(self.escritor.into_inner()?)
+    }
+}
+
+impl<W: Write + Send> EscritorParquet<W> {
+    /// Cria um escritor para um destino qualquer (ex.: um arquivo), sem manter o Parquet
+    /// inteiro em memória — para arquivos grandes.
+    pub fn novo_em(destino: W, colunas: &[String]) -> Result<Self, ErroDeRefino> {
+        let esquema = esquema_de(colunas);
+        let escritor = ArrowWriter::try_new(destino, Arc::clone(&esquema), Some(propriedades()))?;
+        Ok(Self {
+            escritor,
+            esquema,
+            num_colunas: colunas.len(),
+        })
+    }
+
+    /// Fecha o Parquet, liberando o destino (os bytes já foram escritos nele).
+    pub fn fechar(self) -> Result<(), ErroDeRefino> {
+        self.escritor.close()?;
+        Ok(())
     }
 
     /// Escreve um lote de linhas como um row group. Linhas devem ter uma célula por coluna.
@@ -80,12 +110,6 @@ impl EscritorParquet {
         let lote = RecordBatch::try_new(Arc::clone(&self.esquema), colunas)?;
         self.escritor.write(&lote)?;
         Ok(())
-    }
-
-    /// Fecha o Parquet e devolve os bytes. Um escritor sem lotes gera um Parquet válido e
-    /// vazio (só o esquema).
-    pub fn finalizar(self) -> Result<Vec<u8>, ErroDeRefino> {
-        Ok(self.escritor.into_inner()?)
     }
 }
 
