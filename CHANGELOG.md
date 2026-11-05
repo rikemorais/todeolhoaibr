@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.2] - 2026-11-05
+
+### Documentação
+
+- Valida a chave candidata (`recurso`, `data`) nas 11 séries BCB disponíveis no bronze local e registra o bloqueio de leiaute oficial para as colunas posicionais de receitas partidárias de 2012 do TSE ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.20.1] - 2026-11-05
 
 ### Corrigido
