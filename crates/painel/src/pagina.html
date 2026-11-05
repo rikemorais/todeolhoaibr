@@ -108,7 +108,10 @@ main {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
 }
 .c-raw { color: var(--neutro); background: var(--neutro-fundo); }
-.c-bronze { color: #b07a26; background: rgba(176, 122, 38, 0.16); }
+.c-bronze { color: #fff; background: #8b5a2b; }
+.c-silver { color: #fff; background: #2563eb; }
+.c-gold { color: #3b2f00; background: #ffde45; }
+.c-diamond { color: #fff; background: #7e22ce; }
 .cartao-selos { display: inline-flex; align-items: center; gap: 6px; }
 
 #detalhe { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
@@ -252,7 +255,7 @@ function selo({ texto, classe }) {
   return el("span", { class: `selo e-${classe}` }, icone(classe), texto);
 }
 
-const CAMADAS = { raw: "Raw", bronze: "Bronze" };
+const CAMADAS = { raw: "Raw", bronze: "Bronze", silver: "Silver", gold: "Gold", diamond: "Diamond" };
 
 function seloCamada(camada) {
   const chave = camada || "raw";
