@@ -1136,6 +1136,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Validação de chaves no bronze local">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#series-bcb-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Séries BCB no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conjuntos-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conjuntos da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1626,6 +1650,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Validação de chaves no bronze local">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#series-bcb-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Séries BCB no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conjuntos-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conjuntos da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1909,7 +1957,7 @@
 <td>BCB <code>selic-mensal</code>, <code>data</code></td>
 <td style="text-align: right;">483</td>
 <td style="text-align: right;">483</td>
-<td>Sem nulos; confirmar nas demais séries.</td>
+<td>Sem nulos; todas as 11 séries locais foram conferidas abaixo.</td>
 </tr>
 <tr>
 <td>Ipeadata, (<code>SERCODIGO</code>, <code>TERCODIGO</code>, <code>VALDATA</code>)</td>
@@ -2033,7 +2081,76 @@
 </tr>
 </tbody>
 </table>
-<p>Os sete conjuntos da Câmara abaixo foram validados <strong>apenas no ano de 2024</strong>. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico <code>votacoes</code>:</p>
+<h3 id="series-bcb-no-bronze-local-2026-11-05">Séries BCB no bronze local (2026-11-05)<a class="headerlink" href="#series-bcb-no-bronze-local-2026-11-05" title="Permanent link">&para;</a></h3>
+<p>Há uma versão Parquet por recurso nas 11 séries disponíveis. Em cada série, <code>data</code> é única e não vazia. Todas as 5.125 datas são interpretáveis por <code>%d/%m/%Y</code>, e todos os <code>valor</code> são conversíveis para <code>DECIMAL(18,6)</code> no DuckDB. A chave candidata da silver é (<code>recurso</code>, <code>data</code>); o recurso distingue séries com a mesma data. Esta validação cobre somente as versões locais observadas, não futuras correções ou novas séries.</p>
+<table>
+<thead>
+<tr>
+<th>Série</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Datas distintas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cambio-dolar-mensal</code></td>
+<td style="text-align: right;">885</td>
+<td style="text-align: right;">885</td>
+</tr>
+<tr>
+<td><code>cdi-mensal</code></td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">483</td>
+</tr>
+<tr>
+<td><code>credito-total-pib</code></td>
+<td style="text-align: right;">375</td>
+<td style="text-align: right;">375</td>
+</tr>
+<tr>
+<td><code>divida-liquida-setor-publico-pib</code></td>
+<td style="text-align: right;">298</td>
+<td style="text-align: right;">298</td>
+</tr>
+<tr>
+<td><code>ibc-br</code></td>
+<td style="text-align: right;">284</td>
+<td style="text-align: right;">284</td>
+</tr>
+<tr>
+<td><code>igpm-mensal</code></td>
+<td style="text-align: right;">449</td>
+<td style="text-align: right;">449</td>
+</tr>
+<tr>
+<td><code>inadimplencia-credito-total</code></td>
+<td style="text-align: right;">187</td>
+<td style="text-align: right;">187</td>
+</tr>
+<tr>
+<td><code>inpc-mensal</code></td>
+<td style="text-align: right;">570</td>
+<td style="text-align: right;">570</td>
+</tr>
+<tr>
+<td><code>ipca-12-meses</code></td>
+<td style="text-align: right;">550</td>
+<td style="text-align: right;">550</td>
+</tr>
+<tr>
+<td><code>ipca-mensal</code></td>
+<td style="text-align: right;">561</td>
+<td style="text-align: right;">561</td>
+</tr>
+<tr>
+<td><code>selic-mensal</code></td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">483</td>
+</tr>
+</tbody>
+</table>
+<h3 id="conjuntos-da-camara">Conjuntos da Câmara<a class="headerlink" href="#conjuntos-da-camara" title="Permanent link">&para;</a></h3>
+<p>Os sete conjuntos abaixo foram validados <strong>apenas no ano de 2024</strong>. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico <code>votacoes</code>:</p>
 <table>
 <thead>
 <tr>
@@ -2094,7 +2211,7 @@
 <li>Câmara tramitações: <code>idTramitacao</code> tem apenas 988 valores distintos em 1.879.478 linhas, com 174 ausentes. Mesmo (<code>uriProposicao</code>, <code>idTramitacao</code>) tem 1.871.298 combinações. Em 2024, há 112.979 linhas, 112.916 linhas distintas sem a procedência e 112.915 combinações de (<code>uriProposicao</code>, <code>idTramitacao</code>, <code>sequencia</code>, <code>dataHora</code>). Há duplicatas exatas e ao menos uma colisão semântica nessa chave composta; a política precisa distingui-las.</li>
 <li>Senado despesas: <code>COD_DOCUMENTO</code> tem 398.170 valores distintos em 398.172 linhas, com dois ausentes. A combinação com <code>ANO</code> ainda não é única (398.171 combinações), enquanto <strong>todas as 398.172 linhas são distintas</strong> sem a procedência. Revisar os documentos ausentes e não eliminar linhas por esse código.</li>
 <li>Senado processos: o glob local inclui um Parquet antigo com zero colunas, que o DuckDB não consegue ler; a validação de <code>id</code> sobre o conjunto completo ficou pendente. O decodificador atual já evita produzir esse formato em arrays vazios (PR #183), mas a amostra antiga permanece no armazenamento.</li>
-<li>A tabela <code>receitas_partidos_2012_MT</code> da prestação de contas do TSE (parte bronze <code>00150</code>, ano 2012) tinha uma data de registro como nome de coluna. A Raw confirmou que os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. A chave silver continua pendente do mapeamento oficial dessas posições e da validação entre siglas/anos.</li>
+<li>A tabela <code>receitas_partidos_2012_MT</code> da prestação de contas do TSE (parte bronze <code>00150</code>, ano 2012) tinha uma data de registro como nome de coluna. A Raw confirmou que os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. O <a href="https://dadosabertos.tse.jus.br/group/about/prestacao-de-contas-eleitorais">portal oficial do TSE</a> adverte que as regras e estruturas mudam por eleição e remete ao PDF do ZIP. O <code>LEIAME.pdf</code> do ZIP local não descreve as 19 posições dessa tabela. A chave silver continua pendente de um leiaute oficial específico e da validação entre siglas/anos.</li>
 </ul>
 <p>As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.</p>
 <h2 id="proxima-validacao-da-fase-0">Próxima validação da fase 0<a class="headerlink" href="#proxima-validacao-da-fase-0" title="Permanent link">&para;</a></h2>
