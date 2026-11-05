@@ -85,6 +85,10 @@
          <lastmod>2026-11-05</lastmod>
     </url>
     <url>
+         <loc>https://rikemorais.github.io/todeolhoaibr/latest/adr/0020-contrato-da-camada-silver/</loc>
+         <lastmod>2026-11-05</lastmod>
+    </url>
+    <url>
          <loc>https://rikemorais.github.io/todeolhoaibr/latest/adr/modelo/</loc>
          <lastmod>2026-11-05</lastmod>
     </url>
@@ -158,6 +162,10 @@
     </url>
     <url>
          <loc>https://rikemorais.github.io/todeolhoaibr/latest/refino/bronze/</loc>
+         <lastmod>2026-11-05</lastmod>
+    </url>
+    <url>
+         <loc>https://rikemorais.github.io/todeolhoaibr/latest/refino/silver/</loc>
          <lastmod>2026-11-05</lastmod>
     </url>
 </urlset>
