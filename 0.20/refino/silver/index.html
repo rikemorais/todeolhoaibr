@@ -1167,6 +1167,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#prestacao-de-contas-do-tse-em-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prestação de contas do TSE em 2024
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#conjuntos-da-camara" class="md-nav__link">
     <span class="md-ellipsis">
       Conjuntos da Câmara
@@ -1699,6 +1708,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#prestacao-de-contas-do-tse-em-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prestação de contas do TSE em 2024
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#conjuntos-da-camara" class="md-nav__link">
     <span class="md-ellipsis">
       Conjuntos da Câmara
@@ -1841,7 +1859,7 @@
 <td><code>tse-prestacao-contas</code></td>
 <td>Eleitoral</td>
 <td>lançamento por tabela interna</td>
-<td>chave própria de receitas/despesas por ano; validar layouts</td>
+<td>contrato por conjunto e ano; sequências de 2024 colidem no consolidado, conforme <a href="#prestacao-de-contas-do-tse-em-2024">validação abaixo</a></td>
 </tr>
 <tr>
 <td><code>tse-votacao-secao</code></td>
@@ -2483,6 +2501,51 @@
 </tbody>
 </table>
 <p>Como recorte de uma UF grande, SP/2024 tem 9.611.657 linhas e o mesmo número de chaves distintas, sem campos da chave vazios ou UF divergente. A regra ainda precisa ser validada nos outros recursos, inclusive <code>uf=BR</code> nos anos em que existe, e em versões futuras. A Silver deve ler a versão apontada por <code>_ultima_versao.json</code> de cada recurso, não um glob que reúna execuções antigas.</p>
+<h3 id="prestacao-de-contas-do-tse-em-2024">Prestação de contas do TSE em 2024<a class="headerlink" href="#prestacao-de-contas-do-tse-em-2024" title="Permanent link">&para;</a></h3>
+<p>O manifesto vigente de <code>tse/prestacao-contas/ano=2024</code> contém quatro conjuntos diferentes, cada um com 26 partes por UF e um consolidado <code>BRASIL</code>: <code>despesas_contratadas_candidatos</code>, <code>receitas_candidatos</code>, <code>despesas_pagas_candidatos</code> e <code>receitas_candidatos_doador_originario</code>. Cada conjunto precisa de contrato Silver próprio. As contagens abaixo usam <strong>somente</strong> a parte <code>BRASIL</code> de cada um; nenhum identificador pessoal foi exibido.</p>
+<table>
+<thead>
+<tr>
+<th>Conjunto</th>
+<th>Chave sequencial testada, além de <code>CD_ELEICAO</code> e <code>SQ_PRESTADOR_CONTAS</code></th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Chaves distintas</th>
+<th style="text-align: right;">Hashes de linha distintos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Despesas contratadas</td>
+<td><code>SQ_DESPESA</code></td>
+<td style="text-align: right;">4.452.310</td>
+<td style="text-align: right;">3.125.686</td>
+<td style="text-align: right;">4.380.965</td>
+</tr>
+<tr>
+<td>Receitas</td>
+<td><code>SQ_RECEITA</code></td>
+<td style="text-align: right;">2.041.059</td>
+<td style="text-align: right;">1.898.067</td>
+<td style="text-align: right;">2.038.794</td>
+</tr>
+<tr>
+<td>Despesas pagas</td>
+<td>(<code>SQ_DESPESA</code>, <code>SQ_PARCELAMENTO_DESPESA</code>)</td>
+<td style="text-align: right;">3.719.729</td>
+<td style="text-align: right;">3.719.650</td>
+<td style="text-align: right;">3.719.650</td>
+</tr>
+<tr>
+<td>Doador originário</td>
+<td><code>SQ_RECEITA</code></td>
+<td style="text-align: right;">534.344</td>
+<td style="text-align: right;">452.567</td>
+<td style="text-align: right;">533.011</td>
+</tr>
+</tbody>
+</table>
+<p>Os campos das chaves testadas não são SQL <code>NULL</code>. Nenhuma das quatro combinações é única. Acrescentar <code>TP_PRESTACAO_CONTAS</code> ou <code>DT_PRESTACAO_CONTAS</code> não resolve as colisões nas três primeiras tabelas; na de doador originário, a data aumenta a cardinalidade para 529.130, ainda abaixo das 534.344 linhas. O número de hashes de linha acima do número de chaves prova que há variantes de atributos em despesas contratadas, receitas e doador originário. Em despesas pagas, os hashes não revelam variantes nas 79 repetições; comparação exata e regra de deduplicação continuam pendentes. Hash é apenas diagnóstico, não chave de negócio nem critério final de descarte.</p>
+<p>O ano de 2002 contém quatro conjuntos internos com outros nomes (<code>DespesaCandidato</code>, <code>ReceitaCandidato</code>, <code>DespesaComite</code>, <code>ReceitaComite</code>); 2012 mistura partes por sigla e consolidados com leiautes diferentes. Não aplicar a chave de 2024 retroativamente. A próxima validação deve separar os conjuntos por ano, comparar o consolidado com as partes por UF e definir se as variantes são correções, linhas de detalhe ou duplicações da origem.</p>
 <h3 id="conjuntos-da-camara">Conjuntos da Câmara<a class="headerlink" href="#conjuntos-da-camara" title="Permanent link">&para;</a></h3>
 <p>Os sete conjuntos abaixo foram validados <strong>apenas no ano de 2024</strong>. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico <code>votacoes</code>:</p>
 <table>
