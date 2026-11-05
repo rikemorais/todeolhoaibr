@@ -1130,6 +1130,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validacao-de-chaves-no-bronze-local" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validação de chaves no bronze local
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#proxima-validacao-da-fase-0" class="md-nav__link">
     <span class="md-ellipsis">
       Próxima validação da fase 0
@@ -1611,6 +1620,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validacao-de-chaves-no-bronze-local" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validação de chaves no bronze local
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#proxima-validacao-da-fase-0" class="md-nav__link">
     <span class="md-ellipsis">
       Próxima validação da fase 0
@@ -1667,7 +1685,7 @@
 <td><code>camara-votacoes</code></td>
 <td>Legislativo</td>
 <td>registro de um dos sete conjuntos anuais</td>
-<td>contrato separado para <code>proposicoes</code>, <code>proposicoesAutores</code>, <code>votacoes</code>, <code>votacoesVotos</code>, <code>votacoesObjetos</code>, <code>votacoesProposicoes</code> e <code>votacoesOrientacoes</code></td>
+<td>contrato separado para <code>proposicoes</code>, <code>proposicoesAutores</code>, <code>votacoes</code>, <code>votacoesVotos</code>, <code>votacoesObjetos</code>, <code>votacoesProposicoes</code> e <code>votacoesOrientacoes</code>; chaves de 2024 abaixo</td>
 </tr>
 <tr>
 <td><code>camara-tramitacoes</code></td>
@@ -1709,7 +1727,7 @@
 <td><code>senado-parlamentares</code></td>
 <td>Legislativo</td>
 <td>parlamentar em legislatura</td>
-<td>parlamentar e legislatura</td>
+<td><code>IdentificacaoParlamentar.CodigoParlamentar</code> e <code>legislatura</code> no bronze local</td>
 </tr>
 <tr>
 <td><code>senado-processos</code></td>
@@ -1875,6 +1893,209 @@
 </tbody>
 </table>
 <p>As consultas acima são somente leitura. Não foram inspecionados registros individuais de candidaturas ou prestação de contas.</p>
+<h2 id="validacao-de-chaves-no-bronze-local">Validação de chaves no bronze local<a class="headerlink" href="#validacao-de-chaves-no-bronze-local" title="Permanent link">&para;</a></h2>
+<p>As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retornar registros individuais. <strong>Não são prova de chave universal</strong>: os globais podem incluir versões históricas, e os recortes TSE cobrem somente as partes indicadas. O contrato silver deve usar apenas a versão vigente de cada recurso e repetir a validação em anos/layouts diferentes.</p>
+<table>
+<thead>
+<tr>
+<th>Tabela e recorte</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Chaves distintas</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BCB <code>selic-mensal</code>, <code>data</code></td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">483</td>
+<td>Sem nulos; confirmar nas demais séries.</td>
+</tr>
+<tr>
+<td>Ipeadata, (<code>SERCODIGO</code>, <code>TERCODIGO</code>, <code>VALDATA</code>)</td>
+<td style="text-align: right;">67.632</td>
+<td style="text-align: right;">67.632</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE estados, <code>id</code></td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">27</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE regiões, <code>id</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE municípios, <code>id</code></td>
+<td style="text-align: right;">5.571</td>
+<td style="text-align: right;">5.571</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE IPCA, chave com variável, classificações, nível, localidade e período</td>
+<td style="text-align: right;">562</td>
+<td style="text-align: right;">562</td>
+<td>Sem nulos nos campos variável, localidade e período.</td>
+</tr>
+<tr>
+<td>IBGE INPC, mesma chave</td>
+<td style="text-align: right;">571</td>
+<td style="text-align: right;">571</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>IBGE PIB municipal, mesma chave</td>
+<td style="text-align: right;">122.540</td>
+<td style="text-align: right;">122.540</td>
+<td>Mesma condição; <code>nivel_id=N6</code> na amostra local.</td>
+</tr>
+<tr>
+<td>IBGE PIB trimestral, mesma chave</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">122</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>IBGE PNAD desocupação, mesma chave</td>
+<td style="text-align: right;">1.566</td>
+<td style="text-align: right;">1.566</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>IBGE população municipal, mesma chave</td>
+<td style="text-align: right;">122.562</td>
+<td style="text-align: right;">122.562</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>Câmara deputados, <code>id</code></td>
+<td style="text-align: right;">513</td>
+<td style="text-align: right;">513</td>
+<td>Sem nulos no conjunto local consultado; vigência/histórico ainda exigem contrato.</td>
+</tr>
+<tr>
+<td>Câmara partidos, <code>id</code></td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">21</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>Câmara legislaturas, <code>id</code></td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">57</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>Senado parlamentares, (<code>IdentificacaoParlamentar.CodigoParlamentar</code>, <code>legislatura</code>)</td>
+<td style="text-align: right;">2.035</td>
+<td style="text-align: right;">2.035</td>
+<td>Código extraído do JSON compacto; sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>Senado votações, <code>codigoSessaoVotacao</code></td>
+<td style="text-align: right;">3.652</td>
+<td style="text-align: right;">3.652</td>
+<td>Sem nulos no conjunto local consultado; conferir semântica em outros anos.</td>
+</tr>
+<tr>
+<td>Senado processos, <code>id</code>, ano 2024</td>
+<td style="text-align: right;">4.947</td>
+<td style="text-align: right;">4.947</td>
+<td>Único no recorte; glob completo contém Parquet antigo de zero colunas.</td>
+</tr>
+<tr>
+<td>Senado processos-detalhes, <code>id</code></td>
+<td style="text-align: right;">163.156</td>
+<td style="text-align: right;">163.156</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>TSE votação por seção 2014/AC, (<code>CD_ELEICAO</code>, <code>NR_TURNO</code>, <code>CD_MUNICIPIO</code>, <code>NR_ZONA</code>, <code>NR_SECAO</code>, <code>CD_CARGO</code>, <code>NR_VOTAVEL</code>)</td>
+<td style="text-align: right;">224.661</td>
+<td style="text-align: right;">224.661</td>
+<td>Única no recorte.</td>
+</tr>
+<tr>
+<td>TSE candidaturas 2014, uma parte, (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>)</td>
+<td style="text-align: right;">879</td>
+<td style="text-align: right;">879</td>
+<td>Única na parte; conferir entre UFs/partes.</td>
+</tr>
+<tr>
+<td>TSE bens 2014, uma parte, (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>, <code>NR_ORDEM_BEM_CANDIDATO</code>)</td>
+<td style="text-align: right;">3.588</td>
+<td style="text-align: right;">3.588</td>
+<td>Única na parte; conferir entre UFs/partes.</td>
+</tr>
+</tbody>
+</table>
+<p>Os sete conjuntos da Câmara abaixo foram validados <strong>apenas no ano de 2024</strong>. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico <code>votacoes</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Conjunto</th>
+<th>Chave candidata</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Chaves distintas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>proposicoes</code></td>
+<td><code>id</code></td>
+<td style="text-align: right;">61.536</td>
+<td style="text-align: right;">61.536</td>
+</tr>
+<tr>
+<td><code>proposicoesAutores</code></td>
+<td>(<code>idProposicao</code>, <code>ordemAssinatura</code>)</td>
+<td style="text-align: right;">97.124</td>
+<td style="text-align: right;">97.124</td>
+</tr>
+<tr>
+<td><code>votacoes</code></td>
+<td><code>id</code></td>
+<td style="text-align: right;">10.373</td>
+<td style="text-align: right;">10.373</td>
+</tr>
+<tr>
+<td><code>votacoesVotos</code></td>
+<td>(<code>idVotacao</code>, <code>deputado_id</code>)</td>
+<td style="text-align: right;">116.400</td>
+<td style="text-align: right;">116.400</td>
+</tr>
+<tr>
+<td><code>votacoesObjetos</code></td>
+<td>(<code>idVotacao</code>, <code>proposicao_id</code>)</td>
+<td style="text-align: right;">60.950</td>
+<td style="text-align: right;">60.950</td>
+</tr>
+<tr>
+<td><code>votacoesProposicoes</code></td>
+<td>(<code>idVotacao</code>, <code>proposicao_id</code>)</td>
+<td style="text-align: right;">7.459</td>
+<td style="text-align: right;">7.459</td>
+</tr>
+<tr>
+<td><code>votacoesOrientacoes</code></td>
+<td>(<code>idVotacao</code>, <code>siglaBancada</code>)</td>
+<td style="text-align: right;">4.361</td>
+<td style="text-align: right;">4.361</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Chaves rejeitadas ou ainda ambíguas:</strong></p>
+<ul>
+<li>Câmara despesas: <code>ideDocumento</code> tem 3.897.462 valores distintos em 5.235.506 linhas, com seis valores ausentes. Mesmo (<code>ano</code>, <code>ideDocumento</code>, <code>numParcela</code>, <code>nuDeputadoId</code>) tem só 4.078.766 combinações. Em 2024, as 232.918 linhas são distintas quando se exclui apenas a procedência; portanto a repetição de ID <strong>não prova duplicação de registro</strong>.</li>
+<li>Câmara tramitações: <code>idTramitacao</code> tem apenas 988 valores distintos em 1.879.478 linhas, com 174 ausentes. Mesmo (<code>uriProposicao</code>, <code>idTramitacao</code>) tem 1.871.298 combinações. Em 2024, há 112.979 linhas, 112.916 linhas distintas sem a procedência e 112.915 combinações de (<code>uriProposicao</code>, <code>idTramitacao</code>, <code>sequencia</code>, <code>dataHora</code>). Há duplicatas exatas e ao menos uma colisão semântica nessa chave composta; a política precisa distingui-las.</li>
+<li>Senado despesas: <code>COD_DOCUMENTO</code> tem 398.170 valores distintos em 398.172 linhas, com dois ausentes. A combinação com <code>ANO</code> ainda não é única (398.171 combinações), enquanto <strong>todas as 398.172 linhas são distintas</strong> sem a procedência. Revisar os documentos ausentes e não eliminar linhas por esse código.</li>
+<li>Senado processos: o glob local inclui um Parquet antigo com zero colunas, que o DuckDB não consegue ler; a validação de <code>id</code> sobre o conjunto completo ficou pendente. O decodificador atual já evita produzir esse formato em arrays vazios (PR #183), mas a amostra antiga permanece no armazenamento.</li>
+<li>A tabela <code>receitas_partidos_2012_MT</code> da prestação de contas do TSE (parte bronze <code>00150</code>, ano 2012) tem 22 colunas, das quais uma usa uma data de registro como nome; isso confirma cabeçalho inválido para um contrato estável. A chave dessa tabela fica suspensa até verificar o CSV de origem e o decodificador; não inferir schema a partir dessa parte.</li>
+</ul>
 <p>As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.</p>
 <h2 id="proxima-validacao-da-fase-0">Próxima validação da fase 0<a class="headerlink" href="#proxima-validacao-da-fase-0" title="Permanent link">&para;</a></h2>
 <p>Conferir amostras das 26 entradas do catálogo e todas as tabelas internas dos ZIPs, incluindo anos antigos e recentes; fixar chaves e schemas somente depois dessa conferência. A fase 1 (#186) implementa o mecanismo; as fases 2–4 (#187–#189) entregam os contratos específicos.</p>
