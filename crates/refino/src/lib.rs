@@ -5,8 +5,9 @@
 //! silver). Este crate guarda o conhecimento de formato que o [ADR 0014] mantém fora da
 //! ingestão.
 //!
-//! Nesta primeira fase (issue #152) o crate oferece o [`escritor`] de Parquet; os
-//! decodificadores por fonte e a `TarefaDeBronze` vêm nas fases seguintes.
+//! Os decodificadores e a [`tarefa::TarefaDeBronze`] publicam o bronze. O módulo
+//! [`linhagem`] lê as partes em lotes e fornece referências de linha para os
+//! futuros contratos silver, sem alterar o conteúdo armazenado no bronze.
 //!
 //! [ADR 0014]: ../../docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md
 
@@ -17,6 +18,7 @@ pub mod csv_zip;
 pub mod decodificador;
 pub mod escritor;
 pub mod fontes;
+pub mod linhagem;
 pub mod tarefa;
 
 pub use catalogo::{FonteDeRefino, catalogo_refino};
@@ -26,4 +28,5 @@ pub use fontes::{
     DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
+pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
 pub use tarefa::TarefaDeBronze;
