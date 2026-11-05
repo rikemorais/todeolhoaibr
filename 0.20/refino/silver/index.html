@@ -1158,6 +1158,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#conjuntos-da-camara" class="md-nav__link">
     <span class="md-ellipsis">
       Conjuntos da Câmara
@@ -1681,6 +1690,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#conjuntos-da-camara" class="md-nav__link">
     <span class="md-ellipsis">
       Conjuntos da Câmara
@@ -1828,8 +1846,8 @@
 <tr>
 <td><code>tse-votacao-secao</code></td>
 <td>Eleitoral</td>
-<td>voto agregado por seção</td>
-<td>eleição, turno, seção, cargo e candidato; validar tabelas</td>
+<td>voto agregado por seção e votável</td>
+<td>ano, eleição, UF, turno, município, zona, seção, cargo e votável; <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05">recortes validados abaixo</a></td>
 </tr>
 <tr>
 <td><code>bcb</code></td>
@@ -2083,7 +2101,7 @@
 <td>TSE votação por seção 2014/AC, (<code>CD_ELEICAO</code>, <code>NR_TURNO</code>, <code>CD_MUNICIPIO</code>, <code>NR_ZONA</code>, <code>NR_SECAO</code>, <code>CD_CARGO</code>, <code>NR_VOTAVEL</code>)</td>
 <td style="text-align: right;">224.661</td>
 <td style="text-align: right;">224.661</td>
-<td>Única no recorte.</td>
+<td>Única no recorte; validação histórica de AC e RO abaixo.</td>
 </tr>
 <tr>
 <td>TSE candidaturas 2014, uma parte, (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>)</td>
@@ -2376,6 +2394,95 @@
 </tbody>
 </table>
 <p>Esses números verificam as versões locais vigentes, não mudanças futuras da origem. Antes de materializar, validar também sentinelas de texto, correções entre versões e a cobertura do consolidado em todos os anos. As partes por UF de 2000 mostram que unicidade de chave não resolve sozinha divergências de atributos.</p>
+<h3 id="votacao-por-secao-do-tse-no-bronze-local-2026-11-05">Votação por seção do TSE no bronze local (2026-11-05)<a class="headerlink" href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05" title="Permanent link">&para;</a></h3>
+<p>Cada recurso <code>ano</code> × <code>uf</code> de AC e RO tem uma única versão Parquet local. Nas 30 partes desses estados, de 1998 a 2026, a chave candidata (<code>ANO_ELEICAO</code>, <code>CD_ELEICAO</code>, <code>SG_UF</code>, <code>NR_TURNO</code>, <code>CD_MUNICIPIO</code>, <code>NR_ZONA</code>, <code>NR_SECAO</code>, <code>CD_CARGO</code>, <code>NR_VOTAVEL</code>) é única por ano e não tem campos SQL <code>NULL</code> nem vazios; <code>SG_UF</code> concorda com o recurso. A tabela mostra a contagem da chave sem <code>ANO_ELEICAO</code>, pois já está agrupada por ano. Acrescentar <code>SG_UF</code> explicita o escopo geográfico, mesmo que ela não tenha sido necessária para distinguir as linhas de AC e RO.</p>
+<table>
+<thead>
+<tr>
+<th>Ano</th>
+<th style="text-align: right;">Linhas AC + RO</th>
+<th style="text-align: right;">Chaves distintas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1998</td>
+<td style="text-align: right;">350.606</td>
+<td style="text-align: right;">350.606</td>
+</tr>
+<tr>
+<td>2000</td>
+<td style="text-align: right;">253.934</td>
+<td style="text-align: right;">253.934</td>
+</tr>
+<tr>
+<td>2002</td>
+<td style="text-align: right;">475.169</td>
+<td style="text-align: right;">475.169</td>
+</tr>
+<tr>
+<td>2004</td>
+<td style="text-align: right;">309.136</td>
+<td style="text-align: right;">309.136</td>
+</tr>
+<tr>
+<td>2006</td>
+<td style="text-align: right;">485.207</td>
+<td style="text-align: right;">485.207</td>
+</tr>
+<tr>
+<td>2008</td>
+<td style="text-align: right;">344.724</td>
+<td style="text-align: right;">344.724</td>
+</tr>
+<tr>
+<td>2010</td>
+<td style="text-align: right;">544.097</td>
+<td style="text-align: right;">544.097</td>
+</tr>
+<tr>
+<td>2012</td>
+<td style="text-align: right;">434.002</td>
+<td style="text-align: right;">434.002</td>
+</tr>
+<tr>
+<td>2014</td>
+<td style="text-align: right;">633.544</td>
+<td style="text-align: right;">633.544</td>
+</tr>
+<tr>
+<td>2016</td>
+<td style="text-align: right;">463.463</td>
+<td style="text-align: right;">463.463</td>
+</tr>
+<tr>
+<td>2018</td>
+<td style="text-align: right;">797.825</td>
+<td style="text-align: right;">797.825</td>
+</tr>
+<tr>
+<td>2020</td>
+<td style="text-align: right;">484.535</td>
+<td style="text-align: right;">484.535</td>
+</tr>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">788.644</td>
+<td style="text-align: right;">788.644</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">506.130</td>
+<td style="text-align: right;">506.130</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">754.814</td>
+<td style="text-align: right;">754.814</td>
+</tr>
+</tbody>
+</table>
+<p>Como recorte de uma UF grande, SP/2024 tem 9.611.657 linhas e o mesmo número de chaves distintas, sem campos da chave vazios ou UF divergente. A regra ainda precisa ser validada nos outros recursos, inclusive <code>uf=BR</code> nos anos em que existe, e em versões futuras. A Silver deve ler a versão apontada por <code>_ultima_versao.json</code> de cada recurso, não um glob que reúna execuções antigas.</p>
 <h3 id="conjuntos-da-camara">Conjuntos da Câmara<a class="headerlink" href="#conjuntos-da-camara" title="Permanent link">&para;</a></h3>
 <p>Os sete conjuntos abaixo foram validados <strong>apenas no ano de 2024</strong>. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico <code>votacoes</code>:</p>
 <table>
