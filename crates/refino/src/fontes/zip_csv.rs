@@ -41,9 +41,22 @@ impl Decodificador for DecodificadorZipCsv {
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
         if self.em_fluxo {
-            partes_de_zip_csv_em_fluxo(bytes, self.separador)
+            partes_de_zip_csv_em_fluxo(std::io::Cursor::new(bytes), self.separador)
         } else {
             partes_de_zip_csv(bytes, self.separador)
+        }
+    }
+
+    fn decodificar_arquivo(
+        &self,
+        caminho: &std::path::Path,
+        tipo_de_conteudo: &str,
+    ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+        if self.em_fluxo {
+            // Abre o ZIP direto do disco: não carrega o arquivo (de vários GB) na memória.
+            partes_de_zip_csv_em_fluxo(std::fs::File::open(caminho)?, self.separador)
+        } else {
+            self.decodificar(&std::fs::read(caminho)?, tipo_de_conteudo)
         }
     }
 }

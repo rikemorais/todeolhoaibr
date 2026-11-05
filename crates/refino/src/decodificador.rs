@@ -65,4 +65,15 @@ pub trait Decodificador: Send + Sync {
         bytes: &[u8],
         tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino>;
+
+    /// Decodifica um part já baixado para um **arquivo** (sem carregá-lo inteiro na memória).
+    /// O padrão lê o arquivo e chama [`Self::decodificar`]; decodificadores de arquivos grandes
+    /// (ZIP em fluxo) sobrescrevem para ler direto do disco.
+    fn decodificar_arquivo(
+        &self,
+        caminho: &std::path::Path,
+        tipo_de_conteudo: &str,
+    ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+        self.decodificar(&std::fs::read(caminho)?, tipo_de_conteudo)
+    }
 }

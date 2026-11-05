@@ -133,17 +133,31 @@ impl Tarefa for TarefaDeBronze {
             });
         }
 
-        // 3. Decodifica cada part do raw em partes de bronze (Parquet já pronto).
+        // 3. Baixa cada part para um arquivo temporário (em fluxo, sem carregar o part — que
+        // pode ter vários GB — na memória) e decodifica a partir do disco.
         let mut conteudos = Vec::new();
         for parte in &manifesto_raw.partes {
-            let bytes = self.origem.ler(&parte.chave).await?.ok_or_else(|| {
-                ErroDeIngestao::NaoEncontrado {
+            let arquivo = tempfile::NamedTempFile::new()
+                .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
+            let mut escrita = tokio::fs::File::from_std(
+                arquivo
+                    .reopen()
+                    .map_err(|erro| self.erro_manifesto(erro.to_string()))?,
+            );
+            let existe = self.origem.ler_fluxo(&parte.chave, &mut escrita).await?;
+            tokio::io::AsyncWriteExt::flush(&mut escrita)
+                .await
+                .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
+            drop(escrita);
+            if !existe {
+                return Err(ErroDeIngestao::NaoEncontrado {
                     url: parte.chave.clone(),
-                }
-            })?;
+                });
+            }
+            let caminho = arquivo.into_temp_path();
             let decodificadas = self
                 .decodificador
-                .decodificar(&bytes, &parte.tipo_de_conteudo)
+                .decodificar_arquivo(&caminho, &parte.tipo_de_conteudo)
                 .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
             conteudos.extend(decodificadas);
         }

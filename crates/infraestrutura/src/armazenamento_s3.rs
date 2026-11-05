@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use std::time::Duration;
+
 use s3::creds::Credentials;
 use s3::error::S3Error;
 use s3::{Bucket, BucketConfiguration, Region};
@@ -81,9 +83,12 @@ impl ArmazenamentoS3 {
             None,
         )
         .map_err(|e| erro(e.to_string()))?;
+        // Timeout generoso: baixar/subir objetos de vários GB (ZIPs do TSE) passa do padrão.
         let bucket = Bucket::new(&configuracao.bucket, regiao.clone(), credenciais.clone())
             .map_err(|e| erro(e.to_string()))?
-            .with_path_style();
+            .with_path_style()
+            .with_request_timeout(Duration::from_secs(1800))
+            .map_err(|e| erro(e.to_string()))?;
 
         Ok(Self {
             bucket,
@@ -225,6 +230,23 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         match self.bucket.get_object(chave).await {
             Ok(resposta) => Ok(Some(resposta.bytes().to_vec())),
             Err(S3Error::HttpFailWithBody(404, _)) => Ok(None),
+            Err(erro) => Err(self.erro(chave, erro)),
+        }
+    }
+
+    async fn ler_fluxo(
+        &self,
+        chave: &str,
+        escrita: &mut (dyn tokio::io::AsyncWrite + Send + Unpin),
+    ) -> Result<bool, ErroDeIngestao> {
+        match self.bucket.get_object_to_writer(chave, escrita).await {
+            Ok(200) => Ok(true),
+            Ok(404) => Ok(false),
+            Ok(status) => Err(self.erro(
+                chave,
+                S3Error::HttpFailWithBody(status, "status inesperado".into()),
+            )),
+            Err(S3Error::HttpFailWithBody(404, _)) => Ok(false),
             Err(erro) => Err(self.erro(chave, erro)),
         }
     }
