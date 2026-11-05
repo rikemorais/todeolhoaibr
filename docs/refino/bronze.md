@@ -27,6 +27,8 @@ Um ZIP com N CSVs vira N Parquets, nomeados pelo CSV interno (registrado no mani
 
 ## Como rodar
 
+Em uma instalação nova, rode `docker compose up -d --build` e ingira as fontes desejadas com `docker compose run --rm ingestao`. Esse `up` inicia o `agendador` do bronze. A primeira passada acontece ao iniciar; se a Raw ainda estiver vazia, a próxima passada (padrão: até uma hora depois) processa os dados ingeridos. Para não esperar, execute uma passada manual:
+
 ```bash
 # Decodifica para bronze os recursos já ingeridos de uma fonte
 docker compose run --rm refino refinar bronze camara-despesas
@@ -34,6 +36,19 @@ docker compose run --rm refino refinar bronze camara-despesas
 # Ou todas as fontes do catálogo de refino de uma vez
 docker compose run --rm refino refinar bronze --todas
 ```
+
+Se a instalação já tinha dados apenas na Raw, atualize o repositório e rode `docker compose up -d --build`. O `git pull` sozinho não executa o refino. Ao subir, o agendador reconcilia o bronze a partir dos recursos Raw existentes, sem novo download da origem. Os dados ficam no mesmo volume Docker.
+
+```bash
+# Confirma se o serviço automático está ativo e acompanha a reconciliação
+docker compose ps agendador
+docker compose logs --tail=50 agendador
+
+# Confirma que há arquivos Parquet no bucket bronze (após haver dados na Raw)
+docker compose exec armazenamento find /dados/bronze -name '*.parquet'
+```
+
+O painel registra execuções com trabalho real; uma passada agendada sem mudanças não cria uma nova execução. A primeira carga pode demorar conforme o volume da Raw, especialmente nos pacotes do TSE.
 
 O serviço `refino` tem um `mem_limit` maior que o da ingestão porque decodificar CSV/JSON para colunar consome mais memória do que a ingestão, que vai em fluxo.
 
