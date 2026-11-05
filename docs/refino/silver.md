@@ -11,14 +11,14 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | Entrada bronze | Família | Grão candidato da silver | Chave candidata / validação necessária |
 | --- | --- | --- | --- |
 | `camara-despesas` | Legislativo | despesa CEAP | documento e linha; validar IDs e correções |
-| `camara-votacoes` | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes` |
+| `camara-votacoes` | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes`; chaves de 2024 abaixo |
 | `camara-tramitacoes` | Legislativo | evento de tramitação | proposição e sequência/data; validar repetição |
 | `camara-deputados` | Legislativo | deputado | ID oficial e vigência; validar histórico |
 | `camara-partidos` | Legislativo | partido | ID oficial e vigência |
 | `camara-legislaturas` | Legislativo | legislatura | ID oficial |
 | `senado-despesas` | Legislativo | despesa CEAPS | documento/linha e ano; validar IDs |
 | `senado-votacoes` | Legislativo | votação publicada | ID oficial e contexto; validar grão real |
-| `senado-parlamentares` | Legislativo | parlamentar em legislatura | parlamentar e legislatura |
+| `senado-parlamentares` | Legislativo | parlamentar em legislatura | `IdentificacaoParlamentar.CodigoParlamentar` e `legislatura` no bronze local |
 | `senado-processos` | Legislativo | processo | ID oficial e vigência |
 | `senado-processos-detalhes` | Legislativo | detalhe de processo | `id` do processo (presente no fixture); eventos aninhados exigem decisão de tabela |
 | `tse-candidaturas` | Eleitoral | candidatura por eleição | eleição, cargo, UF e identificador oficial |
@@ -67,6 +67,54 @@ O armazenamento local contém Parquet para **todas as 26 entradas**. Inspecionei
 | `tse-votacao-secao` | `CD_MUNICIPIO`, `NR_ZONA`, `NR_SECAO`, `NR_VOTAVEL`, `QT_VOTOS` | A parte inspecionada permite formular chave candidata por eleição/turno/seção/cargo/votável; validar duplicatas e recortes por UF. |
 
 As consultas acima são somente leitura. Não foram inspecionados registros individuais de candidaturas ou prestação de contas.
+
+## Validação de chaves no bronze local
+
+As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retornar registros individuais. **Não são prova de chave universal**: os globais podem incluir versões históricas, e os recortes TSE cobrem somente as partes indicadas. O contrato silver deve usar apenas a versão vigente de cada recurso e repetir a validação em anos/layouts diferentes.
+
+| Tabela e recorte | Linhas | Chaves distintas | Resultado |
+| --- | ---: | ---: | --- |
+| BCB `selic-mensal`, `data` | 483 | 483 | Sem nulos; confirmar nas demais séries. |
+| Ipeadata, (`SERCODIGO`, `TERCODIGO`, `VALDATA`) | 67.632 | 67.632 | Sem nulos no conjunto local consultado. |
+| IBGE estados, `id` | 27 | 27 | Sem nulos no conjunto local consultado. |
+| IBGE regiões, `id` | 5 | 5 | Sem nulos no conjunto local consultado. |
+| IBGE municípios, `id` | 5.571 | 5.571 | Sem nulos no conjunto local consultado. |
+| IBGE IPCA, chave com variável, classificações, nível, localidade e período | 562 | 562 | Sem nulos nos campos variável, localidade e período. |
+| IBGE INPC, mesma chave | 571 | 571 | Mesma condição. |
+| IBGE PIB municipal, mesma chave | 122.540 | 122.540 | Mesma condição; `nivel_id=N6` na amostra local. |
+| IBGE PIB trimestral, mesma chave | 122 | 122 | Mesma condição. |
+| IBGE PNAD desocupação, mesma chave | 1.566 | 1.566 | Mesma condição. |
+| IBGE população municipal, mesma chave | 122.562 | 122.562 | Mesma condição. |
+| Câmara deputados, `id` | 513 | 513 | Sem nulos no conjunto local consultado; vigência/histórico ainda exigem contrato. |
+| Câmara partidos, `id` | 21 | 21 | Sem nulos no conjunto local consultado. |
+| Câmara legislaturas, `id` | 57 | 57 | Sem nulos no conjunto local consultado. |
+| Senado parlamentares, (`IdentificacaoParlamentar.CodigoParlamentar`, `legislatura`) | 2.035 | 2.035 | Código extraído do JSON compacto; sem nulos no conjunto local consultado. |
+| Senado votações, `codigoSessaoVotacao` | 3.652 | 3.652 | Sem nulos no conjunto local consultado; conferir semântica em outros anos. |
+| Senado processos, `id`, ano 2024 | 4.947 | 4.947 | Único no recorte; glob completo contém Parquet antigo de zero colunas. |
+| Senado processos-detalhes, `id` | 163.156 | 163.156 | Sem nulos no conjunto local consultado. |
+| TSE votação por seção 2014/AC, (`CD_ELEICAO`, `NR_TURNO`, `CD_MUNICIPIO`, `NR_ZONA`, `NR_SECAO`, `CD_CARGO`, `NR_VOTAVEL`) | 224.661 | 224.661 | Única no recorte. |
+| TSE candidaturas 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`) | 879 | 879 | Única na parte; conferir entre UFs/partes. |
+| TSE bens 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`, `NR_ORDEM_BEM_CANDIDATO`) | 3.588 | 3.588 | Única na parte; conferir entre UFs/partes. |
+
+Os sete conjuntos da Câmara abaixo foram validados **apenas no ano de 2024**. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico `votacoes`:
+
+| Conjunto | Chave candidata | Linhas | Chaves distintas |
+| --- | --- | ---: | ---: |
+| `proposicoes` | `id` | 61.536 | 61.536 |
+| `proposicoesAutores` | (`idProposicao`, `ordemAssinatura`) | 97.124 | 97.124 |
+| `votacoes` | `id` | 10.373 | 10.373 |
+| `votacoesVotos` | (`idVotacao`, `deputado_id`) | 116.400 | 116.400 |
+| `votacoesObjetos` | (`idVotacao`, `proposicao_id`) | 60.950 | 60.950 |
+| `votacoesProposicoes` | (`idVotacao`, `proposicao_id`) | 7.459 | 7.459 |
+| `votacoesOrientacoes` | (`idVotacao`, `siglaBancada`) | 4.361 | 4.361 |
+
+**Chaves rejeitadas ou ainda ambíguas:**
+
+- Câmara despesas: `ideDocumento` tem 3.897.462 valores distintos em 5.235.506 linhas, com seis valores ausentes. Mesmo (`ano`, `ideDocumento`, `numParcela`, `nuDeputadoId`) tem só 4.078.766 combinações. Não deduplicar por esses campos sem investigar a repetição.
+- Câmara tramitações: `idTramitacao` tem apenas 988 valores distintos em 1.879.478 linhas, com 174 ausentes. Mesmo (`uriProposicao`, `idTramitacao`) tem 1.871.298 combinações, ainda aquém do total. Precisamos distinguir republicações, repetição entre anos e eventos verdadeiramente duplicados antes de escolher a chave.
+- Senado despesas: `COD_DOCUMENTO` tem 398.170 valores distintos em 398.172 linhas, com dois ausentes. A combinação com `ANO` ainda não é única (398.171 combinações). Revisar a duplicata e os campos ausentes sem remover linhas automaticamente.
+- Senado processos: o glob local inclui um Parquet antigo com zero colunas, que o DuckDB não consegue ler; a validação de `id` sobre o conjunto completo ficou pendente. O decodificador atual já evita produzir esse formato em arrays vazios (PR #183), mas a amostra antiga permanece no armazenamento.
+- Uma parte antiga de prestação de contas do TSE (2012) tem 22 colunas, das quais uma usa uma data de registro como nome; isso confirma cabeçalho inválido para um contrato estável. A chave dessa tabela fica suspensa até verificar o CSV de origem e o manifesto do bronze; não inferir schema a partir dessa parte.
 
 As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.
 
