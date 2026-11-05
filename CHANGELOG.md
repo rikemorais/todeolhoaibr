@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.6] - 2026-11-05
+
+### Documentação
+
+- Define a política candidata das contas TSE 2024: remover apenas 79 cópias exatas em despesas pagas, preservar variantes nos demais conjuntos e rastrear a linha de origem; corrige que o documento, e não a data, eleva a cardinalidade de doador originário ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.20.5] - 2026-11-05
 
 ### Documentação
