@@ -1,7 +1,7 @@
 //! Portas de saída: o que o domínio precisa do mundo externo, sem saber como é feito.
 
 use async_trait::async_trait;
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::erros::ErroDeIngestao;
 
@@ -50,6 +50,30 @@ pub trait ArmazenamentoRaw: Send + Sync {
 
     /// Conteúdo do objeto, ou `None` se ele não existir.
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao>;
+
+    /// Baixa o objeto escrevendo-o em `escrita`, sem carregar tudo na memória; devolve `false`
+    /// se não existir. Útil para objetos grandes (ex.: ZIPs de vários GB do TSE). O padrão usa
+    /// [`Self::ler`] (carrega na memória); a infraestrutura deve transmitir em fluxo.
+    async fn ler_fluxo(
+        &self,
+        chave: &str,
+        escrita: &mut (dyn AsyncWrite + Send + Unpin),
+    ) -> Result<bool, ErroDeIngestao> {
+        use tokio::io::AsyncWriteExt;
+        match self.ler(chave).await? {
+            Some(bytes) => {
+                escrita
+                    .write_all(&bytes)
+                    .await
+                    .map_err(|erro| ErroDeIngestao::Armazenamento {
+                        chave: chave.to_owned(),
+                        detalhe: erro.to_string(),
+                    })?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
 
     /// Tamanho do objeto em bytes, sem baixá-lo (um `HEAD`), ou `None` se não
     /// existir. A implementação padrão lê o objeto; as de infraestrutura devem

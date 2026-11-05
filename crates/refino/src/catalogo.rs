@@ -39,9 +39,20 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
         },
         // Pacotes do TSE: ZIP com vários CSVs/TXT por UF (`;`, Latin-1), decodificados em
-        // fluxo (sem materializar cada CSV). prestacao-contas e votacao_secao ficam de fora:
-        // seus ZIPs têm > 1 GB e seriam carregados inteiros em memória (precisa de download
-        // em fluxo do S3 para disco — ver #171).
+        // fluxo (o part é baixado para disco e o ZIP é lido de lá — ZIPs de >1 GB não cabem
+        // na memória; ver #171).
+        FonteDeRefino {
+            nome: "tse-prestacao-contas",
+            fonte_raw: "tse",
+            prefixo_recurso: "prestacao-contas/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::em_fluxo(b';')),
+        },
+        FonteDeRefino {
+            nome: "tse-votacao-secao",
+            fonte_raw: "tse",
+            prefixo_recurso: "votacao_secao/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::em_fluxo(b';')),
+        },
         FonteDeRefino {
             nome: "tse-candidaturas",
             fonte_raw: "tse",

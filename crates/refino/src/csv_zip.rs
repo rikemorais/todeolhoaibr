@@ -7,7 +7,7 @@
 //! A escrita é **em lotes** (row groups): as linhas são agrupadas e gravadas aos poucos, de
 //! modo que o pico de memória fique no tamanho de um lote, não no arquivo inteiro.
 
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Seek};
 
 use crate::decodificador::ParteBronze;
 use crate::escritor::{ErroDeRefino, EscritorParquet};
@@ -172,11 +172,11 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
 /// Como [`partes_de_zip_csv`], mas decodifica cada CSV **em fluxo**, direto da entrada do
 /// ZIP, transcodificando de Latin-1 na hora — para arquivos grandes (ex.: CSVs consolidados
 /// do TSE, de vários GB), em que materializar o arquivo inteiro estouraria a memória (#171).
-pub fn partes_de_zip_csv_em_fluxo(
-    bytes: &[u8],
+pub fn partes_de_zip_csv_em_fluxo<F: Read + Seek>(
+    fonte: F,
     delimitador: u8,
 ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-    let mut arquivo = zip::ZipArchive::new(Cursor::new(bytes))?;
+    let mut arquivo = zip::ZipArchive::new(fonte)?;
     let mut partes = Vec::new();
 
     for indice in 0..arquivo.len() {
