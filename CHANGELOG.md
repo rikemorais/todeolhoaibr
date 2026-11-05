@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.19.0] - 2026-11-05
+
 ### Adicionado
 
 - Bronze para fontes em **JSON de API**, via um `DecodificadorJson` genérico (array de registros no topo ou sob uma chave; campos viram colunas de texto, aninhados viram JSON compacto): `bcb`, `ipeadata`, `camara-tramitacoes`, `camara-deputados`, `camara-partidos`, `camara-legislaturas`, `ibge-estados`, `ibge-regioes`, `ibge-municipios`, `senado-processos` e `senado-votacoes` ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
@@ -15,6 +17,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Bronze para `senado-processos-detalhes` (um JSON por processo, ~163k arquivos): um decodificador **agrega** todos os processos de um ano em uma tabela (uma linha por processo), em vez de gerar um Parquet por arquivo. A `TarefaDeBronze` passou a decodificar as partes de um recurso em bloco, permitindo essa agregação ([issue #177](https://github.com/rikemorais/todeolhoaibr/issues/177)).
 - O decodificador ZIP passou a aceitar também arquivos `.txt` (os anos antigos do TSE usam `.txt` no lugar de `.csv`, mesmo formato `;`/Latin-1) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 - **Refino em fluxo de ponta a ponta** para arquivos grandes ([issue #171](https://github.com/rikemorais/todeolhoaibr/issues/171)): o part do raw é baixado do S3 **direto para um arquivo temporário** (novo `ArmazenamentoRaw::ler_fluxo`), o ZIP é lido do disco, cada CSV é decodificado em fluxo (Latin-1→UTF-8 on the fly) e o Parquet é escrito direto em arquivo — sem carregar o ZIP (de >1 GB), o CSV nem o Parquet inteiros na memória. Com isso entram no bronze **`tse-prestacao-contas`** e **`tse-votacao-secao`** (CSVs consolidados de vários GB), e `tse-candidaturas`/`tse-bens` usam o mesmo caminho.
+
+### Corrigido
+
+- O console SQL lista **todas** as tabelas, recriando as views a cada carregamento (fontes refinadas depois que o serviço subiu passam a aparecer sem reiniciar) e tolerando a view de uma fonte sem dados num período.
 
 ## [0.18.0] - 2026-11-04
 
