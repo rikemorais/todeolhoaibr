@@ -76,4 +76,20 @@ pub trait Decodificador: Send + Sync {
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
         self.decodificar(&std::fs::read(caminho)?, tipo_de_conteudo)
     }
+
+    /// Decodifica **todas as partes de um recurso** de uma vez. O padrão decodifica cada
+    /// arquivo em separado (uma parte Parquet por arquivo); fontes com milhares de arquivos
+    /// pequenos (ex.: um processo por arquivo) sobrescrevem para **agregar** tudo em poucas
+    /// partes.
+    fn decodificar_arquivos(
+        &self,
+        caminhos: &[std::path::PathBuf],
+        tipo_de_conteudo: &str,
+    ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+        let mut partes = Vec::new();
+        for caminho in caminhos {
+            partes.extend(self.decodificar_arquivo(caminho, tipo_de_conteudo)?);
+        }
+        Ok(partes)
+    }
 }

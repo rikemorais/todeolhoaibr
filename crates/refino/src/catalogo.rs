@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
 use crate::fontes::{
-    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorZipCsv,
+    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -156,6 +157,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "senado",
             prefixo_recurso: "votacoes/",
             cria_decodificador: || Arc::new(DecodificadorJson::novo("votacoes")),
+        },
+        // Detalhes de processos do Senado: um JSON por processo, agregados por ano.
+        FonteDeRefino {
+            nome: "senado-processos-detalhes",
+            fonte_raw: "senado",
+            prefixo_recurso: "processos-detalhes/",
+            cria_decodificador: || Arc::new(DecodificadorSenadoProcessosDetalhes),
         },
         // Senadores por legislatura: array aninhado fundo no JSON do Senado.
         FonteDeRefino {
