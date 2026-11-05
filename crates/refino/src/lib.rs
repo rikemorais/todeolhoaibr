@@ -6,7 +6,8 @@
 //! ingestão.
 //!
 //! Os decodificadores e a [`tarefa::TarefaDeBronze`] publicam o bronze. O módulo
-//! [`linhagem`] lê as partes em lotes e fornece referências de linha para os
+//! [`snapshot_bronze`] seleciona e verifica partes do manifesto vigente; o módulo
+//! [`linhagem`] lê essas partes em lotes e fornece referências de linha para os
 //! futuros contratos silver, sem alterar o conteúdo armazenado no bronze.
 //!
 //! [ADR 0014]: ../../docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md
@@ -19,6 +20,7 @@ pub mod decodificador;
 pub mod escritor;
 pub mod fontes;
 pub mod linhagem;
+pub mod snapshot_bronze;
 pub mod tarefa;
 
 pub use catalogo::{FonteDeRefino, catalogo_refino};
@@ -29,4 +31,5 @@ pub use fontes::{
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
+pub use snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
 pub use tarefa::TarefaDeBronze;
