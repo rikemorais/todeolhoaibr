@@ -24,7 +24,7 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | `tse-candidaturas` | Eleitoral | candidatura por eleição | ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; [validação histórica abaixo](#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05) |
 | `tse-bens` | Eleitoral | bem declarado | ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano |
 | `tse-prestacao-contas` | Eleitoral | lançamento por tabela interna | chave própria de receitas/despesas por ano; validar layouts |
-| `tse-votacao-secao` | Eleitoral | voto agregado por seção | eleição, turno, seção, cargo e candidato; validar tabelas |
+| `tse-votacao-secao` | Eleitoral | voto agregado por seção e votável | ano, eleição, UF, turno, município, zona, seção, cargo e votável; [recortes validados abaixo](#votacao-por-secao-do-tse-no-bronze-local-2026-11-05) |
 | `bcb` | Série | observação SGS | série (do recurso) e `data`; `valor` decimal; data no formato `DD/MM/AAAA` no fixture |
 | `ipeadata` | Série | observação OData | `SERCODIGO`, `TERCODIGO` e `VALDATA` candidatos; `NIVNOME` distingue Brasil, estados, municípios e regiões |
 | `ibge-estados` | Território | UF | código IBGE e vigência |
@@ -92,7 +92,7 @@ As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retor
 | Senado votações, `codigoSessaoVotacao` | 3.652 | 3.652 | Sem nulos no conjunto local consultado; conferir semântica em outros anos. |
 | Senado processos, `id`, ano 2024 | 4.947 | 4.947 | Único no recorte; glob completo contém Parquet antigo de zero colunas. |
 | Senado processos-detalhes, `id` | 163.156 | 163.156 | Sem nulos no conjunto local consultado. |
-| TSE votação por seção 2014/AC, (`CD_ELEICAO`, `NR_TURNO`, `CD_MUNICIPIO`, `NR_ZONA`, `NR_SECAO`, `CD_CARGO`, `NR_VOTAVEL`) | 224.661 | 224.661 | Única no recorte. |
+| TSE votação por seção 2014/AC, (`CD_ELEICAO`, `NR_TURNO`, `CD_MUNICIPIO`, `NR_ZONA`, `NR_SECAO`, `CD_CARGO`, `NR_VOTAVEL`) | 224.661 | 224.661 | Única no recorte; validação histórica de AC e RO abaixo. |
 | TSE candidaturas 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`) | 879 | 879 | Única na parte; validação dos consolidados por ano abaixo. |
 | TSE bens 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`, `NR_ORDEM_BEM_CANDIDATO`) | 3.588 | 3.588 | Única na parte; validação dos consolidados por ano abaixo. |
 
@@ -157,6 +157,30 @@ Nos bens, o campo de ordem é `NR_ORDEM_CANDIDATO` em 2006–2012 e 2016, e `NR_
 | 2026 | 77.446 | 77.446 | 77.446 | 0 |
 
 Esses números verificam as versões locais vigentes, não mudanças futuras da origem. Antes de materializar, validar também sentinelas de texto, correções entre versões e a cobertura do consolidado em todos os anos. As partes por UF de 2000 mostram que unicidade de chave não resolve sozinha divergências de atributos.
+
+### Votação por seção do TSE no bronze local (2026-11-05)
+
+Cada recurso `ano` × `uf` de AC e RO tem uma única versão Parquet local. Nas 30 partes desses estados, de 1998 a 2026, a chave candidata (`ANO_ELEICAO`, `CD_ELEICAO`, `SG_UF`, `NR_TURNO`, `CD_MUNICIPIO`, `NR_ZONA`, `NR_SECAO`, `CD_CARGO`, `NR_VOTAVEL`) é única por ano e não tem campos SQL `NULL` nem vazios; `SG_UF` concorda com o recurso. A tabela mostra a contagem da chave sem `ANO_ELEICAO`, pois já está agrupada por ano. Acrescentar `SG_UF` explicita o escopo geográfico, mesmo que ela não tenha sido necessária para distinguir as linhas de AC e RO.
+
+| Ano | Linhas AC + RO | Chaves distintas |
+| --- | ---: | ---: |
+| 1998 | 350.606 | 350.606 |
+| 2000 | 253.934 | 253.934 |
+| 2002 | 475.169 | 475.169 |
+| 2004 | 309.136 | 309.136 |
+| 2006 | 485.207 | 485.207 |
+| 2008 | 344.724 | 344.724 |
+| 2010 | 544.097 | 544.097 |
+| 2012 | 434.002 | 434.002 |
+| 2014 | 633.544 | 633.544 |
+| 2016 | 463.463 | 463.463 |
+| 2018 | 797.825 | 797.825 |
+| 2020 | 484.535 | 484.535 |
+| 2022 | 788.644 | 788.644 |
+| 2024 | 506.130 | 506.130 |
+| 2026 | 754.814 | 754.814 |
+
+Como recorte de uma UF grande, SP/2024 tem 9.611.657 linhas e o mesmo número de chaves distintas, sem campos da chave vazios ou UF divergente. A regra ainda precisa ser validada nos outros recursos, inclusive `uf=BR` nos anos em que existe, e em versões futuras. A Silver deve ler a versão apontada por `_ultima_versao.json` de cada recurso, não um glob que reúna execuções antigas.
 
 ### Conjuntos da Câmara
 
