@@ -45,6 +45,12 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 4. Política para inválidos: motivo, contagem, referência à linha de origem e limiar de falha.
 5. Versão do contrato/regra e linhagem até manifesto, recurso e tabela bronze.
 
+### Referência técnica da linha bronze
+
+O leitor [`LeitorDeParteBronze`](../../crates/refino/src/linhagem.rs) percorre uma parte Parquet em lotes, sem projeção ou filtro, e associa cada registro à chave do manifesto bronze, à chave da parte, ao nome da tabela de origem e ao ordinal da linha na parte (começando em 1). O ordinal continua entre lotes e não depende do tamanho do lote de leitura. Assim, duas linhas iguais no mesmo Parquet ainda têm referências distintas, e variantes com a mesma sequência oficial permanecem rastreáveis.
+
+O chamador deve obter o manifesto vigente, escolher uma parte listada nele e baixar exatamente esse objeto antes de abrir o leitor. Essa correspondência ainda não é verificada pelo leitor; a tarefa Silver terá de validá-la. A referência vale somente para aquela versão bronze e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.
+
 ## Evidência disponível no repositório
 
 - O decodificador de agregados IBGE já produz as dez colunas `variavel_id`, `variavel`, `unidade`, `classificacoes`, `nivel_id`, `nivel_nome`, `localidade_id`, `localidade_nome`, `periodo` e `valor`. O fixture mostra `nivel_id=N6` e código municipal `1100015`, ambos a preservar como texto.
