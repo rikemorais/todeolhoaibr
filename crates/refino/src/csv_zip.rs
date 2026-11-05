@@ -46,16 +46,21 @@ fn descartar_linhas(texto: &str, n: usize) -> &str {
 fn colunas_e_registros<R: Read>(
     leitor: R,
     delimitador: u8,
+    sem_cabecalho: bool,
 ) -> Result<(Vec<String>, csv::Reader<R>), ErroDeRefino> {
     let mut leitor = csv::ReaderBuilder::new()
         .delimiter(delimitador)
         .flexible(true)
+        .has_headers(!sem_cabecalho)
         .from_reader(leitor);
-    let colunas = leitor
-        .headers()?
-        .iter()
-        .map(|c| c.trim().to_owned())
-        .collect();
+    let primeiro = leitor.headers()?;
+    let colunas = if sem_cabecalho {
+        (1..=primeiro.len())
+            .map(|indice| format!("coluna_{indice:03}"))
+            .collect()
+    } else {
+        primeiro.iter().map(|c| c.trim().to_owned()).collect()
+    };
     Ok((colunas, leitor))
 }
 
@@ -83,8 +88,12 @@ fn alimentar<R: Read, W: std::io::Write + Send>(
 }
 
 /// Lê um CSV de um `Read` e devolve o Parquet **em memória** (para arquivos modestos).
-fn parquet_de_leitor<R: Read>(leitor: R, delimitador: u8) -> Result<Vec<u8>, ErroDeRefino> {
-    let (colunas, registros) = colunas_e_registros(leitor, delimitador)?;
+fn parquet_de_leitor<R: Read>(
+    leitor: R,
+    delimitador: u8,
+    sem_cabecalho: bool,
+) -> Result<Vec<u8>, ErroDeRefino> {
+    let (colunas, registros) = colunas_e_registros(leitor, delimitador, sem_cabecalho)?;
     let mut escritor = EscritorParquet::novo(&colunas)?;
     alimentar(registros, &mut escritor, colunas.len())?;
     escritor.finalizar()
@@ -96,8 +105,9 @@ fn parte_em_arquivo<R: Read>(
     nome: &str,
     leitor: R,
     delimitador: u8,
+    sem_cabecalho: bool,
 ) -> Result<ParteBronze, ErroDeRefino> {
-    let (colunas, registros) = colunas_e_registros(leitor, delimitador)?;
+    let (colunas, registros) = colunas_e_registros(leitor, delimitador, sem_cabecalho)?;
     let arquivo = tempfile::NamedTempFile::new()?;
     let mut escritor = EscritorParquet::novo_em(arquivo.reopen()?, &colunas)?;
     alimentar(registros, &mut escritor, colunas.len())?;
@@ -110,10 +120,12 @@ fn parquet_de_csv(
     texto: &str,
     delimitador: u8,
     linhas_a_pular: usize,
+    sem_cabecalho: bool,
 ) -> Result<Vec<u8>, ErroDeRefino> {
     parquet_de_leitor(
         descartar_linhas(texto, linhas_a_pular).as_bytes(),
         delimitador,
+        sem_cabecalho,
     )
 }
 
@@ -138,6 +150,13 @@ fn nome_logico(nome_interno: &str) -> String {
     }
 }
 
+/// Os 27 TXT de receitas partidárias de 2012 com sufixo de duas letras começam por um registro; o
+/// consolidado `_brasil` do mesmo ZIP tem cabeçalho e não entra nesta exceção.
+fn sem_cabecalho_tse_2012(nome: &str) -> bool {
+    nome.strip_prefix("receitas_partidos_2012_")
+        .is_some_and(|uf| uf.len() == 2 && uf.bytes().all(|byte| byte.is_ascii_uppercase()))
+}
+
 /// Descompacta um ZIP em memória e decodifica cada CSV em uma parte Parquet, nomeada pelo
 /// arquivo interno (sem a extensão). Entradas que não sejam `.csv` são ignoradas.
 pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronze>, ErroDeRefino> {
@@ -157,8 +176,9 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
         entrada.read_to_end(&mut conteudo)?;
         let texto = para_utf8(&conteudo);
         drop(conteudo);
-        let parquet = parquet_de_csv(&texto, delimitador, 0)?;
-        partes.push(ParteBronze::nova(nome_logico(&nome_interno), &parquet)?);
+        let nome = nome_logico(&nome_interno);
+        let parquet = parquet_de_csv(&texto, delimitador, 0, sem_cabecalho_tse_2012(&nome))?;
+        partes.push(ParteBronze::nova(nome, &parquet)?);
     }
 
     if partes.is_empty() {
@@ -192,10 +212,12 @@ pub fn partes_de_zip_csv_em_fluxo<F: Read + Seek>(
         let leitor = encoding_rs_io::DecodeReaderBytesBuilder::new()
             .encoding(Some(encoding_rs::WINDOWS_1252))
             .build(entrada);
+        let nome = nome_logico(&nome_interno);
         partes.push(parte_em_arquivo(
-            &nome_logico(&nome_interno),
+            &nome,
             leitor,
             delimitador,
+            sem_cabecalho_tse_2012(&nome),
         )?);
     }
 
@@ -216,7 +238,7 @@ pub fn partes_de_csv(
     linhas_a_pular: usize,
 ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
     let texto = para_utf8(bytes);
-    let parquet = parquet_de_csv(&texto, delimitador, linhas_a_pular)?;
+    let parquet = parquet_de_csv(&texto, delimitador, linhas_a_pular, false)?;
     Ok(vec![ParteBronze::nova(nome, &parquet)?])
 }
 
@@ -313,6 +335,29 @@ pub(crate) mod testes {
             partes_de_zip_csv(&zip_com("votacao_1998_BR.txt", b"a;b\n1;2\n"), b';').unwrap();
         assert_eq!(partes.len(), 1);
         assert_eq!(partes[0].nome, "votacao_1998_BR");
+    }
+
+    #[test]
+    fn preserva_primeiro_registro_de_receitas_partidos_estadual_2012() {
+        let txt = b"15/05/201313:46:47;MT;100\n16/05/201313:46:47;MT;200\n";
+        let zip = zip_com("receitas_partidos_2012_MT.txt", txt);
+        let partes = partes_de_zip_csv_em_fluxo(Cursor::new(&zip), b';').unwrap();
+        let (colunas, linhas) = ler_parte(&partes[0]);
+        assert_eq!(colunas, vec!["coluna_001", "coluna_002", "coluna_003"]);
+        assert_eq!(linhas.len(), 2);
+        assert_eq!(linhas[0], vec![c("15/05/201313:46:47"), c("MT"), c("100")]);
+
+        let em_memoria = partes_de_zip_csv(&zip, b';').unwrap();
+        assert_eq!(ler_parte(&em_memoria[0]), (colunas, linhas));
+    }
+
+    #[test]
+    fn preserva_cabecalho_do_consolidado_brasil_2012() {
+        let zip = zip_com("receitas_partidos_2012_brasil.txt", b"id;uf\n1;BR\n");
+        let partes = partes_de_zip_csv_em_fluxo(Cursor::new(zip), b';').unwrap();
+        let (colunas, linhas) = ler_parte(&partes[0]);
+        assert_eq!(colunas, vec!["id", "uf"]);
+        assert_eq!(linhas, vec![vec![c("1"), c("BR")]]);
     }
 
     #[test]
