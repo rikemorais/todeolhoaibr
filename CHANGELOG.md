@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.19.1] - 2026-11-05
+
+### Documentação
+
+- Início do contrato da camada silver: ADR 0020 proposto, glossário do refino e matriz das 26 entradas bronze com grão e chaves candidatas, evidências das amostras locais e validações pendentes ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.19.0] - 2026-11-05
 
 ### Adicionado
