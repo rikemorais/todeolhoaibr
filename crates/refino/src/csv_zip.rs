@@ -42,29 +42,31 @@ fn descartar_linhas(texto: &str, n: usize) -> &str {
     resto
 }
 
-/// Lê um CSV (já em UTF-8) com o delimitador dado e grava Parquet em lotes. `linhas_a_pular`
-/// descarta um preâmbulo antes do cabeçalho.
-fn parquet_de_csv(
-    texto: &str,
+/// Abre um CSV e separa o cabeçalho (colunas) do leitor de registros.
+fn colunas_e_registros<R: Read>(
+    leitor: R,
     delimitador: u8,
-    linhas_a_pular: usize,
-) -> Result<Vec<u8>, ErroDeRefino> {
-    let texto = descartar_linhas(texto, linhas_a_pular);
+) -> Result<(Vec<String>, csv::Reader<R>), ErroDeRefino> {
     let mut leitor = csv::ReaderBuilder::new()
         .delimiter(delimitador)
         .flexible(true)
-        .from_reader(texto.as_bytes());
-
-    let colunas: Vec<String> = leitor
+        .from_reader(leitor);
+    let colunas = leitor
         .headers()?
         .iter()
         .map(|c| c.trim().to_owned())
         .collect();
-    let num_colunas = colunas.len();
+    Ok((colunas, leitor))
+}
 
-    let mut escritor = EscritorParquet::novo(&colunas)?;
+/// Lê os registros em lotes e os grava no escritor dado (memória ou arquivo).
+fn alimentar<R: Read, W: std::io::Write + Send>(
+    mut registros: csv::Reader<R>,
+    escritor: &mut EscritorParquet<W>,
+    num_colunas: usize,
+) -> Result<(), ErroDeRefino> {
     let mut lote: Vec<Vec<Option<String>>> = Vec::with_capacity(LINHAS_POR_LOTE);
-    for registro in leitor.records() {
+    for registro in registros.records() {
         let registro = registro?;
         // Mantém o número de colunas do cabeçalho: completa linhas curtas com nulos e
         // ignora células excedentes, sem interpretar o conteúdo (fidelidade do bronze).
@@ -77,8 +79,42 @@ fn parquet_de_csv(
             lote.clear();
         }
     }
-    escritor.escrever_lote(&lote)?;
+    escritor.escrever_lote(&lote)
+}
+
+/// Lê um CSV de um `Read` e devolve o Parquet **em memória** (para arquivos modestos).
+fn parquet_de_leitor<R: Read>(leitor: R, delimitador: u8) -> Result<Vec<u8>, ErroDeRefino> {
+    let (colunas, registros) = colunas_e_registros(leitor, delimitador)?;
+    let mut escritor = EscritorParquet::novo(&colunas)?;
+    alimentar(registros, &mut escritor, colunas.len())?;
     escritor.finalizar()
+}
+
+/// Lê um CSV de um `Read` e grava o Parquet **direto em um arquivo temporário**, sem manter
+/// o Parquet inteiro em memória — para arquivos grandes (#171).
+fn parte_em_arquivo<R: Read>(
+    nome: &str,
+    leitor: R,
+    delimitador: u8,
+) -> Result<ParteBronze, ErroDeRefino> {
+    let (colunas, registros) = colunas_e_registros(leitor, delimitador)?;
+    let arquivo = tempfile::NamedTempFile::new()?;
+    let mut escritor = EscritorParquet::novo_em(arquivo.reopen()?, &colunas)?;
+    alimentar(registros, &mut escritor, colunas.len())?;
+    escritor.fechar()?;
+    Ok(ParteBronze::de_arquivo(nome, arquivo.into_temp_path()))
+}
+
+/// Lê um CSV (já em UTF-8, em memória) pulando `linhas_a_pular` de preâmbulo.
+fn parquet_de_csv(
+    texto: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<u8>, ErroDeRefino> {
+    parquet_de_leitor(
+        descartar_linhas(texto, linhas_a_pular).as_bytes(),
+        delimitador,
+    )
 }
 
 /// Extensões tabulares aceitas dentro do ZIP (o TSE usa `.csv` nos anos recentes e `.txt`
@@ -123,6 +159,44 @@ pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronz
         drop(conteudo);
         let parquet = parquet_de_csv(&texto, delimitador, 0)?;
         partes.push(ParteBronze::nova(nome_logico(&nome_interno), &parquet)?);
+    }
+
+    if partes.is_empty() {
+        return Err(ErroDeRefino::Decodificacao(
+            "nenhum CSV encontrado no ZIP".to_owned(),
+        ));
+    }
+    Ok(partes)
+}
+
+/// Como [`partes_de_zip_csv`], mas decodifica cada CSV **em fluxo**, direto da entrada do
+/// ZIP, transcodificando de Latin-1 na hora — para arquivos grandes (ex.: CSVs consolidados
+/// do TSE, de vários GB), em que materializar o arquivo inteiro estouraria a memória (#171).
+pub fn partes_de_zip_csv_em_fluxo(
+    bytes: &[u8],
+    delimitador: u8,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    let mut arquivo = zip::ZipArchive::new(Cursor::new(bytes))?;
+    let mut partes = Vec::new();
+
+    for indice in 0..arquivo.len() {
+        let entrada = arquivo.by_index(indice)?;
+        if !entrada.is_file() {
+            continue;
+        }
+        let nome_interno = entrada.name()?.into_owned();
+        if !e_tabular(&nome_interno) {
+            continue;
+        }
+        // Transcodifica Latin-1 -> UTF-8 em fluxo (os ZIPs em fluxo são do TSE, Latin-1).
+        let leitor = encoding_rs_io::DecodeReaderBytesBuilder::new()
+            .encoding(Some(encoding_rs::WINDOWS_1252))
+            .build(entrada);
+        partes.push(parte_em_arquivo(
+            &nome_logico(&nome_interno),
+            leitor,
+            delimitador,
+        )?);
     }
 
     if partes.is_empty() {

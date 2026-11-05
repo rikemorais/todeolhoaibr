@@ -5,19 +5,32 @@
 //! e com `;` como separador. O bronze só descompacta, reencoda para UTF-8 e põe em colunas;
 //! a interpretação dos campos é do silver.
 
-use crate::csv_zip::partes_de_zip_csv;
+use crate::csv_zip::{partes_de_zip_csv, partes_de_zip_csv_em_fluxo};
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::ErroDeRefino;
 
 /// Decodifica um ZIP de CSVs em uma parte Parquet por CSV (entradas não-CSV são ignoradas).
 pub struct DecodificadorZipCsv {
     separador: u8,
+    /// Decodifica cada CSV em fluxo (para arquivos grandes do TSE; assume Latin-1). Ver #171.
+    em_fluxo: bool,
 }
 
 impl DecodificadorZipCsv {
-    /// Cria o decodificador com o separador de colunas dos CSVs (ex.: `b';'`).
+    /// CSVs lidos inteiros na memória (auto-detecta UTF-8/Latin-1). Bom para arquivos modestos.
     pub const fn novo(separador: u8) -> Self {
-        Self { separador }
+        Self {
+            separador,
+            em_fluxo: false,
+        }
+    }
+
+    /// CSVs lidos **em fluxo** (Latin-1), para pacotes grandes do TSE que estourariam a memória.
+    pub const fn em_fluxo(separador: u8) -> Self {
+        Self {
+            separador,
+            em_fluxo: true,
+        }
     }
 }
 
@@ -27,7 +40,11 @@ impl Decodificador for DecodificadorZipCsv {
         bytes: &[u8],
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        partes_de_zip_csv(bytes, self.separador)
+        if self.em_fluxo {
+            partes_de_zip_csv_em_fluxo(bytes, self.separador)
+        } else {
+            partes_de_zip_csv(bytes, self.separador)
+        }
     }
 }
 
