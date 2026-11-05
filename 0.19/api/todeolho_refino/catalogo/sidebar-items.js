@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["catalogo_refino"],"struct":["FonteDeRefino"]};
