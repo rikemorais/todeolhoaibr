@@ -221,19 +221,26 @@ def rodar_sql(sql: str) -> dict:
         )
     except subprocess.TimeoutExpired:
         return {"erro": f"a query passou de {TEMPO_LIMITE}s e foi interrompida."}
-    if proc.returncode != 0:
-        return {"erro": _limpar_erro(proc.stderr or proc.stdout) or "erro desconhecido"}
+    # A query da vez roda depois das views do prefixo. Se alguma view falhar ao ser criada
+    # (ex.: um Parquet vazio de uma fonte sem dados num período), o DuckDB segue e ainda
+    # executa a query — então, se houver saída JSON válida, usamos, mesmo com exit != 0.
     saida = proc.stdout.strip()
-    if not saida:
-        return {"linhas": []}
-    try:
-        dados = json.loads(saida)
-    except json.JSONDecodeError:
-        return {"erro": _limpar_erro(saida)}
-    return {"linhas": dados if isinstance(dados, list) else [dados]}
+    if saida:
+        try:
+            dados = json.loads(saida)
+            return {"linhas": dados if isinstance(dados, list) else [dados]}
+        except json.JSONDecodeError:
+            pass
+    if proc.returncode != 0:
+        return {"erro": _limpar_erro(proc.stderr or saida) or "erro desconhecido"}
+    return {"linhas": []}
 
 
 def listar_tabelas() -> list[str]:
+    # Recria as views a cada listagem (ao carregar/atualizar a página): assim fontes
+    # refinadas depois que o console subiu aparecem sem precisar reiniciar o serviço.
+    global _prefixo
+    _prefixo = construir_prefixo()
     resultado = rodar_sql(
         "SELECT table_name FROM information_schema.tables "
         "WHERE table_schema = 'main' ORDER BY table_name;"
