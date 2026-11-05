@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.19.2] - 2026-11-05
+
+### Documentação
+
+- Esclarece como processar o bronze em uma instalação nova e após atualizar uma instalação que já tem Raw, incluindo o agendador automático, a passada manual e a conferência dos Parquets.
+
 ## [0.19.1] - 2026-11-05
 
 ### Documentação
