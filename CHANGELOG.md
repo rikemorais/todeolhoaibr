@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.4] - 2026-11-05
+
+### Documentação
+
+- Valida a chave candidata da votação por seção do TSE em AC e RO nos 15 anos locais e em SP/2024, mantendo explícita a necessidade de conferir as demais UFs e versões ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.20.3] - 2026-11-05
 
 ### Documentação
