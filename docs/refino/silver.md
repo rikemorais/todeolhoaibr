@@ -49,7 +49,9 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 
 O leitor [`LeitorDeParteBronze`](../../crates/refino/src/linhagem.rs) percorre uma parte Parquet em lotes, sem projeção ou filtro, e associa cada registro à chave do manifesto bronze, à chave da parte, ao nome da tabela de origem e ao ordinal da linha na parte (começando em 1). O ordinal continua entre lotes e não depende do tamanho do lote de leitura. Assim, duas linhas iguais no mesmo Parquet ainda têm referências distintas, e variantes com a mesma sequência oficial permanecem rastreáveis.
 
-O chamador deve obter o manifesto vigente, escolher uma parte listada nele e baixar exatamente esse objeto antes de abrir o leitor. Essa correspondência ainda não é verificada pelo leitor; a tarefa Silver terá de validá-la. A referência vale somente para aquela versão bronze e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.
+O [`SnapshotBronze`](../../crates/refino/src/snapshot_bronze.rs) lê o ponteiro e o manifesto vigentes, confere fonte/recurso e permite baixar somente partes listadas no manifesto. O download é em fluxo para arquivo temporário; tamanho e SHA-256 são verificados antes de abrir o leitor em lotes. Ponteiro ou manifesto inválido causam erro, enquanto a ausência de ponteiro indica que não há Bronze publicado.
+
+Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conferir o ponteiro bronze antes de publicar sua própria versão, para não publicar resultado de uma entrada que já foi substituída. A referência da linha vale somente para a versão bronze selecionada e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.
 
 ## Evidência disponível no repositório
 
