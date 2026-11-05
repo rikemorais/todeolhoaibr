@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.1] - 2026-11-05
+
+### Corrigido
+
+- Os 27 TXT de `receitas_partidos_2012_<sigla>` sem cabeçalho preservam a primeira linha como dado no bronze e recebem colunas posicionais. O recurso de prestação de contas de 2012 ganha um marcador de regra para ser reprocessado uma vez pelo agendador, mesmo sem mudança na Raw ([issue #194](https://github.com/rikemorais/todeolhoaibr/issues/194)).
+
 ## [0.20.0] - 2026-11-05
 
 ### Adicionado
