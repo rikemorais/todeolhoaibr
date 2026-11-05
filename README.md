@@ -44,14 +44,18 @@ Só é preciso ter o [Docker](https://docs.docker.com/get-docker/) com Compose. 
 git clone https://github.com/rikemorais/todeolhoaibr.git
 cd todeolhoaibr
 
-# Sobe o armazenamento e o painel. Na primeira vez, compila a imagem e leva alguns minutos.
+# Sobe armazenamento, painel e agendador do bronze. Na primeira vez, compila a imagem.
 docker compose up -d --build
 
 # Abre o menu para escolher o que ingerir
 docker compose run --rm --build ingestao
 ```
 
+O `agendador` faz uma primeira reconciliação ao iniciar e repete a cada hora. Se ainda não houver dados na Raw, não há o que refinar; depois da ingestão, o bronze será produzido na próxima passada. Para produzi-lo imediatamente, rode `docker compose run --rm refino refinar bronze --todas`. Veja [como processar e conferir o bronze](docs/refino/bronze.md#como-rodar).
+
 > **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
+
+**Atualizando uma instalação que só tinha Raw:** após `git pull`, rode `docker compose up -d --build`. Atualizar os arquivos da branch sozinho não executa o bronze: o Compose precisa criar o novo `agendador` com a imagem atualizada. O volume da Raw continua disponível; a primeira passada do agendador encontra os recursos já ingeridos e produz os Parquets ausentes no bucket `bronze`. Não é preciso ingerir a Raw outra vez. Para acompanhar, use `docker compose ps agendador` e `docker compose logs --tail=50 agendador`.
 
 ### Escolhendo o que ingerir
 
