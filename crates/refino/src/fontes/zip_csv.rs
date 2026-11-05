@@ -35,6 +35,11 @@ impl DecodificadorZipCsv {
 }
 
 impl Decodificador for DecodificadorZipCsv {
+    fn versao_regra(&self, fonte: &str, recurso: &str) -> Option<&'static str> {
+        (fonte == "tse" && recurso == "prestacao-contas/ano=2012")
+            .then_some("receitas-partidos-sem-cabecalho-v1")
+    }
+
     fn decodificar(
         &self,
         bytes: &[u8],
@@ -116,5 +121,18 @@ mod testes {
         let nomes: Vec<&str> = partes.iter().map(|p| p.nome.as_str()).collect();
         assert!(nomes.contains(&"bem_candidato_2026_AC"));
         assert!(nomes.contains(&"bem_candidato_2026_AM"));
+    }
+
+    #[test]
+    fn muda_versao_apenas_para_prestacao_contas_tse_2012() {
+        let decodificador = DecodificadorZipCsv::em_fluxo(b';');
+        assert_eq!(
+            decodificador.versao_regra("tse", "prestacao-contas/ano=2012"),
+            Some("receitas-partidos-sem-cabecalho-v1")
+        );
+        assert_eq!(
+            decodificador.versao_regra("tse", "prestacao-contas/ano=2014"),
+            None
+        );
     }
 }

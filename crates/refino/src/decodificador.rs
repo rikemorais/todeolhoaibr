@@ -58,6 +58,12 @@ impl ParteBronze {
 ///
 /// Um recurso de API costuma render uma parte; um ZIP com vários CSVs rende uma por CSV.
 pub trait Decodificador: Send + Sync {
+    /// Versão adicional da regra para um recurso específico. Quando presente, entra no
+    /// validador do bronze e força uma nova materialização mesmo se a Raw não mudou.
+    fn versao_regra(&self, _fonte: &str, _recurso: &str) -> Option<&'static str> {
+        None
+    }
+
     /// Decodifica os bytes de um part do raw, usando o `tipo_de_conteudo` registrado no
     /// manifesto quando precisar distinguir formatos.
     fn decodificar(
