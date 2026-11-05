@@ -11,7 +11,7 @@ O **bronze** é o primeiro estágio do refino ([ADR 0015](../adr/0015-arquitetur
 
 - O comando `todeolho refinar bronze <fonte>` descobre no `raw` os recursos já ingeridos daquela fonte (os que têm `_ultima_versao.json`), monta uma **DAG de tarefas** — uma por recurso — e roda no **mesmo executor e painel** da ingestão.
 - Cada tarefa lê a procedência do `raw` (manifesto vigente), decodifica cada parte e grava **um Parquet por tabela** no bucket `bronze`, com manifesto e ponteiro próprios.
-- **Idempotência:** o ponteiro do bronze guarda o validador da **versão do raw**; reexecutar só reprocessa quando o `raw` mudou.
+- **Idempotência:** o ponteiro do bronze guarda o validador da **versão do raw** e, quando uma correção de decodificação exigir, um marcador da regra. Reexecutar só reprocessa quando a entrada ou essa regra mudou.
 
 ## Layout no bucket `bronze`
 
@@ -121,5 +121,7 @@ SELECT count(*) FROM read_parquet('s3://bronze/camara/despesas/ano=2024/**/*.par
     A **UI** (`localhost:4213`) baixa o frontend de `ui.duckdb.org`, então precisa de internet no navegador; as **queries rodam 100% locais**. Sem internet, use `consulta sql`, que é offline. A UI faz *bind* em loopback dentro do container, e o serviço expõe a porta por uma ponte (`socat`).
 
 ## Limitações conhecidas
+
+- Os 27 TXT `receitas_partidos_2012_<sigla>.txt` do TSE com sufixo de duas letras não têm cabeçalho; o bronze os publica com colunas posicionais (`coluna_001`, `coluna_002`, ...), preservando a primeira linha como dado. O consolidado `receitas_partidos_2012_brasil.txt` tem cabeçalho próprio e continua com os nomes oficiais. O recurso `tse/prestacao-contas/ano=2012` ganha uma nova versão de regra e é reprocessado automaticamente uma vez após atualizar o agendador; a silver ainda precisa mapear as colunas posicionais ao contrato oficial.
 
 - O decodificador carrega o CSV inteiro em memória. Para arquivos anuais (dezenas de MB) é aceitável; arquivos gigantes (ex.: CNPJ) pedirão escrita por *row-group* em fluxo — ver [ADR 0007](../adr/0007-docker-para-maquinas-modestas.md).
