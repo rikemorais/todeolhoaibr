@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.19.3] - 2026-11-05
+
+### Documentação
+
+- Registra a validação local de chaves candidatas da silver para séries, território, fontes legislativas e recortes do TSE; identifica chaves não únicas e um cabeçalho antigo do TSE que exige investigação antes da materialização ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.19.2] - 2026-11-05
 
 ### Documentação
