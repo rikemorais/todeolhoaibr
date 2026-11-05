@@ -74,7 +74,7 @@ As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retor
 
 | Tabela e recorte | Linhas | Chaves distintas | Resultado |
 | --- | ---: | ---: | --- |
-| BCB `selic-mensal`, `data` | 483 | 483 | Sem nulos; confirmar nas demais séries. |
+| BCB `selic-mensal`, `data` | 483 | 483 | Sem nulos; todas as 11 séries locais foram conferidas abaixo. |
 | Ipeadata, (`SERCODIGO`, `TERCODIGO`, `VALDATA`) | 67.632 | 67.632 | Sem nulos no conjunto local consultado. |
 | IBGE estados, `id` | 27 | 27 | Sem nulos no conjunto local consultado. |
 | IBGE regiões, `id` | 5 | 5 | Sem nulos no conjunto local consultado. |
@@ -96,7 +96,27 @@ As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retor
 | TSE candidaturas 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`) | 879 | 879 | Única na parte; conferir entre UFs/partes. |
 | TSE bens 2014, uma parte, (`CD_ELEICAO`, `SQ_CANDIDATO`, `NR_ORDEM_BEM_CANDIDATO`) | 3.588 | 3.588 | Única na parte; conferir entre UFs/partes. |
 
-Os sete conjuntos da Câmara abaixo foram validados **apenas no ano de 2024**. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico `votacoes`:
+### Séries BCB no bronze local (2026-11-05)
+
+Há uma versão Parquet por recurso nas 11 séries disponíveis. Em cada série, `data` é única e não vazia. Todas as 5.125 datas são interpretáveis por `%d/%m/%Y`, e todos os `valor` são conversíveis para `DECIMAL(18,6)` no DuckDB. A chave candidata da silver é (`recurso`, `data`); o recurso distingue séries com a mesma data. Esta validação cobre somente as versões locais observadas, não futuras correções ou novas séries.
+
+| Série | Linhas | Datas distintas |
+| --- | ---: | ---: |
+| `cambio-dolar-mensal` | 885 | 885 |
+| `cdi-mensal` | 483 | 483 |
+| `credito-total-pib` | 375 | 375 |
+| `divida-liquida-setor-publico-pib` | 298 | 298 |
+| `ibc-br` | 284 | 284 |
+| `igpm-mensal` | 449 | 449 |
+| `inadimplencia-credito-total` | 187 | 187 |
+| `inpc-mensal` | 570 | 570 |
+| `ipca-12-meses` | 550 | 550 |
+| `ipca-mensal` | 561 | 561 |
+| `selic-mensal` | 483 | 483 |
+
+### Conjuntos da Câmara
+
+Os sete conjuntos abaixo foram validados **apenas no ano de 2024**. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico `votacoes`:
 
 | Conjunto | Chave candidata | Linhas | Chaves distintas |
 | --- | --- | ---: | ---: |
@@ -114,7 +134,7 @@ Os sete conjuntos da Câmara abaixo foram validados **apenas no ano de 2024**. C
 - Câmara tramitações: `idTramitacao` tem apenas 988 valores distintos em 1.879.478 linhas, com 174 ausentes. Mesmo (`uriProposicao`, `idTramitacao`) tem 1.871.298 combinações. Em 2024, há 112.979 linhas, 112.916 linhas distintas sem a procedência e 112.915 combinações de (`uriProposicao`, `idTramitacao`, `sequencia`, `dataHora`). Há duplicatas exatas e ao menos uma colisão semântica nessa chave composta; a política precisa distingui-las.
 - Senado despesas: `COD_DOCUMENTO` tem 398.170 valores distintos em 398.172 linhas, com dois ausentes. A combinação com `ANO` ainda não é única (398.171 combinações), enquanto **todas as 398.172 linhas são distintas** sem a procedência. Revisar os documentos ausentes e não eliminar linhas por esse código.
 - Senado processos: o glob local inclui um Parquet antigo com zero colunas, que o DuckDB não consegue ler; a validação de `id` sobre o conjunto completo ficou pendente. O decodificador atual já evita produzir esse formato em arrays vazios (PR #183), mas a amostra antiga permanece no armazenamento.
-- A tabela `receitas_partidos_2012_MT` da prestação de contas do TSE (parte bronze `00150`, ano 2012) tinha uma data de registro como nome de coluna. A Raw confirmou que os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. A chave silver continua pendente do mapeamento oficial dessas posições e da validação entre siglas/anos.
+- A tabela `receitas_partidos_2012_MT` da prestação de contas do TSE (parte bronze `00150`, ano 2012) tinha uma data de registro como nome de coluna. A Raw confirmou que os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. O [portal oficial do TSE](https://dadosabertos.tse.jus.br/group/about/prestacao-de-contas-eleitorais) adverte que as regras e estruturas mudam por eleição e remete ao PDF do ZIP. O `LEIAME.pdf` do ZIP local não descreve as 19 posições dessa tabela. A chave silver continua pendente de um leiaute oficial específico e da validação entre siglas/anos.
 
 As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.
 
