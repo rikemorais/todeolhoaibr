@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.20.0] - 2026-11-05
+
+### Adicionado
+
+- Selos de camada no painel com cores próprias: Bronze marrom médio, Silver azul, Gold amarelo sol e Diamond roxo; Raw permanece cinza. Os nomes e estilos das camadas futuras ficam prontos para aparecer quando as respectivas execuções forem implementadas.
+
 ## [0.19.3] - 2026-11-05
 
 ### Documentação
