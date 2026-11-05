@@ -78,6 +78,11 @@ impl Decodificador for DecodificadorJson {
             }
         }
 
+        // Sem colunas (array vazio): não gera Parquet — um Parquet de 0 colunas é ilegível.
+        if colunas.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let mut tabela = Tabela::nova(colunas.clone());
         for registro in registros {
             let objeto = registro.as_object();
