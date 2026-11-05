@@ -1707,7 +1707,7 @@
 <ul>
 <li>O comando <code>todeolho refinar bronze &lt;fonte&gt;</code> descobre no <code>raw</code> os recursos já ingeridos daquela fonte (os que têm <code>_ultima_versao.json</code>), monta uma <strong>DAG de tarefas</strong> — uma por recurso — e roda no <strong>mesmo executor e painel</strong> da ingestão.</li>
 <li>Cada tarefa lê a procedência do <code>raw</code> (manifesto vigente), decodifica cada parte e grava <strong>um Parquet por tabela</strong> no bucket <code>bronze</code>, com manifesto e ponteiro próprios.</li>
-<li><strong>Idempotência:</strong> o ponteiro do bronze guarda o validador da <strong>versão do raw</strong>; reexecutar só reprocessa quando o <code>raw</code> mudou.</li>
+<li><strong>Idempotência:</strong> o ponteiro do bronze guarda o validador da <strong>versão do raw</strong> e, quando uma correção de decodificação exigir, um marcador da regra. Reexecutar só reprocessa quando a entrada ou essa regra mudou.</li>
 </ul>
 <h2 id="layout-no-bucket-bronze">Layout no bucket <code>bronze</code><a class="headerlink" href="#layout-no-bucket-bronze" title="Permanent link">&para;</a></h2>
 <p>Espelha o <code>raw</code>, no bucket <code>bronze</code>:</p>
@@ -1891,7 +1891,12 @@
 </div>
 <h2 id="limitacoes-conhecidas">Limitações conhecidas<a class="headerlink" href="#limitacoes-conhecidas" title="Permanent link">&para;</a></h2>
 <ul>
-<li>O decodificador carrega o CSV inteiro em memória. Para arquivos anuais (dezenas de MB) é aceitável; arquivos gigantes (ex.: CNPJ) pedirão escrita por <em>row-group</em> em fluxo — ver <a href="../../adr/0007-docker-para-maquinas-modestas/">ADR 0007</a>.</li>
+<li>
+<p>Os 27 TXT <code>receitas_partidos_2012_&lt;sigla&gt;.txt</code> do TSE com sufixo de duas letras não têm cabeçalho; o bronze os publica com colunas posicionais (<code>coluna_001</code>, <code>coluna_002</code>, ...), preservando a primeira linha como dado. O consolidado <code>receitas_partidos_2012_brasil.txt</code> tem cabeçalho próprio e continua com os nomes oficiais. O recurso <code>tse/prestacao-contas/ano=2012</code> ganha uma nova versão de regra e é reprocessado automaticamente uma vez após atualizar o agendador; a silver ainda precisa mapear as colunas posicionais ao contrato oficial.</p>
+</li>
+<li>
+<p>O decodificador carrega o CSV inteiro em memória. Para arquivos anuais (dezenas de MB) é aceitável; arquivos gigantes (ex.: CNPJ) pedirão escrita por <em>row-group</em> em fluxo — ver <a href="../../adr/0007-docker-para-maquinas-modestas/">ADR 0007</a>.</p>
+</li>
 </ul>
 
 
