@@ -57,8 +57,8 @@ O catálogo de refino cresce por fonte. Hoje:
 | `camara-despesas` | `camara/despesas/*` | ZIP + CSV (`;`) |
 | `senado-despesas` | `senado/despesas/*` | CSV solto (`;`, Latin-1, 1 linha de preâmbulo) |
 | `camara-votacoes` | `camara/votacoes/*` | CSV solto (`;`, UTF-8 com BOM) |
-| `tse-candidaturas` | `tse/candidaturas/*` | ZIP + CSVs por UF (`;`, Latin-1) |
-| `tse-bens` | `tse/bens/*` | ZIP + CSVs por UF (`;`, Latin-1) |
+| `tse-candidaturas` | `tse/candidaturas/*` | ZIP + CSVs/TXT por UF (em fluxo; `;`, Latin-1) |
+| `tse-bens` | `tse/bens/*` | ZIP + CSVs/TXT por UF (em fluxo; `;`, Latin-1) |
 | `bcb` | `bcb/series/*` | JSON (array no topo) |
 | `ipeadata` | `ipeadata/series/*` | JSON (array em `value`) |
 | `camara-tramitacoes` | `camara/tramitacoes/*` | JSON (array em `dados`) |

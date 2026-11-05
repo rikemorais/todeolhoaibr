@@ -13,6 +13,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Bronze para os **agregados do IBGE** (API v3, JSON aninhado): `ibge-ipca`, `ibge-inpc`, `ibge-pib-municipios`, `ibge-pib-trimestral`, `ibge-pnad-desocupacao` e `ibge-populacao-municipios`. Um `DecodificadorIbgeAgregados` explode a série aninhada em uma linha por (variável, localidade, período) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 - Bronze para `senado-parlamentares` (array aninhado fundo no JSON do Senado); o `DecodificadorJson` passou a aceitar um **caminho** de chaves até o array ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
 - O decodificador ZIP passou a aceitar também arquivos `.txt` (os anos antigos do TSE usam `.txt` no lugar de `.csv`, mesmo formato `;`/Latin-1) ([issue #168](https://github.com/rikemorais/todeolhoaibr/issues/168)).
+- **Decodificação de CSV em fluxo** no refino: cada CSV é lido direto da entrada do ZIP, transcodificando Latin-1→UTF-8 na hora, e o Parquet é escrito direto em arquivo temporário — sem materializar o CSV nem o Parquet inteiros na memória. `tse-candidaturas` e `tse-bens` passam a usar esse caminho ([issue #171](https://github.com/rikemorais/todeolhoaibr/issues/171)).
 
 ## [0.18.0] - 2026-11-04
 

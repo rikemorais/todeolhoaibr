@@ -38,6 +38,15 @@ impl ParteBronze {
         })
     }
 
+    /// Cria a parte a partir de um Parquet **já gravado** em um arquivo temporário (sem passar
+    /// os bytes pela memória). Usado pela decodificação em fluxo de arquivos grandes.
+    pub fn de_arquivo(nome: impl Into<String>, parquet: TempPath) -> Self {
+        Self {
+            nome: nome.into(),
+            parquet,
+        }
+    }
+
     /// Conveniência para decodificadores que montam uma [`Tabela`] pequena (ex.: JSON):
     /// serializa a tabela em Parquet e empacota como parte.
     pub fn de_tabela(nome: impl Into<String>, tabela: &Tabela) -> Result<Self, ErroDeRefino> {

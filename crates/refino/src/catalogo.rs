@@ -38,20 +38,21 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "despesas/",
             cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
         },
-        // Pacotes do TSE: ZIP com vários CSVs por UF (`;`, Latin-1).
-        // `tse-prestacao-contas` fica de fora por ora: tem CSVs consolidados de vários GB
-        // (precisam de decodificação em fluxo) e anos antigos em `.txt` aninhado (ver #171).
+        // Pacotes do TSE: ZIP com vários CSVs/TXT por UF (`;`, Latin-1), decodificados em
+        // fluxo (sem materializar cada CSV). prestacao-contas e votacao_secao ficam de fora:
+        // seus ZIPs têm > 1 GB e seriam carregados inteiros em memória (precisa de download
+        // em fluxo do S3 para disco — ver #171).
         FonteDeRefino {
             nome: "tse-candidaturas",
             fonte_raw: "tse",
             prefixo_recurso: "candidaturas/",
-            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::em_fluxo(b';')),
         },
         FonteDeRefino {
             nome: "tse-bens",
             fonte_raw: "tse",
             prefixo_recurso: "bens/",
-            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::em_fluxo(b';')),
         },
         // CEAPS do Senado: CSV solto em Latin-1 com uma linha de preâmbulo antes do cabeçalho.
         FonteDeRefino {

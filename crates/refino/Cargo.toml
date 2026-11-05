@@ -13,6 +13,7 @@ async-trait.workspace = true
 chrono.workspace = true
 hex.workspace = true
 parquet = "60.1.0"
+encoding_rs_io = "0.1.7"
 serde_json.workspace = true
 sha2.workspace = true
 tempfile = "3.14.0"
