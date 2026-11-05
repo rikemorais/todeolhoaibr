@@ -5,8 +5,8 @@
 //! ponteiro) contra o bucket `bronze` — o layout é o mesmo, só muda o bucket.
 //!
 //! Procedência: cada part do bronze registra, no manifesto, a tabela de origem e o
-//! **validador da versão do raw** (`versao`), para a idempotência: reexecutar só reprocessa
-//! quando o raw mudou.
+//! **validador da versão do raw** (`versao`) e, quando necessária, a versão da regra:
+//! reexecutar só reprocessa quando a entrada ou a regra mudou.
 
 use std::sync::Arc;
 
@@ -59,19 +59,26 @@ impl TarefaDeBronze {
         }
     }
 
-    /// Validador da versão do raw: o `versao` do ponteiro, ou o id da execução como reserva.
+    /// Validador do bronze: versão do raw (ou id da execução) e versão de regra opcional.
     async fn versao_de_origem(
         &self,
         manifesto_raw: &ManifestoRaw,
     ) -> Result<String, ErroDeIngestao> {
         let chave = LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso);
-        if let Some(bytes) = self.origem.ler(&chave).await?
+        let versao_raw = if let Some(bytes) = self.origem.ler(&chave).await?
             && let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes)
             && let Some(versao) = ponteiro.versao
         {
-            return Ok(versao);
-        }
-        Ok(manifesto_raw.id_execucao.clone())
+            versao
+        } else {
+            manifesto_raw.id_execucao.clone()
+        };
+        Ok(
+            match self.decodificador.versao_regra(&self.fonte, &self.recurso) {
+                Some(regra) => format!("{versao_raw}|regra={regra}"),
+                None => versao_raw,
+            },
+        )
     }
 
     /// Lê a procedência do `raw` e decide se o `bronze` precisa reprocessar.
@@ -308,6 +315,17 @@ mod testes {
         }
     }
 
+    struct DecodificadorComRegraNova;
+    impl Decodificador for DecodificadorComRegraNova {
+        fn versao_regra(&self, _: &str, _: &str) -> Option<&'static str> {
+            Some("v2")
+        }
+
+        fn decodificar(&self, bytes: &[u8], tipo: &str) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+            DecodificadorFixo.decodificar(bytes, tipo)
+        }
+    }
+
     const FONTE: &str = "camara";
     const RECURSO: &str = "despesas/ano=2024";
 
@@ -428,6 +446,26 @@ mod testes {
 
         assert!(!depois.reaproveitada, "raw mudou: deveria reprocessar");
         assert_eq!(depois.partes, 1);
+    }
+
+    #[tokio::test]
+    async fn reprocessa_uma_vez_quando_a_regra_muda_sem_mudar_o_raw() {
+        let raw = Arc::new(RawEmMemoria::default());
+        semear_raw(&raw, "etag-1");
+        let bronze = Arc::new(RawEmMemoria::default());
+        tarefa(raw.clone())
+            .executar(&contexto(bronze.clone(), "BR1"))
+            .await
+            .unwrap();
+
+        let nova = TarefaDeBronze::nova(raw, FONTE, RECURSO, Arc::new(DecodificadorComRegraNova));
+        assert!(nova.pendente(bronze.as_ref()).await.unwrap());
+        let resultado = nova
+            .executar(&contexto(bronze.clone(), "BR2"))
+            .await
+            .unwrap();
+        assert!(!resultado.reaproveitada);
+        assert!(!nova.pendente(bronze.as_ref()).await.unwrap());
     }
 
     #[tokio::test]
