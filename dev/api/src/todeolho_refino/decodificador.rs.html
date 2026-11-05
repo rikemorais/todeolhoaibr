@@ -65,5 +65,16 @@
 <a href=#65 id=65 data-nosnippet>65</a>        bytes: <span class="kw-2">&amp;</span>[u8],
 <a href=#66 id=66 data-nosnippet>66</a>        tipo_de_conteudo: <span class="kw-2">&amp;</span>str,
 <a href=#67 id=67 data-nosnippet>67</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ParteBronze&gt;, ErroDeRefino&gt;;
-<a href=#68 id=68 data-nosnippet>68</a>}
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="doccomment">/// Decodifica um part já baixado para um **arquivo** (sem carregá-lo inteiro na memória).
+<a href=#70 id=70 data-nosnippet>70</a>    /// O padrão lê o arquivo e chama [`Self::decodificar`]; decodificadores de arquivos grandes
+<a href=#71 id=71 data-nosnippet>71</a>    /// (ZIP em fluxo) sobrescrevem para ler direto do disco.
+<a href=#72 id=72 data-nosnippet>72</a>    </span><span class="kw">fn </span>decodificar_arquivo(
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#74 id=74 data-nosnippet>74</a>        caminho: <span class="kw-2">&amp;</span>std::path::Path,
+<a href=#75 id=75 data-nosnippet>75</a>        tipo_de_conteudo: <span class="kw-2">&amp;</span>str,
+<a href=#76 id=76 data-nosnippet>76</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ParteBronze&gt;, ErroDeRefino&gt; {
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="self">self</span>.decodificar(<span class="kw-2">&amp;</span>std::fs::read(caminho)<span class="question-mark">?</span>, tipo_de_conteudo)
+<a href=#78 id=78 data-nosnippet>78</a>    }
+<a href=#79 id=79 data-nosnippet>79</a>}
 </code></pre></div></section></main></body></html>
