@@ -148,6 +148,8 @@ ao serviço `ingestao`.
 Abra **<http://localhost:8080>**. O painel mostra as 50 execuções mais recentes e, em cada uma, a DAG de cada fonte,
 com o estado, o volume, a duração e o erro de cada tarefa. A página se atualiza sozinha e acompanha a execução em andamento.
 
+O selo da camada identifica o estágio da execução: **Raw** aparece em cinza, **Bronze** em marrom médio; os selos de **Silver**, **Gold** e **Diamond** já têm, respectivamente, azul, amarelo sol e roxo definidos para quando essas camadas forem implementadas.
+
 ![Painel do Tô De Olho Aí: para cada execução, a DAG de cada fonte montada pelo Dagron, com estado, volume e duração por tarefa.](docs/img/painel-execucoes.png)
 
 | Situação | Significado |
