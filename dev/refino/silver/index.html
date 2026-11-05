@@ -1103,6 +1103,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Contrato mínimo por tabela">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#referencia-tecnica-da-linha-bronze" class="md-nav__link">
+    <span class="md-ellipsis">
+      Referência técnica da linha bronze
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1644,6 +1659,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Contrato mínimo por tabela">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#referencia-tecnica-da-linha-bronze" class="md-nav__link">
+    <span class="md-ellipsis">
+      Referência técnica da linha bronze
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1943,6 +1973,9 @@
 <li>Política para inválidos: motivo, contagem, referência à linha de origem e limiar de falha.</li>
 <li>Versão do contrato/regra e linhagem até manifesto, recurso e tabela bronze.</li>
 </ol>
+<h3 id="referencia-tecnica-da-linha-bronze">Referência técnica da linha bronze<a class="headerlink" href="#referencia-tecnica-da-linha-bronze" title="Permanent link">&para;</a></h3>
+<p>O leitor <a href="../../crates/refino/src/linhagem.rs"><code>LeitorDeParteBronze</code></a> percorre uma parte Parquet em lotes, sem projeção ou filtro, e associa cada registro à chave do manifesto bronze, à chave da parte, ao nome da tabela de origem e ao ordinal da linha na parte (começando em 1). O ordinal continua entre lotes e não depende do tamanho do lote de leitura. Assim, duas linhas iguais no mesmo Parquet ainda têm referências distintas, e variantes com a mesma sequência oficial permanecem rastreáveis.</p>
+<p>O chamador deve obter o manifesto vigente, escolher uma parte listada nele e baixar exatamente esse objeto antes de abrir o leitor. Essa correspondência ainda não é verificada pelo leitor; a tarefa Silver terá de validá-la. A referência vale somente para aquela versão bronze e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.</p>
 <h2 id="evidencia-disponivel-no-repositorio">Evidência disponível no repositório<a class="headerlink" href="#evidencia-disponivel-no-repositorio" title="Permanent link">&para;</a></h2>
 <ul>
 <li>O decodificador de agregados IBGE já produz as dez colunas <code>variavel_id</code>, <code>variavel</code>, <code>unidade</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>nivel_nome</code>, <code>localidade_id</code>, <code>localidade_nome</code>, <code>periodo</code> e <code>valor</code>. O fixture mostra <code>nivel_id=N6</code> e código municipal <code>1100015</code>, ambos a preservar como texto.</li>
