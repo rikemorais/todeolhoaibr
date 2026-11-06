@@ -113,9 +113,59 @@ impl<W: Write + Send> EscritorParquet<W> {
     }
 }
 
+/// Escreve lotes Arrow com o schema tipado definido pelo contrato Silver.
+///
+/// Cada lote deve ter exatamente o mesmo schema, inclusive nomes, tipos e
+/// nulabilidade. O chamador pode usar um arquivo temporário como destino para
+/// não acumular a tabela inteira; o Parquet ainda pode reter um row group em memória.
+pub struct EscritorParquetTipado<W: Write + Send> {
+    escritor: ArrowWriter<W>,
+    esquema: Arc<Schema>,
+}
+
+impl EscritorParquetTipado<Vec<u8>> {
+    /// Cria um escritor em memória para tabelas pequenas ou testes.
+    pub fn novo(esquema: Arc<Schema>) -> Result<Self, ErroDeRefino> {
+        Self::novo_em(Vec::new(), esquema)
+    }
+
+    /// Fecha o Parquet e devolve os bytes produzidos.
+    pub fn finalizar(self) -> Result<Vec<u8>, ErroDeRefino> {
+        Ok(self.escritor.into_inner()?)
+    }
+}
+
+impl<W: Write + Send> EscritorParquetTipado<W> {
+    /// Cria um escritor em fluxo para o destino indicado.
+    pub fn novo_em(destino: W, esquema: Arc<Schema>) -> Result<Self, ErroDeRefino> {
+        let escritor = ArrowWriter::try_new(destino, Arc::clone(&esquema), Some(propriedades()))?;
+        Ok(Self { escritor, esquema })
+    }
+
+    /// Escreve um lote sem converter seus tipos Arrow para texto.
+    pub fn escrever_lote(&mut self, lote: &RecordBatch) -> Result<(), ErroDeRefino> {
+        if lote.schema() != self.esquema {
+            return Err(ErroDeRefino::EsquemaIncompativel);
+        }
+        if lote.num_rows() > 0 {
+            self.escritor.write(lote)?;
+        }
+        Ok(())
+    }
+
+    /// Fecha o Parquet e libera o destino.
+    pub fn fechar(self) -> Result<(), ErroDeRefino> {
+        self.escritor.close()?;
+        Ok(())
+    }
+}
+
 /// Falhas ao converter uma [`Tabela`] em Parquet.
 #[derive(Debug, Error)]
 pub enum ErroDeRefino {
+    /// O lote não corresponde ao schema tipado do contrato Silver.
+    #[error("schema do lote não corresponde ao contrato Silver")]
+    EsquemaIncompativel,
     /// Alguma linha tem um número de células diferente do número de colunas.
     #[error("linha {linha} tem {celulas} células, mas a tabela tem {colunas} colunas")]
     LinhaForaDoFormato {
@@ -191,7 +241,7 @@ impl Tabela {
 #[cfg(test)]
 mod testes {
     use super::*;
-    use arrow::array::Array;
+    use arrow::array::{Array, Date32Array, Decimal128Array};
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 
     fn c(s: &str) -> Option<String> {
@@ -279,5 +329,90 @@ mod testes {
             ),
             "{erro:?}"
         );
+    }
+
+    #[test]
+    fn grava_lotes_tipados_em_arquivo_e_recusa_schema_diferente() {
+        let esquema = Arc::new(Schema::new(vec![
+            Field::new("data", DataType::Date32, false),
+            Field::new("valor", DataType::Decimal128(18, 2), true),
+        ]));
+        let lote = |dia: i32, valor: Option<i128>| {
+            RecordBatch::try_new(
+                Arc::clone(&esquema),
+                vec![
+                    Arc::new(Date32Array::from(vec![dia])) as ArrayRef,
+                    Arc::new(
+                        Decimal128Array::from(vec![valor])
+                            .with_precision_and_scale(18, 2)
+                            .unwrap(),
+                    ) as ArrayRef,
+                ],
+            )
+            .unwrap()
+        };
+        let arquivo = tempfile::NamedTempFile::new().unwrap();
+        let mut escritor =
+            EscritorParquetTipado::novo_em(arquivo.reopen().unwrap(), Arc::clone(&esquema))
+                .unwrap();
+        escritor.escrever_lote(&lote(10, Some(1234))).unwrap();
+
+        let outro_esquema = Arc::new(Schema::new(vec![
+            Field::new("data", DataType::Date32, false),
+            Field::new("valor", DataType::Decimal128(18, 3), true),
+        ]));
+        let outro_lote = RecordBatch::try_new(
+            outro_esquema,
+            vec![
+                Arc::new(Date32Array::from(vec![11])) as ArrayRef,
+                Arc::new(
+                    Decimal128Array::from(vec![Some(5000)])
+                        .with_precision_and_scale(18, 3)
+                        .unwrap(),
+                ) as ArrayRef,
+            ],
+        )
+        .unwrap();
+        assert!(matches!(
+            escritor.escrever_lote(&outro_lote),
+            Err(ErroDeRefino::EsquemaIncompativel)
+        ));
+        escritor.escrever_lote(&lote(12, None)).unwrap();
+        escritor.fechar().unwrap();
+
+        let leitor =
+            ParquetRecordBatchReaderBuilder::try_new(std::fs::File::open(arquivo.path()).unwrap())
+                .unwrap();
+        assert_eq!(leitor.schema(), &esquema);
+        let lotes: Vec<RecordBatch> = leitor.build().unwrap().map(Result::unwrap).collect();
+        assert_eq!(lotes.iter().map(RecordBatch::num_rows).sum::<usize>(), 2);
+        let dias: Vec<i32> = lotes
+            .iter()
+            .flat_map(|lote| {
+                let datas = lote
+                    .column(0)
+                    .as_any()
+                    .downcast_ref::<Date32Array>()
+                    .unwrap();
+                (0..lote.num_rows())
+                    .map(|indice| datas.value(indice))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(dias, vec![10, 12]);
+        let valores: Vec<Option<i128>> = lotes
+            .iter()
+            .flat_map(|lote| {
+                let valores = lote
+                    .column(1)
+                    .as_any()
+                    .downcast_ref::<Decimal128Array>()
+                    .unwrap();
+                (0..lote.num_rows())
+                    .map(|indice| (!valores.is_null(indice)).then(|| valores.value(indice)))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(valores, vec![Some(1234), None]);
     }
 }

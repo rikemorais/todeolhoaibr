@@ -53,6 +53,8 @@ O [`SnapshotBronze`](../../crates/refino/src/snapshot_bronze.rs) lê o ponteiro 
 
 Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conferir o ponteiro bronze antes de publicar sua própria versão, para não publicar resultado de uma entrada que já foi substituída. A referência da linha vale somente para a versão bronze selecionada e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.
 
+O [`EscritorParquetTipado`](../../crates/refino/src/escritor.rs) recebe o schema Arrow do contrato Silver e grava lotes `RecordBatch` em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente. Ainda falta ligar esse escritor a um transformador e à publicação de manifesto/ponteiro Silver.
+
 ## Evidência disponível no repositório
 
 - O decodificador de agregados IBGE já produz as dez colunas `variavel_id`, `variavel`, `unidade`, `classificacoes`, `nivel_id`, `nivel_nome`, `localidade_id`, `localidade_nome`, `periodo` e `valor`. O fixture mostra `nivel_id=N6` e código municipal `1100015`, ambos a preservar como texto.
