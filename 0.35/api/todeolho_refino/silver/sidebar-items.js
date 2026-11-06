@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["bcb","camara_deputados","camara_legislaturas","camara_partidos","camara_votacoes","ibge_agregados","senado_parlamentares","senado_votacoes","tarefa_bcb","tarefa_camara","tarefa_camara_deputados","tarefa_camara_legislaturas","tarefa_camara_votacoes","tarefa_ibge","tarefa_senado","tarefa_senado_votacoes"]};
