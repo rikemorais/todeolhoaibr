@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.22.4] - 2026-11-05
+
+### Documentação
+
+- Inventaria as seis famílias de prestação de contas TSE em 2010 e 2012 nas versões Bronze vigentes, com volumes, diferenças entre partes estaduais e consolidadas e formatos de data por conjunto. Mantém pendentes a chave de lançamento e o leiaute posicional de receitas partidárias de 2012 ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.22.3] - 2026-11-05
 
 ### Documentação
