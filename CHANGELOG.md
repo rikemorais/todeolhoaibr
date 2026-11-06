@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.42.0] - 2026-11-06
+
+### Adicionado
+
+- Publica os registros nacionais de candidaturas do TSE na Silver, com chave composta validada, datas e idade tipadas e preservação dos campos originais (issue #189).
+
 ## [0.41.0] - 2026-11-06
 
 ### Adicionado
