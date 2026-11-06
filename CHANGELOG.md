@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.22.2] - 2026-11-05
+
+### Documentação
+
+- Valida os oito conjuntos de prestação de contas TSE 2004/2006 do Bronze vigente, medindo schemas, duplicatas exatas, datas e valores vazios e conversibilidade. Registra contratos candidatos por ano e tabela sem presumir equivalência entre cabeçalhos distintos ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.22.1] - 2026-11-05
 
 ### Documentação
