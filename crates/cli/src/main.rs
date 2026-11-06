@@ -26,7 +26,7 @@ use todeolho_nucleo::{
     TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{
-    FonteDeRefino, SnapshotBronze, TarefaDeBronze, catalogo_refino, publicar_bcb_sgs,
+    FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -455,11 +455,11 @@ async fn refinar_bcb_silver(
     todas: bool,
     intervalo: Option<u64>,
 ) -> Result<bool> {
-    if todas || fonte.as_deref().is_some_and(|nome| nome != "bcb") {
-        bail!("a camada silver aceita a fonte 'bcb'; --todas ainda não está disponível");
+    if fonte.as_deref().is_some_and(|nome| nome != "bcb") {
+        bail!("a camada silver aceita a fonte 'bcb'");
     }
-    if intervalo.is_some_and(|segundos| segundos > 0) {
-        bail!("reconciliação periódica Silver ainda não está disponível");
+    if todas && fonte.is_some() {
+        bail!("informe uma fonte ou --todas, não os dois");
     }
     let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
     let bronze: Arc<dyn ArmazenamentoRaw> =
@@ -468,6 +468,27 @@ async fn refinar_bcb_silver(
         Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
     bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => passada_bcb_silver(&raw_s3, &bronze, &silver, false).await,
+        Some(segundos) => {
+            println!("Agendador Silver BCB: reconciliando a cada {segundos}s. Ctrl+C para sair.");
+            loop {
+                if let Err(erro) = passada_bcb_silver(&raw_s3, &bronze, &silver, true).await {
+                    eprintln!("Atenção: falha na reconciliação Silver: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+/// Executa uma rodada BCB pela DAG e só publica no painel quando há trabalho.
+async fn passada_bcb_silver(
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
     let prefixo = "bcb/series/";
     let chaves = raw_s3
         .listar_chaves(prefixo)
@@ -481,7 +502,7 @@ async fn refinar_bcb_silver(
         .collect();
     recursos.sort();
     recursos.dedup();
-    let sem_recursos = recursos.is_empty();
+    let mut tarefas = Vec::new();
     for recurso in recursos {
         let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "bcb", &recurso)
             .await
@@ -489,35 +510,50 @@ async fn refinar_bcb_silver(
         else {
             continue;
         };
-        let inicio = Utc::now();
-        let id = format!(
+        let tarefa = TarefaDeSilverBcb::nova(Arc::clone(bronze), Arc::new(snapshot), recurso);
+        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+            continue;
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa));
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver (séries em dia ou não ingeridas).");
+        return Ok(true);
+    }
+    let dag = DagDeIngestao::construir("bcb", tarefas)?;
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
             "{}-{}",
-            inicio.format("%Y%m%dT%H%M%SZ"),
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
             &Uuid::new_v4().simple().to_string()[..8]
-        );
-        let partes = publicar_bcb_sgs(
-            bronze.as_ref(),
-            silver.as_ref(),
-            &snapshot,
-            &recurso,
-            inicio,
-            &id,
-        )
-        .await
-        .with_context(|| format!("falha ao publicar bcb/{recurso} na Silver"))?;
-        println!(
-            "bcb/{recurso}: {}",
-            if partes == 0 {
-                "já atualizado".to_owned()
-            } else {
-                format!("{partes} parte(s) publicadas")
-            }
-        );
-    }
-    if sem_recursos {
-        println!("Nenhuma série BCB vigente no Raw.");
-    }
-    Ok(true)
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let dags = vec![dag];
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Resolve quais fontes do catálogo de refino serão processadas.
