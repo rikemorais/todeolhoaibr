@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["bcb"]};
+window.SIDEBAR_ITEMS = {"mod":["bcb","tarefa_bcb"]};
