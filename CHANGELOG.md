@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.40.0] - 2026-11-06
+
+### Adicionado
+
+- Publica o histórico anual de tramitações da Câmara na Silver, preservando linhas repetidas quando não há chave de negócio única comprovada (issue #188).
+
 ## [0.39.0] - 2026-11-06
 
 ### Adicionado

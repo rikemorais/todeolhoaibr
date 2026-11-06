@@ -5,6 +5,7 @@ pub mod camara_deputados;
 pub mod camara_despesas;
 pub mod camara_legislaturas;
 pub mod camara_partidos;
+pub mod camara_tramitacoes;
 pub mod camara_votacoes;
 pub mod ibge_agregados;
 mod publicacao;
@@ -20,6 +21,7 @@ pub mod tarefa_camara;
 pub mod tarefa_camara_deputados;
 pub mod tarefa_camara_despesas;
 pub mod tarefa_camara_legislaturas;
+pub mod tarefa_camara_tramitacoes;
 pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
 pub mod tarefa_senado;
@@ -38,6 +40,10 @@ pub use camara_legislaturas::{
 };
 pub use camara_partidos::{
     ErroCamaraPartidosSilver, esquema_camara_partidos, transformar_camara_partidos,
+};
+pub use camara_tramitacoes::{
+    ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
+    transformar_camara_tramitacoes,
 };
 pub use ibge_agregados::{ErroIbgeSilver, esquema_ibge_agregados, transformar_ibge_agregados};
 pub use senado_parlamentares::{
@@ -59,6 +65,7 @@ pub use tarefa_camara_despesas::{TarefaDeSilverCamaraDespesas, publicar_camara_d
 pub use tarefa_camara_legislaturas::{
     TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas,
 };
+pub use tarefa_camara_tramitacoes::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_senado::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
