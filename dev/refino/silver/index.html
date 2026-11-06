@@ -1124,6 +1124,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#paridade-e-smoke-sqldatafusion-2026-11-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paridade e smoke SQL/DataFusion (2026-11-06)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1743,6 +1752,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#paridade-e-smoke-sqldatafusion-2026-11-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paridade e smoke SQL/DataFusion (2026-11-06)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2108,8 +2126,53 @@
 <p>O <a href="../../crates/refino/src/snapshot_bronze.rs"><code>SnapshotBronze</code></a> lê o ponteiro e o manifesto vigentes, confere fonte/recurso e permite baixar somente partes listadas no manifesto. O download é em fluxo para arquivo temporário; tamanho e SHA-256 são verificados antes de abrir o leitor em lotes. Ponteiro ou manifesto inválido causam erro; ausência de ponteiro ou manifesto válido sem partes significa que não há dados Bronze a transformar.</p>
 <p>Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conferir o ponteiro bronze antes de publicar sua própria versão, para não publicar resultado de uma entrada que já foi substituída. A referência da linha vale somente para a versão bronze selecionada e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.</p>
 <p>O <a href="../../crates/refino/src/escritor.rs"><code>EscritorParquetTipado</code></a> recebe o schema Arrow do contrato Silver e grava lotes <code>RecordBatch</code> em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente.</p>
-<p>O primeiro transformador, <a href="../../crates/refino/src/silver/bcb.rs"><code>transformar_bcb_sgs</code></a>, define o contrato <code>bcb.sgs.observacao.v1</code>: <code>data</code> em <code>Date32</code> e <code>valor</code> em <code>Decimal128(18,6)</code>. Lê o Bronze com colunas textuais <code>data</code> (<code>DD/MM/AAAA</code>) e <code>valor</code> decimal com ponto, sem conversão por <code>f64</code>. Data, valor nulo ou escala acima de seis casas causam erro com o índice da linha. O publicador <a href="../../crates/refino/src/silver/tarefa_bcb.rs"><code>publicar_bcb_sgs</code></a> grava as partes em fluxo, manifesto e ponteiro, pula versão/regra já publicadas e confere se o ponteiro Bronze não mudou durante a transformação. A CLI aceita <code>todeolho refinar silver bcb</code> e <code>todeolho refinar silver --todas --intervalo 3600</code>. A execução Silver aparece no painel com o selo azul.</p>
-<p>O contrato <code>ibge.agregado.observacao.v1</code>, em <a href="../../crates/refino/src/silver/ibge_agregados.rs"><code>transformar_ibge_agregados</code></a>, mantém IDs, classificações e período como texto, preserva o valor recebido em <code>valor_original</code> e acrescenta <code>valor_decimal</code> (<code>Decimal128(38,9)</code>) quando o conteúdo é decimal simples com ponto. Valor nulo ou não interpretável fica com decimal nulo, sem descartar a linha nem classificar sentinelas sem metadados da tabela. <code>TarefaDeSilverIbge</code> publica manifesto e ponteiro com idempotência por versão Bronze/regra e verifica que o ponteiro Bronze não mudou durante a transformação. A CLI oferece as seis fontes agregadas com contrato: <code>ibge-ipca</code>, <code>ibge-inpc</code>, <code>ibge-pib-municipios</code>, <code>ibge-pib-trimestral</code>, <code>ibge-pnad-desocupacao</code> e <code>ibge-populacao-municipios</code>. <code>ibge-estados</code>, <code>ibge-regioes</code> e <code>ibge-municipios</code> ainda não têm contrato Silver e ficam fora de <code>--todas</code>. A reconciliação percorre as fontes suportadas; passadas vazias não são registradas no painel.</p>
+<p>O contrato <code>bcb.sgs.observacao.v1</code> é definido em <a href="../../crates/refino/sql/silver/bcb_sgs.sql"><code>bcb_sgs.sql</code></a>: <code>data</code> em <code>Date32</code> e <code>valor</code> em <code>Decimal128(18,6)</code>, sem conversão por <code>f64</code>. A consulta exige data <code>DD/MM/AAAA</code> e valor decimal com ponto e até seis casas; dados inválidos ou nulos falham antes de publicar. O adaptador <a href="../../crates/refino/src/silver/tarefa_bcb.rs"><code>TarefaDeSilverBcb</code></a> usa <code>TarefaDeSilverSql</code> e o publicador comum, que mantém manifesto, ponteiro, idempotência e revalidação do snapshot Bronze. A regra <code>bcb-sgs-v2</code> reprocessa uma vez o que foi publicado pelo transformador Arrow anterior. A nulabilidade do schema publicado permanece a do contrato; nulos em campos obrigatórios são rejeitados na borda Arrow/Parquet. A CLI aceita <code>todeolho refinar silver bcb</code> e <code>todeolho refinar silver --todas --intervalo 3600</code>. A execução Silver aparece no painel com o selo azul.</p>
+<p>O contrato <code>ibge.agregado.observacao.v1</code> está em <a href="../../crates/refino/sql/silver/ibge_agregados.sql"><code>ibge_agregados.sql</code></a>. Mantém IDs, classificações e período como texto, preserva o valor recebido em <code>valor_original</code> e acrescenta <code>valor_decimal</code> (<code>Decimal128(38,9)</code>) quando o conteúdo corresponde a decimal simples com ponto. Valor nulo, sentinela textual ou valor acima da escala permitida recebe decimal nulo, sem descartar a linha nem classificar sentinelas sem metadados da tabela. <code>TarefaDeSilverIbge</code> publica manifesto e ponteiro com idempotência por versão Bronze/regra e verifica que o ponteiro Bronze não mudou durante a transformação. A regra <code>ibge-agregado-v2</code> reprocessa uma vez os recursos que foram publicados pelo transformador Arrow anterior. A CLI oferece as seis fontes agregadas com contrato: <code>ibge-ipca</code>, <code>ibge-inpc</code>, <code>ibge-pib-municipios</code>, <code>ibge-pib-trimestral</code>, <code>ibge-pnad-desocupacao</code> e <code>ibge-populacao-municipios</code>. <code>ibge-estados</code>, <code>ibge-regioes</code> e <code>ibge-municipios</code> ainda não têm contrato Silver e ficam fora de <code>--todas</code>. A reconciliação percorre as fontes suportadas; passadas vazias não são registradas no painel. Fixtures comparam o Parquet SQL ao transformador Arrow anterior, mantido somente em builds de teste.</p>
+<h3 id="paridade-e-smoke-sqldatafusion-2026-11-06">Paridade e smoke SQL/DataFusion (2026-11-06)<a class="headerlink" href="#paridade-e-smoke-sqldatafusion-2026-11-06" title="Permanent link">&para;</a></h3>
+<p>As fixtures de publicação comparam os <code>RecordBatch</code> Silver da consulta com a implementação Arrow anterior. Cobrem datas e decimais BCB válidos, datas inválidas/nulas, precisão excedida, chaves IBGE que incluem classificação, códigos com zero à esquerda, sentinelas textuais e valores nulos. Os testes confirmam chave única nos casos válidos e ausência de ponteiro quando a consulta BCB rejeita dados inválidos.</p>
+<p>O smoke foi executado com o binário local no perfil dev e o Bronze/VersityGW desta máquina. As onze séries BCB publicaram 5.125 linhas em 46.676 bytes de Parquet; a execução levou aproximadamente 1 s e a chave (<code>recurso</code>, <code>data</code>) não teve duplicatas nem datas nulas. O IPCA publicou 562 linhas; uma passada das seis famílias IBGE publicou/reutilizou no total 247.923 linhas. Consulta de somente leitura no DuckDB encontrou zero linhas em chaves repetidas nos seis recortes, usando (<code>variavel_id</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>localidade_id</code>, <code>periodo</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Fonte IBGE</th>
+<th style="text-align: right;">Linhas publicadas</th>
+<th style="text-align: right;">Linhas em chaves repetidas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPCA</td>
+<td style="text-align: right;">562</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>INPC</td>
+<td style="text-align: right;">571</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>PIB municipal</td>
+<td style="text-align: right;">122.540</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>PIB trimestral</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>PNAD desocupação</td>
+<td style="text-align: right;">1.566</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>População municipal</td>
+<td style="text-align: right;">122.562</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>O executor usou os limites padrão de 512 MiB de memória e 2 GiB de spill; o smoke real não amostrou RSS nem spill. Como referência operacional do engine, o benchmark sintético em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a> processou 10 milhões de linhas com orçamento de 64 MiB, RSS amostrado de 187.551.744 bytes e 160.236.672 bytes de spill em 27.503 ms; esses números não representam as fontes BCB/IBGE. A primeira compilação <code>--release</code> limpa da imagem levou 8 min 28 s, incluindo compilação inicial das dependências. As implementações manuais antigas ficam sob <code>cfg(test)</code> para paridade; em runtime, as duas regras usam 33 linhas de SQL versionado, além dos schemas e adaptadores Rust.</p>
 <p>O contrato <code>senado.parlamentar.legislatura.v1</code> extrai <code>CodigoParlamentar</code> do JSON compacto de <code>IdentificacaoParlamentar</code>, tipa <code>legislatura</code> como <code>UInt16</code> a partir do recurso <code>parlamentares/legislatura=NN</code> e preserva os objetos de identificação e mandato como JSON. A chave candidata (<code>CodigoParlamentar</code>, <code>legislatura</code>) foi validada no Bronze local; o contrato preserva o mandato aninhado sem explodi-lo em linhas. A <a href="https://legis.senado.leg.br/dadosabertos/v3/api-docs">OpenAPI oficial do Senado</a> documenta a listagem por legislatura. A CLI oferece <code>todeolho refinar silver senado-parlamentares</code>; a fonte também entra em <code>--todas</code> e na reconciliação periódica.</p>
 <p>O contrato <code>senado.processo.v1</code> publica uma linha por matéria em cada listagem anual, tipa <code>id</code> como texto e <code>ano</code> como <code>UInt16</code>, e mantém todos os campos da API em <code>processo_original</code> JSON. A listagem anual é uma fotografia do catálogo consultado naquele ano, não um histórico de versões da matéria. IDs foram únicos e não vazios nos snapshots locais de 2010 (2.965 linhas), 2023 (5.432) e 2024 (4.947); essa validação é por recurso anual. A CLI oferece <code>todeolho refinar silver senado-processos</code>; a fonte entra em <code>--todas</code> e na reconciliação periódica.</p>
 <p>O contrato <code>senado.processo.detalhe.v1</code> publica uma linha por processo no recurso anual, com <code>id</code> como texto, <code>ano</code> como <code>UInt16</code> e os campos Bronze preservados em <code>processo_original</code> JSON. A tarefa valida IDs não vazios e únicos no recurso, sem explodir despachos, classificações ou outros objetos aninhados. No Bronze local consultado, 163.156 linhas tinham 163.156 IDs distintos e anos válidos. A CLI oferece <code>todeolho refinar silver senado-processos-detalhes</code>; a fonte entra em <code>--todas</code> e na reconciliação periódica.</p>
