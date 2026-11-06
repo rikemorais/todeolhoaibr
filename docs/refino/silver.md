@@ -67,6 +67,8 @@ O contrato `camara.legislatura.periodo.v1` tipa o ID sequencial como `UInt16`, a
 
 O contrato `camara.deputado.exercicio.v1` trata cada versão Bronze como a fotografia vigente dos deputados em exercício, sem inferir histórico a partir de uma listagem sem intervalo temporal. Preserva `id`, URIs, nome, partido, UF, legislatura, foto e e-mail; identificadores e atributos categóricos permanecem texto. `id` deve ser numérico, obrigatório e único na fotografia. A lista da Câmara teve 513 IDs distintos nas 513 linhas observadas. A [API oficial](https://dadosabertos.camara.leg.br/api/v2/api-docs) descreve o endpoint de deputados e os filtros temporais; a CLI oferece `todeolho refinar silver camara-deputados`, incluído em `--todas` e na reconciliação periódica.
 
+Os sete contratos `camara-*-v1` da fonte `camara-votacoes` validam a chave candidata de cada conjunto por recurso anual e preservam todas as colunas e linhas do Bronze, com o schema de origem (texto). Não fazem deduplicação nem cruzamento entre tabelas. Os Parquets Silver são independentes por conjunto e ano; `--todas` percorre os recursos Bronze presentes, e a pré-checagem inclui snapshot e versão da regra. A CLI oferece `todeolho refinar silver camara-votacoes`. A matriz de unicidade disponível foi medida somente em 2024: os anos anteriores ainda precisam de smoke test contra Bronze vigente antes de serem considerados cobertos por evidência.
+
 O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
 
 ## Evidência disponível no repositório
@@ -232,6 +234,8 @@ O [inventário e a reconciliação de 2010 e 2012](pesquisa-tse-2010-2012.md) id
 ### Conjuntos da Câmara
 
 Os sete conjuntos abaixo foram validados **apenas no ano de 2024**. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico `votacoes`:
+
+O leiaute oficial descreve `proposicoesAutores` como uma relação em que uma proposição pode aparecer uma vez por autor, então a chave precisa incluir a posição/ordem de assinatura. Para `votacoesVotos`, a origem descreve uma linha por voto de parlamentar e avisa que também pode haver registros individuais em algumas votações simbólicas. Portanto, votos não devem ser deduplicados nem descartados por tipo de votação. Os arquivos são atualizados diariamente; antes de transformar todos os anos, é necessário validar cada schema e as chaves candidatas contra os Parquets Bronze vigentes, não apenas contra o recorte de 2024. Consulte a [documentação oficial dos arquivos de proposições e votações](https://dadosabertos.camara.leg.br/swagger/api.html).
 
 | Conjunto | Chave candidata | Linhas | Chaves distintas |
 | --- | --- | ---: | ---: |
