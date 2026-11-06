@@ -27,7 +27,7 @@ use todeolho_nucleo::{
 };
 use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb, TarefaDeSilverIbge,
-    catalogo_refino,
+    TarefaDeSilverSenadoParlamentares, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -421,6 +421,9 @@ async fn refinar(
             }
             return refinar_todas_silver(intervalo).await;
         }
+        if fonte.as_deref() == Some("senado-parlamentares") {
+            return refinar_senado_silver(fonte, todas, intervalo).await;
+        }
         if fonte
             .as_deref()
             .is_some_and(|nome| nome.starts_with("ibge-"))
@@ -430,7 +433,9 @@ async fn refinar(
         return refinar_bcb_silver(fonte, todas, intervalo).await;
     }
     if camada != "bronze" {
-        bail!("camada desconhecida: {camada}. Disponíveis: bronze, silver (BCB e agregados IBGE).");
+        bail!(
+            "camada desconhecida: {camada}. Disponíveis: bronze e silver (BCB, agregados IBGE e parlamentares do Senado)."
+        );
     }
     let fontes = fontes_de_refino(fonte, todas)?;
 
@@ -468,7 +473,8 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
         None => {
             let bcb = refinar_bcb_silver(None, true, None).await?;
             let ibge = refinar_ibge_silver(None, true, None).await?;
-            Ok(bcb && ibge)
+            let senado = refinar_senado_silver(None, true, None).await?;
+            Ok(bcb && ibge && senado)
         }
         Some(segundos) => {
             println!(
@@ -481,10 +487,129 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 if let Err(erro) = refinar_ibge_silver(None, true, None).await {
                     eprintln!("Atenção: falha na reconciliação Silver IBGE: {erro:#}");
                 }
+                if let Err(erro) = refinar_senado_silver(None, true, None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver Senado: {erro:#}");
+                }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
         }
     }
+}
+
+/// Publica as listagens Silver de parlamentares por legislatura.
+async fn refinar_senado_silver(
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    if fonte
+        .as_deref()
+        .is_some_and(|nome| nome != "senado-parlamentares")
+    {
+        bail!("a camada silver aceita a fonte 'senado-parlamentares'");
+    }
+    if todas && fonte.is_some() {
+        bail!("informe uma fonte ou --todas, não os dois");
+    }
+    let definicao = catalogo_refino()
+        .into_iter()
+        .find(|item| item.nome == "senado-parlamentares")
+        .context("fonte senado-parlamentares ausente do catálogo de refino")?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => passada_senado_silver(&definicao, &raw_s3, &bronze, &silver, false).await,
+        Some(segundos) => {
+            println!(
+                "Agendador Silver Senado: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) =
+                    passada_senado_silver(&definicao, &raw_s3, &bronze, &silver, true).await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver Senado: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+/// Executa uma rodada Silver Senado e omite passadas vazias do painel.
+async fn passada_senado_silver(
+    fonte: &FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let mut tarefas = Vec::new();
+    for recurso in recursos_no_raw(raw_s3, fonte).await? {
+        let legislatura = recurso
+            .strip_prefix("parlamentares/legislatura=")
+            .context("recurso de parlamentares sem legislatura no caminho")?
+            .parse::<u16>()
+            .context("legislatura inválida no caminho do recurso Bronze")?;
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "senado", &recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze Senado")?
+        else {
+            continue;
+        };
+        let tarefa = TarefaDeSilverSenadoParlamentares::nova(
+            Arc::clone(bronze),
+            Arc::new(snapshot),
+            &recurso,
+            legislatura,
+        );
+        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+            continue;
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa));
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver Senado (recursos em dia ou não ingeridos).");
+        return Ok(true);
+    }
+    let dag = DagDeIngestao::construir("senado-parlamentares", tarefas)?;
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            &Uuid::new_v4().simple().to_string()[..8]
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let dags = vec![dag];
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Publica as séries BCB/SGS vigentes do bronze para a silver.

@@ -1,21 +1,20 @@
-//! Publicação do contrato BCB/SGS na camada Silver.
+//! Tarefa e adaptador do contrato BCB/SGS para o publicador Silver compartilhado.
 
-use std::io::Read;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
-    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
-    ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw, publicar_ponteiro,
+    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa, estado_na_raw,
 };
 
-use super::bcb::{esquema_bcb_sgs, transformar_bcb_sgs};
-use crate::{EscritorParquetTipado, SnapshotBronze};
+use super::{
+    bcb::esquema_bcb_sgs,
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+};
+use crate::SnapshotBronze;
 
 const REGRA: &str = "bcb-sgs-v1";
-const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
 
 /// Tarefa Silver de uma série BCB, utilizável pelo executor e pelo painel.
 pub struct TarefaDeSilverBcb {
@@ -41,10 +40,11 @@ impl TarefaDeSilverBcb {
     /// Indica se a versão Silver precisa acompanhar o snapshot Bronze atual.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
         let versao = format!("{}|regra={REGRA}", self.snapshot.manifesto().id_execucao);
-        Ok(
-            !matches!(estado_na_raw(silver, "bcb", &self.recurso).await?, Some(ref estado)
-            if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())),
-        )
+        Ok(!matches!(
+            estado_na_raw(silver, "bcb", &self.recurso).await?,
+            Some(ref estado)
+                if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
+        ))
     }
 }
 
@@ -70,9 +70,7 @@ impl Tarefa for TarefaDeSilverBcb {
     }
 }
 
-/// Transforma e publica uma versão Silver BCB a partir do snapshot Bronze recebido.
-///
-/// O manifesto e o ponteiro Silver só são escritos depois de todas as partes.
+/// Publica a transformação BCB/SGS usando o fluxo compartilhado de Silver.
 pub async fn publicar_bcb_sgs(
     bronze: &dyn ArmazenamentoRaw,
     silver: &dyn ArmazenamentoRaw,
@@ -81,177 +79,19 @@ pub async fn publicar_bcb_sgs(
     iniciada_em: DateTime<Utc>,
     id_execucao: &str,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    if snapshot.manifesto().fonte != "bcb" || snapshot.manifesto().recurso != recurso {
-        return Err(ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: "snapshot não pertence ao recurso BCB solicitado".into(),
-        });
-    }
-    let versao_silver = format!("{}|regra={REGRA}", snapshot.manifesto().id_execucao);
-    if let Some(estado) = estado_na_raw(silver, "bcb", recurso).await?
-        && estado.completa
-        && estado.integra
-        && estado.versao.as_deref() == Some(versao_silver.as_str())
-    {
-        return Ok(ResumoDaTarefa {
-            reaproveitada: true,
-            ..ResumoDaTarefa::default()
-        });
-    }
-    let local = LocalizacaoRaw::nova("bcb", recurso, iniciada_em, id_execucao);
-    let mut partes = Vec::new();
-    let mut total_bytes = 0u64;
-    for entrada in &snapshot.manifesto().partes {
-        let baixada = snapshot
-            .baixar_parte(bronze, &entrada.chave)
-            .await
-            .map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            })?;
-        let mut leitor = baixada
-            .abrir_lotes(65_536)
-            .map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            })?;
-        let arquivo = tempfile::NamedTempFile::new().map_err(|erro| ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: erro.to_string(),
-        })?;
-        let mut escritor = EscritorParquetTipado::novo_em(
-            arquivo.reopen().map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            })?,
-            esquema_bcb_sgs(),
-        )
-        .map_err(|erro| ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: erro.to_string(),
-        })?;
-        for lote in &mut leitor {
-            let transformado = transformar_bcb_sgs(
-                &lote
-                    .map_err(|erro| ErroDeIngestao::Manifesto {
-                        recurso: recurso.to_owned(),
-                        detalhe: erro.to_string(),
-                    })?
-                    .registros,
-            )
-            .map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            })?;
-            escritor
-                .escrever_lote(&transformado)
-                .map_err(|erro| ErroDeIngestao::Manifesto {
-                    recurso: recurso.to_owned(),
-                    detalhe: erro.to_string(),
-                })?;
-        }
-        escritor
-            .fechar()
-            .map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            })?;
-        let bytes = arquivo
-            .as_file()
-            .metadata()
-            .map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            })?
-            .len();
-        total_bytes = total_bytes.saturating_add(bytes);
-        let mut hash = Sha256::new();
-        let mut leitura = arquivo.reopen().map_err(|erro| ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: erro.to_string(),
-        })?;
-        let mut bloco = [0u8; 64 * 1024];
-        loop {
-            let lidos = leitura
-                .read(&mut bloco)
-                .map_err(|erro| ErroDeIngestao::Manifesto {
-                    recurso: recurso.to_owned(),
-                    detalhe: erro.to_string(),
-                })?;
-            if lidos == 0 {
-                break;
-            }
-            hash.update(&bloco[..lidos]);
-        }
-        let chave = local.parte(partes.len() + 1, "parquet");
-        let mut fluxo = tokio::fs::File::from_std(arquivo.reopen().map_err(|erro| {
-            ErroDeIngestao::Manifesto {
-                recurso: recurso.to_owned(),
-                detalhe: erro.to_string(),
-            }
-        })?);
-        silver
-            .gravar_fluxo(&chave, TIPO_PARQUET, &mut fluxo)
-            .await?;
-        partes.push(ParteRaw {
-            chave,
-            url: entrada.url.clone(),
-            bytes,
-            sha256: hex::encode(hash.finalize()),
-            tipo_de_conteudo: TIPO_PARQUET.into(),
-            versao: Some(format!(
-                "{}|regra={REGRA}",
-                entrada.versao.as_deref().unwrap_or("desconhecida")
-            )),
-        });
-    }
-    let snapshot_atual = SnapshotBronze::vigente(bronze, "bcb", recurso)
-        .await
-        .map_err(|erro| ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: erro.to_string(),
-        })?;
-    if snapshot_atual
-        .as_ref()
-        .is_none_or(|atual| atual.chave_manifesto() != snapshot.chave_manifesto())
-    {
-        return Err(ErroDeIngestao::Manifesto {
-            recurso: recurso.to_owned(),
-            detalhe: "ponteiro Bronze mudou durante a transformação; Silver não publicada".into(),
-        });
-    }
-    let agora = Utc::now();
-    let manifesto = ManifestoRaw {
-        fonte: "bcb".into(),
-        recurso: recurso.into(),
-        id_execucao: id_execucao.into(),
-        url_inicial: format!("bronze/{recurso}"),
-        iniciada_em,
-        concluida_em: agora,
-        partes,
-    };
-    let quantidade = manifesto.partes.len();
-    silver
-        .gravar(ObjetoRaw {
-            chave: local.manifesto(),
-            conteudo: serde_json::to_vec_pretty(&manifesto).map_err(|erro| {
-                ErroDeIngestao::Manifesto {
-                    recurso: recurso.into(),
-                    detalhe: erro.to_string(),
-                }
-            })?,
-            tipo_de_conteudo: "application/json".into(),
-        })
-        .await?;
-    let ponteiro = UltimaVersao {
-        versao: Some(versao_silver),
-        manifesto: local.manifesto(),
-        iniciada_em: Some(iniciada_em),
-    };
-    publicar_ponteiro(silver, "bcb", recurso, &ponteiro).await?;
-    Ok(ResumoDaTarefa {
-        partes: quantidade,
-        bytes: total_bytes,
-        ..ResumoDaTarefa::default()
-    })
+    publicar_transformacao(
+        bronze,
+        silver,
+        snapshot,
+        ConfiguracaoDePublicacao {
+            fonte: "bcb",
+            recurso,
+            regra: REGRA,
+            esquema: esquema_bcb_sgs(),
+            iniciada_em,
+            id_execucao,
+        },
+        |lote| super::bcb::transformar_bcb_sgs(lote).map_err(|erro| erro.to_string()),
+    )
+    .await
 }

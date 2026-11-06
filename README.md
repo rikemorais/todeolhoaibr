@@ -53,7 +53,7 @@ docker compose run --rm --build ingestao
 
 O `agendador` faz uma primeira reconciliação ao iniciar e repete a cada hora. Se ainda não houver dados na Raw, não há o que refinar; depois da ingestão, o bronze será produzido na próxima passada. Para produzi-lo imediatamente, rode `docker compose run --rm refino refinar bronze --todas`. Veja [como processar e conferir o bronze](docs/refino/bronze.md#como-rodar).
 
-Para gerar Silver manualmente, rode `docker compose run --rm refino refinar silver bcb` para séries BCB/SGS, `docker compose run --rm refino refinar silver ibge-ipca` para uma fonte IBGE, ou `docker compose run --rm refino refinar silver --todas` para todas as fontes Silver atualmente suportadas (BCB e agregados IBGE). A reconciliação periódica Silver pode ser iniciada com `docker compose run --rm refino refinar silver --todas --intervalo 3600`. Veja o [contrato e a cobertura Silver](docs/refino/silver.md).
+Para gerar Silver manualmente, rode `docker compose run --rm refino refinar silver bcb` para séries BCB/SGS, `docker compose run --rm refino refinar silver ibge-ipca` para uma fonte IBGE, `docker compose run --rm refino refinar silver senado-parlamentares` para parlamentares por legislatura, ou `docker compose run --rm refino refinar silver --todas` para todas as fontes atualmente suportadas. A reconciliação periódica Silver pode ser iniciada com `docker compose run --rm refino refinar silver --todas --intervalo 3600`. Veja o [contrato e a cobertura Silver](docs/refino/silver.md).
 
 > **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
 
@@ -249,7 +249,7 @@ O manifesto é gravado por último, então um prefixo sem ele é de uma ingestã
 
 ### Camadas de dados
 
-Os dados ficam no versitygw organizados em **medalhão**: cada camada é um bucket, e cada estágio lê a anterior e escreve a próxima, sem nunca reescrever a montante ([ADR 0014](docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md) e [ADR 0015](docs/adr/0015-arquitetura-de-dados-em-medalhao.md)). Raw e Bronze atendem o catálogo de ingestão/refino; Silver já materializa séries BCB/SGS e agregados IBGE com contratos iniciais, enquanto as demais fontes seguem em implementação.
+Os dados ficam no versitygw organizados em **medalhão**: cada camada é um bucket, e cada estágio lê a anterior e escreve a próxima, sem nunca reescrever a montante ([ADR 0014](docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md) e [ADR 0015](docs/adr/0015-arquitetura-de-dados-em-medalhao.md)). Raw e Bronze atendem o catálogo de ingestão/refino; Silver já materializa séries BCB/SGS, agregados IBGE e parlamentares do Senado com contratos iniciais, enquanto as demais fontes seguem em implementação.
 
 ![Camadas de dados raw, bronze, silver, gold e diamond no versitygw](docs/img/camadas-dados.svg)
 
