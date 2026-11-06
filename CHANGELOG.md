@@ -7,6 +7,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.37.0] - 2026-11-06
+
+### Adicionado
+
+- Publica detalhes de processos do Senado na Silver com ID textual, ano tipado, payload integral preservado e validação de unicidade por recurso anual (parte da issue #188).
+- Trata manifestos Bronze válidos sem partes como recursos sem dados, permitindo que reconciliações Silver pulem anos vazios sem confundi-los com corrupção.
+
 ## [0.36.1] - 2026-11-06
 
 ### Corrigido

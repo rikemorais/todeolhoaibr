@@ -8,6 +8,8 @@ pub mod camara_votacoes;
 pub mod ibge_agregados;
 mod publicacao;
 pub mod senado_parlamentares;
+/// Contratos Silver para detalhes e histórico dos processos legislativos do Senado.
+pub mod senado_processos_detalhes;
 pub mod senado_votacoes;
 pub mod senado_votos;
 pub mod tarefa_bcb;
@@ -17,6 +19,7 @@ pub mod tarefa_camara_legislaturas;
 pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
 pub mod tarefa_senado;
+mod tarefa_senado_processos_detalhes;
 pub mod tarefa_senado_votacoes;
 
 pub use camara_deputados::{
@@ -32,6 +35,10 @@ pub use ibge_agregados::{ErroIbgeSilver, esquema_ibge_agregados, transformar_ibg
 pub use senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
+pub use senado_processos_detalhes::{
+    ErroSenadoProcessosDetalhesSilver, esquema_senado_processos_detalhes,
+    transformar_senado_processos_detalhes,
+};
 pub use senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
 pub use senado_votos::{ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos};
 pub use tarefa_bcb::publicar_bcb_sgs;
@@ -43,4 +50,7 @@ pub use tarefa_camara_legislaturas::{
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_senado::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
+pub use tarefa_senado_processos_detalhes::{
+    TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes,
+};
 pub use tarefa_senado_votacoes::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
