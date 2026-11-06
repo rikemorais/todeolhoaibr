@@ -101,6 +101,8 @@ pub enum Camada {
     Raw,
     /// Refino: grava a camada `bronze`.
     Bronze,
+    /// Refino: grava a camada `silver`.
+    Silver,
 }
 
 /// Situação geral de uma execução, calculada a partir do registro.

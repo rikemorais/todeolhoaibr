@@ -1,12 +1,14 @@
 //! Publicação do contrato BCB/SGS na camada Silver.
 
 use std::io::Read;
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
-    ArmazenamentoRaw, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw,
-    UltimaVersao, estado_na_raw, publicar_ponteiro,
+    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
+    ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw, publicar_ponteiro,
 };
 
 use super::bcb::{esquema_bcb_sgs, transformar_bcb_sgs};
@@ -14,6 +16,59 @@ use crate::{EscritorParquetTipado, SnapshotBronze};
 
 const REGRA: &str = "bcb-sgs-v1";
 const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
+
+/// Tarefa Silver de uma série BCB, utilizável pelo executor e pelo painel.
+pub struct TarefaDeSilverBcb {
+    bronze: Arc<dyn ArmazenamentoRaw>,
+    snapshot: Arc<SnapshotBronze>,
+    recurso: String,
+}
+
+impl TarefaDeSilverBcb {
+    /// Cria a tarefa para um snapshot já selecionado e verificado.
+    pub fn nova(
+        bronze: Arc<dyn ArmazenamentoRaw>,
+        snapshot: Arc<SnapshotBronze>,
+        recurso: impl Into<String>,
+    ) -> Self {
+        Self {
+            bronze,
+            snapshot,
+            recurso: recurso.into(),
+        }
+    }
+
+    /// Indica se a versão Silver precisa acompanhar o snapshot Bronze atual.
+    pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
+        let versao = format!("{}|regra={REGRA}", self.snapshot.manifesto().id_execucao);
+        Ok(
+            !matches!(estado_na_raw(silver, "bcb", &self.recurso).await?, Some(ref estado)
+            if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())),
+        )
+    }
+}
+
+#[async_trait]
+impl Tarefa for TarefaDeSilverBcb {
+    fn nome(&self) -> &str {
+        &self.recurso
+    }
+
+    async fn executar(
+        &self,
+        contexto: &ContextoDeExecucao,
+    ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        publicar_bcb_sgs(
+            self.bronze.as_ref(),
+            contexto.armazenamento.as_ref(),
+            &self.snapshot,
+            &self.recurso,
+            contexto.iniciada_em,
+            &contexto.id_execucao,
+        )
+        .await
+    }
+}
 
 /// Transforma e publica uma versão Silver BCB a partir do snapshot Bronze recebido.
 ///
@@ -25,7 +80,7 @@ pub async fn publicar_bcb_sgs(
     recurso: &str,
     iniciada_em: DateTime<Utc>,
     id_execucao: &str,
-) -> Result<usize, ErroDeIngestao> {
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
     if snapshot.manifesto().fonte != "bcb" || snapshot.manifesto().recurso != recurso {
         return Err(ErroDeIngestao::Manifesto {
             recurso: recurso.to_owned(),
@@ -38,10 +93,14 @@ pub async fn publicar_bcb_sgs(
         && estado.integra
         && estado.versao.as_deref() == Some(versao_silver.as_str())
     {
-        return Ok(0);
+        return Ok(ResumoDaTarefa {
+            reaproveitada: true,
+            ..ResumoDaTarefa::default()
+        });
     }
     let local = LocalizacaoRaw::nova("bcb", recurso, iniciada_em, id_execucao);
     let mut partes = Vec::new();
+    let mut total_bytes = 0u64;
     for entrada in &snapshot.manifesto().partes {
         let baixada = snapshot
             .baixar_parte(bronze, &entrada.chave)
@@ -105,6 +164,7 @@ pub async fn publicar_bcb_sgs(
                 detalhe: erro.to_string(),
             })?
             .len();
+        total_bytes = total_bytes.saturating_add(bytes);
         let mut hash = Sha256::new();
         let mut leitura = arquivo.reopen().map_err(|erro| ErroDeIngestao::Manifesto {
             recurso: recurso.to_owned(),
@@ -189,5 +249,9 @@ pub async fn publicar_bcb_sgs(
         iniciada_em: Some(iniciada_em),
     };
     publicar_ponteiro(silver, "bcb", recurso, &ponteiro).await?;
-    Ok(quantidade)
+    Ok(ResumoDaTarefa {
+        partes: quantidade,
+        bytes: total_bytes,
+        ..ResumoDaTarefa::default()
+    })
 }

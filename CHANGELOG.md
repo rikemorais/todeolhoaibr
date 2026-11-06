@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.26.0] - 2026-11-06
+
+### Adicionado
+
+- Registra execuções Silver BCB no painel e adiciona `--todas` e `--intervalo` com pré-checagem para não registrar passadas vazias ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.25.0] - 2026-11-06
 
 ### Adicionado
