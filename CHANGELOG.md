@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.23.0] - 2026-11-06
+
+### Adicionado
+
+- Escritor Parquet em lotes com schema Arrow tipado para os futuros contratos Silver; valida schema exato por lote e preserva datas, decimais e nulos em arquivo, sem converter para texto ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.22.5] - 2026-11-05
 
 ### Documentação
