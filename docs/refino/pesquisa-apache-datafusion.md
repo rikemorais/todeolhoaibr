@@ -1,13 +1,15 @@
-# Avaliação do Apache DataFusion para a camada Silver
+# Adoção do Apache DataFusion para a camada Silver
 
 **Data:** 2026-11-06
-**Pergunta:** usar Apache DataFusion para transformar Bronze em Silver neste projeto Rust.
+**Pergunta:** como adotar Apache DataFusion para transformar Bronze em Silver neste projeto Rust, com SQL como formato principal de contribuição.
 
 ## Resumo
 
 Apache DataFusion é um engine Rust embutível de consultas SQL/DataFrame baseado em Arrow. Ele não é, por si só, um agendador ou orquestrador de pipelines. Portanto, pode executar parte das transformações Bronze→Silver, mas não substitui a CLI, a reconciliação periódica, os contratos de cada tabela ou a publicação atômica já implementada pelo projeto.
 
-**Recomendação:** não trocar agora o caminho comum de Silver pelo DataFusion. Fazer primeiro uma prova de conceito isolada e comparativa, com um contrato simples e outro com deduplicação global, medindo memória, tempo, dependências e manutenção. O código atual já lê e escreve Arrow/Parquet em lotes, e muitas regras são específicas por fonte. O ganho potencial existe sobretudo para transformações declarativas SQL, filtros, projeções e agregações; precisa ser demonstrado no workload real.
+**Decisão atual:** adotar DataFusion como engine padrão das transformações Silver e usar SQL versionado como caminho preferencial para projeções, casts, filtros, joins, agregações e deduplicação. A validação incremental continua necessária para alinhar Arrow, preservar semântica e medir recursos; ela orienta a integração e cada migração, não decide se DataFusion será adotado. Rust permanece para decodificação, funções especializadas e regras de domínio que sejam mais claras ou seguras fora do SQL.
+
+Esta nota começou como uma avaliação de alternativas. A decisão posterior do projeto atualizou sua recomendação: migrar em fases, mantendo os contratos atuais disponíveis até cada transformação SQL demonstrar paridade e operação segura.
 
 ## O que o projeto oferece
 
@@ -39,15 +41,15 @@ Assim, DataFusion seria uma dependência de execução adicional dentro do crate
 - A compatibilidade das versões de Arrow/DataFusion, a leitura do VersityGW e a escrita das partes na arquitetura de publicação do projeto são questões de integração, não garantias derivadas do suporte genérico a S3/Parquet.
 - DataFusion não torna automaticamente qualquer plano limitado ao `mem_limit` do Compose; esse limite externo continua necessário.
 
-## Plano de prova de conceito
+## Plano de integração e validação incremental
 
-1. Adicionar DataFusion somente em uma branch experimental, sem alterar o publicador comum.
-2. Escolher uma transformação simples (por exemplo, casts/projeções de uma tabela já coberta) e uma transformação que exige unicidade/deduplicação global, como despesas pagas do TSE.
+1. Resolver no ADR e no executor a compatibilidade de versões Arrow/DataFusion e a leitura limitada às partes Bronze do manifesto vigente.
+2. Migrar uma transformação simples (BCB/IBGE) como piloto inicial e uma transformação que exige unicidade/deduplicação global, como despesas pagas do TSE, em sua fase própria.
 3. Alimentar as mesmas partes Bronze vigentes e preservar as mesmas regras, contagens, erros esperados, chaves e linhagem. Não comparar somente tempo: comparar igualdade semântica e comportamento sob conflito.
 4. Medir build incremental e limpo, tempo, RSS máximo, CPU, bytes temporários e limites do contêiner, em volume representativo. Incluir reprocessamento idempotente e publicação interrompida antes do ponteiro.
-5. Manter DataFusion apenas se houver ganho operacional claro sem enfraquecer contratos, linhagem e recuperação. Caso contrário, conservar Arrow/Parquet direto.
+5. Concluir a migração dos contratos elegíveis quando a paridade e os limites operacionais forem demonstrados. Manter em Rust somente as exceções justificadas; adiar uma expressão específica se ela enfraquecer contrato, linhagem ou recuperação.
 
-Os itens de avaliação e recomendação são **inferências** a partir das capacidades documentadas e da arquitetura existente; precisam de benchmark para confirmar qualquer ganho de desempenho ou redução de código.
+As observações sobre capacidades são **fatos documentados** nas fontes abaixo. Ganhos de desempenho, redução de código e consumo de recursos são **hipóteses** que precisam de benchmark nos contratos reais.
 
 ## Fontes primárias
 
