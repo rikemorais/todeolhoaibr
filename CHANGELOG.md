@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.31.0] - 2026-11-06
+
+### Adicionado
+
+- Adiciona o contrato Silver do cadastro de partidos da Câmara, valida IDs únicos por recurso e integra a fonte à execução individual, `--todas` e reconciliação periódica ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.30.0] - 2026-11-06
 
 ### Adicionado
