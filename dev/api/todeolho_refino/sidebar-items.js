@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["catalogo","csv_zip","decodificador","escritor","fontes","linhagem","snapshot_bronze","tarefa"]};
+window.SIDEBAR_ITEMS = {"mod":["catalogo","csv_zip","decodificador","escritor","fontes","linhagem","silver","snapshot_bronze","tarefa"]};
