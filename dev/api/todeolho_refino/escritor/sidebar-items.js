@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErroDeRefino"],"struct":["EscritorParquet","Tabela"]};
+window.SIDEBAR_ITEMS = {"enum":["ErroDeRefino"],"struct":["EscritorParquet","EscritorParquetTipado","Tabela"]};
