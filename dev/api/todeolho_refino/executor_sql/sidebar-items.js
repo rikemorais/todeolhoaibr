@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroExecutorSql"],"fn":["executar_sql","preparar_snapshot"],"struct":["ConfiguracaoExecutorSql","EntradaSqlPreparada"]};
