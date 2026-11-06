@@ -23,9 +23,9 @@ Há controles de memória do engine e spill para disco em operadores que suporta
 
 ## Ajuste ao código atual
 
-O workspace já usa Rust, Arrow `60.1.0` e Parquet `60.1.0`. O leitor Silver abre cada objeto Bronze apontado pelo manifesto vigente, valida os lotes em fluxo e preserva manifesto, parte e ordinal como linhagem. O publicador escreve Parquet temporário, grava manifesto e partes e só então atualiza o ponteiro da versão vigente. A transformação é uma função Rust por lote. Consulte `crates/refino/Cargo.toml`, `crates/refino/src/linhagem.rs` e `crates/refino/src/silver/publicacao.rs`.
+O workspace usa Rust 1.94 como MSRV. A branch da Fase 0 adiciona DataFusion 55.2.0 e alinha Arrow/Parquet para 59.x; o lockfile resolve 59.3.2 e o `cargo tree` não mostra versões duplicadas desses tipos. O leitor Silver abre cada objeto Bronze apontado pelo manifesto vigente, valida os lotes em fluxo e preserva manifesto, parte e ordinal como linhagem. O publicador escreve Parquet temporário, grava manifesto e partes e só então atualiza o ponteiro da versão vigente. Antes da migração, a transformação é uma função Rust por lote. Consulte `crates/refino/Cargo.toml`, `crates/refino/src/linhagem.rs` e `crates/refino/src/silver/publicacao.rs`.
 
-Assim, DataFusion seria uma dependência de execução adicional dentro do crate `refino`, não uma camada de persistência nova nem substituto do contrato Bronze/Silver do ADR 0020. Para preservar a garantia de publicação existente, o resultado do engine teria de alimentar o mesmo caminho de partes temporárias, manifesto íntegro e ponteiro publicado por último.
+Assim, DataFusion é uma dependência de execução dentro do crate `refino`, não uma camada de persistência nova nem substituto do contrato Bronze/Silver do ADR 0020. Para preservar a garantia de publicação existente, a saída do engine alimentará o mesmo caminho de partes temporárias, manifesto íntegro e ponteiro publicado por último.
 
 ### Onde pode ajudar
 
@@ -35,7 +35,7 @@ Assim, DataFusion seria uma dependência de execução adicional dentro do crate
 
 ### Custos e riscos que precisam ser medidos
 
-- O projeto já tem Arrow/Parquet e streaming por lotes. O engine pode duplicar capacidades existentes e aumentar compilação, superfície de configuração e manutenção.
+- O projeto já tem Arrow/Parquet e streaming por lotes. O primeiro `cargo check -p todeolho-refino` com DataFusion 55.2.0 resolveu 96 pacotes e levou 1m20s nesta máquina; a adoção aumenta compilação, superfície de configuração e manutenção.
 - Regras de domínio — por exemplo, conflito de chave com mensagens, deduplicação apenas de linhas integralmente iguais, aliases históricos, sentinelas e vínculo da origem por ordinal — não desaparecem ao converter a transformação em SQL. Precisam continuar explícitas e testadas.
 - Agregações, ordenações, joins ou deduplicação podem precisar de estado global ou spill. A semântica de erro, a estabilidade do resultado e o consumo de memória devem ser comparados com os validadores Rust atuais.
 - A compatibilidade das versões de Arrow/DataFusion, a leitura do VersityGW e a escrita das partes na arquitetura de publicação do projeto são questões de integração, não garantias derivadas do suporte genérico a S3/Parquet.
