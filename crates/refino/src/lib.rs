@@ -71,6 +71,7 @@ pub use silver::senado_votos::{
     ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos,
 };
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
+pub use silver::tse_bens::{ErroTseBensSilver, esquema_tse_bens, transformar_tse_bens};
 pub use silver::tse_candidaturas::{
     ErroTseCandidaturasSilver, esquema_tse_candidaturas, transformar_tse_candidaturas,
 };
@@ -86,6 +87,7 @@ pub use silver::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentare
 pub use silver::{TarefaDeSilverSenadoProcessos, publicar_senado_processos};
 pub use silver::{TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes};
 pub use silver::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
+pub use silver::{TarefaDeSilverTseBens, publicar_tse_bens};
 pub use silver::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
 pub use snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
 pub use tarefa::TarefaDeBronze;

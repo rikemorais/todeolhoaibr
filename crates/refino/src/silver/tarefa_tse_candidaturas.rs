@@ -136,7 +136,7 @@ fn ano_do_recurso(recurso: &str) -> Option<u16> {
         .flatten()
 }
 
-fn parte_brasil(parte: &ParteRaw) -> bool {
+pub(super) fn parte_brasil(parte: &ParteRaw) -> bool {
     let nome = parte.url.rsplit('/').next().unwrap_or(&parte.url);
     let nome = nome
         .trim_end_matches(".csv")
