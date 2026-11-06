@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.41.0] - 2026-11-06
+
+### Adicionado
+
+- Publica despesas anuais CEAPS do Senado na Silver com mês, data e valor tipados, validação do código de documento e preservação de registros incompletos ou afetados por CSV malformado (issue #188).
+
 ## [0.40.0] - 2026-11-06
 
 ### Adicionado
