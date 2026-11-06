@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.43.0] - 2026-11-06
+
+### Adicionado
+
+- Publica os bens declarados nacionais do TSE na Silver com chave do candidato e ordem do bem validadas, datas e valores tipados e campos originais preservados (issue #189).
+
 ## [0.42.0] - 2026-11-06
 
 ### Adicionado
