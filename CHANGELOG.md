@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.38.1] - 2026-11-06
+
+### Corrigido
+
+- Reprocessa uma vez as listagens anuais de processos do Senado para substituir Parquets vazios sem colunas por manifestos sem partes, que o DuckDB consegue ignorar.
+
 ## [0.38.0] - 2026-11-06
 
 ### Adicionado
