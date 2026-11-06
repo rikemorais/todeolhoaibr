@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Adiciona o contrato de transformação Silver para agregados IBGE, preservando o valor original e expondo conversão decimal opcional.
+
 ## [0.27.0] - 2026-11-06
 
 ### Adicionado
