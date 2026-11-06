@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["bcb","tarefa_bcb"]};
+window.SIDEBAR_ITEMS = {"mod":["bcb","ibge_agregados","tarefa_bcb"]};
