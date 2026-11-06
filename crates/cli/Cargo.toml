@@ -17,6 +17,7 @@ todeolho-painel.workspace = true
 todeolho-refino.workspace = true
 
 anyhow.workspace = true
+async-trait.workspace = true
 chrono.workspace = true
 clap.workspace = true
 futures.workspace = true
