@@ -26,8 +26,8 @@ use todeolho_nucleo::{
     TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{
-    FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb, TarefaDeSilverIbge,
-    TarefaDeSilverSenadoParlamentares, catalogo_refino,
+    FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb, TarefaDeSilverCamaraPartidos,
+    TarefaDeSilverIbge, TarefaDeSilverSenadoParlamentares, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -424,6 +424,9 @@ async fn refinar(
         if fonte.as_deref() == Some("senado-parlamentares") {
             return refinar_senado_silver(fonte, todas, intervalo).await;
         }
+        if fonte.as_deref() == Some("camara-partidos") {
+            return refinar_camara_partidos_silver(fonte, todas, intervalo).await;
+        }
         if fonte
             .as_deref()
             .is_some_and(|nome| nome.starts_with("ibge-"))
@@ -474,7 +477,8 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             let bcb = refinar_bcb_silver(None, true, None).await?;
             let ibge = refinar_ibge_silver(None, true, None).await?;
             let senado = refinar_senado_silver(None, true, None).await?;
-            Ok(bcb && ibge && senado)
+            let camara = refinar_camara_partidos_silver(None, true, None).await?;
+            Ok(bcb && ibge && senado && camara)
         }
         Some(segundos) => {
             println!(
@@ -490,10 +494,120 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 if let Err(erro) = refinar_senado_silver(None, true, None).await {
                     eprintln!("Atenção: falha na reconciliação Silver Senado: {erro:#}");
                 }
+                if let Err(erro) = refinar_camara_partidos_silver(None, true, None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver Câmara: {erro:#}");
+                }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
         }
     }
+}
+
+/// Publica o cadastro de partidos da Câmara na Silver.
+async fn refinar_camara_partidos_silver(
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    if fonte
+        .as_deref()
+        .is_some_and(|nome| nome != "camara-partidos")
+    {
+        bail!("a camada silver aceita a fonte 'camara-partidos'");
+    }
+    if todas && fonte.is_some() {
+        bail!("informe uma fonte ou --todas, não os dois");
+    }
+    let definicao = catalogo_refino()
+        .into_iter()
+        .find(|item| item.nome == "camara-partidos")
+        .context("fonte camara-partidos ausente do catálogo de refino")?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => passada_camara_partidos_silver(&definicao, &raw_s3, &bronze, &silver, false).await,
+        Some(segundos) => {
+            println!(
+                "Agendador Silver Câmara: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) =
+                    passada_camara_partidos_silver(&definicao, &raw_s3, &bronze, &silver, true)
+                        .await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver Câmara: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn passada_camara_partidos_silver(
+    fonte: &FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let mut tarefas = Vec::new();
+    for recurso in recursos_no_raw(raw_s3, fonte).await? {
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "camara", &recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze Câmara")?
+        else {
+            continue;
+        };
+        let tarefa =
+            TarefaDeSilverCamaraPartidos::nova(Arc::clone(bronze), Arc::new(snapshot), &recurso);
+        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+            continue;
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa));
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver Câmara (recursos em dia ou não ingeridos).");
+        return Ok(true);
+    }
+    let dag = DagDeIngestao::construir("camara-partidos", tarefas)?;
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            &Uuid::new_v4().simple().to_string()[..8]
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let dags = vec![dag];
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Publica as listagens Silver de parlamentares por legislatura.
