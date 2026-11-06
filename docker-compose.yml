@@ -80,7 +80,7 @@ services:
       - dados-raw:/dados:ro
     mem_limit: 256m
 
-  # Refina o raw para o bronze (Parquet): docker compose run --rm refino refinar bronze <fonte>
+  # Refina entre camadas (ex.: bronze <fonte>, silver bcb, silver ibge-ipca ou silver --todas).
   # Decodificar consome mais memória que a ingestão (que vai em fluxo): a tarefa ainda carrega
   # o ZIP inteiro do raw em memória, e os pacotes do TSE são grandes. O limite acomoda a maior
   # fonte; reduzir isso depende da decodificação em fluxo (issue #164).
