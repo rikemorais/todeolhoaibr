@@ -44,6 +44,7 @@ Reusa a pré-checagem ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)). O s
 
 ## Fora de escopo desta camada (fica no refino)
 
-- **Cruzar matéria ↔ votação ↔ voto ↔ senador** numa base consultável (`silver`/`gold`) — ver [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+- O contrato Silver atual valida `codigoSessaoVotacao` e preserva a votação como uma linha com `votos[]` aninhado; ele ainda não publica uma relação separada com uma linha por senador. Consulte a [cobertura Silver](../refino/silver.md).
+- **Cruzar matéria ↔ votação ↔ senador** numa base consultável (`gold`) — ver [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 - **Catálogo completo de matérias** (inclusive as não votadas) não entra aqui: esta fonte cobre as **matérias votadas** (as que aparecem nas votações). Um acervo de todas as matérias caberia como fonte separada.
 - **Análises** (adesão, presença, governismo) são do refino/consulta.
