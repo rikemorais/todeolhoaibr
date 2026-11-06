@@ -29,8 +29,9 @@ use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
     TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
     TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
-    TarefaDeSilverIbge, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
-    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, catalogo_refino,
+    TarefaDeSilverIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
+    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
+    TarefaDeSilverSenadoVotacoes, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -445,6 +446,10 @@ async fn refinar(
             return refinar_senado_silver(fonte, todas, intervalo, TipoSilverSenado::Processos)
                 .await;
         }
+        if fonte.as_deref() == Some("senado-despesas") {
+            return refinar_senado_silver(fonte, todas, intervalo, TipoSilverSenado::Despesas)
+                .await;
+        }
         if fonte.as_deref() == Some("camara-partidos") {
             return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Partidos)
                 .await;
@@ -527,6 +532,8 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                     .await?;
             let senado_processos =
                 refinar_senado_silver(None, true, None, TipoSilverSenado::Processos).await?;
+            let senado_despesas =
+                refinar_senado_silver(None, true, None, TipoSilverSenado::Despesas).await?;
             let camara_partidos =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Partidos).await?;
             let camara_legislaturas =
@@ -545,6 +552,7 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && senado_votacoes
                 && senado_processos_detalhes
                 && senado_processos
+                && senado_despesas
                 && camara_partidos
                 && camara_legislaturas
                 && camara_deputados
@@ -583,6 +591,13 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                         .await
                 {
                     eprintln!("Atenção: falha na reconciliação Silver Senado processos: {erro:#}");
+                }
+                if let Err(erro) =
+                    refinar_senado_silver(None, true, None, TipoSilverSenado::Despesas).await
+                {
+                    eprintln!(
+                        "Atenção: falha na reconciliação Silver despesas do Senado: {erro:#}"
+                    );
                 }
                 if let Err(erro) =
                     refinar_camara_silver(None, true, None, TipoSilverCamara::Partidos).await
@@ -837,6 +852,7 @@ async fn passada_camara_silver(
 
 #[derive(Clone, Copy)]
 enum TipoSilverSenado {
+    Despesas,
     Parlamentares,
     Votacoes,
     Processos,
@@ -846,6 +862,7 @@ enum TipoSilverSenado {
 impl TipoSilverSenado {
     fn nome(self) -> &'static str {
         match self {
+            Self::Despesas => "senado-despesas",
             Self::Parlamentares => "senado-parlamentares",
             Self::Votacoes => "senado-votacoes",
             Self::Processos => "senado-processos",
@@ -855,6 +872,7 @@ impl TipoSilverSenado {
 }
 
 enum TarefaSilverSenado {
+    Despesas(TarefaDeSilverSenadoDespesas),
     Parlamentares(TarefaDeSilverSenadoParlamentares),
     Votacoes(TarefaDeSilverSenadoVotacoes),
     Processos(TarefaDeSilverSenadoProcessos),
@@ -865,6 +883,7 @@ enum TarefaSilverSenado {
 impl Tarefa for TarefaSilverSenado {
     fn nome(&self) -> &str {
         match self {
+            Self::Despesas(tarefa) => tarefa.nome(),
             Self::Parlamentares(tarefa) => tarefa.nome(),
             Self::Votacoes(tarefa) => tarefa.nome(),
             Self::Processos(tarefa) => tarefa.nome(),
@@ -877,6 +896,7 @@ impl Tarefa for TarefaSilverSenado {
         contexto: &ContextoDeExecucao,
     ) -> Result<todeolho_nucleo::ResumoDaTarefa, todeolho_nucleo::ErroDeIngestao> {
         match self {
+            Self::Despesas(tarefa) => tarefa.executar(contexto).await,
             Self::Parlamentares(tarefa) => tarefa.executar(contexto).await,
             Self::Votacoes(tarefa) => tarefa.executar(contexto).await,
             Self::Processos(tarefa) => tarefa.executar(contexto).await,
@@ -891,6 +911,7 @@ impl TarefaSilverSenado {
         silver: &dyn ArmazenamentoRaw,
     ) -> Result<bool, todeolho_nucleo::ErroDeIngestao> {
         match self {
+            Self::Despesas(tarefa) => tarefa.pendente(silver).await,
             Self::Parlamentares(tarefa) => tarefa.pendente(silver).await,
             Self::Votacoes(tarefa) => tarefa.pendente(silver).await,
             Self::Processos(tarefa) => tarefa.pendente(silver).await,
@@ -959,6 +980,14 @@ async fn passada_senado_silver(
             continue;
         };
         let tarefa = match tipo {
+            TipoSilverSenado::Despesas => TarefaSilverSenado::Despesas(
+                TarefaDeSilverSenadoDespesas::nova(
+                    Arc::clone(bronze),
+                    Arc::new(snapshot),
+                    &recurso,
+                )
+                .context("recurso de despesas sem ano no caminho")?,
+            ),
             TipoSilverSenado::Parlamentares => {
                 let legislatura = recurso
                     .strip_prefix("parlamentares/legislatura=")
