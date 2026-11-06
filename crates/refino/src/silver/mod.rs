@@ -30,6 +30,8 @@ pub mod tarefa_senado_despesas;
 mod tarefa_senado_processos;
 mod tarefa_senado_processos_detalhes;
 pub mod tarefa_senado_votacoes;
+pub mod tarefa_tse_candidaturas;
+pub mod tse_candidaturas;
 
 pub use camara_deputados::{
     ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
@@ -80,3 +82,7 @@ pub use tarefa_senado_processos_detalhes::{
     TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes,
 };
 pub use tarefa_senado_votacoes::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
+pub use tarefa_tse_candidaturas::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
+pub use tse_candidaturas::{
+    ErroTseCandidaturasSilver, esquema_tse_candidaturas, transformar_tse_candidaturas,
+};

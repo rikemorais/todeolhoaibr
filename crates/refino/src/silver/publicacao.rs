@@ -36,10 +36,34 @@ pub(crate) async fn publicar_transformacao<F>(
     silver: &dyn ArmazenamentoRaw,
     snapshot: &SnapshotBronze,
     configuracao: ConfiguracaoDePublicacao<'_>,
+    transformar: F,
+) -> Result<ResumoDaTarefa, ErroDeIngestao>
+where
+    F: FnMut(&RecordBatch) -> Result<RecordBatch, String> + Send,
+{
+    publicar_transformacao_selecionada(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        |_| true,
+        transformar,
+    )
+    .await
+}
+
+/// Publica apenas as partes escolhidas do manifesto, mantendo o restante do fluxo comum.
+pub(crate) async fn publicar_transformacao_selecionada<F, P>(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    selecionar: P,
     mut transformar: F,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao>
 where
     F: FnMut(&RecordBatch) -> Result<RecordBatch, String> + Send,
+    P: Fn(&ParteRaw) -> bool + Send + Sync,
 {
     let ConfiguracaoDePublicacao {
         fonte,
@@ -69,10 +93,23 @@ where
         });
     }
 
+    let entradas: Vec<_> = snapshot
+        .manifesto()
+        .partes
+        .iter()
+        .filter(|parte| selecionar(parte))
+        .collect();
+    if entradas.is_empty() {
+        return Err(erro_manifesto(
+            recurso,
+            "nenhuma parte do manifesto corresponde ao contrato solicitado",
+        ));
+    }
+
     let local = LocalizacaoRaw::nova(fonte, recurso_destino, iniciada_em, id_execucao);
     let mut partes = Vec::new();
     let mut total_bytes = 0u64;
-    for entrada in &snapshot.manifesto().partes {
+    for entrada in entradas {
         let baixada = snapshot
             .baixar_parte(bronze, &entrada.chave)
             .await
