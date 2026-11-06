@@ -27,8 +27,8 @@ use todeolho_nucleo::{
 };
 use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
-    TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos, TarefaDeSilverIbge,
-    TarefaDeSilverSenadoParlamentares, catalogo_refino,
+    TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
+    TarefaDeSilverIbge, TarefaDeSilverSenadoParlamentares, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -433,6 +433,10 @@ async fn refinar(
             return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Legislaturas)
                 .await;
         }
+        if fonte.as_deref() == Some("camara-deputados") {
+            return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Deputados)
+                .await;
+        }
         if fonte
             .as_deref()
             .is_some_and(|nome| nome.starts_with("ibge-"))
@@ -487,7 +491,9 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Partidos).await?;
             let camara_legislaturas =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Legislaturas).await?;
-            Ok(bcb && ibge && senado && camara_partidos && camara_legislaturas)
+            let camara_deputados =
+                refinar_camara_silver(None, true, None, TipoSilverCamara::Deputados).await?;
+            Ok(bcb && ibge && senado && camara_partidos && camara_legislaturas && camara_deputados)
         }
         Some(segundos) => {
             println!(
@@ -513,6 +519,11 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 {
                     eprintln!("Atenção: falha na reconciliação Silver Câmara: {erro:#}");
                 }
+                if let Err(erro) =
+                    refinar_camara_silver(None, true, None, TipoSilverCamara::Deputados).await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver Câmara: {erro:#}");
+                }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
         }
@@ -523,6 +534,7 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
 enum TipoSilverCamara {
     Partidos,
     Legislaturas,
+    Deputados,
 }
 
 impl TipoSilverCamara {
@@ -530,6 +542,7 @@ impl TipoSilverCamara {
         match self {
             Self::Partidos => "camara-partidos",
             Self::Legislaturas => "camara-legislaturas",
+            Self::Deputados => "camara-deputados",
         }
     }
 
@@ -546,6 +559,9 @@ impl TipoSilverCamara {
             Self::Legislaturas => TarefaSilverCamara::Legislaturas(
                 TarefaDeSilverCamaraLegislaturas::nova(bronze, snapshot, recurso),
             ),
+            Self::Deputados => TarefaSilverCamara::Deputados(TarefaDeSilverCamaraDeputados::nova(
+                bronze, snapshot, recurso,
+            )),
         }
     }
 }
@@ -553,6 +569,7 @@ impl TipoSilverCamara {
 enum TarefaSilverCamara {
     Partidos(TarefaDeSilverCamaraPartidos),
     Legislaturas(TarefaDeSilverCamaraLegislaturas),
+    Deputados(TarefaDeSilverCamaraDeputados),
 }
 
 #[async_trait::async_trait]
@@ -561,6 +578,7 @@ impl Tarefa for TarefaSilverCamara {
         match self {
             Self::Partidos(tarefa) => tarefa.nome(),
             Self::Legislaturas(tarefa) => tarefa.nome(),
+            Self::Deputados(tarefa) => tarefa.nome(),
         }
     }
 
@@ -571,6 +589,7 @@ impl Tarefa for TarefaSilverCamara {
         match self {
             Self::Partidos(tarefa) => tarefa.executar(contexto).await,
             Self::Legislaturas(tarefa) => tarefa.executar(contexto).await,
+            Self::Deputados(tarefa) => tarefa.executar(contexto).await,
         }
     }
 }
@@ -583,6 +602,7 @@ impl TarefaSilverCamara {
         match self {
             Self::Partidos(tarefa) => tarefa.pendente(silver).await,
             Self::Legislaturas(tarefa) => tarefa.pendente(silver).await,
+            Self::Deputados(tarefa) => tarefa.pendente(silver).await,
         }
     }
 }

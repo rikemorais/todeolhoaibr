@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.33.0] - 2026-11-06
+
+### Adicionado
+
+- Adiciona o contrato Silver da fotografia vigente de deputados em exercício da Câmara, com validação de IDs e integração à CLI/reconciliação ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.32.0] - 2026-11-06
 
 ### Adicionado

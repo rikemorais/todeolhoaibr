@@ -33,6 +33,9 @@ pub use fontes::{
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
+pub use silver::camara_deputados::{
+    ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
+};
 pub use silver::camara_legislaturas::{
     ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
 };
@@ -44,6 +47,7 @@ pub use silver::senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
+pub use silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
 pub use silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
 pub use silver::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
 pub use silver::{TarefaDeSilverIbge, publicar_ibge_agregados};
