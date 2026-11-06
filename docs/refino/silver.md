@@ -209,6 +209,8 @@ O ano de 2002 contém quatro conjuntos internos com outros nomes (`DespesaCandid
 
 A [validação de 2004 e 2006](pesquisa-tse-2004-2006.md) cobre oito tabelas internas, todas com cópias exatas. Os candidatos de 2004 não têm `SEQUENCIAL_CANDIDATO` e alguns cabeçalhos são expressões literais; em 2006, os candidatos mudam para nomes por extenso, enquanto os comitês mantêm outra convenção. Datas e valores preenchidos converteram nos formatos testados, mas a regra tipada precisa tratar ausências e impedir arredondamento de valores. Ainda não há chave de negócio validada para esses anos.
 
+Em [2008](pesquisa-tse-2008.md), o manifesto tem quatro CSVs de contas e um TXT de leiaute que o Bronze também expôs como Parquet de uma linha. A Silver deve excluir `leiaute-2008` do catálogo tabular. Os quatro conjuntos de contas têm 7.124.045 linhas somadas, datas e valores preenchidos conversíveis nos formatos testados, mas alguns nomes físicos diferem do TXT de documentação e não há chave de lançamento validada.
+
 ### Conjuntos da Câmara
 
 Os sete conjuntos abaixo foram validados **apenas no ano de 2024**. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico `votacoes`:
