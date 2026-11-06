@@ -207,6 +207,8 @@ Nas 56 chaves repetidas de despesas pagas, a comparação exata encontrou 135 li
 
 O ano de 2002 contém quatro conjuntos internos com outros nomes (`DespesaCandidato`, `ReceitaCandidato`, `DespesaComite`, `ReceitaComite`). A [validação específica de 2002](pesquisa-tse-2002.md) mediu schemas, tipos candidatos, nulos e duplicatas em cada um: todos têm cópias exatas e as combinações exploratórias de contexto/data/documento/valor colidem. O contrato candidato preserva cada linha com referência técnica à versão, parte e ordinal, sem deduplicação automática. Em 2012 há partes por sigla e consolidados com leiautes diferentes. Não aplicar a chave de 2024 retroativamente; a próxima validação deve separar outros anos e comparar consolidados com partes por UF.
 
+A [validação de 2004 e 2006](pesquisa-tse-2004-2006.md) cobre oito tabelas internas, todas com cópias exatas. Os candidatos de 2004 não têm `SEQUENCIAL_CANDIDATO` e alguns cabeçalhos são expressões literais; em 2006, os candidatos mudam para nomes por extenso, enquanto os comitês mantêm outra convenção. Datas e valores preenchidos converteram nos formatos testados, mas a regra tipada precisa tratar ausências e impedir arredondamento de valores. Ainda não há chave de negócio validada para esses anos.
+
 ### Conjuntos da Câmara
 
 Os sete conjuntos abaixo foram validados **apenas no ano de 2024**. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico `votacoes`:
