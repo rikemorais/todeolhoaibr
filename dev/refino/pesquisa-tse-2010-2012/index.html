@@ -1500,6 +1500,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reconciliacao-de-ufs-e-comites-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reconciliação de UFs e comitês (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#contrato-candidato-e-pendencias" class="md-nav__link">
     <span class="md-ellipsis">
       Contrato candidato e pendências
@@ -1661,9 +1670,82 @@
 </table>
 <p>Os seis <code>_brasil</code> têm, respectivamente, 23, 20, 20, 28, 21 e 25 colunas. Seus nomes variam em acentuação e grafia (<code>Número UE</code>/<code>Numero UE</code>, <code>Município</code>/<code>Municipio</code>, <code>Espécie recurso</code>/<code>Especie recurso</code>). Cada família exige mapeamento explícito. <code>receitas_partidos_2012_BR</code> e as 26 partes por UF têm 19 colunas posicionais <code>coluna_001</code>…<code>coluna_019</code>, enquanto <code>_brasil</code> tem 25 colunas nomeadas. O <a href="../pesquisa-tse-2012/">levantamento do leiaute oficial</a> mantém pendente o significado das 19 posições. Não atribuir a elas os nomes do consolidado.</p>
 <p>Nas partes <code>_brasil</code> consultadas, todas as datas e valores de lançamento estão preenchidos. Datas das três famílias de despesas e de <code>receitas_partidos</code> converteram com <code>%d/%m/%Y</code> ou <code>%Y-%m-%d</code>. <code>receitas_candidatos</code> usa <code>%d/%m/%Y%H:%M:%S</code> e <code>receitas_comites</code> usa <code>%d-%b-%y</code>; todas as 2.782.157 e 35.383 datas, respectivamente, converteram nesses formatos específicos. Todos os valores consultados converteram para <code>DECIMAL(18,2)</code> após a normalização de vírgula decimal. Uma regra de data global para todo 2012 rejeitaria linhas válidas.</p>
+<h2 id="reconciliacao-de-ufs-e-comites-2026-11-05">Reconciliação de UFs e comitês (2026-11-05)<a class="headerlink" href="#reconciliacao-de-ufs-e-comites-2026-11-05" title="Permanent link">&para;</a></h2>
+<p>A <a href="https://github.com/rikemorais/todeolhoaibr/issues/208">issue #208</a> aprofunda dois recortes da fase 0. As versões Bronze são as mesmas identificadas acima.</p>
+<p>Em 2010, os <strong>168 membros TXT</strong> do ZIP Raw e as <strong>168 partes</strong> do manifesto estão na mesma ordem. O nome da família de cada parte corresponde ao nome do membro, e a única <code>UF</code> preenchida nas suas linhas corresponde ao diretório daquele membro. Cada uma das seis famílias tem 28 UFs distintas, exatamente uma parte <code>BR</code>, e nenhuma parte com UF vazia ou misturada. Isso valida a reconstrução da UF a partir da coluna para esta versão, mas o contrato ainda deve guardar a referência à parte porque o manifesto omite o caminho do membro.</p>
+<p>Em 2012, comparei todas as 26 partes por UF com <code>_brasil</code> nas duas famílias de comitês. As projeções usaram somente colunas comuns, descartaram <code>Data e hora</code> e as colunas exclusivas do consolidado, converteram as datas para <code>DATE</code> e os valores para <code>DECIMAL(18,2)</code>. <code>INTERSECT ALL</code> e <code>EXCEPT ALL</code> preservaram a multiplicidade de linhas idênticas. Nenhuma data ou valor falhou na conversão. As datas estaduais usam <code>%d/%m/%y</code>; <code>_brasil</code> usa <code>%d-%b-%y</code> para receitas e <code>%d/%m/%Y</code> para despesas.</p>
+<table>
+<thead>
+<tr>
+<th>Família de 2012</th>
+<th style="text-align: right;">Linhas UF</th>
+<th style="text-align: right;">Linhas <code>_brasil</code></th>
+<th style="text-align: right;">Linhas comuns</th>
+<th style="text-align: right;">Só nas UFs</th>
+<th style="text-align: right;">Só em <code>_brasil</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>receitas_comites</code></td>
+<td style="text-align: right;">35.211</td>
+<td style="text-align: right;">35.383</td>
+<td style="text-align: right;">34.806</td>
+<td style="text-align: right;">405</td>
+<td style="text-align: right;">577</td>
+</tr>
+<tr>
+<td><code>despesas_comites</code></td>
+<td style="text-align: right;">182.841</td>
+<td style="text-align: right;">422.955</td>
+<td style="text-align: right;">181.577</td>
+<td style="text-align: right;">1.264</td>
+<td style="text-align: right;">241.378</td>
+</tr>
+</tbody>
+</table>
+<p>Portanto <code>_brasil</code> <strong>não é cópia exata nem superconjunto</strong> das partes por UF nessa projeção. Publicar somente um lado perderia linhas observadas no outro; unir os dois sem conciliação duplicaria milhares de linhas. A diferença pode refletir cobertura, correções ou atributos, mas estes testes não estabelecem sua causa nem a precedência correta.</p>
+<p>Testei a combinação candidata (<code>UF</code>, <code>Sequencial Comite</code>, <code>Número do documento</code>, data, valor) após as mesmas conversões. Ela não é única, e o documento está vazio em parte relevante das linhas:</p>
+<table>
+<thead>
+<tr>
+<th>Família e lado</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Combinações distintas</th>
+<th style="text-align: right;">Documento vazio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Receitas, UFs</td>
+<td style="text-align: right;">35.211</td>
+<td style="text-align: right;">34.213</td>
+<td style="text-align: right;">14.182</td>
+</tr>
+<tr>
+<td>Receitas, <code>_brasil</code></td>
+<td style="text-align: right;">35.383</td>
+<td style="text-align: right;">34.469</td>
+<td style="text-align: right;">14.219</td>
+</tr>
+<tr>
+<td>Despesas, UFs</td>
+<td style="text-align: right;">182.841</td>
+<td style="text-align: right;">158.701</td>
+<td style="text-align: right;">52.872</td>
+</tr>
+<tr>
+<td>Despesas, <code>_brasil</code></td>
+<td style="text-align: right;">422.955</td>
+<td style="text-align: right;">336.245</td>
+<td style="text-align: right;">124.219</td>
+</tr>
+</tbody>
+</table>
+<p><code>UF</code> e <code>Sequencial Comite</code> não estavam vazios nesses quatro recortes. A combinação continua exploratória; não usar <code>DISTINCT</code> ou o documento vazio como regra de deduplicação. Preservar lado, parte, ordinal e versão Bronze para investigar as diferenças.</p>
 <h2 id="contrato-candidato-e-pendencias">Contrato candidato e pendências<a class="headerlink" href="#contrato-candidato-e-pendencias" title="Permanent link">&para;</a></h2>
 <p>Tratar cada família e ano como contrato separado. No caso de 2012, separar ainda o leiaute posicional de receitas partidárias. O identificador técnico (<code>versão Bronze</code>, <code>parte</code>, <code>ordinal</code>) preserva todas as linhas, inclusive variantes, até que grão, chave de negócio, política de consolidação e deduplicação sejam comprovados. <code>UF</code>, sequência de candidato/comitê/diretório, documento, data e valor são campos a testar; nenhum deles foi validado aqui como chave de lançamento.</p>
-<p>Antes de materializar: verificar schemas e conversões em todas as partes, comparar <code>_brasil</code> com UFs e <code>_BR</code> por conteúdo, medir nulos/sentinelas e colisões de chaves por família, definir precedência dos consolidados e obter o leiaute oficial das 19 posições de 2012. Não publicar uma tabela Silver canônica dessas famílias apenas com este inventário.</p>
+<p>Antes de materializar: verificar schemas e conversões em todas as partes, comparar <code>_brasil</code> com UFs e <code>_BR</code> por conteúdo nas famílias ainda não reconciliadas, investigar as diferenças dos comitês, medir nulos/sentinelas e colisões de chaves por família, definir precedência dos consolidados e obter o leiaute oficial das 19 posições de 2012. Não publicar uma tabela Silver canônica dessas famílias apenas com este inventário.</p>
 <h2 id="metodo">Método<a class="headerlink" href="#metodo" title="Permanent link">&para;</a></h2>
 <p>O inventário usa os manifestos vigentes e <code>parquet_metadata</code> do DuckDB para somar linhas por arquivo sem ler registros individuais. <code>DESCRIBE</code> identificou os schemas das partes listadas. <code>COUNT</code>, <code>TRY_STRPTIME</code> e <code>TRY_CAST</code> mediram as conversões agregadas. Os nomes dos diretórios de 2010 foram conferidos no ZIP Raw local. Nenhum identificador pessoal ou linha individual foi copiado para esta nota.</p>
 
