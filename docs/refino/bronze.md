@@ -12,6 +12,7 @@ O **bronze** é o primeiro estágio do refino ([ADR 0015](../adr/0015-arquitetur
 - O comando `todeolho refinar bronze <fonte>` descobre no `raw` os recursos já ingeridos daquela fonte (os que têm `_ultima_versao.json`), monta uma **DAG de tarefas** — uma por recurso — e roda no **mesmo executor e painel** da ingestão.
 - Cada tarefa lê a procedência do `raw` (manifesto vigente), decodifica cada parte e grava **um Parquet por tabela** no bucket `bronze`, com manifesto e ponteiro próprios.
 - **Idempotência:** o ponteiro do bronze guarda o validador da **versão do raw** e, quando uma correção de decodificação exigir, um marcador da regra. Reexecutar só reprocessa quando a entrada ou essa regra mudou.
+- Listagens anuais vazias de processos do Senado não geram Parquet, pois um arquivo sem colunas é ilegível pelo DuckDB. Uma versão de regra atualiza uma vez os snapshots anteriores e troca essas partes por manifestos válidos sem partes.
 
 ## Layout no bucket `bronze`
 
