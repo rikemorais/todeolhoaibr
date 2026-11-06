@@ -5,22 +5,21 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use todeolho_nucleo::{
-    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa, estado_na_raw,
+    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa,
 };
 
 use super::{
-    ibge_agregados::{esquema_ibge_agregados, transformar_ibge_agregados},
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    ibge_agregados::esquema_ibge_agregados, publicacao::ConfiguracaoDePublicacao,
+    tarefa_sql::TarefaDeSilverSql,
 };
 use crate::SnapshotBronze;
 
-const REGRA: &str = "ibge-agregado-v1";
+const REGRA: &str = "ibge-agregado-v2";
+const SQL: &str = include_str!("../../sql/silver/ibge_agregados.sql");
 
 /// Tarefa Silver para um recurso de agregados IBGE.
 pub struct TarefaDeSilverIbge {
-    bronze: Arc<dyn ArmazenamentoRaw>,
-    snapshot: Arc<SnapshotBronze>,
-    recurso: String,
+    tarefa_sql: TarefaDeSilverSql,
 }
 
 impl TarefaDeSilverIbge {
@@ -30,43 +29,38 @@ impl TarefaDeSilverIbge {
         snapshot: Arc<SnapshotBronze>,
         recurso: impl Into<String>,
     ) -> Self {
+        let recurso = recurso.into();
         Self {
-            bronze,
-            snapshot,
-            recurso: recurso.into(),
+            tarefa_sql: TarefaDeSilverSql::nova(
+                bronze,
+                snapshot,
+                "ibge",
+                recurso.clone(),
+                None,
+                REGRA,
+                SQL,
+                esquema_ibge_agregados(),
+            ),
         }
     }
 
     /// Indica se a versão Silver precisa acompanhar o snapshot Bronze atual.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
-        let versao = format!("{}|regra={REGRA}", self.snapshot.manifesto().id_execucao);
-        Ok(!matches!(
-            estado_na_raw(silver, "ibge", &self.recurso).await?,
-            Some(ref estado)
-                if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
-        ))
+        self.tarefa_sql.pendente(silver).await
     }
 }
 
 #[async_trait]
 impl Tarefa for TarefaDeSilverIbge {
     fn nome(&self) -> &str {
-        &self.recurso
+        self.tarefa_sql.nome()
     }
 
     async fn executar(
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-        publicar_ibge_agregados(
-            self.bronze.as_ref(),
-            contexto.armazenamento.as_ref(),
-            &self.snapshot,
-            &self.recurso,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        )
-        .await
+        self.tarefa_sql.executar(contexto).await
     }
 }
 
@@ -79,7 +73,7 @@ pub async fn publicar_ibge_agregados(
     iniciada_em: DateTime<Utc>,
     id_execucao: &str,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao(
+    super::publicacao::publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -92,17 +86,21 @@ pub async fn publicar_ibge_agregados(
             iniciada_em,
             id_execucao,
         },
-        |lote| transformar_ibge_agregados(lote).map_err(|erro| erro.to_string()),
+        SQL,
+        &crate::executor_sql::ConfiguracaoExecutorSql::default(),
     )
     .await
 }
 
 #[cfg(test)]
 mod testes {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
+    use arrow::array::{Array, Date32Array, StringArray};
     use async_trait::async_trait;
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{
         ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao,
@@ -168,20 +166,44 @@ mod testes {
             "periodo",
             "valor",
         ];
-        let linha = [
-            Some("1737".to_owned()),
-            Some("IPCA".to_owned()),
-            Some("%".to_owned()),
-            None,
-            Some("N1".to_owned()),
-            Some("Brasil".to_owned()),
-            Some("1".to_owned()),
-            Some("Brasil".to_owned()),
-            Some("2025".to_owned()),
-            Some("4.56".to_owned()),
-        ];
         let mut tabela = crate::Tabela::nova(colunas);
-        tabela = tabela.com_linha(linha);
+        tabela = tabela
+            .com_linha([
+                Some("1737".to_owned()),
+                Some("IPCA".to_owned()),
+                Some("%".to_owned()),
+                None,
+                Some("N1".to_owned()),
+                Some("Brasil".to_owned()),
+                Some("1".to_owned()),
+                Some("Brasil".to_owned()),
+                Some("2025".to_owned()),
+                Some("4.56".to_owned()),
+            ])
+            .com_linha([
+                Some("1737".to_owned()),
+                Some("IPCA".to_owned()),
+                Some("%".to_owned()),
+                Some("cat=1".to_owned()),
+                Some("N6".to_owned()),
+                Some("Município".to_owned()),
+                Some("001".to_owned()),
+                Some("Cidade".to_owned()),
+                Some("2025".to_owned()),
+                Some("texto especial".to_owned()),
+            ])
+            .com_linha([
+                Some("1737".to_owned()),
+                Some("IPCA".to_owned()),
+                Some("%".to_owned()),
+                Some("cat=1".to_owned()),
+                Some("N6".to_owned()),
+                Some("Município".to_owned()),
+                Some("002".to_owned()),
+                Some("Outra".to_owned()),
+                Some("2025".to_owned()),
+                None,
+            ]);
         tabela.para_parquet().unwrap()
     }
 
@@ -242,6 +264,102 @@ mod testes {
             .unwrap()
     }
 
+    async fn snapshot_bcb(
+        bronze: &ArmazenamentoEmMemoria,
+        recurso: &str,
+        id_execucao: &str,
+        linhas: &[[Option<String>; 2]],
+    ) -> SnapshotBronze {
+        let iniciada_em = Utc::now();
+        let local = LocalizacaoRaw::nova("bcb", recurso, iniciada_em, id_execucao);
+        let mut tabela = crate::Tabela::nova(["data", "valor"]);
+        for linha in linhas {
+            tabela = tabela.com_linha(linha.clone());
+        }
+        let bytes = tabela.para_parquet().unwrap();
+        let parte = ParteRaw {
+            chave: local.parte(1, "parquet"),
+            url: "fixture-bcb".into(),
+            bytes: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(&bytes)),
+            tipo_de_conteudo: TIPO_PARQUET.into(),
+            versao: Some(id_execucao.into()),
+        };
+        bronze
+            .gravar(ObjetoRaw {
+                chave: parte.chave.clone(),
+                conteudo: bytes,
+                tipo_de_conteudo: TIPO_PARQUET.into(),
+            })
+            .await
+            .unwrap();
+        let manifesto = ManifestoRaw {
+            fonte: "bcb".into(),
+            recurso: recurso.into(),
+            id_execucao: id_execucao.into(),
+            url_inicial: "fixture-bcb".into(),
+            iniciada_em,
+            concluida_em: Utc::now(),
+            partes: vec![parte],
+        };
+        bronze
+            .gravar(ObjetoRaw {
+                chave: local.manifesto(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao("bcb", recurso),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some(id_execucao.into()),
+                    manifesto: local.manifesto(),
+                    iniciada_em: Some(iniciada_em),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        SnapshotBronze::vigente(bronze, "bcb", recurso)
+            .await
+            .unwrap()
+            .unwrap()
+    }
+
+    async fn lote_silver(
+        armazenamento: &ArmazenamentoEmMemoria,
+        fonte: &str,
+        recurso: &str,
+    ) -> arrow::record_batch::RecordBatch {
+        let bytes_ponteiro = armazenamento
+            .ler(&LocalizacaoRaw::ultima_versao(fonte, recurso))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let bytes_manifesto = armazenamento
+            .ler(&ponteiro.manifesto)
+            .await
+            .unwrap()
+            .unwrap();
+        let manifesto: ManifestoRaw = serde_json::from_slice(&bytes_manifesto).unwrap();
+        let bytes_parquet = armazenamento
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_parquet))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn publica_parquet_tipado_e_reaproveita_versao_vigente() {
         let bronze = ArmazenamentoEmMemoria::default();
@@ -269,6 +387,34 @@ mod testes {
         .unwrap();
         assert_eq!(primeiro.partes, 1);
         assert!(primeiro.bytes > 0);
+        let bytes_bronze = fixture_parquet();
+        let entrada_legada = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_bronze))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let esperado =
+            super::super::ibge_agregados::transformar_ibge_agregados(&entrada_legada).unwrap();
+        let publicado = lote_silver(&silver, "ibge", "ipca/1737").await;
+        assert_eq!(publicado, esperado);
+        let chaves = (0..publicado.num_rows())
+            .map(|linha| {
+                [0, 3, 4, 6, 8]
+                    .into_iter()
+                    .map(|coluna| {
+                        let valores = publicado
+                            .column(coluna)
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap();
+                        (!valores.is_null(linha)).then(|| valores.value(linha).to_owned())
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<HashSet<_>>();
+        assert_eq!(chaves.len(), publicado.num_rows());
         assert!(!tarefa.pendente(&silver).await.unwrap());
 
         let reaproveitado = publicar_ibge_agregados(
@@ -282,6 +428,97 @@ mod testes {
         .await
         .unwrap();
         assert!(reaproveitado.reaproveitada);
+    }
+
+    #[tokio::test]
+    async fn contrato_sql_bcb_preserva_resultado_da_transformacao_arrow_legada() {
+        let bronze = ArmazenamentoEmMemoria::default();
+        let silver = ArmazenamentoEmMemoria::default();
+        let recurso = "series/fixture";
+        let snapshot = snapshot_bcb(
+            &bronze,
+            recurso,
+            "bronze-bcb-1",
+            &[
+                [Some("01/06/1989".into()), Some("19.68".into())],
+                [Some("02/06/1989".into()), Some("-0.125".into())],
+            ],
+        )
+        .await;
+        let bytes_bronze = bronze
+            .ler(&snapshot.manifesto().partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let entrada = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_bronze))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let esperado = super::super::bcb::transformar_bcb_sgs(&entrada).unwrap();
+
+        crate::publicar_bcb_sgs(
+            &bronze,
+            &silver,
+            &snapshot,
+            recurso,
+            Utc::now(),
+            "silver-bcb-1",
+        )
+        .await
+        .unwrap();
+
+        let publicado = lote_silver(&silver, "bcb", recurso).await;
+        assert_eq!(publicado, esperado);
+        let datas = publicado
+            .column(0)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        let chaves = datas.values().iter().copied().collect::<HashSet<_>>();
+        assert_eq!(chaves.len(), publicado.num_rows());
+    }
+
+    #[tokio::test]
+    async fn contrato_sql_bcb_rejeita_data_e_decimal_invalidos_sem_publicar() {
+        for (id, linhas) in [
+            (
+                "bronze-data-invalida",
+                vec![[Some("31/02/2024".into()), Some("1.25".into())]],
+            ),
+            (
+                "bronze-decimal-invalido",
+                vec![[Some("01/06/1989".into()), Some("1.1234567".into())]],
+            ),
+            ("bronze-data-nula", vec![[None, Some("1.25".into())]]),
+            ("bronze-valor-nulo", vec![[Some("01/06/1989".into()), None]]),
+        ] {
+            let bronze = ArmazenamentoEmMemoria::default();
+            let silver = ArmazenamentoEmMemoria::default();
+            let recurso = "series/fixture";
+            let snapshot = snapshot_bcb(&bronze, recurso, id, &linhas).await;
+            let resultado = crate::publicar_bcb_sgs(
+                &bronze,
+                &silver,
+                &snapshot,
+                recurso,
+                Utc::now(),
+                "silver-invalida",
+            )
+            .await;
+
+            assert!(resultado.is_err(), "a fixture {id} deveria ser rejeitada");
+            assert!(
+                silver
+                    .ler(&LocalizacaoRaw::ultima_versao("bcb", recurso))
+                    .await
+                    .unwrap()
+                    .is_none(),
+                "a fixture {id} não pode publicar o ponteiro"
+            );
+        }
     }
 
     #[tokio::test]

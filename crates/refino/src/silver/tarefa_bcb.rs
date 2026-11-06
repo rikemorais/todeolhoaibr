@@ -5,22 +5,20 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use todeolho_nucleo::{
-    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa, estado_na_raw,
+    ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa,
 };
 
 use super::{
-    bcb::esquema_bcb_sgs,
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    bcb::esquema_bcb_sgs, publicacao::ConfiguracaoDePublicacao, tarefa_sql::TarefaDeSilverSql,
 };
 use crate::SnapshotBronze;
 
-const REGRA: &str = "bcb-sgs-v1";
+const REGRA: &str = "bcb-sgs-v2";
+const SQL: &str = include_str!("../../sql/silver/bcb_sgs.sql");
 
 /// Tarefa Silver de uma série BCB, utilizável pelo executor e pelo painel.
 pub struct TarefaDeSilverBcb {
-    bronze: Arc<dyn ArmazenamentoRaw>,
-    snapshot: Arc<SnapshotBronze>,
-    recurso: String,
+    tarefa_sql: TarefaDeSilverSql,
 }
 
 impl TarefaDeSilverBcb {
@@ -30,43 +28,38 @@ impl TarefaDeSilverBcb {
         snapshot: Arc<SnapshotBronze>,
         recurso: impl Into<String>,
     ) -> Self {
+        let recurso = recurso.into();
         Self {
-            bronze,
-            snapshot,
-            recurso: recurso.into(),
+            tarefa_sql: TarefaDeSilverSql::nova(
+                bronze,
+                snapshot,
+                "bcb",
+                recurso.clone(),
+                None,
+                REGRA,
+                SQL,
+                esquema_bcb_sgs(),
+            ),
         }
     }
 
     /// Indica se a versão Silver precisa acompanhar o snapshot Bronze atual.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
-        let versao = format!("{}|regra={REGRA}", self.snapshot.manifesto().id_execucao);
-        Ok(!matches!(
-            estado_na_raw(silver, "bcb", &self.recurso).await?,
-            Some(ref estado)
-                if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
-        ))
+        self.tarefa_sql.pendente(silver).await
     }
 }
 
 #[async_trait]
 impl Tarefa for TarefaDeSilverBcb {
     fn nome(&self) -> &str {
-        &self.recurso
+        self.tarefa_sql.nome()
     }
 
     async fn executar(
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-        publicar_bcb_sgs(
-            self.bronze.as_ref(),
-            contexto.armazenamento.as_ref(),
-            &self.snapshot,
-            &self.recurso,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        )
-        .await
+        self.tarefa_sql.executar(contexto).await
     }
 }
 
@@ -79,7 +72,7 @@ pub async fn publicar_bcb_sgs(
     iniciada_em: DateTime<Utc>,
     id_execucao: &str,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao(
+    super::publicacao::publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -92,7 +85,8 @@ pub async fn publicar_bcb_sgs(
             iniciada_em,
             id_execucao,
         },
-        |lote| super::bcb::transformar_bcb_sgs(lote).map_err(|erro| erro.to_string()),
+        SQL,
+        &crate::executor_sql::ConfiguracaoExecutorSql::default(),
     )
     .await
 }

@@ -2,12 +2,16 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, Date32Array, Decimal128Array, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::Datelike;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros de transformação das observações BCB/SGS.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroBcbSilver {
     /// O Bronze não tem as colunas textuais `data` e `valor` esperadas.
@@ -39,6 +43,7 @@ pub fn esquema_bcb_sgs() -> Arc<Schema> {
 ///
 /// Datas usam `DD/MM/AAAA`; valores são decimais com ponto e escala máxima de seis
 /// casas, sem conversão por ponto flutuante.
+#[cfg(test)]
 pub fn transformar_bcb_sgs(lote: &RecordBatch) -> Result<RecordBatch, ErroBcbSilver> {
     let schema = lote.schema();
     let (Some(indice_data), Some(indice_valor)) =
@@ -96,6 +101,7 @@ pub fn transformar_bcb_sgs(lote: &RecordBatch) -> Result<RecordBatch, ErroBcbSil
     .map_err(|_| ErroBcbSilver::Schema)
 }
 
+#[cfg(test)]
 fn decimal_escalado(valor: &str) -> Option<i128> {
     let (negativo, numero) = valor
         .strip_prefix('-')
