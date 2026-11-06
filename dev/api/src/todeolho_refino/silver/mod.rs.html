@@ -4,35 +4,38 @@
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">pub mod </span>camara_deputados;
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">pub mod </span>camara_legislaturas;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">pub mod </span>camara_partidos;
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">pub mod </span>ibge_agregados;
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">mod </span>publicacao;
-<a href=#9 id=9 data-nosnippet>9</a><span class="kw">pub mod </span>senado_parlamentares;
-<a href=#10 id=10 data-nosnippet>10</a><span class="kw">pub mod </span>tarefa_bcb;
-<a href=#11 id=11 data-nosnippet>11</a><span class="kw">pub mod </span>tarefa_camara;
-<a href=#12 id=12 data-nosnippet>12</a><span class="kw">pub mod </span>tarefa_camara_deputados;
-<a href=#13 id=13 data-nosnippet>13</a><span class="kw">pub mod </span>tarefa_camara_legislaturas;
-<a href=#14 id=14 data-nosnippet>14</a><span class="kw">pub mod </span>tarefa_ibge;
-<a href=#15 id=15 data-nosnippet>15</a><span class="kw">pub mod </span>tarefa_senado;
-<a href=#16 id=16 data-nosnippet>16</a>
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub use </span>camara_deputados::{
-<a href=#18 id=18 data-nosnippet>18</a>    ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
-<a href=#19 id=19 data-nosnippet>19</a>};
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub use </span>camara_legislaturas::{
-<a href=#21 id=21 data-nosnippet>21</a>    ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
-<a href=#22 id=22 data-nosnippet>22</a>};
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub use </span>camara_partidos::{
-<a href=#24 id=24 data-nosnippet>24</a>    ErroCamaraPartidosSilver, esquema_camara_partidos, transformar_camara_partidos,
-<a href=#25 id=25 data-nosnippet>25</a>};
-<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub use </span>ibge_agregados::{ErroIbgeSilver, esquema_ibge_agregados, transformar_ibge_agregados};
-<a href=#27 id=27 data-nosnippet>27</a><span class="kw">pub use </span>senado_parlamentares::{
-<a href=#28 id=28 data-nosnippet>28</a>    ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
-<a href=#29 id=29 data-nosnippet>29</a>};
-<a href=#30 id=30 data-nosnippet>30</a><span class="kw">pub use </span>tarefa_bcb::publicar_bcb_sgs;
-<a href=#31 id=31 data-nosnippet>31</a><span class="kw">pub use </span>tarefa_camara::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
-<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>tarefa_camara_deputados::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
-<a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub use </span>tarefa_camara_legislaturas::{
-<a href=#34 id=34 data-nosnippet>34</a>    TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas,
-<a href=#35 id=35 data-nosnippet>35</a>};
-<a href=#36 id=36 data-nosnippet>36</a><span class="kw">pub use </span>tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
-<a href=#37 id=37 data-nosnippet>37</a><span class="kw">pub use </span>tarefa_senado::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">pub mod </span>camara_votacoes;
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">pub mod </span>ibge_agregados;
+<a href=#9 id=9 data-nosnippet>9</a><span class="kw">mod </span>publicacao;
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">pub mod </span>senado_parlamentares;
+<a href=#11 id=11 data-nosnippet>11</a><span class="kw">pub mod </span>tarefa_bcb;
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">pub mod </span>tarefa_camara;
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">pub mod </span>tarefa_camara_deputados;
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">pub mod </span>tarefa_camara_legislaturas;
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">pub mod </span>tarefa_camara_votacoes;
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">pub mod </span>tarefa_ibge;
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub mod </span>tarefa_senado;
+<a href=#18 id=18 data-nosnippet>18</a>
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub use </span>camara_deputados::{
+<a href=#20 id=20 data-nosnippet>20</a>    ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
+<a href=#21 id=21 data-nosnippet>21</a>};
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub use </span>camara_legislaturas::{
+<a href=#23 id=23 data-nosnippet>23</a>    ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
+<a href=#24 id=24 data-nosnippet>24</a>};
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">pub use </span>camara_partidos::{
+<a href=#26 id=26 data-nosnippet>26</a>    ErroCamaraPartidosSilver, esquema_camara_partidos, transformar_camara_partidos,
+<a href=#27 id=27 data-nosnippet>27</a>};
+<a href=#28 id=28 data-nosnippet>28</a><span class="kw">pub use </span>ibge_agregados::{ErroIbgeSilver, esquema_ibge_agregados, transformar_ibge_agregados};
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">pub use </span>senado_parlamentares::{
+<a href=#30 id=30 data-nosnippet>30</a>    ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
+<a href=#31 id=31 data-nosnippet>31</a>};
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>tarefa_bcb::publicar_bcb_sgs;
+<a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub use </span>tarefa_camara::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
+<a href=#34 id=34 data-nosnippet>34</a><span class="kw">pub use </span>tarefa_camara_deputados::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
+<a href=#35 id=35 data-nosnippet>35</a><span class="kw">pub use </span>tarefa_camara_legislaturas::{
+<a href=#36 id=36 data-nosnippet>36</a>    TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas,
+<a href=#37 id=37 data-nosnippet>37</a>};
+<a href=#38 id=38 data-nosnippet>38</a><span class="kw">pub use </span>tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
+<a href=#39 id=39 data-nosnippet>39</a><span class="kw">pub use </span>tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
+<a href=#40 id=40 data-nosnippet>40</a><span class="kw">pub use </span>tarefa_senado::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
 </code></pre></div></section></main></body></html>
