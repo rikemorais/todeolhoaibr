@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["csv","ibge_agregados","json","senado_processos_detalhes","zip_csv"]};
