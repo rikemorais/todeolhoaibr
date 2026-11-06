@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroCamaraPartidosSilver"],"fn":["esquema_camara_partidos","transformar_camara_partidos"]};
