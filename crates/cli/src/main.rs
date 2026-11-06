@@ -1049,14 +1049,7 @@ async fn refinar_ibge_silver(
     if todas && fonte.is_some() {
         bail!("informe uma fonte IBGE ou --todas, não os dois");
     }
-    let catalogo = catalogo_refino();
-    let fontes: Vec<FonteDeRefino> = catalogo
-        .into_iter()
-        .filter(|item| {
-            item.nome.starts_with("ibge-")
-                && (todas || fonte.as_deref().is_some_and(|nome| nome == item.nome))
-        })
-        .collect();
+    let fontes = fontes_ibge_silver(fonte.as_deref(), todas);
     if fontes.is_empty() {
         bail!("fonte Silver IBGE desconhecida ou ausente; use --todas ou uma fonte ibge-*");
     }
@@ -1085,6 +1078,25 @@ async fn refinar_ibge_silver(
             }
         }
     }
+}
+
+fn fontes_ibge_silver(fonte: Option<&str>, todas: bool) -> Vec<FonteDeRefino> {
+    const FONTES_COM_CONTRATO_DE_AGREGADOS: &[&str] = &[
+        "ibge-ipca",
+        "ibge-inpc",
+        "ibge-pib-municipios",
+        "ibge-pib-trimestral",
+        "ibge-pnad-desocupacao",
+        "ibge-populacao-municipios",
+    ];
+
+    catalogo_refino()
+        .into_iter()
+        .filter(|item| {
+            FONTES_COM_CONTRATO_DE_AGREGADOS.contains(&item.nome)
+                && (todas || fonte == Some(item.nome))
+        })
+        .collect()
 }
 
 /// Executa uma rodada Silver IBGE e só registra execução se houver recurso pendente.
@@ -1392,6 +1404,27 @@ fn concorrencia() -> Result<usize> {
 mod testes {
     use super::*;
     use todeolho_fontes::{FonteIbge, FonteTse};
+
+    #[test]
+    fn ibge_silver_seleciona_apenas_fontes_com_contrato_de_agregados() {
+        let nomes: Vec<_> = fontes_ibge_silver(None, true)
+            .iter()
+            .map(|fonte| fonte.nome)
+            .collect();
+
+        assert_eq!(
+            nomes,
+            vec![
+                "ibge-ipca",
+                "ibge-inpc",
+                "ibge-pib-municipios",
+                "ibge-pib-trimestral",
+                "ibge-pnad-desocupacao",
+                "ibge-populacao-municipios",
+            ]
+        );
+        assert!(fontes_ibge_silver(Some("ibge-estados"), false).is_empty());
+    }
 
     #[tokio::test]
     async fn fonte_sob_demanda_tambem_estima_tamanho_ao_abrir_menu() {
