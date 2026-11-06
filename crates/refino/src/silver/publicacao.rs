@@ -34,10 +34,10 @@ pub(crate) async fn publicar_transformacao<F>(
     silver: &dyn ArmazenamentoRaw,
     snapshot: &SnapshotBronze,
     configuracao: ConfiguracaoDePublicacao<'_>,
-    transformar: F,
+    mut transformar: F,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao>
 where
-    F: Fn(&RecordBatch) -> Result<RecordBatch, String> + Send + Sync,
+    F: FnMut(&RecordBatch) -> Result<RecordBatch, String> + Send,
 {
     let ConfiguracaoDePublicacao {
         fonte,
