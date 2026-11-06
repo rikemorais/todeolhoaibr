@@ -38,11 +38,37 @@ Os seis `_brasil` têm, respectivamente, 23, 20, 20, 28, 21 e 25 colunas. Seus n
 
 Nas partes `_brasil` consultadas, todas as datas e valores de lançamento estão preenchidos. Datas das três famílias de despesas e de `receitas_partidos` converteram com `%d/%m/%Y` ou `%Y-%m-%d`. `receitas_candidatos` usa `%d/%m/%Y%H:%M:%S` e `receitas_comites` usa `%d-%b-%y`; todas as 2.782.157 e 35.383 datas, respectivamente, converteram nesses formatos específicos. Todos os valores consultados converteram para `DECIMAL(18,2)` após a normalização de vírgula decimal. Uma regra de data global para todo 2012 rejeitaria linhas válidas.
 
+## Reconciliação de UFs e comitês (2026-11-05)
+
+A [issue #208](https://github.com/rikemorais/todeolhoaibr/issues/208) aprofunda dois recortes da fase 0. As versões Bronze são as mesmas identificadas acima.
+
+Em 2010, os **168 membros TXT** do ZIP Raw e as **168 partes** do manifesto estão na mesma ordem. O nome da família de cada parte corresponde ao nome do membro, e a única `UF` preenchida nas suas linhas corresponde ao diretório daquele membro. Cada uma das seis famílias tem 28 UFs distintas, exatamente uma parte `BR`, e nenhuma parte com UF vazia ou misturada. Isso valida a reconstrução da UF a partir da coluna para esta versão, mas o contrato ainda deve guardar a referência à parte porque o manifesto omite o caminho do membro.
+
+Em 2012, comparei todas as 26 partes por UF com `_brasil` nas duas famílias de comitês. As projeções usaram somente colunas comuns, descartaram `Data e hora` e as colunas exclusivas do consolidado, converteram as datas para `DATE` e os valores para `DECIMAL(18,2)`. `INTERSECT ALL` e `EXCEPT ALL` preservaram a multiplicidade de linhas idênticas. Nenhuma data ou valor falhou na conversão. As datas estaduais usam `%d/%m/%y`; `_brasil` usa `%d-%b-%y` para receitas e `%d/%m/%Y` para despesas.
+
+| Família de 2012 | Linhas UF | Linhas `_brasil` | Linhas comuns | Só nas UFs | Só em `_brasil` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `receitas_comites` | 35.211 | 35.383 | 34.806 | 405 | 577 |
+| `despesas_comites` | 182.841 | 422.955 | 181.577 | 1.264 | 241.378 |
+
+Portanto `_brasil` **não é cópia exata nem superconjunto** das partes por UF nessa projeção. Publicar somente um lado perderia linhas observadas no outro; unir os dois sem conciliação duplicaria milhares de linhas. A diferença pode refletir cobertura, correções ou atributos, mas estes testes não estabelecem sua causa nem a precedência correta.
+
+Testei a combinação candidata (`UF`, `Sequencial Comite`, `Número do documento`, data, valor) após as mesmas conversões. Ela não é única, e o documento está vazio em parte relevante das linhas:
+
+| Família e lado | Linhas | Combinações distintas | Documento vazio |
+| --- | ---: | ---: | ---: |
+| Receitas, UFs | 35.211 | 34.213 | 14.182 |
+| Receitas, `_brasil` | 35.383 | 34.469 | 14.219 |
+| Despesas, UFs | 182.841 | 158.701 | 52.872 |
+| Despesas, `_brasil` | 422.955 | 336.245 | 124.219 |
+
+`UF` e `Sequencial Comite` não estavam vazios nesses quatro recortes. A combinação continua exploratória; não usar `DISTINCT` ou o documento vazio como regra de deduplicação. Preservar lado, parte, ordinal e versão Bronze para investigar as diferenças.
+
 ## Contrato candidato e pendências
 
 Tratar cada família e ano como contrato separado. No caso de 2012, separar ainda o leiaute posicional de receitas partidárias. O identificador técnico (`versão Bronze`, `parte`, `ordinal`) preserva todas as linhas, inclusive variantes, até que grão, chave de negócio, política de consolidação e deduplicação sejam comprovados. `UF`, sequência de candidato/comitê/diretório, documento, data e valor são campos a testar; nenhum deles foi validado aqui como chave de lançamento.
 
-Antes de materializar: verificar schemas e conversões em todas as partes, comparar `_brasil` com UFs e `_BR` por conteúdo, medir nulos/sentinelas e colisões de chaves por família, definir precedência dos consolidados e obter o leiaute oficial das 19 posições de 2012. Não publicar uma tabela Silver canônica dessas famílias apenas com este inventário.
+Antes de materializar: verificar schemas e conversões em todas as partes, comparar `_brasil` com UFs e `_BR` por conteúdo nas famílias ainda não reconciliadas, investigar as diferenças dos comitês, medir nulos/sentinelas e colisões de chaves por família, definir precedência dos consolidados e obter o leiaute oficial das 19 posições de 2012. Não publicar uma tabela Silver canônica dessas famílias apenas com este inventário.
 
 ## Método
 
