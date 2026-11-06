@@ -7,6 +7,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Adiciona o contrato Silver de parlamentares por legislatura e integra a publicação ao comando `refinar silver` ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
+### Alterado
+
+- Compartilha o fluxo de publicação Silver tipada entre BCB, IBGE e Senado.
+
 ## [0.29.0] - 2026-11-06
 
 ### Adicionado
