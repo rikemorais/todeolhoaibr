@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroCamaraTramitacoesSilver"],"fn":["ano_do_recurso","esquema_camara_tramitacoes","transformar_camara_tramitacoes"]};
