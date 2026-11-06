@@ -32,7 +32,7 @@ use todeolho_refino::{
     TarefaDeSilverIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
     TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
     TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
-    catalogo_refino,
+    TarefaDeSilverTseVotacaoSecao, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -80,6 +80,9 @@ enum Comando {
         /// Como o bronze é idempotente, passadas sem mudança são quase instantâneas.
         #[arg(long, value_name = "SEGUNDOS")]
         intervalo: Option<u64>,
+        /// Restringe a votação por seção, como --filtro ano=2024 --filtro uf=AC,RO
+        #[arg(long = "filtro", value_name = "NOME=VALORES")]
+        filtros: Vec<String>,
     },
     /// Inicia o painel web com o histórico das execuções
     Painel {
@@ -158,7 +161,8 @@ async fn rodar(cli: Cli) -> Result<bool> {
             fonte,
             todas,
             intervalo,
-        } => refinar(camada, fonte, todas, intervalo).await,
+            filtros,
+        } => refinar(camada, fonte, todas, intervalo, filtros).await,
         Comando::Painel { endereco } => {
             let historico = historico()?;
             historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
@@ -418,8 +422,15 @@ async fn refinar(
     fonte: Option<String>,
     todas: bool,
     intervalo: Option<u64>,
+    filtros: Vec<String>,
 ) -> Result<bool> {
     if camada == "silver" {
+        if fonte.as_deref() == Some("tse-votacao-secao") {
+            return refinar_tse_votacao_secao_silver(fonte, todas, intervalo, filtros).await;
+        }
+        if !filtros.is_empty() {
+            bail!("--filtro só vale para `silver tse-votacao-secao`");
+        }
         if todas {
             if fonte.is_some() {
                 bail!("informe uma fonte ou --todas, não os dois");
@@ -489,6 +500,9 @@ async fn refinar(
         }
         return refinar_bcb_silver(fonte, todas, intervalo).await;
     }
+    if !filtros.is_empty() {
+        bail!("--filtro só vale para `silver tse-votacao-secao`");
+    }
     if camada != "bronze" {
         bail!(
             "camada desconhecida: {camada}. Disponíveis: bronze e silver (BCB, IBGE, Câmara, Senado e TSE)."
@@ -522,6 +536,167 @@ async fn refinar(
             }
         }
     }
+}
+
+/// Refina votos por seção de forma explícita, pois os recursos somam mais de 16 GB.
+async fn refinar_tse_votacao_secao_silver(
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+    filtros: Vec<String>,
+) -> Result<bool> {
+    if todas || fonte.as_deref() != Some("tse-votacao-secao") {
+        bail!("votação por seção deve ser selecionada explicitamente: silver tse-votacao-secao");
+    }
+    let (anos, ufs) = filtros_tse_votacao_secao(&filtros)?;
+    let definicao = catalogo_refino()
+        .into_iter()
+        .find(|item| item.nome == "tse-votacao-secao")
+        .context("fonte tse-votacao-secao ausente do catálogo de refino")?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => {
+            passada_tse_votacao_secao(&definicao, &raw_s3, &bronze, &silver, false, &anos, &ufs)
+                .await
+        }
+        Some(segundos) => {
+            println!(
+                "Agendador Silver votação por seção: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) = passada_tse_votacao_secao(
+                    &definicao, &raw_s3, &bronze, &silver, true, &anos, &ufs,
+                )
+                .await
+                {
+                    eprintln!("Atenção: falha na reconciliação da Silver TSE: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+fn filtros_tse_votacao_secao(filtros: &[String]) -> Result<(Vec<u16>, Vec<String>)> {
+    let mut anos = Vec::new();
+    let mut ufs = Vec::new();
+    for filtro in filtros {
+        let (nome, valores) = filtro
+            .split_once('=')
+            .context("filtro deve usar NOME=VALORES")?;
+        if nome != "ano" && nome != "uf" {
+            bail!("filtro desconhecido para votação por seção: {nome}; use ano e uf");
+        }
+        for valor in valores.split(',') {
+            if valor.is_empty() {
+                bail!("valor vazio no filtro {nome}");
+            }
+            match nome {
+                "ano" => anos.push(
+                    valor
+                        .parse()
+                        .with_context(|| format!("ano inválido: {valor}"))?,
+                ),
+                "uf" if valor.len() == 2 && valor.bytes().all(|b| b.is_ascii_uppercase()) => {
+                    ufs.push(valor.to_owned())
+                }
+                "uf" => bail!("UF inválida: {valor}; use sigla maiúscula de dois caracteres"),
+                _ => unreachable!(),
+            }
+        }
+    }
+    anos.sort_unstable();
+    anos.dedup();
+    ufs.sort();
+    ufs.dedup();
+    Ok((anos, ufs))
+}
+
+async fn passada_tse_votacao_secao(
+    fonte: &todeolho_refino::FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+    anos: &[u16],
+    ufs: &[String],
+) -> Result<bool> {
+    let mut tarefas = Vec::new();
+    for recurso in recursos_no_raw(raw_s3, fonte).await? {
+        let Some((ano, uf)) =
+            todeolho_refino::silver::tarefa_tse_votacao_secao::ano_uf_do_recurso(&recurso)
+        else {
+            continue;
+        };
+        if (!anos.is_empty() && !anos.contains(&ano)) || (!ufs.is_empty() && !ufs.contains(&uf)) {
+            continue;
+        }
+        let Some(tarefa) = TarefaDeSilverTseVotacaoSecao::nova(
+            Arc::clone(bronze),
+            Arc::new(
+                match SnapshotBronze::vigente(bronze.as_ref(), "tse", &recurso)
+                    .await
+                    .context("não foi possível ler snapshot Bronze")?
+                {
+                    Some(snapshot) => snapshot,
+                    None => continue,
+                },
+            ),
+            &recurso,
+        ) else {
+            continue;
+        };
+        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+            continue;
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa));
+    }
+    if tarefas.is_empty() {
+        println!(
+            "Nada a refinar na Silver de votação por seção (recursos filtrados ausentes ou em dia)."
+        );
+        return Ok(true);
+    }
+    let dag = DagDeIngestao::construir("tse-votacao-secao", tarefas)?;
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            &Uuid::new_v4().simple().to_string()[..8]
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let dags = vec![dag];
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Reconcilia todas as fontes Silver atualmente suportadas no mesmo agendador.
