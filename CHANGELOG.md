@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.36.0] - 2026-11-06
+
+### Adicionado
+
+- Publica os votos nominais individuais do Senado como relação Silver `votos/ano=AAAA`, preservando a relação de sessões e cada registro de origem (parte da issue #188).
+
 ## [0.35.0] - 2026-11-06
 
 ### Adicionado

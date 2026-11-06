@@ -86,6 +86,7 @@ pub async fn publicar_ibge_agregados(
         ConfiguracaoDePublicacao {
             fonte: "ibge",
             recurso,
+            recurso_destino: None,
             regra: REGRA,
             esquema: Some(esquema_ibge_agregados()),
             iniciada_em,

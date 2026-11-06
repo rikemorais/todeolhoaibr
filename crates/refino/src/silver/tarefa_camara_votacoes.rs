@@ -106,6 +106,7 @@ pub async fn publicar_camara_votacoes(
         ConfiguracaoDePublicacao {
             fonte: "camara",
             recurso,
+            recurso_destino: None,
             regra: &regra,
             esquema: None,
             iniciada_em,

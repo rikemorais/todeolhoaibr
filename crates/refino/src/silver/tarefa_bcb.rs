@@ -86,6 +86,7 @@ pub async fn publicar_bcb_sgs(
         ConfiguracaoDePublicacao {
             fonte: "bcb",
             recurso,
+            recurso_destino: None,
             regra: REGRA,
             esquema: Some(esquema_bcb_sgs()),
             iniciada_em,

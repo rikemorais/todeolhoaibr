@@ -12,10 +12,12 @@ use todeolho_nucleo::{
 use super::{
     publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
     senado_votacoes::transformar_senado_votacoes,
+    senado_votos::{esquema_senado_votos, transformar_senado_votos},
 };
 use crate::SnapshotBronze;
 
 const REGRA: &str = "senado-votacao-v1";
+const REGRA_VOTOS: &str = "senado-voto-nominal-v1";
 
 /// Tarefa para publicar um recurso anual de votações do Senado.
 pub struct TarefaDeSilverSenadoVotacoes {
@@ -40,11 +42,23 @@ impl TarefaDeSilverSenadoVotacoes {
 
     /// Indica se a Silver acompanha o snapshot e a regra de transformação atuais.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
-        let versao = format!("{}|regra={REGRA}", self.snapshot.manifesto().id_execucao);
-        Ok(!matches!(
+        let execucao = &self.snapshot.manifesto().id_execucao;
+        let versao_sessoes = format!("{execucao}|regra={REGRA}");
+        let sessao_atual = matches!(
             estado_na_raw(silver, "senado", &self.recurso).await?,
-            Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
-        ))
+            Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao_sessoes.as_str())
+        );
+        let recurso_votos =
+            recurso_votos(&self.recurso).ok_or_else(|| ErroDeIngestao::Manifesto {
+                recurso: self.recurso.clone(),
+                detalhe: "recurso de votações sem ano no caminho".into(),
+            })?;
+        let versao_votos = format!("{execucao}|regra={REGRA_VOTOS}");
+        let votos_atuais = matches!(
+            estado_na_raw(silver, "senado", &recurso_votos).await?,
+            Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao_votos.as_str())
+        );
+        Ok(!sessao_atual || !votos_atuais)
     }
 }
 
@@ -58,7 +72,7 @@ impl Tarefa for TarefaDeSilverSenadoVotacoes {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-        publicar_senado_votacoes(
+        let sessoes = publicar_senado_votacoes(
             self.bronze.as_ref(),
             contexto.armazenamento.as_ref(),
             &self.snapshot,
@@ -66,8 +80,62 @@ impl Tarefa for TarefaDeSilverSenadoVotacoes {
             contexto.iniciada_em,
             &contexto.id_execucao,
         )
-        .await
+        .await?;
+        let votos = publicar_senado_votos(
+            self.bronze.as_ref(),
+            contexto.armazenamento.as_ref(),
+            &self.snapshot,
+            &self.recurso,
+            contexto.iniciada_em,
+            &contexto.id_execucao,
+        )
+        .await?;
+        Ok(ResumoDaTarefa {
+            partes: sessoes.partes + votos.partes,
+            bytes: sessoes.bytes.saturating_add(votos.bytes),
+            reaproveitada: sessoes.reaproveitada && votos.reaproveitada,
+            motivo: None,
+        })
     }
+}
+
+fn recurso_votos(recurso: &str) -> Option<String> {
+    let ano = recurso.strip_prefix("votacoes/ano=")?;
+    if ano.len() != 4 || !ano.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!("votos/ano={ano}"))
+}
+
+/// Expande e publica a relação filha com um registro por voto parlamentar.
+pub async fn publicar_senado_votos(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    recurso: &str,
+    iniciada_em: DateTime<Utc>,
+    id_execucao: &str,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    let destino = recurso_votos(recurso).ok_or_else(|| ErroDeIngestao::Manifesto {
+        recurso: recurso.to_owned(),
+        detalhe: "recurso de votações sem ano no caminho".into(),
+    })?;
+    publicar_transformacao(
+        bronze,
+        silver,
+        snapshot,
+        ConfiguracaoDePublicacao {
+            fonte: "senado",
+            recurso,
+            recurso_destino: Some(&destino),
+            regra: REGRA_VOTOS,
+            esquema: Some(esquema_senado_votos()),
+            iniciada_em,
+            id_execucao,
+        },
+        |lote| transformar_senado_votos(lote).map_err(|erro| erro.to_string()),
+    )
+    .await
 }
 
 /// Valida a chave da sessão e publica a estrutura original, mantendo os votos aninhados.
@@ -93,6 +161,7 @@ pub async fn publicar_senado_votacoes(
         ConfiguracaoDePublicacao {
             fonte: "senado",
             recurso,
+            recurso_destino: None,
             regra: REGRA,
             esquema: None,
             iniciada_em,
@@ -237,6 +306,18 @@ mod testes {
                 .await
                 .unwrap();
         assert_eq!(resumo.partes, 1);
+        let votos =
+            publicar_senado_votos(&bronze, &silver, &snapshot, recurso, Utc::now(), "silver-1")
+                .await
+                .unwrap();
+        assert_eq!(votos.partes, 1);
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao("senado", "votos/ano=2024"))
+                .await
+                .unwrap()
+                .is_some()
+        );
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_senado_votacoes(&bronze, &silver, &snapshot, recurso, Utc::now(), "silver-2",)
@@ -289,5 +370,21 @@ mod testes {
                 .unwrap()
                 .is_none()
         );
+    }
+
+    #[tokio::test]
+    async fn recusa_publicar_votos_fora_de_um_recurso_anual() {
+        let (bronze, snapshot) = fonte(&["S1"]).await;
+        let silver = Memoria::default();
+        let erro = publicar_senado_votos(
+            &bronze,
+            &silver,
+            &snapshot,
+            "votacoes/recente",
+            Utc::now(),
+            "silver-1",
+        )
+        .await;
+        assert!(erro.is_err());
     }
 }
