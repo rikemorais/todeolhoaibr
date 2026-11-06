@@ -13,7 +13,7 @@ use todeolho_nucleo::{
 
 use crate::{
     EscritorParquetTipado, SnapshotBronze,
-    executor_sql::{ConfiguracaoExecutorSql, executar_sql, preparar_snapshot},
+    executor_sql::{ConfiguracaoExecutorSql, ErroExecutorSql, executar_sql, preparar_snapshot},
 };
 
 const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
@@ -95,7 +95,21 @@ pub(crate) async fn publicar_transformacao_sql(
 
     let entrada = preparar_snapshot(bronze, snapshot, executor.limite_entrada_bytes)
         .await
-        .map_err(|_| erro_manifesto(recurso, "falha ao preparar entrada SQL do snapshot Bronze"))?;
+        .map_err(|erro| {
+            let detalhe = match erro {
+                ErroExecutorSql::Snapshot(_) => {
+                    "falha ao validar ou baixar parte do snapshot Bronze para SQL"
+                }
+                ErroExecutorSql::Configuracao(_) => {
+                    "snapshot Bronze excede os limites de entrada SQL"
+                }
+                ErroExecutorSql::Parquet(_) | ErroExecutorSql::Io(_) => {
+                    "falha ao preparar arquivos temporários do snapshot Bronze"
+                }
+                ErroExecutorSql::DataFusion(_) => "falha ao preparar a consulta DataFusion",
+            };
+            erro_manifesto(recurso, detalhe)
+        })?;
     let diretorio_spill = entrada.diretorio_execucao().join("spill");
     std::fs::create_dir(&diretorio_spill).map_err(|_| {
         erro_manifesto(
@@ -109,7 +123,7 @@ pub(crate) async fn publicar_transformacao_sql(
     let esquema_saida = fluxo.schema();
     if esquema
         .as_ref()
-        .is_some_and(|esperado| esperado.as_ref() != esquema_saida.as_ref())
+        .is_some_and(|esperado| !schemas_compativeis(esperado, &esquema_saida))
     {
         let esquema_esperado = esquema.as_ref().expect("schema checked above");
         return Err(erro_manifesto(
@@ -126,16 +140,22 @@ pub(crate) async fn publicar_transformacao_sql(
         .suffix(".parquet")
         .tempfile_in(entrada.diretorio_execucao())
         .map_err(|_| erro_manifesto(recurso, "falha ao criar Parquet Silver temporário"))?;
+    let esquema_parquet = esquema.clone().unwrap_or(esquema_saida);
     let mut escritor = EscritorParquetTipado::novo_em(
         arquivo
             .reopen()
             .map_err(|_| erro_manifesto(recurso, "falha ao abrir Parquet Silver temporário"))?,
-        esquema_saida,
+        esquema_parquet,
     )
     .map_err(|_| erro_manifesto(recurso, "falha ao iniciar escritor Parquet Silver"))?;
     while let Some(lote) = fluxo.next().await {
         let lote =
             lote.map_err(|_| erro_manifesto(recurso, "falha na execução do contrato SQL Silver"))?;
+        let lote = match &esquema {
+            Some(esquema) => normalizar_schema_lote(lote, esquema)
+                .map_err(|detalhe| erro_manifesto(recurso, detalhe))?,
+            None => lote,
+        };
         escritor
             .escrever_lote(&lote)
             .map_err(|_| erro_manifesto(recurso, "resultado SQL diverge do schema de saída"))?;
@@ -230,6 +250,38 @@ pub(crate) async fn publicar_transformacao_sql(
         bytes,
         ..ResumoDaTarefa::default()
     })
+}
+
+/// Compara o contrato SQL sem exigir que o planejador prove nulabilidade a partir do Parquet.
+fn schemas_compativeis(esperado: &SchemaRef, recebido: &SchemaRef) -> bool {
+    esperado.metadata() == recebido.metadata()
+        && esperado.fields().len() == recebido.fields().len()
+        && esperado
+            .fields()
+            .iter()
+            .zip(recebido.fields())
+            .all(|(esperado, recebido)| {
+                esperado.name() == recebido.name()
+                    && esperado.data_type() == recebido.data_type()
+                    && esperado.metadata() == recebido.metadata()
+            })
+}
+
+/// Restaura a nulabilidade declarada e impede que SQL publique nulos proibidos pelo contrato.
+fn normalizar_schema_lote(
+    lote: RecordBatch,
+    esperado: &SchemaRef,
+) -> Result<RecordBatch, &'static str> {
+    if esperado
+        .fields()
+        .iter()
+        .zip(lote.columns())
+        .any(|(campo, coluna)| !campo.is_nullable() && coluna.null_count() > 0)
+    {
+        return Err("resultado SQL contém nulos em campos obrigatórios do contrato Silver");
+    }
+    RecordBatch::try_new(esperado.clone(), lote.columns().to_vec())
+        .map_err(|_| "resultado SQL não pode usar a nulabilidade declarada pelo contrato")
 }
 
 /// Publica apenas as partes escolhidas do manifesto, mantendo o restante do fluxo comum.

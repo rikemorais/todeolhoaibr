@@ -56,7 +56,9 @@ pub use camara_tramitacoes::{
     ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
     transformar_camara_tramitacoes,
 };
-pub use ibge_agregados::{ErroIbgeSilver, esquema_ibge_agregados, transformar_ibge_agregados};
+pub use ibge_agregados::esquema_ibge_agregados;
+#[cfg(test)]
+pub use ibge_agregados::{ErroIbgeSilver, transformar_ibge_agregados};
 pub use senado_despesas::{
     ErroSenadoDespesasSilver, esquema_senado_despesas, transformar_senado_despesas,
 };
