@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.22.3] - 2026-11-05
+
+### Documentação
+
+- Define o contrato candidato dos quatro conjuntos de contas TSE 2008 e exclui o TXT `leiaute-2008` do catálogo tabular Silver; mede linhas, campos vazios e conversões e registra divergências entre o leiaute do ZIP e os cabeçalhos físicos ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.22.2] - 2026-11-05
 
 ### Documentação
