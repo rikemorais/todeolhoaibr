@@ -19,6 +19,7 @@ pub mod catalogo;
 pub mod csv_zip;
 pub mod decodificador;
 pub mod escritor;
+pub mod executor_sql;
 pub mod fontes;
 pub mod linhagem;
 pub mod silver;
@@ -33,6 +34,7 @@ pub use fontes::{
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
+pub use silver::TarefaDeSilverSql;
 pub use silver::camara_deputados::{
     ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
 };

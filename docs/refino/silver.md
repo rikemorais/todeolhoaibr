@@ -1,8 +1,16 @@
 # Camada silver — contrato inicial
 
-**Estado:** implementação em andamento na [issue #188](https://github.com/rikemorais/todeolhoaibr/issues/188); a migração das transformações para SQL/DataFusion está planejada no [épico #236](https://github.com/rikemorais/todeolhoaibr/issues/236). BCB, agregados IBGE, Câmara e Senado já publicam tabelas Silver; consulte a cobertura abaixo. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+**Estado:** implementação em andamento na [issue #188](https://github.com/rikemorais/todeolhoaibr/issues/188); a migração das transformações para SQL/DataFusion está em execução no [épico #236](https://github.com/rikemorais/todeolhoaibr/issues/236). BCB, agregados IBGE, Câmara e Senado já publicam tabelas Silver; consulte a cobertura abaixo. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 
 Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket `silver`. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são **candidatas**: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.
+
+## Contribuir com uma transformação SQL
+
+Contratos SQL ficam versionados em `crates/refino/sql/silver/` e entram no binário com `include_str!`. A consulta lê a tabela `bronze`, preparada somente com as partes do manifesto fixado. Além das colunas Bronze, há três colunas internas de linhagem: `_tdoa_origem_manifesto`, `_tdoa_origem_parte` e `_tdoa_origem_ordinal`. A consulta deve projetar explicitamente as colunas Silver definidas pelo schema do contrato; preserve as colunas de origem necessárias para auditoria. Valores externos nunca são interpolados no SQL.
+
+O adaptador `TarefaDeSilverSql` associa a consulta embutida, nome/versionamento da regra e schema de saída ao publicador comum. A execução transmite batches para Parquet temporário; não use coleta integral do resultado. O limite inicial é 512 MiB de memória, 2 GiB de spill, 100 GiB de entrada, uma partição por consulta e batches de 8.192 linhas. Esses limites são configuráveis por tarefa e devem ser medidos antes de ampliar uma família de fontes.
+
+O smoke e benchmark sintético reproduzível do executor está em [`benchmark-datafusion.md`](benchmark-datafusion.md). Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.
 
 ## Cobertura planejada do catálogo bronze
 
