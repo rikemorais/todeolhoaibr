@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.24.0] - 2026-11-06
+
+### Adicionado
+
+- Define o primeiro transformador Silver BCB/SGS, com data `Date32` e valor `Decimal128(18,6)`, conversão decimal exata e erro explícito para registros inválidos ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.23.0] - 2026-11-06
 
 ### Adicionado
