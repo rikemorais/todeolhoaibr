@@ -27,4 +27,4 @@ Para registrar uma decisão, copie [`modelo.md`](modelo.md) com o próximo núme
 | [0017](0017-fontes-organizadas-por-pasta.md) | Fontes organizadas por pasta, uma por fonte, sem prefixo no nome dos arquivos | Aceito |
 | [0018](0018-motor-de-consulta-duckdb.md) | DuckDB para consultar Parquet no armazenamento | Aceito |
 | [0019](0019-disparo-do-bronze-por-reconciliacao.md) | Disparo do bronze por reconciliação agendada | Aceito |
-| [0020](0020-contrato-da-camada-silver.md) | Contrato e publicação da camada silver | Proposto |
+| [0020](0020-contrato-da-camada-silver.md) | Contratos, publicação e execução SQL da camada silver | Aceito |
