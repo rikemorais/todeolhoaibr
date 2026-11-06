@@ -8,7 +8,8 @@
 //! Os decodificadores e a [`tarefa::TarefaDeBronze`] publicam o bronze. O módulo
 //! [`snapshot_bronze`] seleciona e verifica partes do manifesto vigente; o módulo
 //! [`linhagem`] lê essas partes em lotes e fornece referências de linha para os
-//! futuros contratos silver, sem alterar o conteúdo armazenado no bronze.
+//! futuros contratos silver, sem alterar o conteúdo armazenado no bronze. O
+//! [`EscritorParquetTipado`] grava os lotes Arrow produzidos por esses contratos.
 //!
 //! [ADR 0014]: ../../docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md
 
@@ -25,7 +26,7 @@ pub mod tarefa;
 
 pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, ParteBronze};
-pub use escritor::{ErroDeRefino, EscritorParquet, Tabela};
+pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
 pub use fontes::{
     DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
