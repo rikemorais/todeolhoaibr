@@ -26,7 +26,7 @@
     
     
       
-        <title>0020. Contrato e publicação da camada silver - Tô de Olho AI</title>
+        <title>0020. Contratos, publicação e execução SQL da camada silver - Tô de Olho AI</title>
       
     
     
@@ -87,7 +87,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0020-contrato-e-publicacao-da-camada-silver" class="md-skip">
+        <a href="#0020-contratos-publicacao-e-execucao-sql-da-camada-silver" class="md-skip">
           Pular para conteúdo
         </a>
       
@@ -125,7 +125,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              0020. Contrato e publicação da camada silver
+              0020. Contratos, publicação e execução SQL da camada silver
             
           </span>
         </div>
@@ -939,7 +939,7 @@
           
   
   <span class="md-ellipsis">
-    0020. Contrato e publicação da camada silver
+    0020. Contratos, publicação e execução SQL da camada silver
   </span>
   
 
@@ -950,7 +950,7 @@
         
   
   <span class="md-ellipsis">
-    0020. Contrato e publicação da camada silver
+    0020. Contratos, publicação e execução SQL da camada silver
   </span>
   
 
@@ -981,18 +981,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decisao-proposta" class="md-nav__link">
+  <a href="#decisao" class="md-nav__link">
     <span class="md-ellipsis">
-      Decisão proposta
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequencias" class="md-nav__link">
-    <span class="md-ellipsis">
-      Consequências
+      Decisão
     </span>
   </a>
   
@@ -1002,6 +993,15 @@
   <a href="#alternativas-consideradas" class="md-nav__link">
     <span class="md-ellipsis">
       Alternativas consideradas
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequencias" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consequências
     </span>
   </a>
   
@@ -1563,18 +1563,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decisao-proposta" class="md-nav__link">
+  <a href="#decisao" class="md-nav__link">
     <span class="md-ellipsis">
-      Decisão proposta
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequencias" class="md-nav__link">
-    <span class="md-ellipsis">
-      Consequências
+      Decisão
     </span>
   </a>
   
@@ -1584,6 +1575,15 @@
   <a href="#alternativas-consideradas" class="md-nav__link">
     <span class="md-ellipsis">
       Alternativas consideradas
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequencias" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consequências
     </span>
   </a>
   
@@ -1612,19 +1612,22 @@
   
 
 
-<h1 id="0020-contrato-e-publicacao-da-camada-silver">0020. Contrato e publicação da camada silver<a class="headerlink" href="#0020-contrato-e-publicacao-da-camada-silver" title="Permanent link">&para;</a></h1>
+<h1 id="0020-contratos-publicacao-e-execucao-sql-da-camada-silver">0020. Contratos, publicação e execução SQL da camada silver<a class="headerlink" href="#0020-contratos-publicacao-e-execucao-sql-da-camada-silver" title="Permanent link">&para;</a></h1>
 <ul>
-<li><strong>Status:</strong> Proposto</li>
-<li><strong>Data:</strong> 2026-11-05</li>
+<li><strong>Status:</strong> Aceito</li>
+<li><strong>Data:</strong> 2026-11-06</li>
 </ul>
 <h2 id="contexto">Contexto<a class="headerlink" href="#contexto" title="Permanent link">&para;</a></h2>
 <p>O bronze guarda Parquet com colunas textuais e conserva a granularidade da origem. A silver precisa tipar, limpar e deduplicar, mas as fontes variam em grão, formato e nível geográfico. O padrão de manifesto e ponteiro já permite publicar versões sem sobrescrever a montante.</p>
-<h2 id="decisao-proposta">Decisão proposta<a class="headerlink" href="#decisao-proposta" title="Permanent link">&para;</a></h2>
+<h2 id="decisao">Decisão<a class="headerlink" href="#decisao" title="Permanent link">&para;</a></h2>
 <p>Cada <strong>tabela silver</strong> terá contrato versionado com grão, chave de negócio, tipos, campos obrigatórios, política de nulos e duplicatas e regras de qualidade. O catálogo silver apontará para uma ou mais tabelas bronze, sem presumir que uma entrada do catálogo bronze produza uma única tabela.</p>
 <p>O bucket <code>silver</code> usará partes Parquet, manifesto e ponteiro de versão vigente. O manifesto identificará o recurso, a tabela e a versão do bronze de entrada, a versão do contrato/regra e as contagens de entrada, saída, duplicatas e rejeições por motivo. O ponteiro só será publicado após todas as partes e o manifesto estarem íntegros. Uma nova versão do bronze <strong>ou da regra</strong> exige nova materialização; versões anteriores continuam disponíveis para consulta ou recuperação. Nenhuma transformação altera raw ou bronze.</p>
 <p>Rejeições serão observáveis e recuperáveis, com motivo e referência à origem. A política exata de armazenamento e os limites aceitáveis de rejeição serão definidos por contrato antes da implementação. Não descartar linhas silenciosamente.</p>
+<p>As transformações Silver serão expressas preferencialmente em arquivos SQL versionados sob <code>crates/refino/sql/silver/</code> e executadas pelo Apache DataFusion dentro do processo Rust do <code>refino</code>. O código os incorpora com <code>include_str!</code>, então a imagem distroless não precisa de shell nem de SQL montado em volume. Cada contrato seleciona explicitamente colunas, conversões, regras e versão; não inferir schema por conveniência nem interpolar valores externos em SQL. Rust continua responsável pela decodificação Bronze, por funções de domínio que não fiquem claras em SQL e pela orquestração, linhagem e publicação.</p>
+<p>O executor consulta exclusivamente as partes enumeradas pelo snapshot do manifesto vigente. Deve transmitir batches sem reter o conjunto inteiro em memória sem limite, carregar a identidade de origem (manifesto, parte e ordinal) explicitamente durante o plano e encaminhar o resultado ao publicador comum. Não depender da ordem de saída do plano. O publicador continua gravando Parquets e manifesto antes de trocar o ponteiro; a saída só fica vigente quando todas as partes estão completas e a versão Bronze de entrada ainda é a mesma.</p>
+<p>O DataFusion será embutido, sem introduzir um serviço externo ou substituir o agendador, a CLI, o painel ou o catálogo de contratos. Operações que precisem de spill devem usar o <code>DiskManager</code> com diretório temporário dedicado por execução, quota explícita e arquivos temporários removidos ao descartar o contexto; se a quota for excedida, a consulta falha e a publicação não avança. Limites do engine, do diretório temporário e do contêiner devem ser avaliados em dados representativos.</p>
+<p>O crate <code>refino</code> alinha Arrow e Parquet à versão usada pelo DataFusion, evitando duas versões incompatíveis de <code>RecordBatch</code> no pipeline. A dependência começa em DataFusion 55.2.0 e Arrow/Parquet 59.2.0; o lockfile resolve Arrow/Parquet 59.3.2. O DataFusion estabelece Rust 1.94 como versão mínima do workspace. Recursos de execução são habilitados explicitamente, sem recursos padrão não necessários. Mudanças futuras dessas versões precisam manter o alinhamento ou justificar um adaptador com custo medido.</p>
 <p>O código IBGE do município será texto, nunca número. Tabelas nacionais, estaduais ou regionais manterão seu nível geográfico original; não receberão município artificial. A conformação dentro da fonte pertence à silver. Cruzamentos entre domínios e indicadores derivados pertencem à gold, conforme <a href="../0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
-<h2 id="consequencias">Consequências<a class="headerlink" href="#consequencias" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Mudanças de schema e regra são rastreáveis e podem ser reprocessadas sem nova ingestão.</li>
 <li>O volume armazenado cresce com versões e registros rejeitados.</li>
@@ -1635,6 +1638,16 @@
 <li><strong>Inferir schema e chave automaticamente de cada Parquet:</strong> simplifica o início, mas mudanças da origem poderiam alterar silenciosamente o contrato silver.</li>
 <li><strong>Usar apenas a versão do bronze para idempotência:</strong> deixaria correções de regras sem gatilho de reprocessamento.</li>
 <li><strong>Forçar município + ano em todas as tabelas:</strong> perderia dados nacionais, estaduais e eventos sem município; a chave é adequada a produtos analíticos posteriores, não a todo registro silver.</li>
+<li><strong>Manter transformação manual de arrays Arrow como padrão:</strong> dá controle, mas torna projeções, casts, filtros e regras relacionais repetitivas e menos acessíveis a contribuidores que conhecem SQL.</li>
+<li><strong>Usar DataFusion como orquestrador ou substituir o publicador:</strong> o engine executa planos de consulta, mas não conhece os contratos, o manifesto do snapshot, a linhagem nem a publicação transacional do projeto.</li>
+<li><strong>Carregar todas as partes em uma <code>MemTable</code> sem limite:</strong> simplifica o protótipo, porém não é aceitável para fontes volumosas como TSE; a integração deve manter execução limitada e medir spill.</li>
+</ul>
+<h2 id="consequencias">Consequências<a class="headerlink" href="#consequencias" title="Permanent link">&para;</a></h2>
+<ul>
+<li>SQL versionado passa a ser a forma recomendada de contribuir com contratos Silver e pode ser revisado separadamente das tarefas Rust.</li>
+<li>DataFusion e suas versões Arrow/Parquet aumentam a árvore de dependências e o tempo de compilação; recursos não usados ficam desativados.</li>
+<li>Cada migração precisa comprovar paridade semântica, qualidade, linhagem, idempotência e consumo operacional antes de remover a transformação anterior.</li>
+<li>Regras específicas de fonte podem continuar em Rust quando houver justificativa clara e testes de contrato.</li>
 </ul>
 
 

@@ -925,7 +925,7 @@
         
   
   <span class="md-ellipsis">
-    0020. Contrato e publicação da camada silver
+    0020. Contratos, publicação e execução SQL da camada silver
   </span>
   
 
@@ -1901,7 +1901,7 @@
 
 
 <h1 id="camada-silver-contrato-inicial">Camada silver — contrato inicial<a class="headerlink" href="#camada-silver-contrato-inicial" title="Permanent link">&para;</a></h1>
-<p><strong>Estado:</strong> implementação em andamento na <a href="https://github.com/rikemorais/todeolhoaibr/issues/188">issue #188</a>. BCB, agregados IBGE, Câmara e Senado já publicam tabelas Silver; consulte a cobertura abaixo. A arquitetura proposta está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
+<p><strong>Estado:</strong> implementação em andamento na <a href="https://github.com/rikemorais/todeolhoaibr/issues/188">issue #188</a>; a migração das transformações para SQL/DataFusion está planejada no <a href="https://github.com/rikemorais/todeolhoaibr/issues/236">épico #236</a>. BCB, agregados IBGE, Câmara e Senado já publicam tabelas Silver; consulte a cobertura abaixo. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
 <p>Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket <code>silver</code>. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são <strong>candidatas</strong>: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.</p>
 <h2 id="cobertura-planejada-do-catalogo-bronze">Cobertura planejada do catálogo bronze<a class="headerlink" href="#cobertura-planejada-do-catalogo-bronze" title="Permanent link">&para;</a></h2>
 <p>O <a href="../../crates/refino/src/catalogo.rs">catálogo</a> tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. <code>recurso</code> e <code>versão bronze</code> fazem parte da procedência, mas não substituem a chave de negócio.</p>
