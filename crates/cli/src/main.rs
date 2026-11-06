@@ -31,7 +31,8 @@ use todeolho_refino::{
     TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
     TarefaDeSilverIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
     TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
-    TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseCandidaturas, catalogo_refino,
+    TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -451,7 +452,10 @@ async fn refinar(
                 .await;
         }
         if fonte.as_deref() == Some("tse-candidaturas") {
-            return refinar_tse_silver(fonte, todas, intervalo).await;
+            return refinar_tse_silver(fonte, todas, intervalo, TipoSilverTse::Candidaturas).await;
+        }
+        if fonte.as_deref() == Some("tse-bens") {
+            return refinar_tse_silver(fonte, todas, intervalo, TipoSilverTse::Bens).await;
         }
         if fonte.as_deref() == Some("camara-partidos") {
             return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Partidos)
@@ -537,7 +541,9 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 refinar_senado_silver(None, true, None, TipoSilverSenado::Processos).await?;
             let senado_despesas =
                 refinar_senado_silver(None, true, None, TipoSilverSenado::Despesas).await?;
-            let tse_candidaturas = refinar_tse_silver(None, true, None).await?;
+            let tse_candidaturas =
+                refinar_tse_silver(None, true, None, TipoSilverTse::Candidaturas).await?;
+            let tse_bens = refinar_tse_silver(None, true, None, TipoSilverTse::Bens).await?;
             let camara_partidos =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Partidos).await?;
             let camara_legislaturas =
@@ -558,6 +564,7 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && senado_processos
                 && senado_despesas
                 && tse_candidaturas
+                && tse_bens
                 && camara_partidos
                 && camara_legislaturas
                 && camara_deputados
@@ -604,10 +611,15 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                         "Atenção: falha na reconciliação Silver despesas do Senado: {erro:#}"
                     );
                 }
-                if let Err(erro) = refinar_tse_silver(None, true, None).await {
+                if let Err(erro) =
+                    refinar_tse_silver(None, true, None, TipoSilverTse::Candidaturas).await
+                {
                     eprintln!(
                         "Atenção: falha na reconciliação Silver candidaturas do TSE: {erro:#}"
                     );
+                }
+                if let Err(erro) = refinar_tse_silver(None, true, None, TipoSilverTse::Bens).await {
+                    eprintln!("Atenção: falha na reconciliação Silver bens do TSE: {erro:#}");
                 }
                 if let Err(erro) =
                     refinar_camara_silver(None, true, None, TipoSilverCamara::Partidos).await
@@ -649,25 +661,93 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
     }
 }
 
-/// Publica e reconcilia os consolidados anuais de candidaturas do TSE.
+#[derive(Clone, Copy)]
+enum TipoSilverTse {
+    Candidaturas,
+    Bens,
+}
+
+impl TipoSilverTse {
+    fn nome(self) -> &'static str {
+        match self {
+            Self::Candidaturas => "tse-candidaturas",
+            Self::Bens => "tse-bens",
+        }
+    }
+
+    fn criar_tarefa(
+        self,
+        bronze: Arc<dyn ArmazenamentoRaw>,
+        snapshot: Arc<SnapshotBronze>,
+        recurso: &str,
+    ) -> TarefaSilverTse {
+        match self {
+            Self::Candidaturas => TarefaSilverTse::Candidaturas(
+                TarefaDeSilverTseCandidaturas::nova(bronze, snapshot, recurso)
+                    .expect("recurso de candidaturas deve declarar ano"),
+            ),
+            Self::Bens => TarefaSilverTse::Bens(
+                TarefaDeSilverTseBens::nova(bronze, snapshot, recurso)
+                    .expect("recurso de bens deve declarar ano"),
+            ),
+        }
+    }
+}
+
+enum TarefaSilverTse {
+    Candidaturas(TarefaDeSilverTseCandidaturas),
+    Bens(TarefaDeSilverTseBens),
+}
+
+#[async_trait::async_trait]
+impl Tarefa for TarefaSilverTse {
+    fn nome(&self) -> &str {
+        match self {
+            Self::Candidaturas(tarefa) => tarefa.nome(),
+            Self::Bens(tarefa) => tarefa.nome(),
+        }
+    }
+
+    async fn executar(
+        &self,
+        contexto: &ContextoDeExecucao,
+    ) -> Result<todeolho_nucleo::ResumoDaTarefa, todeolho_nucleo::ErroDeIngestao> {
+        match self {
+            Self::Candidaturas(tarefa) => tarefa.executar(contexto).await,
+            Self::Bens(tarefa) => tarefa.executar(contexto).await,
+        }
+    }
+}
+
+impl TarefaSilverTse {
+    async fn pendente(
+        &self,
+        silver: &dyn ArmazenamentoRaw,
+    ) -> Result<bool, todeolho_nucleo::ErroDeIngestao> {
+        match self {
+            Self::Candidaturas(tarefa) => tarefa.pendente(silver).await,
+            Self::Bens(tarefa) => tarefa.pendente(silver).await,
+        }
+    }
+}
+
+/// Publica e reconcilia os consolidados anuais TSE suportados na Silver.
 async fn refinar_tse_silver(
     fonte: Option<String>,
     todas: bool,
     intervalo: Option<u64>,
+    tipo: TipoSilverTse,
 ) -> Result<bool> {
-    if fonte
-        .as_deref()
-        .is_some_and(|nome| nome != "tse-candidaturas")
-    {
-        bail!("a camada silver aceita a fonte 'tse-candidaturas'");
+    if fonte.as_deref().is_some_and(|nome| nome != tipo.nome()) {
+        bail!("a camada silver aceita a fonte '{}'", tipo.nome());
     }
     if todas && fonte.is_some() {
         bail!("informe uma fonte ou --todas, não os dois");
     }
     let definicao = catalogo_refino()
         .into_iter()
-        .find(|item| item.nome == "tse-candidaturas")
-        .context("fonte tse-candidaturas ausente do catálogo de refino")?;
+        .find(|item| item.nome == tipo.nome())
+        .with_context(|| format!("fonte {} ausente do catálogo de refino", tipo.nome()))?;
     let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
     let bronze: Arc<dyn ArmazenamentoRaw> =
         Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
@@ -676,16 +756,20 @@ async fn refinar_tse_silver(
     bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     match intervalo.filter(|segundos| *segundos > 0) {
-        None => passada_tse_silver(&definicao, &raw_s3, &bronze, &silver, false).await,
+        None => passada_tse_silver(&definicao, &raw_s3, &bronze, &silver, false, tipo).await,
         Some(segundos) => {
             println!(
-                "Agendador Silver TSE: reconciliando candidaturas a cada {segundos}s. Ctrl+C para sair."
+                "Agendador Silver TSE: reconciliando {} a cada {segundos}s. Ctrl+C para sair.",
+                tipo.nome()
             );
             loop {
                 if let Err(erro) =
-                    passada_tse_silver(&definicao, &raw_s3, &bronze, &silver, true).await
+                    passada_tse_silver(&definicao, &raw_s3, &bronze, &silver, true, tipo).await
                 {
-                    eprintln!("Atenção: falha na reconciliação Silver candidaturas TSE: {erro:#}");
+                    eprintln!(
+                        "Atenção: falha na reconciliação Silver {}: {erro:#}",
+                        tipo.nome()
+                    );
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
@@ -699,28 +783,30 @@ async fn passada_tse_silver(
     bronze: &Arc<dyn ArmazenamentoRaw>,
     silver: &Arc<dyn ArmazenamentoRaw>,
     somente_pendentes: bool,
+    tipo: TipoSilverTse,
 ) -> Result<bool> {
     let mut tarefas = Vec::new();
     for recurso in recursos_no_raw(raw_s3, fonte).await? {
         let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", &recurso)
             .await
-            .context("não foi possível ler o snapshot Bronze candidaturas TSE")?
+            .with_context(|| format!("não foi possível ler o snapshot Bronze {}", tipo.nome()))?
         else {
             continue;
         };
-        let tarefa =
-            TarefaDeSilverTseCandidaturas::nova(Arc::clone(bronze), Arc::new(snapshot), &recurso)
-                .context("recurso de candidaturas sem ano eleitoral")?;
+        let tarefa = tipo.criar_tarefa(Arc::clone(bronze), Arc::new(snapshot), &recurso);
         if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
             continue;
         }
         tarefas.push(TarefaPlanejada::nova(tarefa));
     }
     if tarefas.is_empty() {
-        println!("Nada a refinar na Silver TSE (recursos em dia ou não ingeridos).");
+        println!(
+            "Nada a refinar na Silver {} (recursos em dia ou não ingeridos).",
+            tipo.nome()
+        );
         return Ok(true);
     }
-    let dag = DagDeIngestao::construir("tse-candidaturas", tarefas)?;
+    let dag = DagDeIngestao::construir(tipo.nome(), tarefas)?;
     let iniciada_em = Utc::now();
     let contexto = ContextoDeExecucao {
         id_execucao: format!(
