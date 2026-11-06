@@ -85,7 +85,7 @@ pub async fn publicar_camara_deputados(
             fonte: "camara",
             recurso,
             regra: REGRA,
-            esquema: esquema_camara_deputados(),
+            esquema: Some(esquema_camara_deputados()),
             iniciada_em,
             id_execucao,
         },

@@ -19,7 +19,7 @@ pub(crate) struct ConfiguracaoDePublicacao<'a> {
     pub fonte: &'a str,
     pub recurso: &'a str,
     pub regra: &'a str,
-    pub esquema: SchemaRef,
+    pub esquema: Option<SchemaRef>,
     pub iniciada_em: DateTime<Utc>,
     pub id_execucao: &'a str,
 }
@@ -78,23 +78,48 @@ where
             .map_err(|erro| erro_manifesto(recurso, erro))?;
         let arquivo =
             tempfile::NamedTempFile::new().map_err(|erro| erro_manifesto(recurso, erro))?;
-        let mut escritor = EscritorParquetTipado::novo_em(
-            arquivo
-                .reopen()
+        let mut escritor = match &esquema {
+            Some(esquema) => Some(
+                EscritorParquetTipado::novo_em(
+                    arquivo
+                        .reopen()
+                        .map_err(|erro| erro_manifesto(recurso, erro))?,
+                    esquema.clone(),
+                )
                 .map_err(|erro| erro_manifesto(recurso, erro))?,
-            esquema.clone(),
-        )
-        .map_err(|erro| erro_manifesto(recurso, erro))?;
+            ),
+            None => None,
+        };
         for lote in &mut leitor {
             let registros = lote
                 .map_err(|erro| erro_manifesto(recurso, erro))?
                 .registros;
             let transformado =
                 transformar(&registros).map_err(|erro| erro_manifesto(recurso, erro))?;
+            if escritor.is_none() {
+                let esquema_lote = esquema.clone().unwrap_or_else(|| transformado.schema());
+                escritor = Some(
+                    EscritorParquetTipado::novo_em(
+                        arquivo
+                            .reopen()
+                            .map_err(|erro| erro_manifesto(recurso, erro))?,
+                        esquema_lote,
+                    )
+                    .map_err(|erro| erro_manifesto(recurso, erro))?,
+                );
+            }
             escritor
+                .as_mut()
+                .expect("writer initialized from the first batch")
                 .escrever_lote(&transformado)
                 .map_err(|erro| erro_manifesto(recurso, erro))?;
         }
+        let escritor = escritor.ok_or_else(|| {
+            erro_manifesto(
+                recurso,
+                "parte Bronze sem lotes; não foi possível inferir o schema",
+            )
+        })?;
         escritor
             .fechar()
             .map_err(|erro| erro_manifesto(recurso, erro))?;

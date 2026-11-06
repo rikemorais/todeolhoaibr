@@ -92,7 +92,7 @@ pub async fn publicar_senado_parlamentares(
             fonte: "senado",
             recurso,
             regra: REGRA,
-            esquema: esquema_senado_parlamentares(),
+            esquema: Some(esquema_senado_parlamentares()),
             iniciada_em,
             id_execucao,
         },
