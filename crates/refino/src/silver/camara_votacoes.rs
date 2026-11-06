@@ -128,6 +128,7 @@ pub fn validar_camara_votacoes(
 
     for linha in 0..lote.num_rows() {
         let mut chave = Vec::with_capacity(indices.len());
+        let mut chave_incompleta = false;
         for &indice in &indices {
             let valores = lote
                 .column(indice)
@@ -135,14 +136,19 @@ pub fn validar_camara_votacoes(
                 .downcast_ref::<StringArray>()
                 .expect("column type checked above");
             if valores.is_null(linha) || valores.value(linha).trim().is_empty() {
-                return Err(ErroCamaraVotacoesSilver::ChaveInvalida {
-                    conjunto: nome,
-                    linha,
-                });
+                if conjunto == ConjuntoCamaraVotacoes::VotacoesVotos {
+                    chave_incompleta = true;
+                    break;
+                } else {
+                    return Err(ErroCamaraVotacoesSilver::ChaveInvalida {
+                        conjunto: nome,
+                        linha,
+                    });
+                }
             }
             chave.push(valores.value(linha).to_owned());
         }
-        if !chaves_vistas.insert(chave) {
+        if !chave_incompleta && !chaves_vistas.insert(chave) {
             return Err(ErroCamaraVotacoesSilver::ChaveDuplicada {
                 conjunto: nome,
                 linha,
@@ -199,5 +205,34 @@ mod testes {
                 linha: 0,
             })
         );
+    }
+
+    #[test]
+    fn preserva_voto_com_chave_candidata_incompleta_sem_deduplicar() {
+        let lote = RecordBatch::try_from_iter(vec![
+            (
+                "idVotacao",
+                Arc::new(StringArray::from(vec!["V1", "V1"])) as _,
+            ),
+            (
+                "deputado_id",
+                Arc::new(StringArray::from(vec!["D1", ""])) as _,
+            ),
+            (
+                "tipoVoto",
+                Arc::new(StringArray::from(vec!["Sim", "Abstenção"])) as _,
+            ),
+        ])
+        .unwrap();
+
+        let resultado = validar_camara_votacoes(
+            ConjuntoCamaraVotacoes::VotacoesVotos,
+            &lote,
+            &mut HashSet::new(),
+        )
+        .unwrap();
+
+        assert_eq!(resultado, lote);
+        assert_eq!(resultado.num_rows(), 2);
     }
 }
