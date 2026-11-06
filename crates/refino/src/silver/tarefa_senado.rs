@@ -91,6 +91,7 @@ pub async fn publicar_senado_parlamentares(
         ConfiguracaoDePublicacao {
             fonte: "senado",
             recurso,
+            recurso_destino: None,
             regra: REGRA,
             esquema: Some(esquema_senado_parlamentares()),
             iniciada_em,
