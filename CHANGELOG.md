@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.39.0] - 2026-11-06
+
+### Adicionado
+
+- Publica despesas anuais da CEAP da Câmara na Silver com valores e datas tipados, preservação dos campos originais e sem deduplicação por ID não único (issue #188).
+
 ## [0.38.1] - 2026-11-06
 
 ### Corrigido
