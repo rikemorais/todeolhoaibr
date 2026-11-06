@@ -44,6 +44,13 @@ fn texto_de(valor: &Value) -> Option<String> {
 }
 
 impl Decodificador for DecodificadorJson {
+    fn versao_regra(&self, fonte: &str, recurso: &str) -> Option<&'static str> {
+        // A versão antiga escreveu Parquet sem colunas para listas vazias de processos do
+        // Senado. Reprocessa esses recursos uma vez para apontar a manifestos sem partes.
+        (self.nome == "processos" && fonte == "senado" && recurso.starts_with("processos/ano="))
+            .then_some("json-processos-sem-parquet-v2")
+    }
+
     fn decodificar(
         &self,
         bytes: &[u8],
@@ -165,5 +172,33 @@ mod testes {
             .decodificar(b"{\"dados\":{}}", "application/json")
             .unwrap_err();
         assert!(matches!(erro, ErroDeRefino::Decodificacao(_)), "{erro:?}");
+    }
+
+    #[test]
+    fn versao_de_regra_reprocessa_apenas_o_catalogo_anual_de_processos_do_senado() {
+        let decodificador = DecodificadorJson::novo("processos");
+        assert_eq!(
+            decodificador.versao_regra("senado", "processos/ano=1826"),
+            Some("json-processos-sem-parquet-v2")
+        );
+        assert_eq!(
+            decodificador.versao_regra("senado", "processos-detalhes/ano=1826"),
+            None
+        );
+        assert_eq!(
+            decodificador.versao_regra("ibge", "processos/ano=1826"),
+            None
+        );
+    }
+
+    #[test]
+    fn array_vazio_nao_publica_parquet_sem_schema() {
+        let decodificador = DecodificadorJson::novo("processos");
+        assert!(
+            decodificador
+                .decodificar(b"[]", "application/json")
+                .unwrap()
+                .is_empty()
+        );
     }
 }
