@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.22.1] - 2026-11-05
+
+### Documentação
+
+- Valida separadamente os quatro conjuntos de prestação de contas TSE 2002 no Bronze vigente: schemas, grãos candidatos, tipos, nulos e duplicatas. Registra a política candidata de preservar cada linha com linhagem técnica até que a chave de negócio seja comprovada ([issue #185](https://github.com/rikemorais/todeolhoaibr/issues/185)).
+
 ## [0.22.0] - 2026-11-05
 
 ### Adicionado
