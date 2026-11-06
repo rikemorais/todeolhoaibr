@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroSenadoVotacoesSilver"],"fn":["transformar_senado_votacoes"]};

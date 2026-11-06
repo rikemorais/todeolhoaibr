@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroTseVotacaoSecaoSilver"],"fn":["esquema_tse_votacao_secao","transformar_tse_votacao_secao"]};
