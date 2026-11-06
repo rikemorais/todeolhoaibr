@@ -7,6 +7,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.38.0] - 2026-11-06
+
+### Adicionado
+
+- Publica o catálogo anual de processos do Senado na Silver, tipando ID e ano e preservando o registro de origem em JSON (parte da issue #188).
+- Lê Parquets Bronze legados sem colunas e sem linhas como recursos vazios, usando o schema declarado pelo contrato Silver.
+
 ## [0.37.0] - 2026-11-06
 
 ### Adicionado
