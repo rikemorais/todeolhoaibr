@@ -25,7 +25,9 @@ use todeolho_nucleo::{
     PrecisaoDaEstimativa, RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa,
     TarefaPlanejada, estimar, formatar_bytes,
 };
-use todeolho_refino::{FonteDeRefino, TarefaDeBronze, catalogo_refino};
+use todeolho_refino::{
+    FonteDeRefino, SnapshotBronze, TarefaDeBronze, catalogo_refino, publicar_bcb_sgs,
+};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
@@ -59,9 +61,9 @@ enum Comando {
     },
     /// Executa a ingestão sem o menu e grava os dados na camada Raw
     Executar(ArgumentosDeExecucao),
-    /// Refina a camada Raw para o medalhão (hoje: `bronze`, em Parquet)
+    /// Refina dados para o medalhão (`bronze` ou `silver bcb`, em Parquet)
     Refinar {
-        /// Camada de destino (por ora, apenas `bronze`)
+        /// Camada de destino (`bronze` ou `silver`)
         camada: String,
         /// Fonte de refino (veja o catálogo do refino, ex.: `camara-despesas`)
         fonte: Option<String>,
@@ -411,8 +413,11 @@ async fn refinar(
     todas: bool,
     intervalo: Option<u64>,
 ) -> Result<bool> {
+    if camada == "silver" {
+        return refinar_bcb_silver(fonte, todas, intervalo).await;
+    }
     if camada != "bronze" {
-        bail!("camada desconhecida: {camada}. Hoje o refino só produz 'bronze'.");
+        bail!("camada desconhecida: {camada}. Disponíveis: bronze, silver (BCB).");
     }
     let fontes = fontes_de_refino(fonte, todas)?;
 
@@ -442,6 +447,77 @@ async fn refinar(
             }
         }
     }
+}
+
+/// Publica as séries BCB/SGS vigentes do bronze para a silver.
+async fn refinar_bcb_silver(
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    if todas || fonte.as_deref().is_some_and(|nome| nome != "bcb") {
+        bail!("a camada silver aceita a fonte 'bcb'; --todas ainda não está disponível");
+    }
+    if intervalo.is_some_and(|segundos| segundos > 0) {
+        bail!("reconciliação periódica Silver ainda não está disponível");
+    }
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let prefixo = "bcb/series/";
+    let chaves = raw_s3
+        .listar_chaves(prefixo)
+        .await
+        .context(ERRO_DE_ARMAZENAMENTO)?;
+    let mut recursos: Vec<String> = chaves
+        .iter()
+        .filter_map(|chave| chave.strip_suffix("/_ultima_versao.json"))
+        .filter_map(|recurso| recurso.strip_prefix("bcb/"))
+        .map(str::to_owned)
+        .collect();
+    recursos.sort();
+    recursos.dedup();
+    let sem_recursos = recursos.is_empty();
+    for recurso in recursos {
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "bcb", &recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze")?
+        else {
+            continue;
+        };
+        let inicio = Utc::now();
+        let id = format!(
+            "{}-{}",
+            inicio.format("%Y%m%dT%H%M%SZ"),
+            &Uuid::new_v4().simple().to_string()[..8]
+        );
+        let partes = publicar_bcb_sgs(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            &recurso,
+            inicio,
+            &id,
+        )
+        .await
+        .with_context(|| format!("falha ao publicar bcb/{recurso} na Silver"))?;
+        println!(
+            "bcb/{recurso}: {}",
+            if partes == 0 {
+                "já atualizado".to_owned()
+            } else {
+                format!("{partes} parte(s) publicadas")
+            }
+        );
+    }
+    if sem_recursos {
+        println!("Nenhuma série BCB vigente no Raw.");
+    }
+    Ok(true)
 }
 
 /// Resolve quais fontes do catálogo de refino serão processadas.
