@@ -1427,9 +1427,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fora-de-escopo-desta-camada-fica-no-refino" class="md-nav__link">
+  <a href="#refino-silver" class="md-nav__link">
     <span class="md-ellipsis">
-      Fora de escopo desta camada (fica no refino)
+      Refino Silver
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fora-de-escopo-da-fonte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fora de escopo da fonte
     </span>
   </a>
   
@@ -1635,9 +1644,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fora-de-escopo-desta-camada-fica-no-refino" class="md-nav__link">
+  <a href="#refino-silver" class="md-nav__link">
     <span class="md-ellipsis">
-      Fora de escopo desta camada (fica no refino)
+      Refino Silver
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fora-de-escopo-da-fonte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fora de escopo da fonte
     </span>
   </a>
   
@@ -1691,9 +1709,12 @@
 </code></pre></div>
 <h2 id="idempotencia">Idempotência<a class="headerlink" href="#idempotencia" title="Permanent link">&para;</a></h2>
 <p>Reusa a pré-checagem (<a href="../../adr/0012-pre-checagem-idempotente/">ADR 0012</a>). O serviço <strong>não envia <code>ETag</code>/<code>Last-Modified</code></strong>, então não há requisição condicional (<code>If-None-Match</code>): a cada rodada o corpo é baixado e comparado por <code>sha256</code> ao da rodada anterior — idêntico, é reaproveitado (a execução reporta "sem alterações na origem"); diferente, é reingerido.</p>
-<h2 id="fora-de-escopo-desta-camada-fica-no-refino">Fora de escopo desta camada (fica no refino)<a class="headerlink" href="#fora-de-escopo-desta-camada-fica-no-refino" title="Permanent link">&para;</a></h2>
+<h2 id="refino-silver">Refino Silver<a class="headerlink" href="#refino-silver" title="Permanent link">&para;</a></h2>
 <ul>
-<li>O contrato Silver atual valida <code>codigoSessaoVotacao</code> e preserva a votação como uma linha com <code>votos[]</code> aninhado; ele ainda não publica uma relação separada com uma linha por senador. Consulte a <a href="../../refino/silver/">cobertura Silver</a>.</li>
+<li>O comando <code>todeolho refinar silver senado-votacoes</code> publica a relação de sessões com <code>votos[]</code> preservado e uma relação derivada <code>votos/ano=AAAA</code>, com uma linha por voto individual e referência à sessão. Ambas são atualizadas juntas pelo mesmo comando; a relação de votos preserva cada ocorrência e o JSON original. Consulte o contrato e seus limites na <a href="../../refino/silver/">cobertura Silver</a>.</li>
+</ul>
+<h2 id="fora-de-escopo-da-fonte">Fora de escopo da fonte<a class="headerlink" href="#fora-de-escopo-da-fonte" title="Permanent link">&para;</a></h2>
+<ul>
 <li><strong>Cruzar matéria ↔ votação ↔ senador</strong> numa base consultável (<code>gold</code>) — ver <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</li>
 <li><strong>Catálogo completo de matérias</strong> (inclusive as não votadas) não entra aqui: esta fonte cobre as <strong>matérias votadas</strong> (as que aparecem nas votações). Um acervo de todas as matérias caberia como fonte separada.</li>
 <li><strong>Análises</strong> (adesão, presença, governismo) são do refino/consulta.</li>

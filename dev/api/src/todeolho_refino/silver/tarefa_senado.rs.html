@@ -91,13 +91,14 @@
 <a href=#91 id=91 data-nosnippet>91</a>        ConfiguracaoDePublicacao {
 <a href=#92 id=92 data-nosnippet>92</a>            fonte: <span class="string">"senado"</span>,
 <a href=#93 id=93 data-nosnippet>93</a>            recurso,
-<a href=#94 id=94 data-nosnippet>94</a>            regra: REGRA,
-<a href=#95 id=95 data-nosnippet>95</a>            esquema: <span class="prelude-val">Some</span>(esquema_senado_parlamentares()),
-<a href=#96 id=96 data-nosnippet>96</a>            iniciada_em,
-<a href=#97 id=97 data-nosnippet>97</a>            id_execucao,
-<a href=#98 id=98 data-nosnippet>98</a>        },
-<a href=#99 id=99 data-nosnippet>99</a>        |lote| transformar_senado_parlamentares(lote, legislatura).map_err(|erro| erro.to_string()),
-<a href=#100 id=100 data-nosnippet>100</a>    )
-<a href=#101 id=101 data-nosnippet>101</a>    .<span class="kw">await
-<a href=#102 id=102 data-nosnippet>102</a></span>}
+<a href=#94 id=94 data-nosnippet>94</a>            recurso_destino: <span class="prelude-val">None</span>,
+<a href=#95 id=95 data-nosnippet>95</a>            regra: REGRA,
+<a href=#96 id=96 data-nosnippet>96</a>            esquema: <span class="prelude-val">Some</span>(esquema_senado_parlamentares()),
+<a href=#97 id=97 data-nosnippet>97</a>            iniciada_em,
+<a href=#98 id=98 data-nosnippet>98</a>            id_execucao,
+<a href=#99 id=99 data-nosnippet>99</a>        },
+<a href=#100 id=100 data-nosnippet>100</a>        |lote| transformar_senado_parlamentares(lote, legislatura).map_err(|erro| erro.to_string()),
+<a href=#101 id=101 data-nosnippet>101</a>    )
+<a href=#102 id=102 data-nosnippet>102</a>    .<span class="kw">await
+<a href=#103 id=103 data-nosnippet>103</a></span>}
 </code></pre></div></section></main></body></html>
