@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.32.0] - 2026-11-06
+
+### Adicionado
+
+- Adiciona o contrato Silver de legislaturas da Câmara, com IDs sequenciais, períodos tipados e ano eleitoral; integra `camara-legislaturas` à CLI e à reconciliação Silver ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.31.0] - 2026-11-06
 
 ### Adicionado
