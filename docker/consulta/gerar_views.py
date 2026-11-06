@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Gera as views do bronze para o DuckDB a partir dos ponteiros de versão vigente.
+"""Gera views Bronze e Silver para o DuckDB a partir dos ponteiros vigentes.
 
 Para cada tabela lógica (``fonte`` + ``recurso`` sem as partições), junta os
 Parquet da **versão vigente** de todas as partições e emite uma view
-``bronze_<fonte>_<recurso>``. Ler o ponteiro (``_ultima_versao.json``) e o
+``bronze_<fonte>_<recurso>`` e ``silver_<fonte>_<recurso>``. Ler o ponteiro (``_ultima_versao.json``) e o
 manifesto garante que o histórico (execuções antigas) não seja contado em dobro.
 
 As colunas de partição (ex.: ``ano``) e de procedência (``data_ingestao``,
@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 BRONZE = Path(os.environ.get("TODEOLHO_BRONZE_DIR", "/dados/bronze"))
+SILVER = Path(os.environ.get("TODEOLHO_SILVER_DIR", "/dados/silver"))
 
 
 def sanitizar(nome: str) -> str:
@@ -32,31 +33,31 @@ def base_recurso(recurso: str) -> str:
     return "/".join(p for p in recurso.split("/") if "=" not in p)
 
 
-def coletar() -> dict[str, list[str]]:
-    """Mapeia cada view do bronze para os Parquet da versão vigente."""
+def coletar(raiz: Path, camada: str) -> dict[str, list[str]]:
+    """Mapeia as views de uma camada para os Parquets da versão vigente."""
     tabelas: dict[str, list[str]] = {}
-    if not BRONZE.is_dir():
+    if not raiz.is_dir():
         return tabelas
-    for ponteiro in BRONZE.rglob("_ultima_versao.json"):
+    for ponteiro in raiz.rglob("_ultima_versao.json"):
         try:
             manifesto_rel = json.loads(ponteiro.read_text(encoding="utf-8"))["manifesto"]
-            manifesto = json.loads((BRONZE / manifesto_rel).read_text(encoding="utf-8"))
+            manifesto = json.loads((raiz / manifesto_rel).read_text(encoding="utf-8"))
         except (OSError, ValueError, KeyError):
             continue
         fonte = manifesto.get("fonte", "")
         recurso = base_recurso(manifesto.get("recurso", ""))
         if not fonte or not recurso:
             continue
-        nome = sanitizar(f"bronze_{fonte}_{recurso}")
+        nome = sanitizar(f"{camada}_{fonte}_{recurso}")
         for parte in manifesto.get("partes", []):
             chave = parte.get("chave")
             if chave:
-                tabelas.setdefault(nome, []).append(str(BRONZE / chave))
+                tabelas.setdefault(nome, []).append(str(raiz / chave))
     return tabelas
 
 
 def main() -> int:
-    tabelas = coletar()
+    tabelas = coletar(BRONZE, "bronze") | coletar(SILVER, "silver")
     for nome in sorted(tabelas):
         arquivos = sorted(set(tabelas[nome]))
         lista = ", ".join("'" + a.replace("'", "''") + "'" for a in arquivos)
@@ -65,7 +66,7 @@ def main() -> int:
             f"  SELECT * FROM read_parquet([{lista}], "
             "union_by_name = true, hive_partitioning = true);"
         )
-    print(f"-- {len(tabelas)} view(s) de bronze geradas", file=sys.stderr)
+    print(f"-- {len(tabelas)} view(s) Bronze/Silver geradas", file=sys.stderr)
     return 0
 
 

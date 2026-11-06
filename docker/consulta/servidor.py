@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Console SQL web do bronze: um editor simples que roda queries no DuckDB nativo.
+"""Console SQL web das camadas Bronze e Silver usando o DuckDB nativo.
 
 Serve uma página com editor + lista de tabelas e executa o SQL chamando o `duckdb`
-(CLI, `-json`) sobre as views do bronze geradas em `/tmp/init.sql`. Sem dependências
+(CLI, `-json`) sobre as views Bronze/Silver geradas em `/tmp/init.sql`. Sem dependências
 externas e sem nuvem — é a alternativa self-hosted à UI hospedada da MotherDuck (#167).
 """
 
@@ -21,13 +21,13 @@ THREADS = os.environ.get("TODEOLHO_DUCKDB_THREADS", "2")
 # Ambiente do DuckDB: sem cor (ANSI) para o stderr sair limpo nos erros.
 AMBIENTE = {**os.environ, "NO_COLOR": "1"}
 
-# Prefixo injetado antes de cada query: limites + as views do bronze (por filesystem,
+# Prefixo injetado antes de cada query: limites + as views Bronze/Silver (por filesystem,
 # sem segredo S3, para não emitir nada que suje a saída JSON). Recriado sob demanda.
 _prefixo = ""
 
 
 def construir_prefixo() -> str:
-    """Monta o prefixo SQL (SET + CREATE VIEW do bronze) lido pelo DuckDB antes da query."""
+    """Monta o prefixo SQL (SET + CREATE VIEW) lido pelo DuckDB antes da query."""
     views = subprocess.run(
         ["python3", "/app/gerar_views.py"],
         capture_output=True,
@@ -41,7 +41,7 @@ PAGINA = """<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Console do bronze</title>
+<title>Console analítico</title>
 <style>
 :root {
   color-scheme: light dark;
@@ -90,7 +90,7 @@ td.nulo { color: var(--texto-2); font-style: italic; }
 </head>
 <body>
 <header>
-  <h1>Console do bronze</h1>
+  <h1>Console analítico</h1>
   <span class="sub">DuckDB sobre o Parquet, somente leitura</span>
 </header>
 <main>
@@ -289,7 +289,7 @@ def main() -> None:
     global _prefixo
     _prefixo = construir_prefixo()
     servidor = ThreadingHTTPServer(("0.0.0.0", PORTA), Manipulador)
-    print(f"Console do bronze em http://localhost:{PORTA}", flush=True)
+    print(f"Console analítico em http://localhost:{PORTA}", flush=True)
     servidor.serve_forever()
 
 
