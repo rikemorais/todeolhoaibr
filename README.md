@@ -56,6 +56,8 @@ O `agendador` faz uma primeira reconciliação ao iniciar e repete a cada hora. 
 
 Para gerar Silver manualmente, rode `docker compose run --rm refino refinar silver bcb` para séries BCB/SGS, `docker compose run --rm refino refinar silver ibge-ipca` para uma fonte IBGE, `docker compose run --rm refino refinar silver tse-candidaturas` para os consolidados nacionais de candidaturas por eleição, `docker compose run --rm refino refinar silver tse-bens` para os bens declarados pelos candidatos, `docker compose run --rm refino refinar silver senado-despesas` para as despesas anuais da CEAPS, `docker compose run --rm refino refinar silver senado-parlamentares` para parlamentares por legislatura, `docker compose run --rm refino refinar silver senado-votacoes` para as sessões e os votos individuais do Senado, `docker compose run --rm refino refinar silver senado-processos` para o catálogo anual de processos, `docker compose run --rm refino refinar silver senado-processos-detalhes` para detalhes e histórico dos processos do Senado, `docker compose run --rm refino refinar silver camara-despesas` para as despesas anuais da CEAP, `docker compose run --rm refino refinar silver camara-tramitacoes` para o histórico anual de tramitações da Câmara, `docker compose run --rm refino refinar silver camara-partidos` para o cadastro de partidos, `docker compose run --rm refino refinar silver camara-legislaturas` para os períodos da Câmara, `docker compose run --rm refino refinar silver camara-deputados` para a fotografia atual dos deputados em exercício, `docker compose run --rm refino refinar silver camara-votacoes` para os sete conjuntos anuais de proposições e votações, ou `docker compose run --rm refino refinar silver --todas` para todas as fontes atualmente suportadas. A reconciliação periódica Silver pode ser iniciada com `docker compose run --rm refino refinar silver --todas --intervalo 3600`. Veja o [contrato e a cobertura Silver](docs/refino/silver.md).
 
+Votos por seção do TSE são processados explicitamente com `docker compose run --rm refino refinar silver tse-votacao-secao`; para limitar a passada, use `--filtro ano=2024 --filtro uf=AC,RO`. Essa fonte, que ocupa mais de 16 GB localmente, não participa de `silver --todas` nem da reconciliação automática.
+
 > **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
 
 **Atualizando uma instalação que só tinha Raw:** após `git pull`, rode `docker compose up -d --build`. Atualizar os arquivos da branch sozinho não executa o bronze: o Compose precisa criar o novo `agendador` com a imagem atualizada. O volume da Raw continua disponível; a primeira passada do agendador encontra os recursos já ingeridos e produz os Parquets ausentes no bucket `bronze`. Não é preciso ingerir a Raw outra vez. Para acompanhar, use `docker compose ps agendador` e `docker compose logs --tail=50 agendador`.
@@ -111,11 +113,12 @@ docker compose run --rm ingestao plano camara
 ### Votos do TSE
 
 Cada eleição tem um ZIP por UF, com um CSV em que cada linha traz UF, município, zona, seção, cargo, candidato e votos. Esse conjunto único permite consultar por seção, cidade e estado, mas
-**essas consultas dependem da etapa de transformação, ainda a definir**. Por enquanto, os ZIPs ficam na camada Raw sem alteração, em `tse/votacao_secao/ano=AAAA/uf=UF/`.
+**essas consultas dependem da etapa de transformação**. Os ZIPs são refinados explicitamente para Silver por `docker compose run --rm refino refinar silver tse-votacao-secao`. Para smoke ou processamento parcial, adicione `--filtro ano=2024 --filtro uf=AC,RO`; como a coleção local é grande, a fonte não entra em `silver --todas` nem em sua reconciliação automática.
 
 - Os arquivos usam a codificação Latin-1 e `;` como separador.
 - Descompactados, chegam a 8 vezes o tamanho do ZIP. O aviso de espaço cobre só os ZIPs.
 - Para 1994 e 1996, o TSE não publica votos por seção.
+- O contrato Silver e as limitações dos recursos de 1998 e 2010 estão em [docs/refino/silver.md](docs/refino/silver.md).
 
 ### Configuração
 

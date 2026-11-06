@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.44.0] - 2026-11-06
+
+### Adicionado
+
+- Publica votação por seção do TSE na Silver com chave composta validada, filtros por ano/UF e registro original preservado. Recursos com cabeçalho Bronze incompatível ficam documentados e excluídos (issue #189).
+
 ## [0.43.0] - 2026-11-06
 
 ### Adicionado
