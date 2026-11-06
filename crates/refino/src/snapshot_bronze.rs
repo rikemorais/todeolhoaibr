@@ -40,8 +40,9 @@ pub struct SnapshotBronze {
 impl SnapshotBronze {
     /// Consulta o ponteiro vigente e valida o manifesto apontado.
     ///
-    /// `None` significa que ainda não há bronze publicado para o recurso.
-    /// Ponteiro ou manifesto ausente após a leitura do ponteiro é um erro.
+    /// `None` significa que ainda não há dados bronze para o recurso, seja por ausência
+    /// de ponteiro ou por um manifesto válido sem partes. Ponteiro ou manifesto ausente
+    /// após a leitura do ponteiro é um erro.
     pub async fn vigente(
         armazenamento: &dyn ArmazenamentoRaw,
         fonte: &str,
@@ -77,10 +78,7 @@ impl SnapshotBronze {
             )));
         }
         if manifesto.partes.is_empty() {
-            return Err(ErroDeSnapshotBronze::Invalido(format!(
-                "{} não contém partes",
-                ponteiro.manifesto
-            )));
+            return Ok(None);
         }
         Ok(Some(Self {
             chave_manifesto: ponteiro.manifesto,
@@ -385,5 +383,24 @@ mod testes {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn manifesta_recurso_bronze_valido_sem_partes_como_sem_dados() {
+        let (mut armazenamento, _) = fixture();
+        let chave_manifesto = "tse/prestacao-contas/ano=2024/execucao=abc/_manifesto.json";
+        let mut manifesto: ManifestoRaw =
+            serde_json::from_slice(armazenamento.objetos.get(chave_manifesto).unwrap()).unwrap();
+        manifesto.partes.clear();
+        armazenamento.objetos.insert(
+            chave_manifesto.into(),
+            serde_json::to_vec(&manifesto).unwrap(),
+        );
+
+        let snapshot = SnapshotBronze::vigente(&armazenamento, "tse", "prestacao-contas")
+            .await
+            .unwrap();
+
+        assert!(snapshot.is_none());
     }
 }
