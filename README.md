@@ -58,6 +58,8 @@ Para gerar Silver manualmente, rode `docker compose run --rm refino refinar silv
 
 Votos por seção do TSE são processados explicitamente com `docker compose run --rm refino refinar silver tse-votacao-secao`; para limitar a passada, use `--filtro ano=2024 --filtro uf=AC,RO`. Essa fonte, que ocupa mais de 16 GB localmente, não participa de `silver --todas` nem da reconciliação automática.
 
+Para prestação de contas do TSE, `docker compose run --rm refino refinar silver tse-prestacao-contas` publica despesas pagas do consolidado de 2024. Essa é a única família/ano com contrato Silver nesta fonte até o momento; as outras tabelas e eleições permanecem em Bronze.
+
 > **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
 
 **Atualizando uma instalação que só tinha Raw:** após `git pull`, rode `docker compose up -d --build`. Atualizar os arquivos da branch sozinho não executa o bronze: o Compose precisa criar o novo `agendador` com a imagem atualizada. O volume da Raw continua disponível; a primeira passada do agendador encontra os recursos já ingeridos e produz os Parquets ausentes no bucket `bronze`. Não é preciso ingerir a Raw outra vez. Para acompanhar, use `docker compose ps agendador` e `docker compose logs --tail=50 agendador`.

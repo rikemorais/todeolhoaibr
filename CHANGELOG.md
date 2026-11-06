@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.45.0] - 2026-11-06
+
+### Adicionado
+
+- Publica despesas pagas do consolidado BRASIL do TSE em 2024 na Silver, removendo apenas cópias integrais e rejeitando conflitos de chave (issue #189).
+
 ## [0.44.0] - 2026-11-06
 
 ### Adicionado
