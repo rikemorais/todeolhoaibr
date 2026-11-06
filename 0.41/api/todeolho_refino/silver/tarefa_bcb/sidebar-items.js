@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_bcb_sgs"],"struct":["TarefaDeSilverBcb"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroSenadoDespesasSilver"],"fn":["esquema_senado_despesas","transformar_senado_despesas"]};
