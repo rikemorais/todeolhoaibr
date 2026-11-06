@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroCamaraLegislaturasSilver"],"fn":["esquema_camara_legislaturas","transformar_camara_legislaturas"]};
