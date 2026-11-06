@@ -1149,6 +1149,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#despesas-do-senado-ceaps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Despesas do Senado (CEAPS)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#amostras-locais-do-bronze-2026-11-05" class="md-nav__link">
     <span class="md-ellipsis">
       Amostras locais do bronze (2026-11-05)
@@ -1723,6 +1732,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#despesas-do-senado-ceaps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Despesas do Senado (CEAPS)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#amostras-locais-do-bronze-2026-11-05" class="md-nav__link">
     <span class="md-ellipsis">
       Amostras locais do bronze (2026-11-05)
@@ -1882,8 +1900,8 @@
 <tr>
 <td><code>senado-despesas</code></td>
 <td>Legislativo</td>
-<td>despesa CEAPS</td>
-<td>documento/linha e ano; validar IDs</td>
+<td>lançamento CEAPS</td>
+<td><code>COD_DOCUMENTO</code> candidato, único quando presente na amostra; preservar linhas sem código</td>
 </tr>
 <tr>
 <td><code>senado-votacoes</code></td>
@@ -2031,6 +2049,8 @@
 <p>O contrato <code>camara.despesa.ceap.v2</code> publica uma linha por lançamento anual, tipa o ano do caminho como <code>UInt16</code>, datas de emissão/restituição como <code>Date32</code> e os quatro valores monetários como <code>Decimal128(18,6)</code>. A precisão de seis casas é necessária para preservar valores históricos de 2013–2015; no Bronze local, nenhuma linha supera 12 dígitos inteiros ou seis decimais. Identificadores permanecem texto. Campos ausentes ou em branco nesses campos opcionais viram nulos; valor preenchido fora do formato esperado interrompe a publicação. <code>registro_original</code> preserva todos os campos do Bronze, inclusive campos que ainda não têm projeção tipada. O transformador não deduplica: <code>ideDocumento</code> colide no conjunto histórico e não é chave única comprovada. A CLI <code>todeolho refinar silver camara-despesas</code> aceita um recurso anual, participa de <code>--todas</code> e da reconciliação Silver.</p>
 <h3 id="tramitacoes-da-camara">Tramitações da Câmara<a class="headerlink" href="#tramitacoes-da-camara" title="Permanent link">&para;</a></h3>
 <p>O contrato <code>camara.tramitacao.evento.v1</code> publica cada linha do recurso anual e tipa <code>ano</code> como <code>UInt16</code>, <code>sequencia</code> como <code>UInt32</code> quando presente e <code>dataHora</code> como <code>Timestamp(Microsecond)</code>. Identificadores, códigos e números permanecem texto; <code>registro_original</code> retém todos os campos Bronze. A amostra local tinha 1.879.478 linhas: <code>idTramitacao</code> possuía apenas 988 valores distintos e faltava em 174 linhas; o par <code>uriProposicao</code> + <code>sequencia</code> se repetia, inclusive com órgãos/despachos diferentes e com cópias exatas. Por isso nenhuma dessas combinações é tratada como chave única, e nenhuma linha é rejeitada ou deduplicada por repetição. A proveniência do recurso e do snapshot Bronze identifica o conjunto processado. A CLI <code>todeolho refinar silver camara-tramitacoes</code> publica os anos individualmente e integra <code>--todas</code> e a reconciliação Silver.</p>
+<h3 id="despesas-do-senado-ceaps">Despesas do Senado (CEAPS)<a class="headerlink" href="#despesas-do-senado-ceaps" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>senado.despesa.ceaps.v1</code> tipa <code>ANO</code> do recurso como <code>UInt16</code>, <code>MES</code> como <code>UInt8</code>, <code>DATA</code> como <code>Date32</code> e <code>VALOR_REEMBOLSADO</code> como <code>Decimal128(18,2)</code>. CNPJ/CPF, documento e <code>COD_DOCUMENTO</code> continuam texto para preservar zeros à esquerda. O parser usa decimal com vírgula sem <code>f64</code>, aceita frações de zero a duas casas, valores como <code>,95</code> e quebras CR/LF embutidas no valor histórico de 2013. No Bronze local havia 398.172 linhas de 2008 a 2026; <code>COD_DOCUMENTO</code> foi único em 398.170 linhas e estava ausente em duas. O código é validado quando preenchido; registros sem código não são removidos nem deduplicados. Dois registros de 2015 têm aspas malformadas no campo <code>DOCUMENTO</code> da origem CSV, o que desloca colunas no Bronze: preservamos essas linhas e os campos Bronze em <code>registro_original</code>, mas deixamos data e valor tipados nulos para não interpretar texto deslocado como despesa. Para as demais linhas, a Silver deixa <code>DATA</code> tipada nula quando o ano é anterior a 1900 ou posterior ao ano de competência + 1, preservando o texto de origem; essa faixa cobre as 75 datas parses fora dos limites encontradas na amostra Bronze local. Valores negativos permanecem com o sinal recebido. A regra <code>senado-despesa-ceaps-v3</code> registra essa política para que recursos já publicados sejam reconciliados. A CLI <code>todeolho refinar silver senado-despesas</code> publica cada ano e participa de <code>--todas</code> e da reconciliação Silver.</p>
 <ul>
 <li>O decodificador de agregados IBGE já produz as dez colunas <code>variavel_id</code>, <code>variavel</code>, <code>unidade</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>nivel_nome</code>, <code>localidade_id</code>, <code>localidade_nome</code>, <code>periodo</code> e <code>valor</code>. O fixture mostra <code>nivel_id=N6</code> e código municipal <code>1100015</code>, ambos a preservar como texto.</li>
 <li>O fixture do BCB traz <code>data=01/06/1989</code> e <code>valor=19.68</code>; converter data e decimal exige regra explícita. O CSV de despesas do Senado exemplifica <code>52,38</code>, então o parser numérico não pode ser global para todas as fontes.</li>
