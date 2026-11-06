@@ -2,6 +2,7 @@
 
 pub mod bcb;
 pub mod camara_deputados;
+pub mod camara_despesas;
 pub mod camara_legislaturas;
 pub mod camara_partidos;
 pub mod camara_votacoes;
@@ -17,6 +18,7 @@ pub mod senado_votos;
 pub mod tarefa_bcb;
 pub mod tarefa_camara;
 pub mod tarefa_camara_deputados;
+pub mod tarefa_camara_despesas;
 pub mod tarefa_camara_legislaturas;
 pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
@@ -27,6 +29,9 @@ pub mod tarefa_senado_votacoes;
 
 pub use camara_deputados::{
     ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
+};
+pub use camara_despesas::{
+    ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
 };
 pub use camara_legislaturas::{
     ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
@@ -50,6 +55,7 @@ pub use senado_votos::{ErroSenadoVotosSilver, esquema_senado_votos, transformar_
 pub use tarefa_bcb::publicar_bcb_sgs;
 pub use tarefa_camara::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
 pub use tarefa_camara_deputados::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
+pub use tarefa_camara_despesas::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
 pub use tarefa_camara_legislaturas::{
     TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas,
 };

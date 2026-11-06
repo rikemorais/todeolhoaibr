@@ -10,7 +10,7 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 
 | Entrada bronze | Família | Grão candidato da silver | Chave candidata / validação necessária |
 | --- | --- | --- | --- |
-| `camara-despesas` | Legislativo | despesa CEAP | documento e linha; validar IDs e correções |
+| `camara-despesas` | Legislativo | lançamento CEAP | `ideDocumento` é candidato, mas não único; preservar todas as linhas até definir chave |
 | `camara-votacoes` | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes`; chaves de 2024 abaixo |
 | `camara-tramitacoes` | Legislativo | evento de tramitação | proposição e sequência/data; validar repetição |
 | `camara-deputados` | Legislativo | deputado em exercício na versão Bronze vigente | `id` oficial (513/513 distintos na amostra local; cada versão é uma fotografia) |
@@ -80,6 +80,10 @@ Os sete contratos da fonte `camara-votacoes` validam a chave candidata de cada c
 O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
 
 ## Evidência disponível no repositório
+
+### Despesas da Câmara (CEAP)
+
+O contrato `camara.despesa.ceap.v2` publica uma linha por lançamento anual, tipa o ano do caminho como `UInt16`, datas de emissão/restituição como `Date32` e os quatro valores monetários como `Decimal128(18,6)`. A precisão de seis casas é necessária para preservar valores históricos de 2013–2015; no Bronze local, nenhuma linha supera 12 dígitos inteiros ou seis decimais. Identificadores permanecem texto. Campos ausentes ou em branco nesses campos opcionais viram nulos; valor preenchido fora do formato esperado interrompe a publicação. `registro_original` preserva todos os campos do Bronze, inclusive campos que ainda não têm projeção tipada. O transformador não deduplica: `ideDocumento` colide no conjunto histórico e não é chave única comprovada. A CLI `todeolho refinar silver camara-despesas` aceita um recurso anual, participa de `--todas` e da reconciliação Silver.
 
 - O decodificador de agregados IBGE já produz as dez colunas `variavel_id`, `variavel`, `unidade`, `classificacoes`, `nivel_id`, `nivel_nome`, `localidade_id`, `localidade_nome`, `periodo` e `valor`. O fixture mostra `nivel_id=N6` e código municipal `1100015`, ambos a preservar como texto.
 - O fixture do BCB traz `data=01/06/1989` e `valor=19.68`; converter data e decimal exige regra explícita. O CSV de despesas do Senado exemplifica `52,38`, então o parser numérico não pode ser global para todas as fontes.
