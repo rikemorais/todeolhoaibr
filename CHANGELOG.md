@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Alterado
+
+- Registra a arquitetura para SQL versionado executado por Apache DataFusion nas transformações Silver; executor e migração dos contratos serão implementados gradualmente (ADR 0020, épico #236).
+
 ## [0.45.0] - 2026-11-06
 
 ### Adicionado

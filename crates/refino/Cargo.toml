@@ -4,15 +4,16 @@ description = "Refino: decodifica a camada Raw para as camadas do medalhão (bro
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 todeolho-nucleo.workspace = true
 
-arrow = "60.1.0"
+arrow = "59.2.0"
 async-trait.workspace = true
 chrono.workspace = true
 hex.workspace = true
-parquet = "60.1.0"
+parquet = "59.2.0"
 encoding_rs_io = "0.1.7"
 serde_json.workspace = true
 sha2.workspace = true
@@ -23,6 +24,11 @@ tokio = { workspace = true, features = ["fs", "io-util"] }
 zip = { version = "9.3.0", default-features = false, features = ["deflate"] }
 csv = "1.4.0"
 encoding_rs = "0.8.44"
+
+[dependencies.datafusion]
+version = "55.2.0"
+default-features = false
+features = ["crypto_expressions", "datetime_expressions", "nested_expressions", "parquet", "sql"]
 
 [dev-dependencies]
 bytes = "1.12.1"
