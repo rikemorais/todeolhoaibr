@@ -32,7 +32,7 @@ use todeolho_refino::{
     TarefaDeSilverIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
     TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
     TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
-    TarefaDeSilverTseVotacaoSecao, catalogo_refino,
+    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseVotacaoSecao, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -425,6 +425,12 @@ async fn refinar(
     filtros: Vec<String>,
 ) -> Result<bool> {
     if camada == "silver" {
+        if fonte.as_deref() == Some("tse-prestacao-contas") {
+            if !filtros.is_empty() {
+                bail!("--filtro não está disponível para `silver tse-prestacao-contas`");
+            }
+            return refinar_tse_despesas_pagas_silver(fonte, todas, intervalo).await;
+        }
         if fonte.as_deref() == Some("tse-votacao-secao") {
             return refinar_tse_votacao_secao_silver(fonte, todas, intervalo, filtros).await;
         }
@@ -536,6 +542,97 @@ async fn refinar(
             }
         }
     }
+}
+
+/// Publica a tabela de despesas pagas de 2024, única família de prestação de contas com
+/// política de chave e duplicatas validada para materialização canônica.
+async fn refinar_tse_despesas_pagas_silver(
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    if todas || fonte.as_deref() != Some("tse-prestacao-contas") {
+        bail!(
+            "prestação de contas deve ser selecionada explicitamente: silver tse-prestacao-contas"
+        );
+    }
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => passada_tse_despesas_pagas_silver(&bronze, &silver, false).await,
+        Some(segundos) => {
+            println!(
+                "Agendador Silver despesas pagas TSE: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) = passada_tse_despesas_pagas_silver(&bronze, &silver, true).await {
+                    eprintln!("Atenção: falha na reconciliação Silver de despesas pagas: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn passada_tse_despesas_pagas_silver(
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    const RECURSO: &str = "prestacao-contas/ano=2024";
+    let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", RECURSO)
+        .await
+        .context("não foi possível ler snapshot Bronze da prestação de contas")?
+    else {
+        println!("Nada a refinar na Silver de despesas pagas do TSE (Bronze 2024 ausente).");
+        return Ok(true);
+    };
+    let tarefa =
+        TarefaDeSilverTseDespesasPagas::nova(Arc::clone(bronze), Arc::new(snapshot), RECURSO)
+            .expect("o contrato aceita somente a prestação de contas de 2024");
+    if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+        println!("Nada a refinar na Silver de despesas pagas do TSE (recurso em dia).");
+        return Ok(true);
+    }
+    let dag =
+        DagDeIngestao::construir("tse-prestacao-contas", vec![TarefaPlanejada::nova(tarefa)])?;
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            &Uuid::new_v4().simple().to_string()[..8]
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let dags = vec![dag];
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Refina votos por seção de forma explícita, pois os recursos somam mais de 16 GB.

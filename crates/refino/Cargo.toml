@@ -18,6 +18,7 @@ serde_json.workspace = true
 sha2.workspace = true
 tempfile = "3.14.0"
 thiserror.workspace = true
+tracing.workspace = true
 tokio = { workspace = true, features = ["fs", "io-util"] }
 zip = { version = "9.3.0", default-features = false, features = ["deflate"] }
 csv = "1.4.0"
