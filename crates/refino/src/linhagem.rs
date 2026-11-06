@@ -63,7 +63,7 @@ impl LoteBronze {
 
 /// Leitor em lotes de uma parte bronze, sem carregar o Parquet inteiro na memória.
 pub struct LeitorDeParteBronze {
-    leitor: ParquetRecordBatchReader,
+    leitor: Option<ParquetRecordBatchReader>,
     origem: Arc<OrigemParteBronze>,
     proximo_ordinal: u64,
 }
@@ -84,9 +84,21 @@ impl LeitorDeParteBronze {
                 "o tamanho do lote bronze deve ser maior que zero".to_owned(),
             ));
         }
-        let leitor = ParquetRecordBatchReaderBuilder::try_new(File::open(caminho)?)?
-            .with_batch_size(tamanho_lote)
-            .build()?;
+        let builder = ParquetRecordBatchReaderBuilder::try_new(File::open(caminho)?)?;
+        let sem_colunas = builder.schema().fields().is_empty();
+        let linhas = builder.metadata().file_metadata().num_rows();
+        if sem_colunas && linhas != 0 {
+            return Err(ErroDeRefino::Decodificacao(
+                "o Parquet bronze tem linhas, mas nenhuma coluna".to_owned(),
+            ));
+        }
+        // Alguns Parquets antigos representam respostas vazias com schema raiz sem
+        // colunas. Não há linhas a emitir; o publicador usa o schema Silver do contrato.
+        let leitor = if sem_colunas {
+            None
+        } else {
+            Some(builder.with_batch_size(tamanho_lote).build()?)
+        };
         Ok(Self {
             leitor,
             origem: Arc::new(OrigemParteBronze {
@@ -103,7 +115,7 @@ impl Iterator for LeitorDeParteBronze {
     type Item = Result<LoteBronze, ErroDeRefino>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let registros = match self.leitor.next()? {
+        let registros = match self.leitor.as_mut()?.next()? {
             Ok(registros) => registros,
             Err(erro) => return Some(Err(erro.into())),
         };
@@ -225,5 +237,21 @@ mod testes {
     fn rejeita_lote_vazio() {
         let arquivo = arquivo_com_lotes();
         assert!(LeitorDeParteBronze::abrir(arquivo.path(), "manifesto", &parte(), 0).is_err());
+    }
+
+    #[test]
+    fn trata_parquet_legado_sem_colunas_e_sem_linhas_como_vazio() {
+        let arquivo = tempfile::NamedTempFile::new().unwrap();
+        let esquema = Arc::new(arrow::datatypes::Schema::empty());
+        let escritor =
+            parquet::arrow::ArrowWriter::try_new(arquivo.reopen().unwrap(), esquema, None).unwrap();
+        escritor.close().unwrap();
+
+        let lotes = LeitorDeParteBronze::abrir(arquivo.path(), "manifesto", &parte(), 10)
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(lotes.is_empty());
     }
 }
