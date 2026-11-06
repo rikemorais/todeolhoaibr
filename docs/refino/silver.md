@@ -13,7 +13,7 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | `camara-despesas` | Legislativo | despesa CEAP | documento e linha; validar IDs e correções |
 | `camara-votacoes` | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes`; chaves de 2024 abaixo |
 | `camara-tramitacoes` | Legislativo | evento de tramitação | proposição e sequência/data; validar repetição |
-| `camara-deputados` | Legislativo | deputado | ID oficial e vigência; validar histórico |
+| `camara-deputados` | Legislativo | deputado em exercício na versão Bronze vigente | `id` oficial (513/513 distintos na amostra local; cada versão é uma fotografia) |
 | `camara-partidos` | Legislativo | partido no cadastro observado | `id` oficial (21/21 distintos na amostra local; não prova unicidade histórica) |
 | `camara-legislaturas` | Legislativo | período de atividade parlamentar | `id` sequencial (57/57 distintos na amostra local) |
 | `senado-despesas` | Legislativo | despesa CEAPS | documento/linha e ano; validar IDs |
@@ -64,6 +64,8 @@ O contrato `senado.parlamentar.legislatura.v1` extrai `CodigoParlamentar` do JSO
 O contrato `camara.partido.v1` valida `id` como identificador não nulo e não vazio e preserva `id`, `sigla`, `nome` e `uri` como texto. O ID teve 21 valores distintos nas 21 linhas da amostra local descrita acima; isso é evidência apenas para o cadastro observado, não para histórico ou futuras versões. A tarefa usa o publicador compartilhado, acompanha o ponteiro Bronze e é idempotente por versão e regra. A CLI oferece `todeolho refinar silver camara-partidos`; a fonte também entra em `--todas` e na reconciliação periódica.
 
 O contrato `camara.legislatura.periodo.v1` tipa o ID sequencial como `UInt16`, as datas `dataInicio` e `dataFim` como `Date32` e o ano `dataEleicao` como `UInt16`; preserva `uri` como texto. Rejeita IDs inválidos ou duplicados, datas fora do formato ISO e intervalos invertidos. A documentação oficial descreve os períodos parlamentares como sequenciais desde a primeira legislatura e lista início, fim e ano eleitoral ([API de legislaturas](https://dadosabertos.camara.leg.br/api/v2/api-docs)). O conjunto observado teve 57 IDs distintos em 57 linhas. A CLI oferece `todeolho refinar silver camara-legislaturas`; a fonte participa de `--todas` e da reconciliação periódica.
+
+O contrato `camara.deputado.exercicio.v1` trata cada versão Bronze como a fotografia vigente dos deputados em exercício, sem inferir histórico a partir de uma listagem sem intervalo temporal. Preserva `id`, URIs, nome, partido, UF, legislatura, foto e e-mail; identificadores e atributos categóricos permanecem texto. `id` deve ser numérico, obrigatório e único na fotografia. A lista da Câmara teve 513 IDs distintos nas 513 linhas observadas. A [API oficial](https://dadosabertos.camara.leg.br/api/v2/api-docs) descreve o endpoint de deputados e os filtros temporais; a CLI oferece `todeolho refinar silver camara-deputados`, incluído em `--todas` e na reconciliação periódica.
 
 O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
 
