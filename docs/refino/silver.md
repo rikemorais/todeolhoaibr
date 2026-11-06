@@ -53,7 +53,9 @@ O [`SnapshotBronze`](../../crates/refino/src/snapshot_bronze.rs) lê o ponteiro 
 
 Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conferir o ponteiro bronze antes de publicar sua própria versão, para não publicar resultado de uma entrada que já foi substituída. A referência da linha vale somente para a versão bronze selecionada e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.
 
-O [`EscritorParquetTipado`](../../crates/refino/src/escritor.rs) recebe o schema Arrow do contrato Silver e grava lotes `RecordBatch` em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente. Ainda falta ligar esse escritor a um transformador e à publicação de manifesto/ponteiro Silver.
+O [`EscritorParquetTipado`](../../crates/refino/src/escritor.rs) recebe o schema Arrow do contrato Silver e grava lotes `RecordBatch` em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente. O transformador BCB abaixo já produz esse schema; falta ligar ambos à publicação de manifesto/ponteiro Silver.
+
+O primeiro transformador, [`transformar_bcb_sgs`](../../crates/refino/src/silver/bcb.rs), define o contrato `bcb.sgs.observacao.v1`: `data` em `Date32` e `valor` em `Decimal128(18,6)`. Lê o Bronze com colunas textuais `data` (`DD/MM/AAAA`) e `valor` decimal com ponto, sem conversão por `f64`. Data, valor nulo ou escala acima de seis casas causam erro com o índice da linha. A tarefa de publicação e a CLI Silver ainda precisam ser conectadas.
 
 ## Evidência disponível no repositório
 

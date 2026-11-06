@@ -21,6 +21,7 @@ pub mod decodificador;
 pub mod escritor;
 pub mod fontes;
 pub mod linhagem;
+pub mod silver;
 pub mod snapshot_bronze;
 pub mod tarefa;
 
