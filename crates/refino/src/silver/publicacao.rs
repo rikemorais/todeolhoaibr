@@ -111,9 +111,12 @@ pub(crate) async fn publicar_transformacao_sql(
         .as_ref()
         .is_some_and(|esperado| esperado.as_ref() != esquema_saida.as_ref())
     {
+        let esquema_esperado = esquema.as_ref().expect("schema checked above");
         return Err(erro_manifesto(
             recurso,
-            "schema SQL não corresponde ao schema declarado no contrato Silver",
+            format!(
+                "schema SQL {esquema_saida:?} não corresponde ao schema declarado {esquema_esperado:?}"
+            ),
         ));
     }
 

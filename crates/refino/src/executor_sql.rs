@@ -227,9 +227,17 @@ pub async fn executar_sql(
         ));
     }
 
-    let config = SessionConfig::new()
+    let mut config = SessionConfig::new()
         .with_target_partitions(configuracao.particoes)
         .with_batch_size(configuracao.tamanho_lote);
+    // `Utf8View` otimiza scans do DataFusion, mas os contratos existentes usam
+    // `Utf8`. A saída precisa corresponder ao schema Arrow/Parquet declarado.
+    config.options_mut().sql_parser.map_string_types_to_utf8view = false;
+    config
+        .options_mut()
+        .execution
+        .parquet
+        .schema_force_view_types = false;
     let runtime = RuntimeEnvBuilder::new()
         .with_temp_file_path(diretorio_spill)
         .with_max_temp_directory_size(configuracao.limite_spill_bytes)
