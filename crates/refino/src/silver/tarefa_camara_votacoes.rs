@@ -41,7 +41,7 @@ impl TarefaDeSilverCamaraVotacoes {
     }
 
     fn regra(&self) -> String {
-        format!("camara-{}-v1", self.conjunto.nome())
+        regra(self.conjunto)
     }
 
     /// Indica se a Silver acompanha o snapshot Bronze e a regra atuais.
@@ -56,6 +56,15 @@ impl TarefaDeSilverCamaraVotacoes {
             Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
         ))
     }
+}
+
+fn regra(conjunto: ConjuntoCamaraVotacoes) -> String {
+    let versao = if conjunto == ConjuntoCamaraVotacoes::VotacoesVotos {
+        2
+    } else {
+        1
+    };
+    format!("camara-{}-v{versao}", conjunto.nome())
 }
 
 #[async_trait]
@@ -97,7 +106,7 @@ pub async fn publicar_camara_votacoes(
             detalhe: "conjunto não corresponde ao recurso Bronze".into(),
         });
     }
-    let regra = format!("camara-{}-v1", conjunto.nome());
+    let regra = regra(conjunto);
     let mut chaves = HashSet::new();
     publicar_transformacao(
         bronze,
@@ -255,6 +264,7 @@ mod testes {
             recurso,
         )
         .unwrap();
+        assert!(tarefa.regra().ends_with("camara-votacoes-votos-v2"));
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_camara_votacoes(

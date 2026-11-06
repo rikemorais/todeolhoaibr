@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.36.1] - 2026-11-06
+
+### Corrigido
+
+- Limita a reconciliação IBGE Silver às fontes agregadas que possuem contrato e preserva votos da Câmara com chave candidata incompleta, reprocessando-os pela regra v2 (issue #188).
+
 ## [0.36.0] - 2026-11-06
 
 ### Adicionado
