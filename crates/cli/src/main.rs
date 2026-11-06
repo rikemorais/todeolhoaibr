@@ -28,7 +28,8 @@ use todeolho_nucleo::{
 use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
     TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
-    TarefaDeSilverIbge, TarefaDeSilverSenadoParlamentares, catalogo_refino,
+    TarefaDeSilverCamaraVotacoes, TarefaDeSilverIbge, TarefaDeSilverSenadoParlamentares,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -437,6 +438,10 @@ async fn refinar(
             return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Deputados)
                 .await;
         }
+        if fonte.as_deref() == Some("camara-votacoes") {
+            return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Votacoes)
+                .await;
+        }
         if fonte
             .as_deref()
             .is_some_and(|nome| nome.starts_with("ibge-"))
@@ -493,7 +498,15 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Legislaturas).await?;
             let camara_deputados =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Deputados).await?;
-            Ok(bcb && ibge && senado && camara_partidos && camara_legislaturas && camara_deputados)
+            let camara_votacoes =
+                refinar_camara_silver(None, true, None, TipoSilverCamara::Votacoes).await?;
+            Ok(bcb
+                && ibge
+                && senado
+                && camara_partidos
+                && camara_legislaturas
+                && camara_deputados
+                && camara_votacoes)
         }
         Some(segundos) => {
             println!(
@@ -524,6 +537,11 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 {
                     eprintln!("Atenção: falha na reconciliação Silver Câmara: {erro:#}");
                 }
+                if let Err(erro) =
+                    refinar_camara_silver(None, true, None, TipoSilverCamara::Votacoes).await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver Câmara votações: {erro:#}");
+                }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
         }
@@ -535,6 +553,7 @@ enum TipoSilverCamara {
     Partidos,
     Legislaturas,
     Deputados,
+    Votacoes,
 }
 
 impl TipoSilverCamara {
@@ -543,6 +562,7 @@ impl TipoSilverCamara {
             Self::Partidos => "camara-partidos",
             Self::Legislaturas => "camara-legislaturas",
             Self::Deputados => "camara-deputados",
+            Self::Votacoes => "camara-votacoes",
         }
     }
 
@@ -562,6 +582,10 @@ impl TipoSilverCamara {
             Self::Deputados => TarefaSilverCamara::Deputados(TarefaDeSilverCamaraDeputados::nova(
                 bronze, snapshot, recurso,
             )),
+            Self::Votacoes => TarefaSilverCamara::Votacoes(
+                TarefaDeSilverCamaraVotacoes::nova(bronze, snapshot, recurso)
+                    .expect("recursos da fonte votacoes devem identificar um dos sete conjuntos"),
+            ),
         }
     }
 }
@@ -570,6 +594,7 @@ enum TarefaSilverCamara {
     Partidos(TarefaDeSilverCamaraPartidos),
     Legislaturas(TarefaDeSilverCamaraLegislaturas),
     Deputados(TarefaDeSilverCamaraDeputados),
+    Votacoes(TarefaDeSilverCamaraVotacoes),
 }
 
 #[async_trait::async_trait]
@@ -579,6 +604,7 @@ impl Tarefa for TarefaSilverCamara {
             Self::Partidos(tarefa) => tarefa.nome(),
             Self::Legislaturas(tarefa) => tarefa.nome(),
             Self::Deputados(tarefa) => tarefa.nome(),
+            Self::Votacoes(tarefa) => tarefa.nome(),
         }
     }
 
@@ -590,6 +616,7 @@ impl Tarefa for TarefaSilverCamara {
             Self::Partidos(tarefa) => tarefa.executar(contexto).await,
             Self::Legislaturas(tarefa) => tarefa.executar(contexto).await,
             Self::Deputados(tarefa) => tarefa.executar(contexto).await,
+            Self::Votacoes(tarefa) => tarefa.executar(contexto).await,
         }
     }
 }
@@ -603,6 +630,7 @@ impl TarefaSilverCamara {
             Self::Partidos(tarefa) => tarefa.pendente(silver).await,
             Self::Legislaturas(tarefa) => tarefa.pendente(silver).await,
             Self::Deputados(tarefa) => tarefa.pendente(silver).await,
+            Self::Votacoes(tarefa) => tarefa.pendente(silver).await,
         }
     }
 }

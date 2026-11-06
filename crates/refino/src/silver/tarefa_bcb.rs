@@ -87,7 +87,7 @@ pub async fn publicar_bcb_sgs(
             fonte: "bcb",
             recurso,
             regra: REGRA,
-            esquema: esquema_bcb_sgs(),
+            esquema: Some(esquema_bcb_sgs()),
             iniciada_em,
             id_execucao,
         },
