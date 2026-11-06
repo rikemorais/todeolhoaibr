@@ -114,3 +114,99 @@ fn decimal_escalado(texto: &str) -> Option<i128> {
     let magnitude = format!("{inteiro}{escala}").parse::<i128>().ok()?;
     Some(if negativo { -magnitude } else { magnitude })
 }
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    fn lote(valores: Vec<Option<&str>>) -> RecordBatch {
+        let nomes = [
+            "variavel_id",
+            "variavel",
+            "unidade",
+            "classificacoes",
+            "nivel_id",
+            "nivel_nome",
+            "localidade_id",
+            "localidade_nome",
+            "periodo",
+        ];
+        let mut colunas: Vec<(String, Arc<dyn Array>)> = nomes
+            .iter()
+            .map(|nome| {
+                (
+                    (*nome).to_owned(),
+                    Arc::new(StringArray::from(vec![Some("001"); valores.len()])) as _,
+                )
+            })
+            .collect();
+        colunas.push(("valor".into(), Arc::new(StringArray::from(valores))));
+        RecordBatch::try_from_iter(colunas).unwrap()
+    }
+
+    #[test]
+    fn preserva_chaves_e_valor_original_e_converte_decimais() {
+        let bronze = lote(vec![Some("-12.34"), Some("texto especial"), None]);
+        let silver = transformar_ibge_agregados(&bronze).unwrap();
+        assert_eq!(silver.schema(), esquema_ibge_agregados());
+        assert_eq!(
+            silver
+                .column(0)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .value(0),
+            "001"
+        );
+        let original = silver
+            .column(9)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(original.value(0), "-12.34");
+        assert_eq!(original.value(1), "texto especial");
+        assert!(original.is_null(2));
+        let decimais = silver
+            .column(10)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        assert_eq!(decimais.value(0), -12_340_000_000);
+        assert!(decimais.is_null(1));
+        assert!(decimais.is_null(2));
+    }
+
+    #[test]
+    fn preserva_texto_quando_nao_e_decimal_ou_excede_a_escala() {
+        let bronze = lote(vec![Some("1,25"), Some("1e3"), Some("1.1234567890")]);
+        let silver = transformar_ibge_agregados(&bronze).unwrap();
+        let decimais = silver
+            .column(10)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        assert!((0..3).all(|linha| decimais.is_null(linha)));
+        assert_eq!(
+            silver
+                .column(9)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .value(2),
+            "1.1234567890"
+        );
+    }
+
+    #[test]
+    fn rejeita_schema_bronze_incompativel() {
+        let lote = RecordBatch::try_from_iter(vec![(
+            "valor",
+            Arc::new(StringArray::from(vec!["1.2"])) as _,
+        )])
+        .unwrap();
+        assert_eq!(
+            transformar_ibge_agregados(&lote),
+            Err(ErroIbgeSilver::Schema)
+        );
+    }
+}
