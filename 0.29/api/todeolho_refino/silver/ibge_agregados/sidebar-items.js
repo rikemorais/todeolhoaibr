@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroIbgeSilver"],"fn":["esquema_ibge_agregados","transformar_ibge_agregados"]};
