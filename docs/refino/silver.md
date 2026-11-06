@@ -14,7 +14,7 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | `camara-votacoes` | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes`; chaves de 2024 abaixo |
 | `camara-tramitacoes` | Legislativo | evento de tramitação | proposição e sequência/data; validar repetição |
 | `camara-deputados` | Legislativo | deputado | ID oficial e vigência; validar histórico |
-| `camara-partidos` | Legislativo | partido | ID oficial e vigência |
+| `camara-partidos` | Legislativo | partido no cadastro observado | `id` oficial (21/21 distintos na amostra local; não prova unicidade histórica) |
 | `camara-legislaturas` | Legislativo | legislatura | ID oficial |
 | `senado-despesas` | Legislativo | despesa CEAPS | documento/linha e ano; validar IDs |
 | `senado-votacoes` | Legislativo | votação publicada | ID oficial e contexto; validar grão real |
@@ -60,6 +60,8 @@ O primeiro transformador, [`transformar_bcb_sgs`](../../crates/refino/src/silver
 O contrato `ibge.agregado.observacao.v1`, em [`transformar_ibge_agregados`](../../crates/refino/src/silver/ibge_agregados.rs), mantém IDs, classificações e período como texto, preserva o valor recebido em `valor_original` e acrescenta `valor_decimal` (`Decimal128(38,9)`) quando o conteúdo é decimal simples com ponto. Valor nulo ou não interpretável fica com decimal nulo, sem descartar a linha nem classificar sentinelas sem metadados da tabela. `TarefaDeSilverIbge` publica manifesto e ponteiro com idempotência por versão Bronze/regra e verifica que o ponteiro Bronze não mudou durante a transformação. A CLI oferece `todeolho refinar silver ibge-ipca` e as demais fontes `ibge-*`; `--todas` percorre todas as fontes Silver suportadas e `--todas --intervalo 3600` faz a reconciliação periódica. As passadas periódicas vazias não são registradas no painel.
 
 O contrato `senado.parlamentar.legislatura.v1` extrai `CodigoParlamentar` do JSON compacto de `IdentificacaoParlamentar`, tipa `legislatura` como `UInt16` a partir do recurso `parlamentares/legislatura=NN` e preserva os objetos de identificação e mandato como JSON. A chave candidata (`CodigoParlamentar`, `legislatura`) foi validada no Bronze local; o contrato preserva o mandato aninhado sem explodi-lo em linhas. A [OpenAPI oficial do Senado](https://legis.senado.leg.br/dadosabertos/v3/api-docs) documenta a listagem por legislatura. A CLI oferece `todeolho refinar silver senado-parlamentares`; a fonte também entra em `--todas` e na reconciliação periódica.
+
+O contrato `camara.partido.v1` valida `id` como identificador não nulo e não vazio e preserva `id`, `sigla`, `nome` e `uri` como texto. O ID teve 21 valores distintos nas 21 linhas da amostra local descrita acima; isso é evidência apenas para o cadastro observado, não para histórico ou futuras versões. A tarefa usa o publicador compartilhado, acompanha o ponteiro Bronze e é idempotente por versão e regra. A CLI oferece `todeolho refinar silver camara-partidos`; a fonte também entra em `--todas` e na reconciliação periódica.
 
 O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
 
