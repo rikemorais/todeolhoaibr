@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.29.0] - 2026-11-06
+
 ### Adicionado
 
 - Publica agregados IBGE na Silver e permite reconciliá-los pela CLI, individualmente ou junto das demais fontes Silver suportadas ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
