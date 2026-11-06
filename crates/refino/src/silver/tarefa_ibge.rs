@@ -87,7 +87,7 @@ pub async fn publicar_ibge_agregados(
             fonte: "ibge",
             recurso,
             regra: REGRA,
-            esquema: esquema_ibge_agregados(),
+            esquema: Some(esquema_ibge_agregados()),
             iniciada_em,
             id_execucao,
         },

@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.34.0] - 2026-11-06
+
+### Adicionado
+
+- Adiciona validação de chaves e publicação Silver preservando os registros dos sete conjuntos anuais de votações da Câmara; integra a fonte à CLI e à reconciliação periódica (parte da issue #188).
+
 ## [0.33.0] - 2026-11-06
 
 ### Adicionado
