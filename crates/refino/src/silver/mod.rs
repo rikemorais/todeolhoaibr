@@ -30,6 +30,7 @@ pub mod tarefa_senado_despesas;
 mod tarefa_senado_processos;
 mod tarefa_senado_processos_detalhes;
 pub mod tarefa_senado_votacoes;
+pub mod tarefa_sql;
 pub mod tarefa_tse_bens;
 pub mod tarefa_tse_candidaturas;
 pub mod tarefa_tse_despesas_pagas;
@@ -88,6 +89,7 @@ pub use tarefa_senado_processos_detalhes::{
     TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes,
 };
 pub use tarefa_senado_votacoes::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
+pub use tarefa_sql::TarefaDeSilverSql;
 pub use tarefa_tse_bens::{TarefaDeSilverTseBens, publicar_tse_bens};
 pub use tarefa_tse_candidaturas::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
 pub use tarefa_tse_despesas_pagas::{

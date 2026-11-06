@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Adiciona executor SQL/DataFusion em fluxo e tarefa reutilizável para contratos Silver, com limites de recursos e linhagem explícita (issue #238).
+
 ### Alterado
 
 - Registra a arquitetura para SQL versionado executado por Apache DataFusion nas transformações Silver; executor e migração dos contratos serão implementados gradualmente (ADR 0020, épico #236).

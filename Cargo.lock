@@ -3515,6 +3515,7 @@ dependencies = [
  "datafusion",
  "encoding_rs",
  "encoding_rs_io",
+ "futures",
  "hex",
  "parquet",
  "serde_json",
