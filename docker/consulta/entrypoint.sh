@@ -1,6 +1,6 @@
 #!/bin/sh
 # Ponto de entrada do serviço de consulta (DuckDB). Monta o init SQL (extensões,
-# limites, segredo S3 do versitygw e as views do bronze) e sobe o console web, a UI ou o SQL.
+# limites, segredo S3 do versitygw e as views Bronze/Silver) e sobe o console web, a UI ou o SQL.
 #
 #   web  (padrão)  Sobe o console SQL web (nosso, self-hosted) em primeiro plano.
 #   ui             Sobe a DuckDB Local UI (frontend vem de ui.duckdb.org; instável — ver #167).
@@ -20,7 +20,7 @@ web)
     exec python3 /app/servidor.py
     ;;
 ui)
-    # Gera o init SQL (extensões, limites, segredo S3 e as views do bronze) num arquivo.
+    # Gera o init SQL (extensões, limites, segredo S3 e views Bronze/Silver) num arquivo.
     sh /app/gerar_init.sh >"$INIT"
     echo "SET ui_local_port = ${UI_PORT_INTERNO};" >>"$INIT"
     echo "CALL start_ui_server();" >>"$INIT"
