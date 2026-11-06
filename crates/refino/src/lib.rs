@@ -36,6 +36,9 @@ pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, Referenci
 pub use silver::camara_deputados::{
     ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
 };
+pub use silver::camara_despesas::{
+    ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
+};
 pub use silver::camara_legislaturas::{
     ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
 };
@@ -62,6 +65,7 @@ pub use silver::senado_votos::{
 };
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
 pub use silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
+pub use silver::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
 pub use silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
 pub use silver::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
 pub use silver::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
