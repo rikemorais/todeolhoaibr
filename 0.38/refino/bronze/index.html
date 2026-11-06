@@ -1708,6 +1708,7 @@
 <li>O comando <code>todeolho refinar bronze &lt;fonte&gt;</code> descobre no <code>raw</code> os recursos já ingeridos daquela fonte (os que têm <code>_ultima_versao.json</code>), monta uma <strong>DAG de tarefas</strong> — uma por recurso — e roda no <strong>mesmo executor e painel</strong> da ingestão.</li>
 <li>Cada tarefa lê a procedência do <code>raw</code> (manifesto vigente), decodifica cada parte e grava <strong>um Parquet por tabela</strong> no bucket <code>bronze</code>, com manifesto e ponteiro próprios.</li>
 <li><strong>Idempotência:</strong> o ponteiro do bronze guarda o validador da <strong>versão do raw</strong> e, quando uma correção de decodificação exigir, um marcador da regra. Reexecutar só reprocessa quando a entrada ou essa regra mudou.</li>
+<li>Listagens anuais vazias de processos do Senado não geram Parquet, pois um arquivo sem colunas é ilegível pelo DuckDB. Uma versão de regra atualiza uma vez os snapshots anteriores e troca essas partes por manifestos válidos sem partes.</li>
 </ul>
 <h2 id="layout-no-bucket-bronze">Layout no bucket <code>bronze</code><a class="headerlink" href="#layout-no-bucket-bronze" title="Permanent link">&para;</a></h2>
 <p>Espelha o <code>raw</code>, no bucket <code>bronze</code>:</p>
