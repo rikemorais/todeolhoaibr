@@ -2,8 +2,10 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, Decimal128Array, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use thiserror::Error;
 
 const COLUNAS_TEXTO: [&str; 10] = [
@@ -20,6 +22,7 @@ const COLUNAS_TEXTO: [&str; 10] = [
 ];
 
 /// Erros encontrados ao validar o schema Bronze dos agregados IBGE.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroIbgeSilver {
     /// O lote não contém as colunas textuais esperadas pelo contrato.
@@ -53,6 +56,7 @@ pub fn esquema_ibge_agregados() -> Arc<Schema> {
 /// O texto original nunca é descartado. Códigos de situação ou valores fora do
 /// formato decimal são mantidos em `valor_original` e recebem decimal nulo;
 /// interpretar esses códigos depende de metadados específicos de cada tabela.
+#[cfg(test)]
 pub fn transformar_ibge_agregados(lote: &RecordBatch) -> Result<RecordBatch, ErroIbgeSilver> {
     let schema = lote.schema();
     let indices: Vec<usize> = COLUNAS_TEXTO
@@ -97,6 +101,7 @@ pub fn transformar_ibge_agregados(lote: &RecordBatch) -> Result<RecordBatch, Err
     RecordBatch::try_new(esquema_ibge_agregados(), saida).map_err(|_| ErroIbgeSilver::Schema)
 }
 
+#[cfg(test)]
 fn decimal_escalado(texto: &str) -> Option<i128> {
     let (negativo, numero) = texto
         .strip_prefix('-')

@@ -14,6 +14,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 ### Alterado
 
 - Registra a arquitetura para SQL versionado executado por Apache DataFusion nas transformações Silver; executor e migração dos contratos serão implementados gradualmente (ADR 0020, épico #236).
+- Migra os contratos BCB/SGS e agregados IBGE para SQL/DataFusion, mantém a paridade e o schema publicados, e reprocessa uma vez os dados existentes com regras v2 (issue #239).
 
 ## [0.45.0] - 2026-11-06
 
