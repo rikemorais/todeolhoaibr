@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.28.0] - 2026-11-06
+
+### Adicionado
+
+- Adiciona o contrato de transformação Silver para agregados IBGE, preservando o valor original e expondo conversão decimal opcional ([issue #186](https://github.com/rikemorais/todeolhoaibr/issues/186)).
+
 ## [0.27.0] - 2026-11-06
 
 ### Adicionado
