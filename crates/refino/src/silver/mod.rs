@@ -8,6 +8,8 @@ pub mod camara_votacoes;
 pub mod ibge_agregados;
 mod publicacao;
 pub mod senado_parlamentares;
+/// Contrato Silver para o catálogo anual de processos legislativos do Senado.
+pub mod senado_processos;
 /// Contratos Silver para detalhes e histórico dos processos legislativos do Senado.
 pub mod senado_processos_detalhes;
 pub mod senado_votacoes;
@@ -19,6 +21,7 @@ pub mod tarefa_camara_legislaturas;
 pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
 pub mod tarefa_senado;
+mod tarefa_senado_processos;
 mod tarefa_senado_processos_detalhes;
 pub mod tarefa_senado_votacoes;
 
@@ -35,6 +38,9 @@ pub use ibge_agregados::{ErroIbgeSilver, esquema_ibge_agregados, transformar_ibg
 pub use senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
+pub use senado_processos::{
+    ErroSenadoProcessosSilver, esquema_senado_processos, transformar_senado_processos,
+};
 pub use senado_processos_detalhes::{
     ErroSenadoProcessosDetalhesSilver, esquema_senado_processos_detalhes,
     transformar_senado_processos_detalhes,
@@ -50,6 +56,7 @@ pub use tarefa_camara_legislaturas::{
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_senado::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
+pub use tarefa_senado_processos::{TarefaDeSilverSenadoProcessos, publicar_senado_processos};
 pub use tarefa_senado_processos_detalhes::{
     TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes,
 };

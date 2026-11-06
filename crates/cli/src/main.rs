@@ -29,7 +29,8 @@ use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
     TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
     TarefaDeSilverCamaraVotacoes, TarefaDeSilverIbge, TarefaDeSilverSenadoParlamentares,
-    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, catalogo_refino,
+    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
+    TarefaDeSilverSenadoVotacoes, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -440,6 +441,10 @@ async fn refinar(
             )
             .await;
         }
+        if fonte.as_deref() == Some("senado-processos") {
+            return refinar_senado_silver(fonte, todas, intervalo, TipoSilverSenado::Processos)
+                .await;
+        }
         if fonte.as_deref() == Some("camara-partidos") {
             return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Partidos)
                 .await;
@@ -512,6 +517,8 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             let senado_processos_detalhes =
                 refinar_senado_silver(None, true, None, TipoSilverSenado::ProcessosDetalhes)
                     .await?;
+            let senado_processos =
+                refinar_senado_silver(None, true, None, TipoSilverSenado::Processos).await?;
             let camara_partidos =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Partidos).await?;
             let camara_legislaturas =
@@ -525,6 +532,7 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && senado
                 && senado_votacoes
                 && senado_processos_detalhes
+                && senado_processos
                 && camara_partidos
                 && camara_legislaturas
                 && camara_deputados
@@ -545,6 +553,11 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                     refinar_senado_silver(None, true, None, TipoSilverSenado::Parlamentares).await
                 {
                     eprintln!("Atenção: falha na reconciliação Silver Senado: {erro:#}");
+                }
+                if let Err(erro) =
+                    refinar_senado_silver(None, true, None, TipoSilverSenado::Processos).await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver Senado catálogo: {erro:#}");
                 }
                 if let Err(erro) =
                     refinar_senado_silver(None, true, None, TipoSilverSenado::Votacoes).await
@@ -778,6 +791,7 @@ async fn passada_camara_silver(
 enum TipoSilverSenado {
     Parlamentares,
     Votacoes,
+    Processos,
     ProcessosDetalhes,
 }
 
@@ -786,6 +800,7 @@ impl TipoSilverSenado {
         match self {
             Self::Parlamentares => "senado-parlamentares",
             Self::Votacoes => "senado-votacoes",
+            Self::Processos => "senado-processos",
             Self::ProcessosDetalhes => "senado-processos-detalhes",
         }
     }
@@ -794,6 +809,7 @@ impl TipoSilverSenado {
 enum TarefaSilverSenado {
     Parlamentares(TarefaDeSilverSenadoParlamentares),
     Votacoes(TarefaDeSilverSenadoVotacoes),
+    Processos(TarefaDeSilverSenadoProcessos),
     ProcessosDetalhes(TarefaDeSilverSenadoProcessosDetalhes),
 }
 
@@ -803,6 +819,7 @@ impl Tarefa for TarefaSilverSenado {
         match self {
             Self::Parlamentares(tarefa) => tarefa.nome(),
             Self::Votacoes(tarefa) => tarefa.nome(),
+            Self::Processos(tarefa) => tarefa.nome(),
             Self::ProcessosDetalhes(tarefa) => tarefa.nome(),
         }
     }
@@ -814,6 +831,7 @@ impl Tarefa for TarefaSilverSenado {
         match self {
             Self::Parlamentares(tarefa) => tarefa.executar(contexto).await,
             Self::Votacoes(tarefa) => tarefa.executar(contexto).await,
+            Self::Processos(tarefa) => tarefa.executar(contexto).await,
             Self::ProcessosDetalhes(tarefa) => tarefa.executar(contexto).await,
         }
     }
@@ -827,6 +845,7 @@ impl TarefaSilverSenado {
         match self {
             Self::Parlamentares(tarefa) => tarefa.pendente(silver).await,
             Self::Votacoes(tarefa) => tarefa.pendente(silver).await,
+            Self::Processos(tarefa) => tarefa.pendente(silver).await,
             Self::ProcessosDetalhes(tarefa) => tarefa.pendente(silver).await,
         }
     }
@@ -907,6 +926,13 @@ async fn passada_senado_silver(
             }
             TipoSilverSenado::Votacoes => {
                 TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova(
+                    Arc::clone(bronze),
+                    Arc::new(snapshot),
+                    &recurso,
+                ))
+            }
+            TipoSilverSenado::Processos => {
+                TarefaSilverSenado::Processos(TarefaDeSilverSenadoProcessos::nova(
                     Arc::clone(bronze),
                     Arc::new(snapshot),
                     &recurso,
