@@ -9,6 +9,7 @@ pub mod ibge_agregados;
 mod publicacao;
 pub mod senado_parlamentares;
 pub mod senado_votacoes;
+pub mod senado_votos;
 pub mod tarefa_bcb;
 pub mod tarefa_camara;
 pub mod tarefa_camara_deputados;
@@ -32,6 +33,7 @@ pub use senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
 pub use senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
+pub use senado_votos::{ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos};
 pub use tarefa_bcb::publicar_bcb_sgs;
 pub use tarefa_camara::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
 pub use tarefa_camara_deputados::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
