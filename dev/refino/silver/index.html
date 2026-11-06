@@ -1167,6 +1167,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#despesas-do-senado-ceaps" class="md-nav__link">
     <span class="md-ellipsis">
       Despesas do Senado (CEAPS)
@@ -1768,6 +1777,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#despesas-do-senado-ceaps" class="md-nav__link">
     <span class="md-ellipsis">
       Despesas do Senado (CEAPS)
@@ -2092,6 +2110,10 @@
 <h3 id="bens-declarados-do-tse">Bens declarados do TSE<a class="headerlink" href="#bens-declarados-do-tse" title="Permanent link">&para;</a></h3>
 <p>O contrato <code>tse.candidatura.bem.v1</code> publica uma linha por bem no consolidado nacional <code>BRASIL</code> de cada eleição, sem somar as partes por UF. A chave composta é (<code>ano_eleicao</code>, <code>codigo_eleicao</code>, <code>uf</code>, <code>unidade_eleitoral</code>, <code>sequencia_candidato</code>, <code>ordem_bem</code>), validada entre lotes. A ordem é lida de <code>NR_ORDEM_CANDIDATO</code> nos layouts de 2006–2012 e 2016 e de <code>NR_ORDEM_BEM_CANDIDATO</code> em 2014 e 2018–2026; não se infere o alias por uma regra monotônica. A chave eleitoral do bem também permite vinculá-lo à candidatura de mesmo ano, eleição, UF, unidade eleitoral e sequência do candidato.</p>
 <p><code>ano_eleicao</code> é <code>UInt16</code>, <code>ordem_bem</code> é <code>UInt32</code>, as datas são <code>Date32</code> e <code>valor_bem</code> é <code>Decimal128(18,2)</code>. Valores são convertidos por aritmética decimal exata a partir da vírgula brasileira. Datas não interpretáveis ou fora da faixa plausível viram nulas sem remover a linha, e <code>registro_original</code> preserva todos os campos e aliases de origem; isso é necessário, por exemplo, para valores de última atualização antigos que não são datas válidas. Smoke local nos 11 consolidados (2006–2026): 5.101.128 linhas de entrada e saída, zero valores ou ordens nulos/inválidos, 8.967 datas de eleição nulas e 4.041.301 atualizações nulas; nenhuma linha foi removida. Um join Silver por ano encontrou exatamente uma candidatura para cada bem (zero bens sem correspondência). A segunda passada reconheceu os 11 recursos como atualizados e não os republicou; a primeira execução levou 4min52s com concorrência 2, sem medição de pico de RSS (evidência operacional ainda pendente na issue #189). Use <code>todeolho refinar silver tse-bens</code>; a fonte também integra <code>silver --todas</code> e sua reconciliação periódica.</p>
+<h3 id="votacao-por-secao-do-tse">Votação por seção do TSE<a class="headerlink" href="#votacao-por-secao-do-tse" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>tse.votacao.secao.v1</code> publica uma linha por (<code>ano_eleicao</code>, <code>codigo_eleicao</code>, <code>uf</code>, <code>turno</code>, <code>codigo_municipio</code>, <code>zona</code>, <code>secao</code>, <code>codigo_cargo</code>, <code>numero_votavel</code>) a partir de cada recurso <code>votacao_secao/ano=AAAA/uf=UF</code>. Ano e turno são inteiros tipados, votos são <code>UInt32</code>, data de eleição é <code>Date32</code>; os códigos permanecem texto e todos os campos de origem são preservados em <code>registro_original</code>. A chave é validada entre lotes e uma repetição interrompe a publicação.</p>
+<p>Os recursos <code>BR</code> e estaduais são complementares: o primeiro contém votos presidenciais e os segundos cargos estaduais. A tarefa mantém ambos, validando que cada linha estadual pertence à UF do recurso. Os recursos 1998/BR e 2010/VT e 2010/ZZ são excluídos porque a Bronze atual não recupera seus cabeçalhos e a chave padrão não está disponível. O TSE informa que os resultados de 1998 são incompletos (<a href="https://dadosabertos.tse.jus.br/dataset/resultados-1998">catálogo oficial</a>); esses três recursos precisam de trabalho separado na decodificação Bronze antes de entrarem no contrato. O restante do histórico precisa ser monitorado contra mudanças nos layouts publicados.</p>
+<p>Execute explicitamente com <code>todeolho refinar silver tse-votacao-secao</code>. A coleção local consultada ocupa cerca de 16,4 GB, então não participa de <code>silver --todas</code> ou da sua reconciliação periódica. Para smoke parcial, use <code>--filtro ano=2024 --filtro uf=AC,RO</code>; ambos os filtros são opcionais e repetíveis, e os valores aceitam listas separadas por vírgula. Votos por seção anteriores a 1998 não são publicados pelo TSE. A cobertura da chave foi validada no Bronze em AC e RO de 1998–2026. No smoke Silver 2024, AC e RO publicaram 156.259 e 349.871 linhas respectivamente, contagens iguais às partes Bronze e sem duplicatas de chave composta. Três reconciliações seguintes reconheceram ambos recursos como em dia.</p>
 <h3 id="despesas-do-senado-ceaps">Despesas do Senado (CEAPS)<a class="headerlink" href="#despesas-do-senado-ceaps" title="Permanent link">&para;</a></h3>
 <p>O contrato <code>senado.despesa.ceaps.v1</code> tipa <code>ANO</code> do recurso como <code>UInt16</code>, <code>MES</code> como <code>UInt8</code>, <code>DATA</code> como <code>Date32</code> e <code>VALOR_REEMBOLSADO</code> como <code>Decimal128(18,2)</code>. CNPJ/CPF, documento e <code>COD_DOCUMENTO</code> continuam texto para preservar zeros à esquerda. O parser usa decimal com vírgula sem <code>f64</code>, aceita frações de zero a duas casas, valores como <code>,95</code> e quebras CR/LF embutidas no valor histórico de 2013. No Bronze local havia 398.172 linhas de 2008 a 2026; <code>COD_DOCUMENTO</code> foi único em 398.170 linhas e estava ausente em duas. O código é validado quando preenchido; registros sem código não são removidos nem deduplicados. Dois registros de 2015 têm aspas malformadas no campo <code>DOCUMENTO</code> da origem CSV, o que desloca colunas no Bronze: preservamos essas linhas e os campos Bronze em <code>registro_original</code>, mas deixamos data e valor tipados nulos para não interpretar texto deslocado como despesa. Para as demais linhas, a Silver deixa <code>DATA</code> tipada nula quando o ano é anterior a 1900 ou posterior ao ano de competência + 1, preservando o texto de origem; essa faixa cobre as 75 datas parses fora dos limites encontradas na amostra Bronze local. Valores negativos permanecem com o sinal recebido. A regra <code>senado-despesa-ceaps-v3</code> registra essa política para que recursos já publicados sejam reconciliados. A CLI <code>todeolho refinar silver senado-despesas</code> publica cada ano e participa de <code>--todas</code> e da reconciliação Silver.</p>
 <ul>
