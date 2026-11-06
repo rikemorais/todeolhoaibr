@@ -18,6 +18,8 @@ const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
 pub(crate) struct ConfiguracaoDePublicacao<'a> {
     pub fonte: &'a str,
     pub recurso: &'a str,
+    /// Recurso de saída quando a transformação materializa uma relação derivada.
+    pub recurso_destino: Option<&'a str>,
     pub regra: &'a str,
     pub esquema: Option<SchemaRef>,
     pub iniciada_em: DateTime<Utc>,
@@ -42,11 +44,13 @@ where
     let ConfiguracaoDePublicacao {
         fonte,
         recurso,
+        recurso_destino,
         regra,
         esquema,
         iniciada_em,
         id_execucao,
     } = configuracao;
+    let recurso_destino = recurso_destino.unwrap_or(recurso);
     if snapshot.manifesto().fonte != fonte || snapshot.manifesto().recurso != recurso {
         return Err(erro_manifesto(
             recurso,
@@ -54,7 +58,7 @@ where
         ));
     }
     let versao_silver = format!("{}|regra={regra}", snapshot.manifesto().id_execucao);
-    if let Some(estado) = estado_na_raw(silver, fonte, recurso).await?
+    if let Some(estado) = estado_na_raw(silver, fonte, recurso_destino).await?
         && estado.completa
         && estado.integra
         && estado.versao.as_deref() == Some(versao_silver.as_str())
@@ -65,7 +69,7 @@ where
         });
     }
 
-    let local = LocalizacaoRaw::nova(fonte, recurso, iniciada_em, id_execucao);
+    let local = LocalizacaoRaw::nova(fonte, recurso_destino, iniciada_em, id_execucao);
     let mut partes = Vec::new();
     let mut total_bytes = 0u64;
     for entrada in &snapshot.manifesto().partes {
@@ -181,7 +185,7 @@ where
 
     let manifesto = ManifestoRaw {
         fonte: fonte.into(),
-        recurso: recurso.into(),
+        recurso: recurso_destino.into(),
         id_execucao: id_execucao.into(),
         url_inicial: format!("bronze/{recurso}"),
         iniciada_em,
@@ -200,7 +204,7 @@ where
     publicar_ponteiro(
         silver,
         fonte,
-        recurso,
+        recurso_destino,
         &UltimaVersao {
             versao: Some(versao_silver),
             manifesto: local.manifesto(),

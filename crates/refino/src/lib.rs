@@ -50,6 +50,9 @@ pub use silver::senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
 pub use silver::senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
+pub use silver::senado_votos::{
+    ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos,
+};
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
 pub use silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
 pub use silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};

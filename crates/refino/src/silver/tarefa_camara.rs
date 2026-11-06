@@ -113,6 +113,7 @@ pub async fn publicar_camara_partidos(
         ConfiguracaoDePublicacao {
             fonte: "camara",
             recurso,
+            recurso_destino: None,
             regra: REGRA,
             esquema: Some(esquema_camara_partidos()),
             iniciada_em,

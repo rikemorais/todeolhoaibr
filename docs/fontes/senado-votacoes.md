@@ -42,9 +42,12 @@ todeolho executar senado-votacoes --filtro ano=2024
 
 Reusa a pré-checagem ([ADR 0012](../adr/0012-pre-checagem-idempotente.md)). O serviço **não envia `ETag`/`Last-Modified`**, então não há requisição condicional (`If-None-Match`): a cada rodada o corpo é baixado e comparado por `sha256` ao da rodada anterior — idêntico, é reaproveitado (a execução reporta "sem alterações na origem"); diferente, é reingerido.
 
-## Fora de escopo desta camada (fica no refino)
+## Refino Silver
 
-- O contrato Silver atual valida `codigoSessaoVotacao` e preserva a votação como uma linha com `votos[]` aninhado; ele ainda não publica uma relação separada com uma linha por senador. Consulte a [cobertura Silver](../refino/silver.md).
+- O comando `todeolho refinar silver senado-votacoes` publica a relação de sessões com `votos[]` preservado e uma relação derivada `votos/ano=AAAA`, com uma linha por voto individual e referência à sessão. Ambas são atualizadas juntas pelo mesmo comando; a relação de votos preserva cada ocorrência e o JSON original. Consulte o contrato e seus limites na [cobertura Silver](../refino/silver.md).
+
+## Fora de escopo da fonte
+
 - **Cruzar matéria ↔ votação ↔ senador** numa base consultável (`gold`) — ver [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 - **Catálogo completo de matérias** (inclusive as não votadas) não entra aqui: esta fonte cobre as **matérias votadas** (as que aparecem nas votações). Um acervo de todas as matérias caberia como fonte separada.
 - **Análises** (adesão, presença, governismo) são do refino/consulta.
