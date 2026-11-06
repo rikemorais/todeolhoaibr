@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.22.5] - 2026-11-05
+
+### Documentação
+
+- Confere as 168 partes de prestação de contas TSE 2010 contra os membros do ZIP e reconcilia receitas e despesas de comitês de 2012 entre UFs e `_brasil`. Registra linhas exclusivas, formatos de data e colisões da chave candidata para orientar os contratos Silver ([issue #208](https://github.com/rikemorais/todeolhoaibr/issues/208)).
+
 ## [0.22.4] - 2026-11-05
 
 ### Documentação
