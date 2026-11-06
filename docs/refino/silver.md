@@ -57,6 +57,8 @@ O [`EscritorParquetTipado`](../../crates/refino/src/escritor.rs) recebe o schema
 
 O primeiro transformador, [`transformar_bcb_sgs`](../../crates/refino/src/silver/bcb.rs), define o contrato `bcb.sgs.observacao.v1`: `data` em `Date32` e `valor` em `Decimal128(18,6)`. Lê o Bronze com colunas textuais `data` (`DD/MM/AAAA`) e `valor` decimal com ponto, sem conversão por `f64`. Data, valor nulo ou escala acima de seis casas causam erro com o índice da linha. O publicador [`publicar_bcb_sgs`](../../crates/refino/src/silver/tarefa_bcb.rs) grava as partes em fluxo, manifesto e ponteiro, pula versão/regra já publicadas e confere se o ponteiro Bronze não mudou durante a transformação. A CLI aceita `todeolho refinar silver bcb` e `todeolho refinar silver --todas --intervalo 3600`. A execução Silver aparece no painel com o selo azul.
 
+O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
+
 ## Evidência disponível no repositório
 
 - O decodificador de agregados IBGE já produz as dez colunas `variavel_id`, `variavel`, `unidade`, `classificacoes`, `nivel_id`, `nivel_nome`, `localidade_id`, `localidade_nome`, `periodo` e `valor`. O fixture mostra `nivel_id=N6` e código municipal `1100015`, ambos a preservar como texto.
