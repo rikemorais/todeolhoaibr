@@ -33,5 +33,6 @@ pub use fontes::{
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
+pub use silver::publicar_bcb_sgs;
 pub use snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
 pub use tarefa::TarefaDeBronze;
