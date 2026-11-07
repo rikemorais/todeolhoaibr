@@ -1,13 +1,17 @@
 //! Contrato Silver do cadastro de deputados em exercício da Câmara.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao validar o cadastro Bronze de deputados.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroCamaraDeputadosSilver {
     /// Faltam colunas textuais necessárias no Bronze.
@@ -43,6 +47,7 @@ pub fn esquema_camara_deputados() -> Arc<Schema> {
 }
 
 /// Projeta os atributos atuais do mandato e valida a chave candidata `id`.
+#[cfg(test)]
 pub fn transformar_camara_deputados(
     lote: &RecordBatch,
 ) -> Result<RecordBatch, ErroCamaraDeputadosSilver> {

@@ -1,14 +1,20 @@
 //! Contrato Silver para o catálogo anual de processos legislativos do Senado.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use arrow::array::{Array, StringArray, UInt16Array};
 use arrow::datatypes::{DataType, Field, Schema};
-use arrow::record_batch::RecordBatch;
+#[cfg(test)]
+use arrow::{
+    array::{Array, StringArray, UInt16Array},
+    record_batch::RecordBatch,
+};
+#[cfg(test)]
+use std::collections::HashSet;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao validar o catálogo anual de processos do Senado.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroSenadoProcessosSilver {
     /// O Bronze não tem schema textual com `id`.
@@ -41,6 +47,7 @@ pub fn esquema_senado_processos() -> Arc<Schema> {
 }
 
 /// Preserva cada processo da listagem anual, tipando ID e ano sem inferir histórico.
+#[cfg(test)]
 pub fn transformar_senado_processos(
     lote: &RecordBatch,
     ano: u16,
@@ -107,6 +114,7 @@ pub fn transformar_senado_processos(
     .map_err(|_| ErroSenadoProcessosSilver::Schema)
 }
 
+#[cfg(test)]
 fn valor_original(texto: &str) -> serde_json::Value {
     let aparado = texto.trim_start();
     if aparado.starts_with('{') || aparado.starts_with('[') {

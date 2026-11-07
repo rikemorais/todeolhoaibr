@@ -1,14 +1,19 @@
 //! Contrato Silver para o catálogo de legislaturas da Câmara dos Deputados.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, Date32Array, RecordBatch, StringArray, UInt16Array};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::NaiveDate;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros encontrados ao validar a tabela Bronze de legislaturas.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroCamaraLegislaturasSilver {
     /// A parte não contém as colunas textuais esperadas.
@@ -40,6 +45,7 @@ pub fn esquema_camara_legislaturas() -> Arc<Schema> {
 }
 
 /// Interpreta o ID sequencial, o período e o ano eleitoral da API da Câmara.
+#[cfg(test)]
 pub fn transformar_camara_legislaturas(
     lote: &RecordBatch,
 ) -> Result<RecordBatch, ErroCamaraLegislaturasSilver> {
@@ -120,6 +126,7 @@ pub fn transformar_camara_legislaturas(
     .map_err(|_| ErroCamaraLegislaturasSilver::Schema)
 }
 
+#[cfg(test)]
 fn parse_data(texto: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(texto, "%Y-%m-%d").ok()
 }

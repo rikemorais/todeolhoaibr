@@ -3,7 +3,7 @@
 //! O chamador prepara em disco somente as partes do snapshot Bronze e mantém
 //! esses arquivos vivos enquanto consome o fluxo devolvido pelo executor.
 
-use arrow::array::{StringArray, UInt64Array};
+use arrow::array::{Array, StringArray, UInt64Array};
 use arrow::datatypes::{Field, Schema};
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
@@ -21,6 +21,7 @@ use crate::{ErroDeRefino, EscritorParquetTipado, SnapshotBronze};
 const COL_MANIFESTO: &str = "_tdoa_origem_manifesto";
 const COL_PARTE: &str = "_tdoa_origem_parte";
 const COL_ORDINAL: &str = "_tdoa_origem_ordinal";
+const COL_JSON_ORIGINAL: &str = "_tdoa_json_original";
 
 /// Limites operacionais aplicados a uma execução SQL Silver.
 #[derive(Debug, Clone)]
@@ -96,6 +97,25 @@ pub async fn preparar_snapshot(
     snapshot: &SnapshotBronze,
     limite_entrada_bytes: u64,
 ) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
+    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, false).await
+}
+
+/// Prepara o snapshot e acrescenta uma coluna auxiliar com cada registro Bronze serializado
+/// como JSON. É destinada a contratos SQL que precisam preservar campos de origem dinâmicos.
+pub async fn preparar_snapshot_com_json_original(
+    bronze: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    limite_entrada_bytes: u64,
+) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
+    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, true).await
+}
+
+async fn preparar_snapshot_interno(
+    bronze: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    limite_entrada_bytes: u64,
+    incluir_json_original: bool,
+) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
     let total = snapshot
         .manifesto()
         .partes
@@ -128,6 +148,7 @@ pub async fn preparar_snapshot(
                 &lote.origem.manifesto,
                 &lote.origem.parte,
                 lote.primeiro_ordinal,
+                incluir_json_original,
             )?;
             if escritor.is_none() {
                 escritor = Some(EscritorParquetTipado::novo_em(
@@ -160,9 +181,10 @@ fn anexar_linhagem(
     manifesto: &str,
     parte: &str,
     primeiro_ordinal: u64,
+    incluir_json_original: bool,
 ) -> Result<RecordBatch, ErroDeRefino> {
     let schema_origem = lote.schema();
-    if [COL_MANIFESTO, COL_PARTE, COL_ORDINAL]
+    if [COL_MANIFESTO, COL_PARTE, COL_ORDINAL, COL_JSON_ORIGINAL]
         .iter()
         .any(|nome| schema_origem.index_of(nome).is_ok())
     {
@@ -171,6 +193,18 @@ fn anexar_linhagem(
         ));
     }
     let mut campos = schema_origem.fields().iter().cloned().collect::<Vec<_>>();
+    let mut colunas = lote.columns().to_vec();
+    if incluir_json_original {
+        let originais = (0..lote.num_rows())
+            .map(|linha| json_original(lote, linha))
+            .collect::<Result<Vec<_>, _>>()?;
+        campos.push(Arc::new(Field::new(
+            COL_JSON_ORIGINAL,
+            arrow::datatypes::DataType::Utf8,
+            false,
+        )));
+        colunas.push(Arc::new(StringArray::from(originais)));
+    }
     campos.extend([
         Arc::new(Field::new(
             COL_MANIFESTO,
@@ -188,7 +222,6 @@ fn anexar_linhagem(
             false,
         )),
     ]);
-    let mut colunas = lote.columns().to_vec();
     colunas.extend([
         Arc::new(StringArray::from_iter_values(std::iter::repeat_n(
             manifesto,
@@ -203,6 +236,44 @@ fn anexar_linhagem(
         )) as _,
     ]);
     RecordBatch::try_new(Arc::new(Schema::new(campos)), colunas).map_err(ErroDeRefino::from)
+}
+
+fn json_original(lote: &RecordBatch, linha: usize) -> Result<String, ErroDeRefino> {
+    let mut original = serde_json::Map::new();
+    for (indice, campo) in lote.schema().fields().iter().enumerate() {
+        if campo.data_type() != &arrow::datatypes::DataType::Utf8 {
+            return Err(ErroDeRefino::Decodificacao(format!(
+                "a serialização JSON original requer colunas UTF-8; '{}' tem tipo {:?}",
+                campo.name(),
+                campo.data_type()
+            )));
+        }
+        let valores = lote
+            .column(indice)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| {
+                ErroDeRefino::Decodificacao(format!(
+                    "a coluna UTF-8 '{}' não pode ser lida",
+                    campo.name()
+                ))
+            })?;
+        let valor = if valores.is_null(linha) {
+            serde_json::Value::Null
+        } else {
+            let texto = valores.value(linha);
+            let aparado = texto.trim_start();
+            if aparado.starts_with('{') || aparado.starts_with('[') {
+                serde_json::from_str(texto)
+                    .unwrap_or_else(|_| serde_json::Value::String(texto.to_owned()))
+            } else {
+                serde_json::Value::String(texto.to_owned())
+            }
+        };
+        original.insert(campo.name().clone(), valor);
+    }
+    serde_json::to_string(&original)
+        .map_err(|erro| ErroDeRefino::Decodificacao(format!("JSON original inválido: {erro}")))
 }
 
 /// Executa SQL versionado sobre Parquets preparados em um diretório de snapshot.
@@ -253,4 +324,35 @@ pub async fn executar_sql(
         .await?;
     let dataframe = contexto.sql(sql).await?;
     Ok(dataframe.execute_stream().await?)
+}
+
+#[cfg(test)]
+mod testes_json_original {
+    use super::*;
+
+    #[test]
+    fn preserva_valores_escalares_aninhados_nulos_e_caracteres_json() {
+        let lote = RecordBatch::try_from_iter(vec![
+            ("id", Arc::new(StringArray::from(vec![Some("00825")])) as _),
+            (
+                "despachos",
+                Arc::new(StringArray::from(vec![Some(r#"[{"ordem":1}]"#)])) as _,
+            ),
+            (
+                "ementa",
+                Arc::new(StringArray::from(vec![Some("Aspas: \"sim\" e acento é")])) as _,
+            ),
+            (
+                "campo_ausente",
+                Arc::new(StringArray::from(vec![None::<&str>])) as _,
+            ),
+        ])
+        .unwrap();
+        let original: serde_json::Value =
+            serde_json::from_str(&json_original(&lote, 0).unwrap()).unwrap();
+        assert_eq!(original["id"], "00825");
+        assert_eq!(original["despachos"][0]["ordem"], 1);
+        assert_eq!(original["ementa"], "Aspas: \"sim\" e acento é");
+        assert_eq!(original["campo_ausente"], serde_json::Value::Null);
+    }
 }

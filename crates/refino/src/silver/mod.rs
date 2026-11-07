@@ -40,18 +40,18 @@ pub mod tse_candidaturas;
 pub mod tse_despesas_pagas;
 pub mod tse_votacao_secao;
 
-pub use camara_deputados::{
-    ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
-};
+pub use camara_deputados::esquema_camara_deputados;
+#[cfg(test)]
+pub use camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
 pub use camara_despesas::{
     ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
 };
-pub use camara_legislaturas::{
-    ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
-};
-pub use camara_partidos::{
-    ErroCamaraPartidosSilver, esquema_camara_partidos, transformar_camara_partidos,
-};
+pub use camara_legislaturas::esquema_camara_legislaturas;
+#[cfg(test)]
+pub use camara_legislaturas::{ErroCamaraLegislaturasSilver, transformar_camara_legislaturas};
+pub use camara_partidos::esquema_camara_partidos;
+#[cfg(test)]
+pub use camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos};
 pub use camara_tramitacoes::{
     ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
     transformar_camara_tramitacoes,
@@ -65,12 +65,13 @@ pub use senado_despesas::{
 pub use senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
-pub use senado_processos::{
-    ErroSenadoProcessosSilver, esquema_senado_processos, transformar_senado_processos,
-};
+pub use senado_processos::esquema_senado_processos;
+#[cfg(test)]
+pub use senado_processos::{ErroSenadoProcessosSilver, transformar_senado_processos};
+pub use senado_processos_detalhes::esquema_senado_processos_detalhes;
+#[cfg(test)]
 pub use senado_processos_detalhes::{
-    ErroSenadoProcessosDetalhesSilver, esquema_senado_processos_detalhes,
-    transformar_senado_processos_detalhes,
+    ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
 };
 pub use senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
 pub use senado_votos::{ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos};
