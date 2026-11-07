@@ -1,10 +1,15 @@
 //! Contratos de chave dos sete conjuntos anuais de votações da Câmara.
 
+#[cfg(test)]
 use std::collections::HashSet;
 
+#[cfg(test)]
 use arrow::array::{Array, StringArray};
+#[cfg(test)]
 use arrow::datatypes::DataType;
+#[cfg(test)]
 use arrow::record_batch::RecordBatch;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Conjunto anual presente no recurso Bronze.
@@ -68,6 +73,7 @@ impl ConjuntoCamaraVotacoes {
 }
 
 /// Erro de validação de um lote Bronze da Câmara.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroCamaraVotacoesSilver {
     /// Coluna de chave ausente ou tipo Bronze diferente de texto.
@@ -95,6 +101,7 @@ pub enum ErroCamaraVotacoesSilver {
 }
 
 /// Valida as chaves sem colapsar eventos nem descartar atributos da origem.
+#[cfg(test)]
 pub fn validar_camara_votacoes(
     conjunto: ConjuntoCamaraVotacoes,
     lote: &RecordBatch,

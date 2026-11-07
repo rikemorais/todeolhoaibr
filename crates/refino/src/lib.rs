@@ -38,9 +38,9 @@ pub use silver::TarefaDeSilverSql;
 pub use silver::camara_deputados::esquema_camara_deputados;
 #[cfg(test)]
 pub use silver::camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
-pub use silver::camara_despesas::{
-    ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
-};
+pub use silver::camara_despesas::esquema_camara_despesas;
+#[cfg(test)]
+pub use silver::camara_despesas::{ErroCamaraDespesasSilver, transformar_camara_despesas};
 pub use silver::camara_legislaturas::esquema_camara_legislaturas;
 #[cfg(test)]
 pub use silver::camara_legislaturas::{
@@ -49,13 +49,12 @@ pub use silver::camara_legislaturas::{
 pub use silver::camara_partidos::esquema_camara_partidos;
 #[cfg(test)]
 pub use silver::camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos};
-pub use silver::camara_tramitacoes::{
-    ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
-    transformar_camara_tramitacoes,
-};
-pub use silver::camara_votacoes::{
-    ConjuntoCamaraVotacoes, ErroCamaraVotacoesSilver, validar_camara_votacoes,
-};
+#[cfg(test)]
+pub use silver::camara_tramitacoes::{ErroCamaraTramitacoesSilver, transformar_camara_tramitacoes};
+pub use silver::camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
+pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
+#[cfg(test)]
+pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
 pub use silver::publicar_bcb_sgs;
 pub use silver::senado_despesas::{
     ErroSenadoDespesasSilver, esquema_senado_despesas, transformar_senado_despesas,

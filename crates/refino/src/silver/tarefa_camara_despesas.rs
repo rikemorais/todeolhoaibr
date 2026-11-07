@@ -9,12 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    camara_despesas::{esquema_camara_despesas, transformar_camara_despesas},
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    camara_despesas::esquema_camara_despesas,
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "camara-despesa-ceap-v2";
+const REGRA: &str = "camara-despesa-ceap-v3";
+const SQL: &str = include_str!("../../sql/silver/camara_despesas.sql");
 
 /// Tarefa Silver para um recurso anual de despesas da Câmara.
 pub struct TarefaDeSilverCamaraDespesas {
@@ -103,7 +104,8 @@ pub async fn publicar_camara_despesas(
             detalhe: "snapshot não corresponde ao recurso anual de despesas da Câmara".into(),
         });
     }
-    publicar_transformacao(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -116,7 +118,8 @@ pub async fn publicar_camara_despesas(
             iniciada_em,
             id_execucao,
         },
-        |lote| transformar_camara_despesas(lote, ano).map_err(|erro| erro.to_string()),
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }

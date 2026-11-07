@@ -3,13 +3,15 @@
 //! O chamador prepara em disco somente as partes do snapshot Bronze e mantém
 //! esses arquivos vivos enquanto consome o fluxo devolvido pelo executor.
 
-use arrow::array::{Array, StringArray, UInt64Array};
+use arrow::array::{Array, BooleanArray, StringArray, UInt64Array};
 use arrow::datatypes::{Field, Schema};
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
+use datafusion::logical_expr::{ColumnarValue, Volatility, create_udf};
 use datafusion::prelude::{ParquetReadOptions, SessionConfig};
 use datafusion::{error::DataFusionError, physical_plan::SendableRecordBatchStream};
+use std::collections::HashSet;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -77,6 +79,8 @@ pub enum ErroExecutorSql {
 pub struct EntradaSqlPreparada {
     temporario: tempfile::TempDir,
     diretorio_bronze: PathBuf,
+    colunas_bronze: HashSet<String>,
+    ordem_colunas_bronze: Vec<String>,
 }
 
 impl EntradaSqlPreparada {
@@ -89,6 +93,71 @@ impl EntradaSqlPreparada {
     pub fn diretorio_execucao(&self) -> &Path {
         self.temporario.path()
     }
+
+    /// Expande placeholders de colunas opcionais e a projeção das colunas Bronze.
+    pub fn expandir_placeholders_sql(&self, sql: &str) -> Result<String, ErroExecutorSql> {
+        let mut saida = String::with_capacity(sql.len());
+        let mut restante = sql;
+        while let Some(inicio) = restante.find("{{") {
+            let antes = &restante[..inicio];
+            saida.push_str(antes);
+            let token = &restante[inicio + 2..];
+            let Some(fim) = token.find("}}") else {
+                return Err(ErroExecutorSql::Configuracao(
+                    "placeholder SQL sem fechamento".into(),
+                ));
+            };
+            let placeholder = &token[..fim];
+            if placeholder == "COLUNAS_BRONZE" {
+                if self.ordem_colunas_bronze.is_empty() {
+                    return Err(ErroExecutorSql::Configuracao(
+                        "não há colunas Bronze para projetar".into(),
+                    ));
+                }
+                for (indice, nome) in self.ordem_colunas_bronze.iter().enumerate() {
+                    if indice > 0 {
+                        saida.push_str(", ");
+                    }
+                    let nome_sql = nome.replace('"', "\"\"");
+                    saida.push_str("origem.\"");
+                    saida.push_str(&nome_sql);
+                    saida.push_str("\" AS \"");
+                    saida.push_str(&nome_sql);
+                    saida.push('\"');
+                }
+                restante = &token[fim + 2..];
+                continue;
+            }
+            let Some(nome) = placeholder.strip_prefix("OPCIONAL:") else {
+                return Err(ErroExecutorSql::Configuracao(
+                    "placeholder SQL desconhecido".into(),
+                ));
+            };
+            if nome.is_empty()
+                || !nome
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+            {
+                return Err(ErroExecutorSql::Configuracao(
+                    "nome inválido em placeholder SQL OPCIONAL".into(),
+                ));
+            }
+            if self.colunas_bronze.contains(nome) {
+                saida.push('"');
+                saida.push_str(nome);
+                saida.push_str("\" AS \"");
+                saida.push_str(nome);
+                saida.push('"');
+            } else {
+                saida.push_str("CAST(NULL AS VARCHAR) AS \"");
+                saida.push_str(nome);
+                saida.push('"');
+            }
+            restante = &token[fim + 2..];
+        }
+        saida.push_str(restante);
+        Ok(saida)
+    }
 }
 
 /// Baixa somente as partes do snapshot e regrava batches com identidade de origem.
@@ -97,7 +166,7 @@ pub async fn preparar_snapshot(
     snapshot: &SnapshotBronze,
     limite_entrada_bytes: u64,
 ) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
-    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, false).await
+    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, false, false).await
 }
 
 /// Prepara o snapshot e acrescenta uma coluna auxiliar com cada registro Bronze serializado
@@ -107,7 +176,16 @@ pub async fn preparar_snapshot_com_json_original(
     snapshot: &SnapshotBronze,
     limite_entrada_bytes: u64,
 ) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
-    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, true).await
+    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, true, true).await
+}
+
+/// Prepara o snapshot e serializa todas as colunas originais como valores JSON de texto.
+pub async fn preparar_snapshot_com_json_string_original(
+    bronze: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    limite_entrada_bytes: u64,
+) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
+    preparar_snapshot_interno(bronze, snapshot, limite_entrada_bytes, true, false).await
 }
 
 async fn preparar_snapshot_interno(
@@ -115,6 +193,7 @@ async fn preparar_snapshot_interno(
     snapshot: &SnapshotBronze,
     limite_entrada_bytes: u64,
     incluir_json_original: bool,
+    interpretar_json_aninhado: bool,
 ) -> Result<EntradaSqlPreparada, ErroExecutorSql> {
     let total = snapshot
         .manifesto()
@@ -133,6 +212,8 @@ async fn preparar_snapshot_interno(
     let temporario = tempfile::tempdir()?;
     let diretorio_bronze = temporario.path().join("bronze");
     std::fs::create_dir(&diretorio_bronze)?;
+    let mut colunas_bronze = HashSet::new();
+    let mut ordem_colunas_bronze = Vec::new();
     for (indice, parte) in snapshot.manifesto().partes.iter().enumerate() {
         let baixada = snapshot
             .baixar_parte(bronze, &parte.chave)
@@ -143,12 +224,18 @@ async fn preparar_snapshot_interno(
         let mut escritor = None;
         for lote in leitor {
             let lote = lote?;
+            for campo in lote.registros.schema().fields() {
+                if colunas_bronze.insert(campo.name().clone()) {
+                    ordem_colunas_bronze.push(campo.name().clone());
+                }
+            }
             let registros = anexar_linhagem(
                 &lote.registros,
                 &lote.origem.manifesto,
                 &lote.origem.parte,
                 lote.primeiro_ordinal,
                 incluir_json_original,
+                interpretar_json_aninhado,
             )?;
             if escritor.is_none() {
                 escritor = Some(EscritorParquetTipado::novo_em(
@@ -173,6 +260,8 @@ async fn preparar_snapshot_interno(
     Ok(EntradaSqlPreparada {
         temporario,
         diretorio_bronze,
+        colunas_bronze,
+        ordem_colunas_bronze,
     })
 }
 
@@ -182,6 +271,7 @@ fn anexar_linhagem(
     parte: &str,
     primeiro_ordinal: u64,
     incluir_json_original: bool,
+    interpretar_json_aninhado: bool,
 ) -> Result<RecordBatch, ErroDeRefino> {
     let schema_origem = lote.schema();
     if [COL_MANIFESTO, COL_PARTE, COL_ORDINAL, COL_JSON_ORIGINAL]
@@ -196,7 +286,7 @@ fn anexar_linhagem(
     let mut colunas = lote.columns().to_vec();
     if incluir_json_original {
         let originais = (0..lote.num_rows())
-            .map(|linha| json_original(lote, linha))
+            .map(|linha| json_original(lote, linha, interpretar_json_aninhado))
             .collect::<Result<Vec<_>, _>>()?;
         campos.push(Arc::new(Field::new(
             COL_JSON_ORIGINAL,
@@ -238,7 +328,11 @@ fn anexar_linhagem(
     RecordBatch::try_new(Arc::new(Schema::new(campos)), colunas).map_err(ErroDeRefino::from)
 }
 
-fn json_original(lote: &RecordBatch, linha: usize) -> Result<String, ErroDeRefino> {
+fn json_original(
+    lote: &RecordBatch,
+    linha: usize,
+    interpretar_json_aninhado: bool,
+) -> Result<String, ErroDeRefino> {
     let mut original = serde_json::Map::new();
     for (indice, campo) in lote.schema().fields().iter().enumerate() {
         if campo.data_type() != &arrow::datatypes::DataType::Utf8 {
@@ -263,7 +357,7 @@ fn json_original(lote: &RecordBatch, linha: usize) -> Result<String, ErroDeRefin
         } else {
             let texto = valores.value(linha);
             let aparado = texto.trim_start();
-            if aparado.starts_with('{') || aparado.starts_with('[') {
+            if interpretar_json_aninhado && (aparado.starts_with('{') || aparado.starts_with('[')) {
                 serde_json::from_str(texto)
                     .unwrap_or_else(|_| serde_json::Value::String(texto.to_owned()))
             } else {
@@ -315,6 +409,13 @@ pub async fn executar_sql(
         .with_memory_limit(configuracao.limite_memoria_bytes, 1.0)
         .build_arc()?;
     let contexto = SessionContext::new_with_config_rt(config, runtime);
+    contexto.register_udf(create_udf(
+        "tdoa_assert_true",
+        vec![arrow::datatypes::DataType::Boolean],
+        arrow::datatypes::DataType::Boolean,
+        Volatility::Immutable,
+        Arc::new(assert_true),
+    ));
     contexto
         .register_parquet(
             "bronze",
@@ -324,6 +425,35 @@ pub async fn executar_sql(
         .await?;
     let dataframe = contexto.sql(sql).await?;
     Ok(dataframe.execute_stream().await?)
+}
+
+/// Assertion SQL para restrições de linha/conjunto que devem falhar a publicação,
+/// em vez de filtrar silenciosamente os registros inválidos.
+fn assert_true(argumentos: &[ColumnarValue]) -> datafusion::common::Result<ColumnarValue> {
+    let argumento = argumentos.first().ok_or_else(|| {
+        datafusion::common::DataFusionError::Execution(
+            "tdoa_assert_true requer uma expressão booleana".into(),
+        )
+    })?;
+    let quantidade = match argumento {
+        ColumnarValue::Array(array) => array.len(),
+        ColumnarValue::Scalar(_) => 1,
+    };
+    let array = argumento.clone().into_array(quantidade)?;
+    let valores = array
+        .as_any()
+        .downcast_ref::<BooleanArray>()
+        .ok_or_else(|| {
+            datafusion::common::DataFusionError::Execution(
+                "tdoa_assert_true recebeu tipo diferente de Boolean".into(),
+            )
+        })?;
+    if (0..valores.len()).any(|indice| valores.is_null(indice) || !valores.value(indice)) {
+        return Err(datafusion::common::DataFusionError::Execution(
+            "validação SQL Silver falhou".into(),
+        ));
+    }
+    Ok(ColumnarValue::Array(array))
 }
 
 #[cfg(test)]
@@ -349,7 +479,7 @@ mod testes_json_original {
         ])
         .unwrap();
         let original: serde_json::Value =
-            serde_json::from_str(&json_original(&lote, 0).unwrap()).unwrap();
+            serde_json::from_str(&json_original(&lote, 0, true).unwrap()).unwrap();
         assert_eq!(original["id"], "00825");
         assert_eq!(original["despachos"][0]["ordem"], 1);
         assert_eq!(original["ementa"], "Aspas: \"sim\" e acento é");
