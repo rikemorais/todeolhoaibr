@@ -1,13 +1,17 @@
 //! Contrato Silver para o cadastro de partidos da Câmara dos Deputados.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao interpretar o Bronze de partidos da Câmara.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroCamaraPartidosSilver {
     /// O Bronze não contém as colunas esperadas como texto.
@@ -38,6 +42,7 @@ pub fn esquema_camara_partidos() -> Arc<Schema> {
 }
 
 /// Valida e projeta o cadastro, preservando os identificadores como texto.
+#[cfg(test)]
 pub fn transformar_camara_partidos(
     lote: &RecordBatch,
 ) -> Result<RecordBatch, ErroCamaraPartidosSilver> {

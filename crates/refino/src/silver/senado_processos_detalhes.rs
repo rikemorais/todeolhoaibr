@@ -1,12 +1,18 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use arrow::array::{Array, StringArray, UInt16Array};
 use arrow::datatypes::{DataType, Field, Schema};
-use arrow::record_batch::RecordBatch;
+#[cfg(test)]
+use arrow::{
+    array::{Array, StringArray, UInt16Array},
+    record_batch::RecordBatch,
+};
+#[cfg(test)]
+use std::collections::HashSet;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao validar detalhes de processo legislativo do Senado.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroSenadoProcessosDetalhesSilver {
     /// O Bronze não tem schema textual com `id` e `ano`.
@@ -45,6 +51,7 @@ pub fn esquema_senado_processos_detalhes() -> Arc<Schema> {
 }
 
 /// Tipifica identidade e ano sem explodir ou perder campos do detalhe do processo.
+#[cfg(test)]
 pub fn transformar_senado_processos_detalhes(
     lote: &RecordBatch,
     ids_vistos: &mut HashSet<String>,
@@ -129,6 +136,7 @@ pub fn transformar_senado_processos_detalhes(
     .map_err(|_| ErroSenadoProcessosDetalhesSilver::Schema)
 }
 
+#[cfg(test)]
 fn valor_original(texto: &str) -> serde_json::Value {
     let texto_aparado = texto.trim_start();
     if texto_aparado.starts_with('{') || texto_aparado.starts_with('[') {
