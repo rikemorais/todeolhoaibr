@@ -9,12 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    camara_despesas::{esquema_camara_despesas, transformar_camara_despesas},
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    camara_despesas::esquema_camara_despesas,
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "camara-despesa-ceap-v2";
+const REGRA: &str = "camara-despesa-ceap-v3";
+const SQL: &str = include_str!("../../sql/silver/camara_despesas.sql");
 
 /// Tarefa Silver para um recurso anual de despesas da Câmara.
 pub struct TarefaDeSilverCamaraDespesas {
@@ -103,7 +104,8 @@ pub async fn publicar_camara_despesas(
             detalhe: "snapshot não corresponde ao recurso anual de despesas da Câmara".into(),
         });
     }
-    publicar_transformacao(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -116,7 +118,8 @@ pub async fn publicar_camara_despesas(
             iniciada_em,
             id_execucao,
         },
-        |lote| transformar_camara_despesas(lote, ano).map_err(|erro| erro.to_string()),
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -128,6 +131,8 @@ mod testes {
     use arrow::array::StringArray;
     use arrow::record_batch::RecordBatch;
     use async_trait::async_trait;
+    use bytes::Bytes;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -251,6 +256,24 @@ mod testes {
             .unwrap()
     }
 
+    fn lote_silver(silver: &Memoria, recurso: &str) -> RecordBatch {
+        let objetos = silver.0.lock().unwrap();
+        let ponteiro: UltimaVersao =
+            serde_json::from_slice(&objetos[&LocalizacaoRaw::ultima_versao("camara", recurso)])
+                .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&objetos[&ponteiro.manifesto]).unwrap();
+        ParquetRecordBatchReaderBuilder::try_new(Bytes::copy_from_slice(
+            &objetos[&manifesto.partes[0].chave],
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+    }
+
     #[tokio::test]
     async fn publica_e_reaproveita_o_recurso_anual_vigente() {
         let bronze = Memoria::default();
@@ -278,6 +301,21 @@ mod testes {
         .unwrap();
 
         assert_eq!(resultado.partes, 1);
+        let bytes_bronze = bronze
+            .ler(&snapshot.manifesto().partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let lote_bronze = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_bronze))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let esperado =
+            super::super::camara_despesas::transformar_camara_despesas(&lote_bronze, 2024).unwrap();
+        assert_eq!(lote_silver(&silver, recurso), esperado);
         assert!(!tarefa.pendente(&silver).await.unwrap());
     }
 

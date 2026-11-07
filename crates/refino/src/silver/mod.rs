@@ -43,19 +43,18 @@ pub mod tse_votacao_secao;
 pub use camara_deputados::esquema_camara_deputados;
 #[cfg(test)]
 pub use camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
-pub use camara_despesas::{
-    ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
-};
+pub use camara_despesas::esquema_camara_despesas;
+#[cfg(test)]
+pub use camara_despesas::{ErroCamaraDespesasSilver, transformar_camara_despesas};
 pub use camara_legislaturas::esquema_camara_legislaturas;
 #[cfg(test)]
 pub use camara_legislaturas::{ErroCamaraLegislaturasSilver, transformar_camara_legislaturas};
 pub use camara_partidos::esquema_camara_partidos;
 #[cfg(test)]
 pub use camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos};
-pub use camara_tramitacoes::{
-    ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
-    transformar_camara_tramitacoes,
-};
+#[cfg(test)]
+pub use camara_tramitacoes::{ErroCamaraTramitacoesSilver, transformar_camara_tramitacoes};
+pub use camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
 pub use ibge_agregados::esquema_ibge_agregados;
 #[cfg(test)]
 pub use ibge_agregados::{ErroIbgeSilver, transformar_ibge_agregados};
