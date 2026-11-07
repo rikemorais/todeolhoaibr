@@ -9,17 +9,15 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_selecionada},
-    tse_despesas_pagas::{
-        EstadoDeChavesDeDespesasPagas, esquema_tse_despesas_pagas_2024,
-        transformar_tse_despesas_pagas_2024,
-    },
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
+    tse_despesas_pagas::esquema_tse_despesas_pagas_2024,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
 const RECURSO: &str = "prestacao-contas/ano=2024";
 const DESTINO: &str = "prestacao-contas/ano=2024/despesas-pagas";
-const REGRA: &str = "tse-despesa-paga-2024-v1";
+const REGRA: &str = "tse-despesa-paga-2024-v2";
+const SQL: &str = include_str!("../../sql/silver/tse_despesas_pagas.sql");
 
 /// Tarefa Silver para despesas pagas do consolidado `BRASIL` de 2024.
 pub struct TarefaDeSilverTseDespesasPagas {
@@ -101,8 +99,7 @@ pub async fn publicar_tse_despesas_pagas_2024(
         });
     }
 
-    let mut chaves = EstadoDeChavesDeDespesasPagas::default();
-    let resultado = publicar_transformacao_selecionada(
+    let resultado = publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -115,18 +112,9 @@ pub async fn publicar_tse_despesas_pagas_2024(
             iniciada_em,
             id_execucao,
         },
-        parte_brasil,
-        |lote| {
-            transformar_tse_despesas_pagas_2024(lote, &mut chaves).map_err(|erro| erro.to_string())
-        },
+        SQL,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await;
-    if resultado.is_ok() {
-        tracing::info!(
-            tabela = "despesas_pagas_candidatos",
-            duplicatas_exatas_removidas = chaves.copias_exatas_removidas(),
-            "contrato Silver TSE publicado"
-        );
-    }
     resultado
 }

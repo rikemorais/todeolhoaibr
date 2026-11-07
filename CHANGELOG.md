@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Alterado
+
+- Migra candidaturas, bens, votação por seção e despesas pagas do TSE para contratos SQL/DataFusion, preservando schemas, validação de chaves, aliases históricos, filtros e a deduplicação exata das despesas pagas (issue #243).
+
 ## [0.46.0] - 2026-11-07
 
 ### Adicionado
