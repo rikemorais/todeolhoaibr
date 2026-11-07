@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.46.0] - 2026-11-07
+
 ### Adicionado
 
 - Adiciona executor SQL/DataFusion em fluxo e tarefa reutilizável para contratos Silver, com limites de recursos e linhagem explícita (issue #238).
