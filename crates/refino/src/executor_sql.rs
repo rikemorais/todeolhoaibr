@@ -130,7 +130,12 @@ impl EntradaSqlPreparada {
                 restante = &token[fim + 2..];
                 continue;
             }
-            let Some(nome) = placeholder.strip_prefix("OPCIONAL:") else {
+            let expressao_opcional = placeholder.strip_prefix("EXPR_OPCIONAL:");
+            let nome = if let Some(nome) = expressao_opcional {
+                nome
+            } else if let Some(nome) = placeholder.strip_prefix("OPCIONAL:") {
+                nome
+            } else {
                 return Err(ErroExecutorSql::Configuracao(
                     "placeholder SQL desconhecido".into(),
                 ));
@@ -147,9 +152,14 @@ impl EntradaSqlPreparada {
             if self.colunas_bronze.contains(nome) {
                 saida.push('"');
                 saida.push_str(nome);
-                saida.push_str("\" AS \"");
-                saida.push_str(nome);
                 saida.push('"');
+                if expressao_opcional.is_none() {
+                    saida.push_str(" AS \"");
+                    saida.push_str(nome);
+                    saida.push('"');
+                }
+            } else if expressao_opcional.is_some() {
+                saida.push_str("CAST(NULL AS VARCHAR)");
             } else {
                 saida.push_str("CAST(NULL AS VARCHAR) AS \"");
                 saida.push_str(nome);

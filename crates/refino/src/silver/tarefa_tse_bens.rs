@@ -1,6 +1,5 @@
 //! Tarefa Silver para o consolidado nacional de bens declarados do TSE.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,13 +9,14 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_selecionada},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
     tarefa_tse_candidaturas::parte_brasil,
-    tse_bens::{esquema_tse_bens, transformar_tse_bens},
+    tse_bens::esquema_tse_bens,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "tse-bem-candidato-v1";
+const REGRA: &str = "tse-bem-candidato-v2";
+const SQL: &str = include_str!("../../sql/silver/tse_bens.sql");
 
 /// Tarefa para publicar o consolidado `BRASIL` de bens de um recurso anual Bronze.
 pub struct TarefaDeSilverTseBens {
@@ -106,8 +106,8 @@ pub async fn publicar_tse_bens(
         });
     }
 
-    let mut chaves_vistas = HashSet::new();
-    publicar_transformacao_selecionada(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -120,8 +120,8 @@ pub async fn publicar_tse_bens(
             iniciada_em,
             id_execucao,
         },
-        parte_brasil,
-        |lote| transformar_tse_bens(lote, ano, &mut chaves_vistas).map_err(|erro| erro.to_string()),
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -143,6 +143,8 @@ fn erro_recurso(recurso: &str) -> ErroDeIngestao {
 #[cfg(test)]
 mod testes {
     use super::*;
+    use crate::silver::tse_bens::transformar_tse_bens;
+    use std::collections::HashSet;
 
     #[test]
     fn recurso_exige_ano_eleitoral_de_quatro_digitos() {
