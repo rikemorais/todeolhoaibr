@@ -2,14 +2,18 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{
     Array, RecordBatch, StringArray, TimestampMicrosecondArray, UInt16Array, UInt32Array,
 };
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+#[cfg(test)]
 use chrono::NaiveDateTime;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao transformar um lote Bronze de tramitações.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroCamaraTramitacoesSilver {
     /// Faltam colunas da origem ou uma coluna deixou de ser textual.
@@ -52,6 +56,7 @@ pub fn esquema_camara_tramitacoes() -> Arc<Schema> {
 }
 
 /// Tipifica os campos consultados e preserva todos os atributos e linhas da origem.
+#[cfg(test)]
 pub fn transformar_camara_tramitacoes(
     lote: &RecordBatch,
     ano: u16,
@@ -169,6 +174,7 @@ pub fn transformar_camara_tramitacoes(
     .map_err(|_| ErroCamaraTramitacoesSilver::Schema)
 }
 
+#[cfg(test)]
 fn valor_obrigatorio<'a>(
     valores: &'a StringArray,
     linha: usize,
@@ -180,6 +186,7 @@ fn valor_obrigatorio<'a>(
     Ok(valores.value(linha).trim())
 }
 
+#[cfg(test)]
 fn parse_u32(
     valores: &StringArray,
     linha: usize,
@@ -196,6 +203,7 @@ fn parse_u32(
         .map_err(|_| ErroCamaraTramitacoesSilver::Valor { campo, linha })
 }
 
+#[cfg(test)]
 fn parse_data_hora(
     valores: &StringArray,
     linha: usize,

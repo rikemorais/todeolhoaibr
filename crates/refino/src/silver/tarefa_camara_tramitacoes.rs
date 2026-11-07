@@ -9,14 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    camara_tramitacoes::{
-        ano_do_recurso, esquema_camara_tramitacoes, transformar_camara_tramitacoes,
-    },
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "camara-tramitacao-evento-v1";
+const REGRA: &str = "camara-tramitacao-evento-v2";
+const SQL: &str = include_str!("../../sql/silver/camara_tramitacoes.sql");
 
 /// Tarefa Silver para um recurso anual de tramitações Bronze.
 pub struct TarefaDeSilverCamaraTramitacoes {
@@ -92,7 +91,8 @@ pub async fn publicar_camara_tramitacoes(
             detalhe: "ano declarado não corresponde ao recurso Bronze".into(),
         });
     }
-    publicar_transformacao(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -105,7 +105,8 @@ pub async fn publicar_camara_tramitacoes(
             iniciada_em,
             id_execucao,
         },
-        |lote| transformar_camara_tramitacoes(lote, ano).map_err(|erro| erro.to_string()),
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }

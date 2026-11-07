@@ -1,6 +1,5 @@
 //! Tarefa Silver dos conjuntos anuais de votações da Câmara.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,10 +9,10 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    camara_votacoes::{ConjuntoCamaraVotacoes, validar_camara_votacoes},
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    camara_votacoes::ConjuntoCamaraVotacoes,
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql},
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
 /// Tarefa Silver que valida e publica um recurso anual de votações.
 pub struct TarefaDeSilverCamaraVotacoes {
@@ -60,11 +59,37 @@ impl TarefaDeSilverCamaraVotacoes {
 
 fn regra(conjunto: ConjuntoCamaraVotacoes) -> String {
     let versao = if conjunto == ConjuntoCamaraVotacoes::VotacoesVotos {
-        2
+        3
     } else {
-        1
+        2
     };
     format!("camara-{}-v{versao}", conjunto.nome())
+}
+
+fn sql(conjunto: ConjuntoCamaraVotacoes) -> &'static str {
+    match conjunto {
+        ConjuntoCamaraVotacoes::Proposicoes => {
+            include_str!("../../sql/silver/camara_votacoes_proposicoes.sql")
+        }
+        ConjuntoCamaraVotacoes::ProposicoesAutores => {
+            include_str!("../../sql/silver/camara_votacoes_proposicoes_autores.sql")
+        }
+        ConjuntoCamaraVotacoes::Votacoes => {
+            include_str!("../../sql/silver/camara_votacoes_sessoes.sql")
+        }
+        ConjuntoCamaraVotacoes::VotacoesVotos => {
+            include_str!("../../sql/silver/camara_votacoes_votos.sql")
+        }
+        ConjuntoCamaraVotacoes::VotacoesObjetos => {
+            include_str!("../../sql/silver/camara_votacoes_objetos.sql")
+        }
+        ConjuntoCamaraVotacoes::VotacoesProposicoes => {
+            include_str!("../../sql/silver/camara_votacoes_proposicoes_relacionadas.sql")
+        }
+        ConjuntoCamaraVotacoes::VotacoesOrientacoes => {
+            include_str!("../../sql/silver/camara_votacoes_orientacoes.sql")
+        }
+    }
 }
 
 #[async_trait]
@@ -107,8 +132,7 @@ pub async fn publicar_camara_votacoes(
         });
     }
     let regra = regra(conjunto);
-    let mut chaves = HashSet::new();
-    publicar_transformacao(
+    publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -121,9 +145,8 @@ pub async fn publicar_camara_votacoes(
             iniciada_em,
             id_execucao,
         },
-        |lote| {
-            validar_camara_votacoes(conjunto, lote, &mut chaves).map_err(|erro| erro.to_string())
-        },
+        sql(conjunto),
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -264,7 +287,7 @@ mod testes {
             recurso,
         )
         .unwrap();
-        assert!(tarefa.regra().ends_with("camara-votacoes-votos-v2"));
+        assert!(tarefa.regra().ends_with("camara-votacoes-votos-v3"));
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_camara_votacoes(
