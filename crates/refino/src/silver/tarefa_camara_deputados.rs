@@ -9,12 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    camara_deputados::{esquema_camara_deputados, transformar_camara_deputados},
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    camara_deputados::esquema_camara_deputados,
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql},
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "camara-deputado-exercicio-v1";
+const REGRA: &str = "camara-deputado-exercicio-v2";
+const SQL: &str = include_str!("../../sql/silver/camara_deputados.sql");
 
 /// Tarefa Silver para o recurso Bronze `deputados`.
 pub struct TarefaDeSilverCamaraDeputados {
@@ -77,7 +78,7 @@ pub async fn publicar_camara_deputados(
     iniciada_em: DateTime<Utc>,
     id_execucao: &str,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao(
+    publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -90,7 +91,8 @@ pub async fn publicar_camara_deputados(
             iniciada_em,
             id_execucao,
         },
-        |lote| transformar_camara_deputados(lote).map_err(|erro| erro.to_string()),
+        SQL,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
