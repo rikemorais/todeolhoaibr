@@ -99,7 +99,7 @@ pub async fn publicar_tse_despesas_pagas_2024(
         });
     }
 
-    let resultado = publicar_transformacao_sql_com_json_string_original(
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -115,6 +115,5 @@ pub async fn publicar_tse_despesas_pagas_2024(
         SQL,
         &ConfiguracaoExecutorSql::default(),
     )
-    .await;
-    resultado
+    .await
 }

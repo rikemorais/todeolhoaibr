@@ -143,8 +143,6 @@ fn erro_recurso(recurso: &str) -> ErroDeIngestao {
 #[cfg(test)]
 mod testes {
     use super::*;
-    use crate::silver::tse_bens::transformar_tse_bens;
-    use std::collections::HashSet;
 
     #[test]
     fn recurso_exige_ano_eleitoral_de_quatro_digitos() {
