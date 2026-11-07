@@ -1,6 +1,5 @@
 //! Tarefa Silver para a série anual de despesas CEAPS do Senado.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,12 +9,16 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
-    senado_despesas::{esquema_senado_despesas, transformar_senado_despesas},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
+    senado_despesas::esquema_senado_despesas,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "senado-despesa-ceaps-v3";
+#[cfg(test)]
+use super::senado_despesas::transformar_senado_despesas;
+
+const REGRA: &str = "senado-despesa-ceaps-v4";
+const SQL: &str = include_str!("../../sql/silver/senado_despesas.sql");
 
 /// Tarefa de transformação de um recurso anual de despesas do Senado.
 pub struct TarefaDeSilverSenadoDespesas {
@@ -89,8 +92,8 @@ pub async fn publicar_senado_despesas(
     if ano_do_recurso(recurso) != Some(ano) {
         return Err(erro_recurso(recurso));
     }
-    let mut codigos_vistos = HashSet::new();
-    publicar_transformacao(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -103,10 +106,8 @@ pub async fn publicar_senado_despesas(
             iniciada_em,
             id_execucao,
         },
-        |lote| {
-            transformar_senado_despesas(lote, ano, &mut codigos_vistos)
-                .map_err(|erro| erro.to_string())
-        },
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -134,7 +135,9 @@ mod testes {
     use arrow::array::StringArray;
     use arrow::record_batch::RecordBatch;
     use async_trait::async_trait;
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -180,41 +183,71 @@ mod testes {
         let inicio = Utc::now();
         let recurso = "despesas/ano=2024";
         let local = LocalizacaoRaw::nova("senado", recurso, inicio, "bronze-1");
+
         let lote = RecordBatch::try_from_iter(vec![
-            ("ANO", Arc::new(StringArray::from(vec!["2024"])) as _),
-            ("MES", Arc::new(StringArray::from(vec!["02"])) as _),
+            (
+                "ANO",
+                Arc::new(StringArray::from(vec![Some("2024"); 4])) as _,
+            ),
+            (
+                "MES",
+                Arc::new(StringArray::from(vec![
+                    Some("02"),
+                    Some("03"),
+                    None,
+                    Some("04"),
+                ])) as _,
+            ),
             (
                 "SENADOR",
-                Arc::new(StringArray::from(vec!["SENADORA EXEMPLO"])) as _,
+                Arc::new(StringArray::from(vec![Some("SENADORA EXEMPLO"); 4])) as _,
             ),
             (
                 "TIPO_DESPESA",
-                Arc::new(StringArray::from(vec!["Passagens"])) as _,
+                Arc::new(StringArray::from(vec![Some("Passagens"); 4])) as _,
             ),
             (
                 "CNPJ_CPF",
-                Arc::new(StringArray::from(vec!["00123456000199"])) as _,
+                Arc::new(StringArray::from(vec![Some("00123456000199"); 4])) as _,
             ),
             (
                 "FORNECEDOR",
-                Arc::new(StringArray::from(vec!["Fornecedor"])) as _,
+                Arc::new(StringArray::from(vec![Some("Fornecedor"); 4])) as _,
             ),
             (
                 "DOCUMENTO",
-                Arc::new(StringArray::from(vec!["000123"])) as _,
+                Arc::new(StringArray::from(vec![Some("000123"); 4])) as _,
             ),
-            ("DATA", Arc::new(StringArray::from(vec!["04/02/2024"])) as _),
+            (
+                "DATA",
+                Arc::new(StringArray::from(vec![
+                    Some("04/02/2024"),
+                    Some("10/03/2024"),
+                    Some("data deslocada"),
+                    Some("31/13/2024"),
+                ])) as _,
+            ),
             (
                 "DETALHAMENTO",
-                Arc::new(StringArray::from(vec!["Trecho"])) as _,
+                Arc::new(StringArray::from(vec![Some("Trecho"); 4])) as _,
             ),
             (
                 "VALOR_REEMBOLSADO",
-                Arc::new(StringArray::from(vec!["1675,50"])) as _,
+                Arc::new(StringArray::from(vec![
+                    Some("1\r\n675,50"),
+                    Some("-42,25"),
+                    Some("2014675"),
+                    Some(",95"),
+                ])) as _,
             ),
             (
                 "COD_DOCUMENTO",
-                Arc::new(StringArray::from(vec!["00045"])) as _,
+                Arc::new(StringArray::from(vec![
+                    Some("00045"),
+                    Some("00046"),
+                    None,
+                    Some("00047"),
+                ])) as _,
             ),
         ])
         .unwrap();
@@ -275,6 +308,18 @@ mod testes {
     #[tokio::test]
     async fn publica_recurso_anual_e_reaproveita_versao_atual() {
         let (bronze, snapshot) = snapshot().await;
+        let parte_bronze = &snapshot.manifesto().partes[0];
+        let lote_bronze = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            bronze.ler(&parte_bronze.chave).await.unwrap().unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
+        let esperado =
+            transformar_senado_despesas(&lote_bronze, 2024, &mut Default::default()).unwrap();
         let silver = Memoria::default();
         let tarefa = TarefaDeSilverSenadoDespesas::nova(
             Arc::new(Memoria::default()),
@@ -295,6 +340,34 @@ mod testes {
         .await
         .unwrap();
         assert_eq!(resumo.partes, 1);
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao(
+                    "senado",
+                    "despesas/ano=2024",
+                ))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let saida = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            silver
+                .ler(&manifesto.partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
+        assert_eq!(saida, esperado);
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_senado_despesas(

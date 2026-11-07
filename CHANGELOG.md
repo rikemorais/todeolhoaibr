@@ -17,6 +17,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Migra os contratos BCB/SGS e agregados IBGE para SQL/DataFusion, mantém a paridade e o schema publicados, e reprocessa uma vez os dados existentes com regras v2 (issue #239).
 - Migra deputados, partidos e legislaturas da Câmara e os processos e detalhes do Senado para SQL/DataFusion, preservando schemas, campos JSON dinâmicos e validação de chaves com regras v2 (issue #240).
 - Migra despesas CEAP, tramitações anuais e os sete conjuntos de votações da Câmara para SQL/DataFusion, preservando registros, schema de origem e validação de chaves (issue #241).
+- Migra despesas CEAPS, parlamentares, sessões e votos nominais do Senado para SQL/DataFusion; adiciona UDFs genéricas de leitura JSON para o DataFusion 55.2, expande envelopes atuais e legados com `UNNEST` e mantém paridade com as transformações anteriores (issue #242).
 
 ## [0.45.0] - 2026-11-06
 
