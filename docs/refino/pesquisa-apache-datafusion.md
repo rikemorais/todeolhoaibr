@@ -51,6 +51,12 @@ Assim, DataFusion é uma dependência de execução dentro do crate `refino`, n�
 
 As observações sobre capacidades são **fatos documentados** nas fontes abaixo. Ganhos de desempenho, redução de código e consumo de recursos são **hipóteses** que precisam de benchmark nos contratos reais.
 
+### JSON textual e expansão de arrays na versão adotada
+
+Na dependência fixada `datafusion = 55.2.0`, a busca no código-fonte local do crate confirmou que o engine não registra uma função SQL central para extrair uma chave de uma string JSON. A documentação 55.2 lista funções escalares e especiais; a expansão `UNNEST` aceita uma expressão de array e produz uma linha por elemento. A página de extensões também lista funções JSON como extensão comunitária separada, não como parte do core. Para o contrato do Senado, o projeto mantém duas UDFs genéricas, `tdoa_json_get` e `tdoa_json_expand_votos`, enquanto aliases, validações, colunas e relacionamento permanecem em SQL. O caminho alternativo de adicionar uma extensão de terceiros não foi escolhido porque ampliaria dependências para cobrir apenas essas duas operações.
+
+Fontes: [referência SQL do DataFusion 55.2.0](https://datafusion.apache.org/versions/55.2.0/user-guide/sql/index.html), [funções especiais — `UNNEST`](https://datafusion.apache.org/user-guide/sql/special_functions.html), [catálogo oficial de extensões](https://datafusion.apache.org/versions/55.1.0/library-user-guide/extensions.html). A checagem da ausência de função JSON core foi feita no código-fonte local da versão exata 55.2.0, não inferida só da página de extensões.
+
 ## Fontes primárias
 
 - [Apache DataFusion: introdução e capacidades](https://datafusion.apache.org/user-guide/introduction.html)

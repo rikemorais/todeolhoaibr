@@ -1,6 +1,5 @@
 //! Tarefa Silver para as votações anuais do Senado.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,14 +9,18 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
-    senado_votacoes::transformar_senado_votacoes,
-    senado_votos::{esquema_senado_votos, transformar_senado_votos},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql},
+    senado_votos::esquema_senado_votos,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "senado-votacao-v1";
-const REGRA_VOTOS: &str = "senado-voto-nominal-v1";
+#[cfg(test)]
+use super::senado_votos::transformar_senado_votos;
+
+const REGRA: &str = "senado-votacao-v2";
+const REGRA_VOTOS: &str = "senado-voto-nominal-v2";
+const SQL_VOTACOES: &str = include_str!("../../sql/silver/senado_votacoes.sql");
+const SQL_VOTOS: &str = include_str!("../../sql/silver/senado_votos.sql");
 
 /// Tarefa para publicar um recurso anual de votações do Senado.
 pub struct TarefaDeSilverSenadoVotacoes {
@@ -120,7 +123,7 @@ pub async fn publicar_senado_votos(
         recurso: recurso.to_owned(),
         detalhe: "recurso de votações sem ano no caminho".into(),
     })?;
-    publicar_transformacao(
+    publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -133,7 +136,8 @@ pub async fn publicar_senado_votos(
             iniciada_em,
             id_execucao,
         },
-        |lote| transformar_senado_votos(lote).map_err(|erro| erro.to_string()),
+        SQL_VOTOS,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -153,8 +157,7 @@ pub async fn publicar_senado_votacoes(
             detalhe: "recurso de votações sem ano no caminho".into(),
         });
     }
-    let mut codigos_vistos = HashSet::new();
-    publicar_transformacao(
+    publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -167,9 +170,8 @@ pub async fn publicar_senado_votacoes(
             iniciada_em,
             id_execucao,
         },
-        |lote| {
-            transformar_senado_votacoes(lote, &mut codigos_vistos).map_err(|erro| erro.to_string())
-        },
+        SQL_VOTACOES,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -180,7 +182,9 @@ mod testes {
 
     use arrow::{array::StringArray, record_batch::RecordBatch};
     use async_trait::async_trait;
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -222,19 +226,30 @@ mod testes {
     }
 
     async fn fonte(ids: &[&str]) -> (Memoria, Arc<SnapshotBronze>) {
+        let votos = vec![Some(r#"[{"codigoParlamentar":"7","voto":"Sim"}]"#); ids.len()];
+        fonte_com_votos(ids, &votos).await
+    }
+
+    async fn fonte_com_votos(
+        ids: &[&str],
+        json_votos: &[Option<&str>],
+    ) -> (Memoria, Arc<SnapshotBronze>) {
+        assert_eq!(ids.len(), json_votos.len());
         let bronze = Memoria::default();
         let inicio = Utc::now();
         let recurso = "votacoes/ano=2024";
         let local = LocalizacaoRaw::nova("senado", recurso, inicio, "bronze-1");
         let datas = vec!["2024-02-01"; ids.len()];
-        let votos = vec![r#"[{"codigoParlamentar":"7","voto":"Sim"}]"#; ids.len()];
         let lote = RecordBatch::try_from_iter(vec![
             (
                 "codigoSessaoVotacao",
                 Arc::new(StringArray::from(ids.to_vec())) as _,
             ),
             ("dataSessao", Arc::new(StringArray::from(datas)) as _),
-            ("votos", Arc::new(StringArray::from(votos)) as _),
+            (
+                "votos",
+                Arc::new(StringArray::from(json_votos.to_vec())) as _,
+            ),
         ])
         .unwrap();
         let mut bytes = Vec::new();
@@ -328,6 +343,116 @@ mod testes {
     }
 
     #[tokio::test]
+    async fn sql_preserva_ordem_e_equivale_ao_arrow_em_envelopes_atual_e_legado() {
+        let fixtures = [
+            Some(
+                r#"[{"codigoParlamentar":7,"nomeParlamentar":"Senadora A","siglaPartido":"ABC","siglaUf":"DF","voto":"Sim"},{"IdentificacaoParlamentar":{"CodigoParlamentar":"008","NomeParlamentar":"Senador B"},"Voto":"Não"}]"#,
+            ),
+            Some(
+                r#"{"Votos":{"VotoParlamentar":{"IdentificacaoParlamentar":{"CodigoParlamentar":9,"NomeParlamentar":"Senador C","SiglaPartidoParlamentar":"XYZ","UfParlamentar":"SP"},"DescricaoVoto":"Abstenção"}}}"#,
+            ),
+            Some("[]"),
+            None,
+        ];
+        let (bronze, snapshot) = fonte_com_votos(&["S1", "S2", "S3", "S4"], &fixtures).await;
+        let lote_bronze = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            bronze
+                .ler(&snapshot.manifesto().partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
+        let esperado = transformar_senado_votos(&lote_bronze).unwrap();
+        let silver = Memoria::default();
+        publicar_senado_votacoes(
+            &bronze,
+            &silver,
+            &snapshot,
+            "votacoes/ano=2024",
+            Utc::now(),
+            "silver-json-parity",
+        )
+        .await
+        .unwrap();
+        publicar_senado_votos(
+            &bronze,
+            &silver,
+            &snapshot,
+            "votacoes/ano=2024",
+            Utc::now(),
+            "silver-json-parity",
+        )
+        .await
+        .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao("senado", "votos/ano=2024"))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let saida = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            silver
+                .ler(&manifesto.partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
+        assert_eq!(saida, esperado);
+        assert_eq!(saida.num_rows(), 3);
+
+        let ponteiro_sessoes: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao(
+                    "senado",
+                    "votacoes/ano=2024",
+                ))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto_sessoes: ManifestoRaw = serde_json::from_slice(
+            &silver
+                .ler(&ponteiro_sessoes.manifesto)
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let sessoes = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            silver
+                .ler(&manifesto_sessoes.partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
+        assert_eq!(sessoes.num_rows(), 4);
+    }
+
+    #[tokio::test]
     async fn nao_publica_recurso_que_nao_seja_votacao_anual() {
         let (bronze, snapshot) = fonte(&["S1"]).await;
         assert!(
@@ -386,5 +511,30 @@ mod testes {
         )
         .await;
         assert!(erro.is_err());
+    }
+
+    #[tokio::test]
+    async fn json_de_votos_invalido_impede_publicacao() {
+        let (bronze, snapshot) = fonte_com_votos(&["S1"], &[Some("não é JSON")]).await;
+        let silver = Memoria::default();
+        assert!(
+            publicar_senado_votos(
+                &bronze,
+                &silver,
+                &snapshot,
+                "votacoes/ano=2024",
+                Utc::now(),
+                "silver-invalid-json",
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao("senado", "votos/ano=2024"))
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

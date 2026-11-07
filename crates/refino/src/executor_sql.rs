@@ -3,8 +3,10 @@
 //! O chamador prepara em disco somente as partes do snapshot Bronze e mantém
 //! esses arquivos vivos enquanto consome o fluxo devolvido pelo executor.
 
-use arrow::array::{Array, BooleanArray, StringArray, UInt64Array};
-use arrow::datatypes::{Field, Schema};
+use arrow::array::{
+    Array, AsArray, BooleanArray, ListBuilder, StringArray, StringBuilder, UInt64Array,
+};
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
@@ -416,6 +418,20 @@ pub async fn executar_sql(
         Volatility::Immutable,
         Arc::new(assert_true),
     ));
+    contexto.register_udf(create_udf(
+        "tdoa_json_get",
+        vec![DataType::Utf8, DataType::Utf8],
+        DataType::Utf8,
+        Volatility::Immutable,
+        Arc::new(json_get),
+    ));
+    contexto.register_udf(create_udf(
+        "tdoa_json_expand_votos",
+        vec![DataType::Utf8],
+        DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))),
+        Volatility::Immutable,
+        Arc::new(json_expand_votos),
+    ));
     contexto
         .register_parquet(
             "bronze",
@@ -425,6 +441,104 @@ pub async fn executar_sql(
         .await?;
     let dataframe = contexto.sql(sql).await?;
     Ok(dataframe.execute_stream().await?)
+}
+
+/// Extrai uma chave JSON e devolve escalares como texto ou objetos como JSON compacto.
+fn json_get(argumentos: &[ColumnarValue]) -> datafusion::common::Result<ColumnarValue> {
+    let quantidade = argumentos
+        .iter()
+        .filter_map(|valor| match valor {
+            ColumnarValue::Array(array) => Some(array.len()),
+            ColumnarValue::Scalar(_) => None,
+        })
+        .max()
+        .unwrap_or(1);
+    let valores = argumentos
+        .iter()
+        .map(|valor| valor.clone().into_array(quantidade))
+        .collect::<datafusion::common::Result<Vec<_>>>()?;
+    let [json, chave] = valores.as_slice() else {
+        return Err(datafusion::common::DataFusionError::Execution(
+            "tdoa_json_get requer JSON e chave".into(),
+        ));
+    };
+    let json = json.as_string::<i32>();
+    let chave = chave.as_string::<i32>();
+    let mut saida = StringBuilder::new();
+    for indice in 0..quantidade {
+        if json.is_null(indice) || chave.is_null(indice) {
+            saida.append_null();
+            continue;
+        }
+        let valor = serde_json::from_str::<serde_json::Value>(json.value(indice))
+            .ok()
+            .and_then(|objeto| objeto.get(chave.value(indice)).cloned());
+        match valor {
+            Some(serde_json::Value::String(texto)) => saida.append_value(texto),
+            Some(serde_json::Value::Number(numero)) => saida.append_value(numero.to_string()),
+            Some(serde_json::Value::Bool(_)) | Some(serde_json::Value::Null) | None => {
+                saida.append_null()
+            }
+            Some(valor) => saida.append_value(valor.to_string()),
+        }
+    }
+    Ok(ColumnarValue::Array(Arc::new(saida.finish())))
+}
+
+/// Normaliza as duas formas do envelope do Senado para uma lista de votos JSON.
+fn json_expand_votos(argumentos: &[ColumnarValue]) -> datafusion::common::Result<ColumnarValue> {
+    let argumento = argumentos.first().ok_or_else(|| {
+        datafusion::common::DataFusionError::Execution("tdoa_json_expand_votos requer JSON".into())
+    })?;
+    let quantidade = match argumento {
+        ColumnarValue::Array(array) => array.len(),
+        ColumnarValue::Scalar(_) => 1,
+    };
+    let array = argumento.clone().into_array(quantidade)?;
+    let array = array.as_string::<i32>();
+    let mut builder = ListBuilder::new(StringBuilder::new());
+    for indice in 0..quantidade {
+        let valores = builder.values();
+        if array.is_null(indice) {
+            builder.append(false);
+            continue;
+        }
+        let json = serde_json::from_str::<serde_json::Value>(array.value(indice));
+        let registros = json.ok().and_then(|json| {
+            let envelope = json
+                .get("Votos")
+                .or_else(|| json.get("votos"))
+                .unwrap_or(&json);
+            match envelope {
+                serde_json::Value::Array(registros) => Some(registros.clone()),
+                serde_json::Value::Object(objeto) => objeto
+                    .get("votoParlamentar")
+                    .or_else(|| objeto.get("VotoParlamentar"))
+                    .and_then(|lista| match lista {
+                        serde_json::Value::Array(registros) => Some(registros.clone()),
+                        serde_json::Value::Object(registro) => {
+                            Some(vec![serde_json::Value::Object(registro.clone())])
+                        }
+                        _ => None,
+                    }),
+                _ => None,
+            }
+        });
+        let Some(registros) = registros else {
+            return Err(datafusion::common::DataFusionError::Execution(format!(
+                "lista JSON de votos inválida na linha {indice}"
+            )));
+        };
+        for (ordem, registro) in registros.into_iter().enumerate() {
+            let envelopado = serde_json::json!({
+                "_tdoa_ordinal": ordem,
+                "_tdoa_original": registro,
+            });
+            valores.append_value(envelopado.to_string());
+        }
+        builder.append(true);
+    }
+    Ok(ColumnarValue::Array(Arc::new(builder.finish())))
 }
 
 /// Assertion SQL para restrições de linha/conjunto que devem falhar a publicação,
