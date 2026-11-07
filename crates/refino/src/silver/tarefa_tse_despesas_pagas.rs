@@ -101,7 +101,7 @@ pub async fn publicar_tse_despesas_pagas_2024(
 
     let snapshot_brasil = snapshot.filtrar_partes(parte_brasil);
     let executor = ConfiguracaoExecutorSql {
-        limite_memoria_bytes: 1024 * 1024 * 1024,
+        limite_memoria_bytes: 512 * 1024 * 1024,
         limite_spill_bytes: 8 * 1024 * 1024 * 1024,
         ..ConfiguracaoExecutorSql::default()
     };
