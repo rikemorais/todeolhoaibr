@@ -12,14 +12,21 @@ WITH origem AS (
         {{EXPR_OPCIONAL:DT_ELEICAO}} AS data_eleicao_texto,
         {{EXPR_OPCIONAL:DT_NASCIMENTO}} AS data_nascimento_texto,
         {{EXPR_OPCIONAL:NR_IDADE_DATA_POSSE}} AS idade_texto,
-        COUNT(*) OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SG_UF"), TRIM("SG_UE"),
-                         TRIM("CD_CARGO"), TRIM("NR_CANDIDATO"), TRIM("SQ_CANDIDATO")
-        ) AS ocorrencias_chave
+        TRIM("SQ_CANDIDATO") AS sequencia_candidato_chave
     FROM bronze
     WHERE regexp_like(upper(_tdoa_origem_url), '_BRASIL([.]CSV|[.]TXT)?$')
+), contagens_chave AS (
+    SELECT COUNT(*) AS chaves_duplicadas
+    FROM (
+        SELECT codigo_eleicao, uf, unidade_eleitoral, codigo_cargo, numero_candidato,
+               sequencia_candidato_chave
+        FROM origem
+        GROUP BY codigo_eleicao, uf, unidade_eleitoral, codigo_cargo, numero_candidato, sequencia_candidato_chave
+        HAVING COUNT(*) > 1
+    ) AS duplicadas
 ), normalizadas AS (
-    SELECT *,
+    SELECT origem.*,
+        contagens_chave.chaves_duplicadas,
         CASE
             WHEN regexp_like(TRIM(data_eleicao_texto), '^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
                 THEN regexp_replace(TRIM(data_eleicao_texto), '^([0-9]{2})/([0-9]{2})/([0-9]{4})$', '$3-$2-$1')
@@ -41,6 +48,7 @@ WITH origem AS (
                 THEN regexp_replace(TRIM(data_nascimento_texto), '^([0-9]{4})([0-9]{2})([0-9]{2})$', '$1-$2-$3')
         END AS data_nascimento_iso
     FROM origem
+    CROSS JOIN contagens_chave
 ), validas AS (
     SELECT *
     FROM normalizadas
@@ -50,7 +58,7 @@ WITH origem AS (
           codigo_eleicao <> '' AND uf <> '' AND unidade_eleitoral <> ''
           AND codigo_cargo <> '' AND numero_candidato <> '' AND sequencia_candidato <> '',
           'campos_da_chave')
-      AND tdoa_assert_true_named(ocorrencias_chave = 1, 'unicidade_da_chave')
+      AND tdoa_assert_true_named(chaves_duplicadas = 0, 'unicidade_da_chave')
 )
 SELECT
     arrow_try_cast('{{ANO_RECURSO}}', 'UInt16') AS ano_eleicao,

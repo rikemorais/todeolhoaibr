@@ -10,17 +10,23 @@ WITH origem AS (
         COALESCE({{EXPR_OPCIONAL:NR_ORDEM_CANDIDATO}}, {{EXPR_OPCIONAL:NR_ORDEM_BEM_CANDIDATO}}, '') AS ordem_texto,
         COALESCE({{EXPR_OPCIONAL:DT_ULTIMA_ATUALIZACAO}}, {{EXPR_OPCIONAL:DT_ULT_ATUAL_BEM_CANDIDATO}}) AS data_atualizacao_texto,
         {{EXPR_OPCIONAL:DT_ELEICAO}} AS data_eleicao_texto,
-        COUNT(*) OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SG_UF"), TRIM("SG_UE"),
-                         TRIM("SQ_CANDIDATO"),
-                         arrow_try_cast(COALESCE({{EXPR_OPCIONAL:NR_ORDEM_CANDIDATO}},
-                             {{EXPR_OPCIONAL:NR_ORDEM_BEM_CANDIDATO}}, ''), 'UInt32')
-        ) AS ocorrencias_chave,
+        TRIM("SQ_CANDIDATO") AS sequencia_candidato_chave,
+        arrow_try_cast(COALESCE({{EXPR_OPCIONAL:NR_ORDEM_CANDIDATO}},
+            {{EXPR_OPCIONAL:NR_ORDEM_BEM_CANDIDATO}}, ''), 'UInt32') AS ordem_chave,
         NULLIF(TRIM({{EXPR_OPCIONAL:VR_BEM_CANDIDATO}}), '') AS valor_texto
     FROM bronze
     WHERE regexp_like(upper(_tdoa_origem_url), '_BRASIL([.]CSV|[.]TXT)?$')
+), contagens_chave AS (
+    SELECT COUNT(*) AS chaves_duplicadas
+    FROM (
+        SELECT codigo_eleicao, uf, unidade_eleitoral, sequencia_candidato_chave, ordem_chave
+        FROM origem
+        GROUP BY codigo_eleicao, uf, unidade_eleitoral, sequencia_candidato_chave, ordem_chave
+        HAVING COUNT(*) > 1
+    ) AS duplicadas
 ), preparados AS (
-    SELECT *,
+    SELECT origem.*,
+        contagens_chave.chaves_duplicadas,
         CASE WHEN regexp_like(TRIM(data_eleicao_texto), '^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
             THEN regexp_replace(TRIM(data_eleicao_texto), '^([0-9]{2})/([0-9]{2})/([0-9]{4})$', '$3-$2-$1')
             WHEN regexp_like(TRIM(data_eleicao_texto), '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') THEN TRIM(data_eleicao_texto)
@@ -37,13 +43,13 @@ WITH origem AS (
             THEN regexp_replace(data_atualizacao_texto, '^([0-9]{4})([0-9]{2})([0-9]{2})$', '$1-$2-$3') END AS data_atualizacao_iso,
         CASE WHEN valor_texto IS NOT NULL THEN regexp_replace(valor_texto, ',', '.', 'g') END AS valor_normalizado
     FROM origem
+    CROSS JOIN contagens_chave
 ), validados AS (
     SELECT * FROM preparados
     WHERE tdoa_assert_true(TRY_CAST(ano_texto AS SMALLINT) = {{ANO_RECURSO}})
       AND tdoa_assert_true(codigo_eleicao <> '' AND uf <> '' AND unidade_eleitoral <> '' AND sequencia_candidato <> '')
-      AND tdoa_assert_true(regexp_like(ordem_texto, '^[0-9]+$')
-          AND arrow_try_cast(ordem_texto, 'UInt32') IS NOT NULL)
-      AND tdoa_assert_true(ocorrencias_chave = 1)
+      AND tdoa_assert_true(regexp_like(ordem_texto, '^[0-9]+$') AND ordem_chave IS NOT NULL)
+      AND tdoa_assert_true(chaves_duplicadas = 0)
       AND tdoa_assert_true(valor_texto IS NULL OR (
           regexp_like(valor_texto, '^-?([0-9]+(,[0-9]{1,2})?|,[0-9]{1,2})$')
           AND TRY_CAST(valor_normalizado AS DECIMAL(18, 2)) IS NOT NULL
@@ -55,7 +61,7 @@ SELECT
     "SG_UF" AS uf,
     "SG_UE" AS unidade_eleitoral,
     "SQ_CANDIDATO" AS sequencia_candidato,
-    arrow_try_cast(ordem_texto, 'UInt32') AS ordem_bem,
+    ordem_chave AS ordem_bem,
     CASE WHEN EXTRACT(YEAR FROM arrow_try_cast(data_eleicao_iso, 'Date32')) BETWEEN 1800 AND {{ANO_RECURSO}} + 1
         THEN arrow_try_cast(data_eleicao_iso, 'Date32') END AS data_eleicao,
     CASE WHEN EXTRACT(YEAR FROM arrow_try_cast(data_atualizacao_iso, 'Date32')) BETWEEN 1800 AND {{ANO_RECURSO}} + 1
