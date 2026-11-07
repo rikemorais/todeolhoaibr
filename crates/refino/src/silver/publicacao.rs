@@ -13,7 +13,10 @@ use todeolho_nucleo::{
 
 use crate::{
     EscritorParquetTipado, SnapshotBronze,
-    executor_sql::{ConfiguracaoExecutorSql, ErroExecutorSql, executar_sql, preparar_snapshot},
+    executor_sql::{
+        ConfiguracaoExecutorSql, ErroExecutorSql, executar_sql, preparar_snapshot,
+        preparar_snapshot_com_json_original,
+    },
 };
 
 const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
@@ -65,6 +68,32 @@ pub(crate) async fn publicar_transformacao_sql(
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, false)
+        .await
+}
+
+/// Executa um contrato SQL preservando também os campos dinâmicos da linha Bronze em JSON.
+pub(crate) async fn publicar_transformacao_sql_com_json_original(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, true)
+        .await
+}
+
+async fn publicar_transformacao_sql_interno(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+    incluir_json_original: bool,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
     let ConfiguracaoDePublicacao {
         fonte,
         recurso,
@@ -93,23 +122,24 @@ pub(crate) async fn publicar_transformacao_sql(
         });
     }
 
-    let entrada = preparar_snapshot(bronze, snapshot, executor.limite_entrada_bytes)
-        .await
-        .map_err(|erro| {
-            let detalhe = match erro {
-                ErroExecutorSql::Snapshot(_) => {
-                    "falha ao validar ou baixar parte do snapshot Bronze para SQL"
-                }
-                ErroExecutorSql::Configuracao(_) => {
-                    "snapshot Bronze excede os limites de entrada SQL"
-                }
-                ErroExecutorSql::Parquet(_) | ErroExecutorSql::Io(_) => {
-                    "falha ao preparar arquivos temporários do snapshot Bronze"
-                }
-                ErroExecutorSql::DataFusion(_) => "falha ao preparar a consulta DataFusion",
-            };
-            erro_manifesto(recurso, detalhe)
-        })?;
+    let entrada = if incluir_json_original {
+        preparar_snapshot_com_json_original(bronze, snapshot, executor.limite_entrada_bytes).await
+    } else {
+        preparar_snapshot(bronze, snapshot, executor.limite_entrada_bytes).await
+    }
+    .map_err(|erro| {
+        let detalhe = match erro {
+            ErroExecutorSql::Snapshot(_) => {
+                "falha ao validar ou baixar parte do snapshot Bronze para SQL"
+            }
+            ErroExecutorSql::Configuracao(_) => "snapshot Bronze excede os limites de entrada SQL",
+            ErroExecutorSql::Parquet(_) | ErroExecutorSql::Io(_) => {
+                "falha ao preparar arquivos temporários do snapshot Bronze"
+            }
+            ErroExecutorSql::DataFusion(_) => "falha ao preparar a consulta DataFusion",
+        };
+        erro_manifesto(recurso, detalhe)
+    })?;
     let diretorio_spill = entrada.diretorio_execucao().join("spill");
     std::fs::create_dir(&diretorio_spill).map_err(|_| {
         erro_manifesto(

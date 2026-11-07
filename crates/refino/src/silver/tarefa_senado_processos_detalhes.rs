@@ -1,6 +1,5 @@
 //! Tarefa Silver para detalhes de processos legislativos do Senado.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,14 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
-    senado_processos_detalhes::{
-        esquema_senado_processos_detalhes, transformar_senado_processos_detalhes,
-    },
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_original},
+    senado_processos_detalhes::esquema_senado_processos_detalhes,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "senado-processo-detalhe-v1";
+const REGRA: &str = "senado-processo-detalhe-v2";
+const SQL: &str = include_str!("../../sql/silver/senado_processos_detalhes.sql");
 
 /// Tarefa para publicar um recurso anual de detalhes de processos do Senado.
 pub struct TarefaDeSilverSenadoProcessosDetalhes {
@@ -90,8 +88,7 @@ pub async fn publicar_senado_processos_detalhes(
     }
     ano.parse::<u16>().map_err(|_| erro_recurso(recurso))?;
 
-    let mut ids_vistos = HashSet::new();
-    publicar_transformacao(
+    publicar_transformacao_sql_com_json_original(
         bronze,
         silver,
         snapshot,
@@ -104,10 +101,8 @@ pub async fn publicar_senado_processos_detalhes(
             iniciada_em,
             id_execucao,
         },
-        |lote| {
-            transformar_senado_processos_detalhes(lote, &mut ids_vistos)
-                .map_err(|erro| erro.to_string())
-        },
+        SQL,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -125,7 +120,9 @@ mod testes {
 
     use arrow::{array::StringArray, record_batch::RecordBatch};
     use async_trait::async_trait;
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -164,6 +161,23 @@ mod testes {
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.0.lock().unwrap().get(chave).cloned())
         }
+    }
+
+    fn resultado_silver(silver: &Memoria, recurso: &str) -> RecordBatch {
+        let objetos = silver.0.lock().unwrap();
+        let ponteiro: UltimaVersao =
+            serde_json::from_slice(&objetos[&LocalizacaoRaw::ultima_versao("senado", recurso)])
+                .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&objetos[&ponteiro.manifesto]).unwrap();
+        let parte = &manifesto.partes[0];
+        ParquetRecordBatchReaderBuilder::try_new(Bytes::copy_from_slice(&objetos[&parte.chave]))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
     }
 
     async fn fonte(ids: &[&str]) -> (Memoria, Arc<SnapshotBronze>) {
@@ -263,6 +277,19 @@ mod testes {
         .await
         .unwrap();
         assert_eq!(resumo.partes, 1);
+        let publicada = resultado_silver(&silver, recurso);
+        let original: serde_json::Value = serde_json::from_str(
+            publicada
+                .column(2)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .value(0),
+        )
+        .unwrap();
+        assert_eq!(original["id"], "00825");
+        assert_eq!(original["ano"], "2024");
+        assert_eq!(original["despachos"][0]["ordem"], 1);
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_senado_processos_detalhes(
@@ -293,6 +320,33 @@ mod testes {
             )
             .await
             .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn rejeita_id_duplicado_sem_publicar_ponteiro() {
+        let (bronze, snapshot) = fonte(&["P1", "P1"]).await;
+        let silver = Memoria::default();
+        let recurso = "processos-detalhes/ano=2024";
+
+        assert!(
+            publicar_senado_processos_detalhes(
+                &bronze,
+                &silver,
+                &snapshot,
+                recurso,
+                Utc::now(),
+                "silver-duplicado",
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao("senado", recurso))
+                .await
+                .unwrap()
+                .is_none()
         );
     }
 }

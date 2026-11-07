@@ -35,18 +35,20 @@ pub use fontes::{
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
 pub use silver::TarefaDeSilverSql;
-pub use silver::camara_deputados::{
-    ErroCamaraDeputadosSilver, esquema_camara_deputados, transformar_camara_deputados,
-};
+pub use silver::camara_deputados::esquema_camara_deputados;
+#[cfg(test)]
+pub use silver::camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
 pub use silver::camara_despesas::{
     ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
 };
+pub use silver::camara_legislaturas::esquema_camara_legislaturas;
+#[cfg(test)]
 pub use silver::camara_legislaturas::{
-    ErroCamaraLegislaturasSilver, esquema_camara_legislaturas, transformar_camara_legislaturas,
+    ErroCamaraLegislaturasSilver, transformar_camara_legislaturas,
 };
-pub use silver::camara_partidos::{
-    ErroCamaraPartidosSilver, esquema_camara_partidos, transformar_camara_partidos,
-};
+pub use silver::camara_partidos::esquema_camara_partidos;
+#[cfg(test)]
+pub use silver::camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos};
 pub use silver::camara_tramitacoes::{
     ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
     transformar_camara_tramitacoes,
@@ -61,12 +63,13 @@ pub use silver::senado_despesas::{
 pub use silver::senado_parlamentares::{
     ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
 };
-pub use silver::senado_processos::{
-    ErroSenadoProcessosSilver, esquema_senado_processos, transformar_senado_processos,
-};
+pub use silver::senado_processos::esquema_senado_processos;
+#[cfg(test)]
+pub use silver::senado_processos::{ErroSenadoProcessosSilver, transformar_senado_processos};
+pub use silver::senado_processos_detalhes::esquema_senado_processos_detalhes;
+#[cfg(test)]
 pub use silver::senado_processos_detalhes::{
-    ErroSenadoProcessosDetalhesSilver, esquema_senado_processos_detalhes,
-    transformar_senado_processos_detalhes,
+    ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
 };
 pub use silver::senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
 pub use silver::senado_votos::{
