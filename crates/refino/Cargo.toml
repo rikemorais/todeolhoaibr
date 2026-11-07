@@ -9,7 +9,7 @@ rust-version.workspace = true
 [dependencies]
 todeolho-nucleo.workspace = true
 
-arrow = "59.2.0"
+arrow = "60.1.0"
 async-trait.workspace = true
 chrono.workspace = true
 hex.workspace = true
