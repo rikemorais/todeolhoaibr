@@ -163,7 +163,11 @@ pub fn transformar_senado_votos(lote: &RecordBatch) -> Result<RecordBatch, ErroS
 }
 
 fn registros_de_votos(json: &Value) -> Option<Vec<&Value>> {
-    match json {
+    let envelope = json
+        .get("Votos")
+        .or_else(|| json.get("votos"))
+        .unwrap_or(json);
+    match envelope {
         Value::Array(registros) => Some(registros.iter().collect()),
         Value::Object(objeto) => {
             let lista = objeto
