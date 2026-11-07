@@ -15,7 +15,7 @@ use crate::{
     EscritorParquetTipado, SnapshotBronze,
     executor_sql::{
         ConfiguracaoExecutorSql, ErroExecutorSql, executar_sql, preparar_snapshot,
-        preparar_snapshot_com_json_original,
+        preparar_snapshot_com_json_original, preparar_snapshot_com_json_string_original,
     },
 };
 
@@ -68,7 +68,7 @@ pub(crate) async fn publicar_transformacao_sql(
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, false)
+    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, None)
         .await
 }
 
@@ -81,8 +81,37 @@ pub(crate) async fn publicar_transformacao_sql_com_json_original(
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, true)
-        .await
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        Some(true),
+    )
+    .await
+}
+
+/// Executa SQL e preserva todos os valores da linha original como texto JSON.
+pub(crate) async fn publicar_transformacao_sql_com_json_string_original(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        Some(false),
+    )
+    .await
 }
 
 async fn publicar_transformacao_sql_interno(
@@ -92,7 +121,7 @@ async fn publicar_transformacao_sql_interno(
     configuracao: ConfiguracaoDePublicacao<'_>,
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
-    incluir_json_original: bool,
+    json_original_aninhado: Option<bool>,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
     let ConfiguracaoDePublicacao {
         fonte,
@@ -122,10 +151,20 @@ async fn publicar_transformacao_sql_interno(
         });
     }
 
-    let entrada = if incluir_json_original {
-        preparar_snapshot_com_json_original(bronze, snapshot, executor.limite_entrada_bytes).await
-    } else {
-        preparar_snapshot(bronze, snapshot, executor.limite_entrada_bytes).await
+    let entrada = match json_original_aninhado {
+        Some(true) => {
+            preparar_snapshot_com_json_original(bronze, snapshot, executor.limite_entrada_bytes)
+                .await
+        }
+        Some(false) => {
+            preparar_snapshot_com_json_string_original(
+                bronze,
+                snapshot,
+                executor.limite_entrada_bytes,
+            )
+            .await
+        }
+        None => preparar_snapshot(bronze, snapshot, executor.limite_entrada_bytes).await,
     }
     .map_err(|erro| {
         let detalhe = match erro {
@@ -147,7 +186,10 @@ async fn publicar_transformacao_sql_interno(
             "falha ao preparar diretório temporário do DataFusion",
         )
     })?;
-    let mut fluxo = executar_sql(entrada.diretorio_bronze(), &diretorio_spill, sql, executor)
+    let sql = entrada
+        .expandir_placeholders_sql(sql)
+        .map_err(|erro| erro_manifesto(recurso, erro))?;
+    let mut fluxo = executar_sql(entrada.diretorio_bronze(), &diretorio_spill, &sql, executor)
         .await
         .map_err(|erro| {
             erro_manifesto(

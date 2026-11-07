@@ -2,12 +2,16 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, Date32Array, Decimal128Array, RecordBatch, StringArray, UInt16Array};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::NaiveDate;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao transformar um lote de despesas da Câmara.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroCamaraDespesasSilver {
     /// A origem não contém as colunas textuais necessárias.
@@ -45,6 +49,7 @@ pub fn esquema_camara_despesas() -> Arc<Schema> {
 }
 
 /// Tipifica campos de consulta e preserva a linha original sem colapsar lançamentos.
+#[cfg(test)]
 pub fn transformar_camara_despesas(
     lote: &RecordBatch,
     ano: u16,
@@ -142,6 +147,7 @@ pub fn transformar_camara_despesas(
     .map_err(|_| ErroCamaraDespesasSilver::Schema)
 }
 
+#[cfg(test)]
 fn parse_data(
     valores: &StringArray,
     linha: usize,
@@ -159,6 +165,7 @@ fn parse_data(
     Ok(Some(data.signed_duration_since(epoch).num_days() as i32))
 }
 
+#[cfg(test)]
 fn parse_decimal(
     valores: &StringArray,
     linha: usize,
@@ -172,6 +179,7 @@ fn parse_decimal(
         .ok_or(ErroCamaraDespesasSilver::Valor { campo, linha })
 }
 
+#[cfg(test)]
 fn decimal_escalado(texto: &str) -> Option<i128> {
     let (negativo, numero) = texto
         .strip_prefix('-')
@@ -189,10 +197,12 @@ fn decimal_escalado(texto: &str) -> Option<i128> {
     Some(if negativo { -magnitude } else { magnitude })
 }
 
+#[cfg(test)]
 fn data_array(valores: Vec<Option<i32>>) -> Result<Arc<dyn Array>, ErroCamaraDespesasSilver> {
     Ok(Arc::new(Date32Array::from(valores)))
 }
 
+#[cfg(test)]
 fn decimal_array(valores: Vec<Option<i128>>) -> Result<Arc<dyn Array>, ErroCamaraDespesasSilver> {
     Ok(Arc::new(
         Decimal128Array::from(valores)
