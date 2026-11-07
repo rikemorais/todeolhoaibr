@@ -38,7 +38,8 @@ WITH origem AS (
       AND tdoa_assert_true(codigo_eleicao <> '' AND uf <> '' AND codigo_municipio <> '' AND zona <> ''
           AND secao <> '' AND codigo_cargo <> '' AND numero_votavel <> '')
       AND tdoa_assert_true(regexp_like(turno_texto, '^[0-9]+$') AND TRY_CAST(turno_texto AS TINYINT) > 0)
-      AND tdoa_assert_true(regexp_like(quantidade_texto, '^[0-9]+$') AND TRY_CAST(quantidade_texto AS UINT) IS NOT NULL)
+      AND tdoa_assert_true(regexp_like(quantidade_texto, '^[0-9]+$')
+          AND arrow_try_cast(quantidade_texto, 'UInt32') IS NOT NULL)
       AND tdoa_assert_true(ocorrencias_chave = 1)
       AND tdoa_assert_true(data_eleicao_texto IS NULL OR TRIM(data_eleicao_texto) = ''
           OR arrow_try_cast(data_eleicao_iso, 'Date32') IS NOT NULL)
@@ -69,4 +70,3 @@ SELECT
     {{EXPR_OPCIONAL:DS_LOCAL_VOTACAO_ENDERECO}} AS endereco_local_votacao,
     _tdoa_json_original AS registro_original
 FROM validados
-ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal

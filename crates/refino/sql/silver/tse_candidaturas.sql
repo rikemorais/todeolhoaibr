@@ -17,6 +17,7 @@ WITH origem AS (
                          TRIM("CD_CARGO"), TRIM("NR_CANDIDATO"), TRIM("SQ_CANDIDATO")
         ) AS ocorrencias_chave
     FROM bronze
+    WHERE regexp_like(upper(_tdoa_origem_url), '_BRASIL([.]CSV|[.]TXT)?$')
 ), normalizadas AS (
     SELECT *,
         CASE
@@ -38,16 +39,18 @@ WITH origem AS (
                 THEN regexp_replace(TRIM(data_nascimento_texto), '^([0-9]{2})-([0-9]{2})-([0-9]{4})$', '$3-$2-$1')
             WHEN regexp_like(TRIM(data_nascimento_texto), '^[0-9]{8}$')
                 THEN regexp_replace(TRIM(data_nascimento_texto), '^([0-9]{4})([0-9]{2})([0-9]{2})$', '$1-$2-$3')
-        END AS data_nascimento_iso,
-        NULLIF(TRIM(idade_texto), '') AS idade_texto
+        END AS data_nascimento_iso
     FROM origem
 ), validas AS (
     SELECT *
     FROM normalizadas
-    WHERE tdoa_assert_true(TRY_CAST(ano_texto AS SMALLINT) = {{ANO_RECURSO}})
-      AND tdoa_assert_true(codigo_eleicao <> '' AND uf <> '' AND unidade_eleitoral <> ''
-          AND codigo_cargo <> '' AND numero_candidato <> '' AND sequencia_candidato <> '')
-      AND tdoa_assert_true(ocorrencias_chave = 1)
+    WHERE tdoa_assert_true_named(
+          TRY_CAST(ano_texto AS SMALLINT) = {{ANO_RECURSO}}, 'ano_do_recurso')
+      AND tdoa_assert_true_named(
+          codigo_eleicao <> '' AND uf <> '' AND unidade_eleitoral <> ''
+          AND codigo_cargo <> '' AND numero_candidato <> '' AND sequencia_candidato <> '',
+          'campos_da_chave')
+      AND tdoa_assert_true_named(ocorrencias_chave = 1, 'unicidade_da_chave')
 )
 SELECT
     arrow_try_cast('{{ANO_RECURSO}}', 'UInt16') AS ano_eleicao,
@@ -61,8 +64,8 @@ SELECT
         THEN arrow_try_cast(data_eleicao_iso, 'Date32') END AS data_eleicao,
     CASE WHEN EXTRACT(YEAR FROM arrow_try_cast(data_nascimento_iso, 'Date32')) BETWEEN 1800 AND {{ANO_RECURSO}} + 1
         THEN arrow_try_cast(data_nascimento_iso, 'Date32') END AS data_nascimento,
-    CASE WHEN idade_texto NOT IN ('-1', '#NULO', '#NE') AND regexp_like(idade_texto, '^[0-9]{1,3}$')
-        THEN arrow_try_cast(idade_texto, 'UInt8') END AS idade_data_posse,
+    CASE WHEN NULLIF(TRIM(idade_texto), '') NOT IN ('-1', '#NULO', '#NE')
+        AND regexp_like(NULLIF(TRIM(idade_texto), ''), '^[0-9]{1,3}$')
+        THEN arrow_try_cast(NULLIF(TRIM(idade_texto), ''), 'UInt8') END AS idade_data_posse,
     _tdoa_json_original AS registro_original
 FROM validas
-ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal

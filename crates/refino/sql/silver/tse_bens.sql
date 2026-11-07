@@ -13,11 +13,12 @@ WITH origem AS (
         COUNT(*) OVER (
             PARTITION BY TRIM("CD_ELEICAO"), TRIM("SG_UF"), TRIM("SG_UE"),
                          TRIM("SQ_CANDIDATO"),
-                         TRY_CAST(COALESCE({{EXPR_OPCIONAL:NR_ORDEM_CANDIDATO}},
-                             {{EXPR_OPCIONAL:NR_ORDEM_BEM_CANDIDATO}}, '') AS UINT)
+                         arrow_try_cast(COALESCE({{EXPR_OPCIONAL:NR_ORDEM_CANDIDATO}},
+                             {{EXPR_OPCIONAL:NR_ORDEM_BEM_CANDIDATO}}, ''), 'UInt32')
         ) AS ocorrencias_chave,
         NULLIF(TRIM({{EXPR_OPCIONAL:VR_BEM_CANDIDATO}}), '') AS valor_texto
     FROM bronze
+    WHERE regexp_like(upper(_tdoa_origem_url), '_BRASIL([.]CSV|[.]TXT)?$')
 ), preparados AS (
     SELECT *,
         CASE WHEN regexp_like(TRIM(data_eleicao_texto), '^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
@@ -40,7 +41,8 @@ WITH origem AS (
     SELECT * FROM preparados
     WHERE tdoa_assert_true(TRY_CAST(ano_texto AS SMALLINT) = {{ANO_RECURSO}})
       AND tdoa_assert_true(codigo_eleicao <> '' AND uf <> '' AND unidade_eleitoral <> '' AND sequencia_candidato <> '')
-      AND tdoa_assert_true(regexp_like(ordem_texto, '^[0-9]+$') AND TRY_CAST(ordem_texto AS UINT) IS NOT NULL)
+      AND tdoa_assert_true(regexp_like(ordem_texto, '^[0-9]+$')
+          AND arrow_try_cast(ordem_texto, 'UInt32') IS NOT NULL)
       AND tdoa_assert_true(ocorrencias_chave = 1)
       AND tdoa_assert_true(valor_texto IS NULL OR (
           regexp_like(valor_texto, '^-?([0-9]+(,[0-9]{1,2})?|,[0-9]{1,2})$')
@@ -64,4 +66,3 @@ SELECT
     arrow_try_cast(valor_normalizado, 'Decimal128(18,2)') AS valor_bem,
     _tdoa_json_original AS registro_original
 FROM validados
-ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal
