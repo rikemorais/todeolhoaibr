@@ -1524,6 +1524,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Plano de integração e validação incremental">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#json-textual-e-expansao-de-arrays-na-versao-adotada" class="md-nav__link">
+    <span class="md-ellipsis">
+      JSON textual e expansão de arrays na versão adotada
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1596,6 +1611,9 @@
 <li>Concluir a migração dos contratos elegíveis quando a paridade e os limites operacionais forem demonstrados. Manter em Rust somente as exceções justificadas; adiar uma expressão específica se ela enfraquecer contrato, linhagem ou recuperação.</li>
 </ol>
 <p>As observações sobre capacidades são <strong>fatos documentados</strong> nas fontes abaixo. Ganhos de desempenho, redução de código e consumo de recursos são <strong>hipóteses</strong> que precisam de benchmark nos contratos reais.</p>
+<h3 id="json-textual-e-expansao-de-arrays-na-versao-adotada">JSON textual e expansão de arrays na versão adotada<a class="headerlink" href="#json-textual-e-expansao-de-arrays-na-versao-adotada" title="Permanent link">&para;</a></h3>
+<p>Na dependência fixada <code>datafusion = 55.2.0</code>, a busca no código-fonte local do crate confirmou que o engine não registra uma função SQL central para extrair uma chave de uma string JSON. A documentação 55.2 lista funções escalares e especiais; a expansão <code>UNNEST</code> aceita uma expressão de array e produz uma linha por elemento. A página de extensões também lista funções JSON como extensão comunitária separada, não como parte do core. Para o contrato do Senado, o projeto mantém duas UDFs genéricas, <code>tdoa_json_get</code> e <code>tdoa_json_expand_votos</code>, enquanto aliases, validações, colunas e relacionamento permanecem em SQL. O caminho alternativo de adicionar uma extensão de terceiros não foi escolhido porque ampliaria dependências para cobrir apenas essas duas operações.</p>
+<p>Fontes: <a href="https://datafusion.apache.org/versions/55.2.0/user-guide/sql/index.html">referência SQL do DataFusion 55.2.0</a>, <a href="https://datafusion.apache.org/user-guide/sql/special_functions.html">funções especiais — <code>UNNEST</code></a>, <a href="https://datafusion.apache.org/versions/55.1.0/library-user-guide/extensions.html">catálogo oficial de extensões</a>. A checagem da ausência de função JSON core foi feita no código-fonte local da versão exata 55.2.0, não inferida só da página de extensões.</p>
 <h2 id="fontes-primarias">Fontes primárias<a class="headerlink" href="#fontes-primarias" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="https://datafusion.apache.org/user-guide/introduction.html">Apache DataFusion: introdução e capacidades</a></li>
