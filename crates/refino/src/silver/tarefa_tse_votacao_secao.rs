@@ -157,8 +157,6 @@ fn recurso_excluido(recurso: &str) -> bool {
 #[cfg(test)]
 mod testes {
     use super::*;
-    use crate::silver::tse_votacao_secao::transformar_tse_votacao_secao;
-    use std::collections::HashSet;
 
     #[test]
     fn recurso_exige_ano_uf_validos_e_exclui_layouts_sem_schema() {

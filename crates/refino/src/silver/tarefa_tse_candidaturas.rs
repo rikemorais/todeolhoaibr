@@ -152,8 +152,6 @@ fn erro_recurso(recurso: &str) -> ErroDeIngestao {
 #[cfg(test)]
 mod testes {
     use super::*;
-    use crate::silver::tse_candidaturas::transformar_tse_candidaturas;
-    use std::collections::HashSet;
 
     fn parte(url: &str) -> ParteRaw {
         ParteRaw {
