@@ -158,7 +158,9 @@ mod testes {
     use arrow::array::StringArray;
     use arrow::record_batch::RecordBatch;
     use async_trait::async_trait;
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -264,6 +266,24 @@ mod testes {
         (bronze, Arc::new(snapshot))
     }
 
+    fn lote_silver(silver: &Memoria, recurso: &str) -> RecordBatch {
+        let objetos = silver.0.lock().unwrap();
+        let ponteiro: UltimaVersao =
+            serde_json::from_slice(&objetos[&LocalizacaoRaw::ultima_versao("camara", recurso)])
+                .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&objetos[&ponteiro.manifesto]).unwrap();
+        ParquetRecordBatchReaderBuilder::try_new(Bytes::copy_from_slice(
+            &objetos[&manifesto.partes[0].chave],
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+    }
+
     #[tokio::test]
     async fn publica_schema_de_origem_e_recusa_chave_duplicada() {
         let (bronze, snapshot) = fonte_com_parquet(&["D1"]).await;
@@ -281,6 +301,25 @@ mod testes {
         .await
         .unwrap();
         assert_eq!(publicado.partes, 1);
+        let bytes_bronze = bronze
+            .ler(&snapshot.manifesto().partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let lote_bronze = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_bronze))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let lote_publicado = lote_silver(&silver, recurso);
+        assert_eq!(
+            lote_publicado
+                .project(&(0..lote_bronze.num_columns()).collect::<Vec<_>>())
+                .unwrap(),
+            lote_bronze
+        );
         let tarefa = TarefaDeSilverCamaraVotacoes::nova(
             Arc::new(Memoria::default()),
             snapshot.clone(),
@@ -298,6 +337,21 @@ mod testes {
                 ConjuntoCamaraVotacoes::VotacoesVotos,
                 Utc::now(),
                 "silver-2",
+            )
+            .await
+            .is_ok()
+        );
+
+        let (bronze_chave_incompleta, snapshot_chave_incompleta) = fonte_com_parquet(&[""]).await;
+        assert!(
+            publicar_camara_votacoes(
+                &bronze_chave_incompleta,
+                &Memoria::default(),
+                &snapshot_chave_incompleta,
+                recurso,
+                ConjuntoCamaraVotacoes::VotacoesVotos,
+                Utc::now(),
+                "silver-chave-incompleta",
             )
             .await
             .is_ok()

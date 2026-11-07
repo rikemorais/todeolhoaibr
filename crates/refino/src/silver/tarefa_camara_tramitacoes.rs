@@ -118,7 +118,9 @@ mod testes {
     use arrow::array::StringArray;
     use arrow::record_batch::RecordBatch;
     use async_trait::async_trait;
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -228,6 +230,24 @@ mod testes {
         (bronze, Arc::new(snapshot))
     }
 
+    fn lote_silver(silver: &Memoria, recurso: &str) -> RecordBatch {
+        let objetos = silver.0.lock().unwrap();
+        let ponteiro: UltimaVersao =
+            serde_json::from_slice(&objetos[&LocalizacaoRaw::ultima_versao("camara", recurso)])
+                .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&objetos[&ponteiro.manifesto]).unwrap();
+        ParquetRecordBatchReaderBuilder::try_new(Bytes::copy_from_slice(
+            &objetos[&manifesto.partes[0].chave],
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+    }
+
     #[tokio::test]
     async fn publica_recurso_e_reconhece_snapshot_vigente() {
         let (bronze, snapshot) = snapshot().await;
@@ -251,6 +271,22 @@ mod testes {
         .await
         .unwrap();
         assert_eq!(resumo.partes, 1);
+        let bytes_bronze = bronze
+            .ler(&snapshot.manifesto().partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let lote_bronze = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_bronze))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let esperado =
+            super::super::camara_tramitacoes::transformar_camara_tramitacoes(&lote_bronze, 2024)
+                .unwrap();
+        assert_eq!(lote_silver(&silver, "tramitacoes/ano=2024"), esperado);
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_camara_tramitacoes(
