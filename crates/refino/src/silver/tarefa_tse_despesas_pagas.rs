@@ -99,10 +99,16 @@ pub async fn publicar_tse_despesas_pagas_2024(
         });
     }
 
+    let snapshot_brasil = snapshot.filtrar_partes(parte_brasil);
+    let executor = ConfiguracaoExecutorSql {
+        limite_memoria_bytes: 1024 * 1024 * 1024,
+        limite_spill_bytes: 8 * 1024 * 1024 * 1024,
+        ..ConfiguracaoExecutorSql::default()
+    };
     publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
-        snapshot,
+        &snapshot_brasil,
         ConfiguracaoDePublicacao {
             fonte: "tse",
             recurso: RECURSO,
@@ -113,7 +119,7 @@ pub async fn publicar_tse_despesas_pagas_2024(
             id_execucao,
         },
         SQL,
-        &ConfiguracaoExecutorSql::default(),
+        &executor,
     )
     .await
 }

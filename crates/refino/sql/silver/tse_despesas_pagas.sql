@@ -1,65 +1,67 @@
--- Contrato tse.despesa.paga.2024.v1: primeira linha de cópias integrais, conflito interrompe.
+-- Contrato tse.despesa.paga.2024.v1: agrupa por chave, remove cópias integrais e falha em conflitos.
 WITH origem AS (
     SELECT
-        *,
         TRIM("AA_ELEICAO") AS ano_texto,
-        TRIM("CD_ELEICAO") AS codigo_eleicao,
-        TRIM("SQ_PRESTADOR_CONTAS") AS sequencia_prestador,
-        TRIM("SQ_DESPESA") AS despesa_texto,
-        TRIM("SQ_PARCELAMENTO_DESPESA") AS pagamento_texto,
+        TRIM("CD_ELEICAO") AS codigo_eleicao_chave,
+        TRIM("SQ_PRESTADOR_CONTAS") AS prestador_chave,
+        arrow_try_cast(TRIM("SQ_DESPESA"), 'UInt32') AS despesa_chave,
+        arrow_try_cast(TRIM("SQ_PARCELAMENTO_DESPESA"), 'UInt32') AS pagamento_chave,
+        "CD_ELEICAO" AS codigo_eleicao_original,
+        "SQ_PRESTADOR_CONTAS" AS prestador_original,
         TRIM("DT_PAGTO_DESPESA") AS data_texto,
         TRIM("VR_PAGTO_DESPESA") AS valor_texto,
-        COUNT(*) OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SQ_PRESTADOR_CONTAS"),
-                         TRY_CAST(TRIM("SQ_DESPESA") AS UINT),
-                         TRY_CAST(TRIM("SQ_PARCELAMENTO_DESPESA") AS UINT)
-        ) AS ocorrencias_chave,
-        MIN(_tdoa_json_original) OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SQ_PRESTADOR_CONTAS"),
-                         TRY_CAST(TRIM("SQ_DESPESA") AS UINT),
-                         TRY_CAST(TRIM("SQ_PARCELAMENTO_DESPESA") AS UINT)
-        ) AS original_minimo,
-        MAX(_tdoa_json_original) OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SQ_PRESTADOR_CONTAS"),
-                         TRY_CAST(TRIM("SQ_DESPESA") AS UINT),
-                         TRY_CAST(TRIM("SQ_PARCELAMENTO_DESPESA") AS UINT)
-        ) AS original_maximo,
-        ROW_NUMBER() OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SQ_PRESTADOR_CONTAS"),
-                         TRY_CAST(TRIM("SQ_DESPESA") AS UINT),
-                         TRY_CAST(TRIM("SQ_PARCELAMENTO_DESPESA") AS UINT)
-            ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal
-        ) AS ordem_copia
-    FROM bronze
-), preparados AS (
-    SELECT *,
-        CASE WHEN regexp_like(data_texto, '^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
-            THEN regexp_replace(data_texto, '^([0-9]{2})/([0-9]{2})/([0-9]{4})$', '$3-$2-$1')
+        CASE WHEN regexp_like(TRIM("DT_PAGTO_DESPESA"), '^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
+            THEN regexp_replace(TRIM("DT_PAGTO_DESPESA"), '^([0-9]{2})/([0-9]{2})/([0-9]{4})$', '$3-$2-$1')
         END AS data_iso,
-        regexp_replace(valor_texto, ',', '.', 'g') AS valor_normalizado
+        regexp_replace(TRIM("VR_PAGTO_DESPESA"), ',', '.', 'g') AS valor_normalizado,
+        _tdoa_json_original AS original,
+        sha256(_tdoa_json_original) AS original_sha256
+    FROM bronze
+    WHERE regexp_like(upper(_tdoa_origem_url), 'DESPESAS_PAGAS_CANDIDATOS_2024_BRASIL([.]CSV|[.]TXT)?$')
+), tipadas AS (
+    SELECT *,
+        arrow_try_cast(data_iso, 'Date32') AS data_pagamento_tipada,
+        CASE WHEN regexp_like(valor_texto, '^[0-9]+,[0-9]{2}$')
+            THEN TRY_CAST(valor_normalizado AS DECIMAL(18, 2)) END AS valor_pago_tipada
     FROM origem
-), validados AS (
+), agrupadas AS (
+    SELECT
+        ano_texto,
+        codigo_eleicao_chave,
+        prestador_chave,
+        despesa_chave,
+        pagamento_chave,
+        COUNT(*) AS ocorrencias_chave,
+        COUNT(ano_texto) AS anos_preenchidos,
+        COUNT(data_pagamento_tipada) AS datas_validas,
+        COUNT(valor_pago_tipada) AS valores_validos,
+        MIN(original_sha256) AS hash_original_minimo,
+        MAX(original_sha256) AS hash_original_maximo,
+        MIN(codigo_eleicao_original) AS codigo_eleicao,
+        MIN(prestador_original) AS sequencia_prestador,
+        MIN(data_pagamento_tipada) AS data_pagamento,
+        MIN(valor_pago_tipada) AS valor_pago,
+        MIN(original) AS registro_original
+    FROM tipadas
+    GROUP BY ano_texto, codigo_eleicao_chave, prestador_chave, despesa_chave, pagamento_chave
+), validadas AS (
     SELECT *
-    FROM preparados
-    WHERE tdoa_assert_true(TRY_CAST(ano_texto AS SMALLINT) = 2024)
-      AND tdoa_assert_true(codigo_eleicao <> '' AND sequencia_prestador <> '')
-      AND tdoa_assert_true(regexp_like(despesa_texto, '^[0-9]+$') AND TRY_CAST(despesa_texto AS UINT) IS NOT NULL)
-      AND tdoa_assert_true(regexp_like(pagamento_texto, '^[0-9]+$') AND TRY_CAST(pagamento_texto AS UINT) IS NOT NULL)
-      AND tdoa_assert_true(original_minimo = original_maximo)
-      AND tdoa_assert_true(regexp_like(data_texto, '^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
-          AND arrow_try_cast(data_iso, 'Date32') IS NOT NULL)
-      AND tdoa_assert_true(regexp_like(valor_texto, '^[0-9]+,[0-9]{2}$')
-          AND TRY_CAST(valor_normalizado AS DECIMAL(18, 2)) IS NOT NULL)
+    FROM agrupadas
+    WHERE tdoa_assert_true_named(ano_texto = '2024' AND anos_preenchidos = ocorrencias_chave, 'ano_do_recurso')
+      AND tdoa_assert_true_named(codigo_eleicao_chave NOT IN ('', '-1', '-3')
+          AND prestador_chave NOT IN ('', '-1', '-3'), 'campos_da_chave')
+      AND tdoa_assert_true_named(despesa_chave IS NOT NULL AND pagamento_chave IS NOT NULL, 'sequencias_numericas')
+      AND tdoa_assert_true_named(datas_validas = ocorrencias_chave, 'data_pagamento')
+      AND tdoa_assert_true_named(valores_validos = ocorrencias_chave, 'valor_pago')
+      AND tdoa_assert_true_named(hash_original_minimo = hash_original_maximo, 'chave_sem_conflito')
 )
 SELECT
     arrow_try_cast('2024', 'UInt16') AS ano_eleicao,
-    "CD_ELEICAO" AS codigo_eleicao,
-    "SQ_PRESTADOR_CONTAS" AS sequencia_prestador_contas,
-    arrow_try_cast(despesa_texto, 'UInt32') AS sequencia_despesa,
-    arrow_try_cast(pagamento_texto, 'UInt32') AS sequencia_pagamento,
-    arrow_try_cast(data_iso, 'Date32') AS data_pagamento,
-    arrow_try_cast(valor_normalizado, 'Decimal128(18,2)') AS valor_pago,
-    _tdoa_json_original AS registro_original
-FROM validados
-WHERE tdoa_assert_true(ordem_copia = 1)
-ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal
+    codigo_eleicao,
+    sequencia_prestador,
+    despesa_chave AS sequencia_despesa,
+    pagamento_chave AS sequencia_pagamento,
+    data_pagamento,
+    valor_pago,
+    registro_original
+FROM validadas

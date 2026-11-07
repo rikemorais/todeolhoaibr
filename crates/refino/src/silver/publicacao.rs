@@ -200,8 +200,12 @@ async fn publicar_transformacao_sql_interno(
     )
     .map_err(|_| erro_manifesto(recurso, "falha ao iniciar escritor Parquet Silver"))?;
     while let Some(lote) = fluxo.next().await {
-        let lote =
-            lote.map_err(|_| erro_manifesto(recurso, "falha na execução do contrato SQL Silver"))?;
+        let lote = lote.map_err(|erro| {
+            erro_manifesto(
+                recurso,
+                format!("falha na execução do contrato SQL Silver: {erro}"),
+            )
+        })?;
         let lote = match &esquema {
             Some(esquema) => normalizar_schema_lote(lote, esquema)
                 .map_err(|detalhe| erro_manifesto(recurso, detalhe))?,

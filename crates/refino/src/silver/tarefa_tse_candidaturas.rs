@@ -107,10 +107,11 @@ pub async fn publicar_tse_candidaturas(
     }
 
     let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    let snapshot_brasil = snapshot.filtrar_partes(parte_brasil);
     publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
-        snapshot,
+        &snapshot_brasil,
         ConfiguracaoDePublicacao {
             fonte: "tse",
             recurso,
