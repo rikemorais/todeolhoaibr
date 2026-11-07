@@ -1,5 +1,36 @@
 -- Contrato tse.votacao.secao.v1: preservar o grão e validar cada recurso ano × UF.
-WITH origem AS (
+WITH contagens_chave AS (
+    SELECT COUNT(*) AS chaves_duplicadas
+    FROM (
+        SELECT chave
+        FROM (
+            SELECT CONCAT(
+                CAST(LENGTH(codigo_eleicao) AS VARCHAR), ':', codigo_eleicao,
+                CAST(LENGTH(uf) AS VARCHAR), ':', uf,
+                CAST(LENGTH(turno) AS VARCHAR), ':', turno,
+                CAST(LENGTH(codigo_municipio) AS VARCHAR), ':', codigo_municipio,
+                CAST(LENGTH(zona) AS VARCHAR), ':', zona,
+                CAST(LENGTH(secao) AS VARCHAR), ':', secao,
+                CAST(LENGTH(codigo_cargo) AS VARCHAR), ':', codigo_cargo,
+                CAST(LENGTH(numero_votavel) AS VARCHAR), ':', numero_votavel
+            ) AS chave
+            FROM (
+                SELECT
+                    COALESCE(TRIM("CD_ELEICAO"), '') AS codigo_eleicao,
+                    COALESCE(TRIM("SG_UF"), '') AS uf,
+                    COALESCE(CAST(TRY_CAST(TRIM("NR_TURNO") AS TINYINT) AS VARCHAR), '') AS turno,
+                    COALESCE(TRIM("CD_MUNICIPIO"), '') AS codigo_municipio,
+                    COALESCE(TRIM("NR_ZONA"), '') AS zona,
+                    COALESCE(TRIM("NR_SECAO"), '') AS secao,
+                    COALESCE(TRIM("CD_CARGO"), '') AS codigo_cargo,
+                    COALESCE(TRIM("NR_VOTAVEL"), '') AS numero_votavel
+                FROM bronze
+            ) AS componentes
+        ) AS chaves
+        GROUP BY chave
+        HAVING COUNT(*) > 1
+    ) AS duplicadas
+), origem AS (
     SELECT
         *,
         TRIM("ANO_ELEICAO") AS ano_texto,
@@ -12,13 +43,9 @@ WITH origem AS (
         TRIM("CD_CARGO") AS codigo_cargo,
         TRIM("NR_VOTAVEL") AS numero_votavel,
         TRIM("QT_VOTOS") AS quantidade_texto,
-        {{EXPR_OPCIONAL:DT_ELEICAO}} AS data_eleicao_texto,
-        COUNT(*) OVER (
-            PARTITION BY TRIM("CD_ELEICAO"), TRIM("SG_UF"), TRY_CAST(TRIM("NR_TURNO") AS TINYINT),
-                         TRIM("CD_MUNICIPIO"), TRIM("NR_ZONA"), TRIM("NR_SECAO"),
-                         TRIM("CD_CARGO"), TRIM("NR_VOTAVEL")
-        ) AS ocorrencias_chave
+        {{EXPR_OPCIONAL:DT_ELEICAO}} AS data_eleicao_texto
     FROM bronze
+    CROSS JOIN contagens_chave
 ), preparados AS (
     SELECT *,
         CASE
@@ -40,7 +67,7 @@ WITH origem AS (
       AND tdoa_assert_true(regexp_like(turno_texto, '^[0-9]+$') AND TRY_CAST(turno_texto AS TINYINT) > 0)
       AND tdoa_assert_true(regexp_like(quantidade_texto, '^[0-9]+$')
           AND arrow_try_cast(quantidade_texto, 'UInt32') IS NOT NULL)
-      AND tdoa_assert_true(ocorrencias_chave = 1)
+      AND tdoa_assert_true(chaves_duplicadas = 0)
       AND tdoa_assert_true(data_eleicao_texto IS NULL OR TRIM(data_eleicao_texto) = ''
           OR arrow_try_cast(data_eleicao_iso, 'Date32') IS NOT NULL)
 )
