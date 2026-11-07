@@ -106,6 +106,11 @@ pub async fn publicar_tse_votacao_secao(
     let sql = SQL
         .replace("{{ANO_RECURSO}}", &ano.to_string())
         .replace("{{UF_RECURSO}}", uf);
+    let executor = ConfiguracaoExecutorSql {
+        limite_memoria_bytes: 256 * 1024 * 1024,
+        limite_spill_bytes: 8 * 1024 * 1024 * 1024,
+        ..ConfiguracaoExecutorSql::default()
+    };
     publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
@@ -120,7 +125,7 @@ pub async fn publicar_tse_votacao_secao(
             id_execucao,
         },
         &sql,
-        &ConfiguracaoExecutorSql::default(),
+        &executor,
     )
     .await
 }
