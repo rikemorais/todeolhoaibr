@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ConjuntoCamaraVotacoes","ErroCamaraVotacoesSilver"],"fn":["validar_camara_votacoes"]};
+window.SIDEBAR_ITEMS = {"enum":["ConjuntoCamaraVotacoes"]};

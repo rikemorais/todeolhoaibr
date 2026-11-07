@@ -38,9 +38,9 @@
 <a href=#38 id=38 data-nosnippet>38</a><span class="kw">pub use </span>silver::camara_deputados::esquema_camara_deputados;
 <a href=#39 id=39 data-nosnippet>39</a><span class="attr">#[cfg(test)]
 <a href=#40 id=40 data-nosnippet>40</a></span><span class="kw">pub use </span>silver::camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
-<a href=#41 id=41 data-nosnippet>41</a><span class="kw">pub use </span>silver::camara_despesas::{
-<a href=#42 id=42 data-nosnippet>42</a>    ErroCamaraDespesasSilver, esquema_camara_despesas, transformar_camara_despesas,
-<a href=#43 id=43 data-nosnippet>43</a>};
+<a href=#41 id=41 data-nosnippet>41</a><span class="kw">pub use </span>silver::camara_despesas::esquema_camara_despesas;
+<a href=#42 id=42 data-nosnippet>42</a><span class="attr">#[cfg(test)]
+<a href=#43 id=43 data-nosnippet>43</a></span><span class="kw">pub use </span>silver::camara_despesas::{ErroCamaraDespesasSilver, transformar_camara_despesas};
 <a href=#44 id=44 data-nosnippet>44</a><span class="kw">pub use </span>silver::camara_legislaturas::esquema_camara_legislaturas;
 <a href=#45 id=45 data-nosnippet>45</a><span class="attr">#[cfg(test)]
 <a href=#46 id=46 data-nosnippet>46</a></span><span class="kw">pub use </span>silver::camara_legislaturas::{
@@ -49,60 +49,59 @@
 <a href=#49 id=49 data-nosnippet>49</a><span class="kw">pub use </span>silver::camara_partidos::esquema_camara_partidos;
 <a href=#50 id=50 data-nosnippet>50</a><span class="attr">#[cfg(test)]
 <a href=#51 id=51 data-nosnippet>51</a></span><span class="kw">pub use </span>silver::camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos};
-<a href=#52 id=52 data-nosnippet>52</a><span class="kw">pub use </span>silver::camara_tramitacoes::{
-<a href=#53 id=53 data-nosnippet>53</a>    ErroCamaraTramitacoesSilver, ano_do_recurso, esquema_camara_tramitacoes,
-<a href=#54 id=54 data-nosnippet>54</a>    transformar_camara_tramitacoes,
-<a href=#55 id=55 data-nosnippet>55</a>};
-<a href=#56 id=56 data-nosnippet>56</a><span class="kw">pub use </span>silver::camara_votacoes::{
-<a href=#57 id=57 data-nosnippet>57</a>    ConjuntoCamaraVotacoes, ErroCamaraVotacoesSilver, validar_camara_votacoes,
-<a href=#58 id=58 data-nosnippet>58</a>};
-<a href=#59 id=59 data-nosnippet>59</a><span class="kw">pub use </span>silver::publicar_bcb_sgs;
-<a href=#60 id=60 data-nosnippet>60</a><span class="kw">pub use </span>silver::senado_despesas::{
-<a href=#61 id=61 data-nosnippet>61</a>    ErroSenadoDespesasSilver, esquema_senado_despesas, transformar_senado_despesas,
-<a href=#62 id=62 data-nosnippet>62</a>};
-<a href=#63 id=63 data-nosnippet>63</a><span class="kw">pub use </span>silver::senado_parlamentares::{
-<a href=#64 id=64 data-nosnippet>64</a>    ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
-<a href=#65 id=65 data-nosnippet>65</a>};
-<a href=#66 id=66 data-nosnippet>66</a><span class="kw">pub use </span>silver::senado_processos::esquema_senado_processos;
-<a href=#67 id=67 data-nosnippet>67</a><span class="attr">#[cfg(test)]
-<a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">pub use </span>silver::senado_processos::{ErroSenadoProcessosSilver, transformar_senado_processos};
-<a href=#69 id=69 data-nosnippet>69</a><span class="kw">pub use </span>silver::senado_processos_detalhes::esquema_senado_processos_detalhes;
-<a href=#70 id=70 data-nosnippet>70</a><span class="attr">#[cfg(test)]
-<a href=#71 id=71 data-nosnippet>71</a></span><span class="kw">pub use </span>silver::senado_processos_detalhes::{
-<a href=#72 id=72 data-nosnippet>72</a>    ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
-<a href=#73 id=73 data-nosnippet>73</a>};
-<a href=#74 id=74 data-nosnippet>74</a><span class="kw">pub use </span>silver::senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
-<a href=#75 id=75 data-nosnippet>75</a><span class="kw">pub use </span>silver::senado_votos::{
-<a href=#76 id=76 data-nosnippet>76</a>    ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos,
-<a href=#77 id=77 data-nosnippet>77</a>};
-<a href=#78 id=78 data-nosnippet>78</a><span class="kw">pub use </span>silver::tarefa_bcb::TarefaDeSilverBcb;
-<a href=#79 id=79 data-nosnippet>79</a><span class="kw">pub use </span>silver::tse_bens::{ErroTseBensSilver, esquema_tse_bens, transformar_tse_bens};
-<a href=#80 id=80 data-nosnippet>80</a><span class="kw">pub use </span>silver::tse_candidaturas::{
-<a href=#81 id=81 data-nosnippet>81</a>    ErroTseCandidaturasSilver, esquema_tse_candidaturas, transformar_tse_candidaturas,
-<a href=#82 id=82 data-nosnippet>82</a>};
-<a href=#83 id=83 data-nosnippet>83</a><span class="kw">pub use </span>silver::tse_despesas_pagas::{
-<a href=#84 id=84 data-nosnippet>84</a>    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, esquema_tse_despesas_pagas_2024,
-<a href=#85 id=85 data-nosnippet>85</a>    transformar_tse_despesas_pagas_2024,
-<a href=#86 id=86 data-nosnippet>86</a>};
-<a href=#87 id=87 data-nosnippet>87</a><span class="kw">pub use </span>silver::tse_votacao_secao::{
-<a href=#88 id=88 data-nosnippet>88</a>    ErroTseVotacaoSecaoSilver, esquema_tse_votacao_secao, transformar_tse_votacao_secao,
-<a href=#89 id=89 data-nosnippet>89</a>};
-<a href=#90 id=90 data-nosnippet>90</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
-<a href=#91 id=91 data-nosnippet>91</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
-<a href=#92 id=92 data-nosnippet>92</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
-<a href=#93 id=93 data-nosnippet>93</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
-<a href=#94 id=94 data-nosnippet>94</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
-<a href=#95 id=95 data-nosnippet>95</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
-<a href=#96 id=96 data-nosnippet>96</a><span class="kw">pub use </span>silver::{TarefaDeSilverIbge, publicar_ibge_agregados};
-<a href=#97 id=97 data-nosnippet>97</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoDespesas, publicar_senado_despesas};
-<a href=#98 id=98 data-nosnippet>98</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
-<a href=#99 id=99 data-nosnippet>99</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoProcessos, publicar_senado_processos};
-<a href=#100 id=100 data-nosnippet>100</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes};
-<a href=#101 id=101 data-nosnippet>101</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
-<a href=#102 id=102 data-nosnippet>102</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseBens, publicar_tse_bens};
-<a href=#103 id=103 data-nosnippet>103</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
-<a href=#104 id=104 data-nosnippet>104</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024};
-<a href=#105 id=105 data-nosnippet>105</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
-<a href=#106 id=106 data-nosnippet>106</a><span class="kw">pub use </span>snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
-<a href=#107 id=107 data-nosnippet>107</a><span class="kw">pub use </span>tarefa::TarefaDeBronze;
+<a href=#52 id=52 data-nosnippet>52</a><span class="attr">#[cfg(test)]
+<a href=#53 id=53 data-nosnippet>53</a></span><span class="kw">pub use </span>silver::camara_tramitacoes::{ErroCamaraTramitacoesSilver, transformar_camara_tramitacoes};
+<a href=#54 id=54 data-nosnippet>54</a><span class="kw">pub use </span>silver::camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
+<a href=#55 id=55 data-nosnippet>55</a><span class="kw">pub use </span>silver::camara_votacoes::ConjuntoCamaraVotacoes;
+<a href=#56 id=56 data-nosnippet>56</a><span class="attr">#[cfg(test)]
+<a href=#57 id=57 data-nosnippet>57</a></span><span class="kw">pub use </span>silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
+<a href=#58 id=58 data-nosnippet>58</a><span class="kw">pub use </span>silver::publicar_bcb_sgs;
+<a href=#59 id=59 data-nosnippet>59</a><span class="kw">pub use </span>silver::senado_despesas::{
+<a href=#60 id=60 data-nosnippet>60</a>    ErroSenadoDespesasSilver, esquema_senado_despesas, transformar_senado_despesas,
+<a href=#61 id=61 data-nosnippet>61</a>};
+<a href=#62 id=62 data-nosnippet>62</a><span class="kw">pub use </span>silver::senado_parlamentares::{
+<a href=#63 id=63 data-nosnippet>63</a>    ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
+<a href=#64 id=64 data-nosnippet>64</a>};
+<a href=#65 id=65 data-nosnippet>65</a><span class="kw">pub use </span>silver::senado_processos::esquema_senado_processos;
+<a href=#66 id=66 data-nosnippet>66</a><span class="attr">#[cfg(test)]
+<a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub use </span>silver::senado_processos::{ErroSenadoProcessosSilver, transformar_senado_processos};
+<a href=#68 id=68 data-nosnippet>68</a><span class="kw">pub use </span>silver::senado_processos_detalhes::esquema_senado_processos_detalhes;
+<a href=#69 id=69 data-nosnippet>69</a><span class="attr">#[cfg(test)]
+<a href=#70 id=70 data-nosnippet>70</a></span><span class="kw">pub use </span>silver::senado_processos_detalhes::{
+<a href=#71 id=71 data-nosnippet>71</a>    ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
+<a href=#72 id=72 data-nosnippet>72</a>};
+<a href=#73 id=73 data-nosnippet>73</a><span class="kw">pub use </span>silver::senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
+<a href=#74 id=74 data-nosnippet>74</a><span class="kw">pub use </span>silver::senado_votos::{
+<a href=#75 id=75 data-nosnippet>75</a>    ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos,
+<a href=#76 id=76 data-nosnippet>76</a>};
+<a href=#77 id=77 data-nosnippet>77</a><span class="kw">pub use </span>silver::tarefa_bcb::TarefaDeSilverBcb;
+<a href=#78 id=78 data-nosnippet>78</a><span class="kw">pub use </span>silver::tse_bens::{ErroTseBensSilver, esquema_tse_bens, transformar_tse_bens};
+<a href=#79 id=79 data-nosnippet>79</a><span class="kw">pub use </span>silver::tse_candidaturas::{
+<a href=#80 id=80 data-nosnippet>80</a>    ErroTseCandidaturasSilver, esquema_tse_candidaturas, transformar_tse_candidaturas,
+<a href=#81 id=81 data-nosnippet>81</a>};
+<a href=#82 id=82 data-nosnippet>82</a><span class="kw">pub use </span>silver::tse_despesas_pagas::{
+<a href=#83 id=83 data-nosnippet>83</a>    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, esquema_tse_despesas_pagas_2024,
+<a href=#84 id=84 data-nosnippet>84</a>    transformar_tse_despesas_pagas_2024,
+<a href=#85 id=85 data-nosnippet>85</a>};
+<a href=#86 id=86 data-nosnippet>86</a><span class="kw">pub use </span>silver::tse_votacao_secao::{
+<a href=#87 id=87 data-nosnippet>87</a>    ErroTseVotacaoSecaoSilver, esquema_tse_votacao_secao, transformar_tse_votacao_secao,
+<a href=#88 id=88 data-nosnippet>88</a>};
+<a href=#89 id=89 data-nosnippet>89</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
+<a href=#90 id=90 data-nosnippet>90</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
+<a href=#91 id=91 data-nosnippet>91</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
+<a href=#92 id=92 data-nosnippet>92</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
+<a href=#93 id=93 data-nosnippet>93</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
+<a href=#94 id=94 data-nosnippet>94</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
+<a href=#95 id=95 data-nosnippet>95</a><span class="kw">pub use </span>silver::{TarefaDeSilverIbge, publicar_ibge_agregados};
+<a href=#96 id=96 data-nosnippet>96</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoDespesas, publicar_senado_despesas};
+<a href=#97 id=97 data-nosnippet>97</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
+<a href=#98 id=98 data-nosnippet>98</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoProcessos, publicar_senado_processos};
+<a href=#99 id=99 data-nosnippet>99</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes};
+<a href=#100 id=100 data-nosnippet>100</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
+<a href=#101 id=101 data-nosnippet>101</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseBens, publicar_tse_bens};
+<a href=#102 id=102 data-nosnippet>102</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
+<a href=#103 id=103 data-nosnippet>103</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024};
+<a href=#104 id=104 data-nosnippet>104</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
+<a href=#105 id=105 data-nosnippet>105</a><span class="kw">pub use </span>snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
+<a href=#106 id=106 data-nosnippet>106</a><span class="kw">pub use </span>tarefa::TarefaDeBronze;
 </code></pre></div></section></main></body></html>
