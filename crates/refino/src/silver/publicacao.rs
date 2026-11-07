@@ -119,7 +119,12 @@ pub(crate) async fn publicar_transformacao_sql(
     })?;
     let mut fluxo = executar_sql(entrada.diretorio_bronze(), &diretorio_spill, sql, executor)
         .await
-        .map_err(|_| erro_manifesto(recurso, "falha ao planejar contrato SQL Silver"))?;
+        .map_err(|erro| {
+            erro_manifesto(
+                recurso,
+                format!("falha ao planejar contrato SQL Silver: {erro}"),
+            )
+        })?;
     let esquema_saida = fluxo.schema();
     if esquema
         .as_ref()

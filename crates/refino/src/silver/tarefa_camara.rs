@@ -1,10 +1,7 @@
 //! Tarefa Silver do cadastro de partidos da Câmara.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use arrow::array::{Array, StringArray};
-use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use todeolho_nucleo::{
@@ -12,36 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    camara_partidos::{esquema_camara_partidos, transformar_camara_partidos},
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
+    camara_partidos::esquema_camara_partidos,
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql},
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "camara-partido-v1";
-
-#[derive(Default)]
-struct ValidadorDeIdsDePartidos {
-    ids_vistos: HashSet<String>,
-}
-
-impl ValidadorDeIdsDePartidos {
-    fn transformar(&mut self, lote: &RecordBatch) -> Result<RecordBatch, String> {
-        let transformado = transformar_camara_partidos(lote).map_err(|erro| erro.to_string())?;
-        let ids = transformado
-            .column(0)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| "schema Silver de partidos incompatível".to_owned())?;
-        for linha in 0..ids.len() {
-            if !self.ids_vistos.insert(ids.value(linha).to_owned()) {
-                return Err(format!(
-                    "identificador de partido duplicado na linha {linha} do lote"
-                ));
-            }
-        }
-        Ok(transformado)
-    }
-}
+const REGRA: &str = "camara-partido-v2";
+const SQL: &str = include_str!("../../sql/silver/camara_partidos.sql");
 
 /// Tarefa Silver para o cadastro de partidos da Câmara.
 pub struct TarefaDeSilverCamaraPartidos {
@@ -105,8 +79,7 @@ pub async fn publicar_camara_partidos(
     iniciada_em: DateTime<Utc>,
     id_execucao: &str,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    let mut validador = ValidadorDeIdsDePartidos::default();
-    publicar_transformacao(
+    publicar_transformacao_sql(
         bronze,
         silver,
         snapshot,
@@ -119,7 +92,8 @@ pub async fn publicar_camara_partidos(
             iniciada_em,
             id_execucao,
         },
-        |lote| validador.transformar(lote),
+        SQL,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -297,32 +271,5 @@ mod testes {
         .await
         .unwrap();
         assert!(repetido.reaproveitada);
-    }
-
-    #[test]
-    fn rejeita_id_repetido_entre_lotes_do_mesmo_recurso() {
-        let lote = || {
-            RecordBatch::try_from_iter(vec![
-                ("id", Arc::new(StringArray::from(vec!["42"])) as _),
-                ("sigla", Arc::new(StringArray::from(vec!["ABC"])) as _),
-                (
-                    "nome",
-                    Arc::new(StringArray::from(vec!["Partido ABC"])) as _,
-                ),
-                (
-                    "uri",
-                    Arc::new(StringArray::from(vec!["https://example.test/42"])) as _,
-                ),
-            ])
-            .unwrap()
-        };
-        let mut validador = ValidadorDeIdsDePartidos::default();
-        assert!(validador.transformar(&lote()).is_ok());
-        assert!(
-            validador
-                .transformar(&lote())
-                .unwrap_err()
-                .contains("duplicado")
-        );
     }
 }
