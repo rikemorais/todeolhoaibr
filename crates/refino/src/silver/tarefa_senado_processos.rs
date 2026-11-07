@@ -1,6 +1,5 @@
 //! Tarefa Silver para o catálogo anual de processos do Senado.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,12 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
-    senado_processos::{esquema_senado_processos, transformar_senado_processos},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_original},
+    senado_processos::esquema_senado_processos,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "senado-processo-v1";
+const REGRA: &str = "senado-processo-v2";
+const SQL: &str = include_str!("../../sql/silver/senado_processos.sql");
 
 /// Tarefa para publicar um recurso anual do catálogo de processos do Senado.
 pub struct TarefaDeSilverSenadoProcessos {
@@ -87,8 +87,8 @@ pub async fn publicar_senado_processos(
         return Err(erro_recurso(recurso));
     }
     let ano = ano.parse::<u16>().map_err(|_| erro_recurso(recurso))?;
-    let mut ids_vistos = HashSet::new();
-    publicar_transformacao(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    publicar_transformacao_sql_com_json_original(
         bronze,
         silver,
         snapshot,
@@ -101,10 +101,8 @@ pub async fn publicar_senado_processos(
             iniciada_em,
             id_execucao,
         },
-        |lote| {
-            transformar_senado_processos(lote, ano, &mut ids_vistos)
-                .map_err(|erro| erro.to_string())
-        },
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
@@ -121,7 +119,9 @@ mod testes {
     use std::collections::HashMap;
 
     use arrow::{array::StringArray, record_batch::RecordBatch};
+    use bytes::Bytes;
     use chrono::Utc;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
     use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
     use tokio::io::{AsyncRead, AsyncReadExt};
@@ -162,16 +162,38 @@ mod testes {
         }
     }
 
-    async fn fonte() -> (Memoria, Arc<SnapshotBronze>) {
+    fn resultado_silver(silver: &Memoria, recurso: &str) -> RecordBatch {
+        let objetos = silver.0.lock().unwrap();
+        let ponteiro: UltimaVersao =
+            serde_json::from_slice(&objetos[&LocalizacaoRaw::ultima_versao("senado", recurso)])
+                .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&objetos[&ponteiro.manifesto]).unwrap();
+        let parte = &manifesto.partes[0];
+        ParquetRecordBatchReaderBuilder::try_new(Bytes::copy_from_slice(&objetos[&parte.chave]))
+            .unwrap()
+            .build()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+    }
+
+    async fn fonte(ids: &[&str]) -> (Memoria, Arc<SnapshotBronze>) {
         let bronze = Memoria::default();
         let inicio = Utc::now();
         let recurso = "processos/ano=2024";
         let local = LocalizacaoRaw::nova("senado", recurso, inicio, "bronze-1");
         let lote = RecordBatch::try_from_iter(vec![
-            ("id", Arc::new(StringArray::from(vec![Some("00825")])) as _),
+            (
+                "id",
+                Arc::new(StringArray::from(
+                    ids.iter().copied().map(Some).collect::<Vec<_>>(),
+                )) as _,
+            ),
             (
                 "ementa",
-                Arc::new(StringArray::from(vec![Some("Proposta")])) as _,
+                Arc::new(StringArray::from(vec![Some("Proposta"); ids.len()])) as _,
             ),
         ])
         .unwrap();
@@ -228,9 +250,50 @@ mod testes {
         (bronze, Arc::new(snapshot))
     }
 
+    async fn fonte_vazia() -> bool {
+        let (bronze, _) = fonte(&["00825"]).await;
+        let inicio = Utc::now();
+        let recurso = "processos/ano=2024";
+        let local = LocalizacaoRaw::nova("senado", recurso, inicio, "bronze-vazio");
+        let manifesto = ManifestoRaw {
+            fonte: "senado".into(),
+            recurso: recurso.into(),
+            id_execucao: "bronze-vazio".into(),
+            url_inicial: "https://legis.senado.leg.br/dadosabertos/processo?ano=2024".into(),
+            iniciada_em: inicio,
+            concluida_em: Utc::now(),
+            partes: Vec::new(),
+        };
+        bronze
+            .gravar(ObjetoRaw {
+                chave: local.manifesto(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao("senado", recurso),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some("bronze-vazio".into()),
+                    manifesto: local.manifesto(),
+                    iniciada_em: Some(inicio),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let snapshot = SnapshotBronze::vigente(&bronze, "senado", recurso)
+            .await
+            .unwrap();
+        snapshot.is_none()
+    }
+
     #[tokio::test]
     async fn publica_e_reaproveita_o_catalogo_do_ano() {
-        let (bronze, snapshot) = fonte().await;
+        let (bronze, snapshot) = fonte(&["00825"]).await;
         let silver = Memoria::default();
         let recurso = "processos/ano=2024";
         let tarefa = TarefaDeSilverSenadoProcessos::nova(
@@ -244,6 +307,18 @@ mod testes {
                 .await
                 .unwrap();
         assert_eq!(resumo.partes, 1);
+        let publicada = resultado_silver(&silver, recurso);
+        let original: serde_json::Value = serde_json::from_str(
+            publicada
+                .column(2)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .value(0),
+        )
+        .unwrap();
+        assert_eq!(original["id"], "00825");
+        assert_eq!(original["ementa"], "Proposta");
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_senado_processos(&bronze, &silver, &snapshot, recurso, Utc::now(), "silver-2")
@@ -255,7 +330,7 @@ mod testes {
 
     #[tokio::test]
     async fn recusa_recurso_fora_do_padrao_anual() {
-        let (bronze, snapshot) = fonte().await;
+        let (bronze, snapshot) = fonte(&["00825"]).await;
         assert!(
             publicar_senado_processos(
                 &bronze,
@@ -268,5 +343,37 @@ mod testes {
             .await
             .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn rejeita_id_duplicado_sem_publicar_ponteiro() {
+        let (bronze, snapshot) = fonte(&["P1", "P1"]).await;
+        let silver = Memoria::default();
+        let recurso = "processos/ano=2024";
+
+        assert!(
+            publicar_senado_processos(
+                &bronze,
+                &silver,
+                &snapshot,
+                recurso,
+                Utc::now(),
+                "silver-duplicado",
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao("senado", recurso))
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn lista_vazia_nao_cria_snapshot_nem_tabela_silver() {
+        assert!(fonte_vazia().await);
     }
 }

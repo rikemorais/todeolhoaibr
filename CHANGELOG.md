@@ -15,7 +15,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 - Registra a arquitetura para SQL versionado executado por Apache DataFusion nas transformações Silver; executor e migração dos contratos serão implementados gradualmente (ADR 0020, épico #236).
 - Migra os contratos BCB/SGS e agregados IBGE para SQL/DataFusion, mantém a paridade e o schema publicados, e reprocessa uma vez os dados existentes com regras v2 (issue #239).
-- Migra deputados, partidos e legislaturas da Câmara para contratos SQL/DataFusion, preservando schemas e validação de chaves com regras v2 (parte da issue #240).
+- Migra deputados, partidos e legislaturas da Câmara e os processos e detalhes do Senado para SQL/DataFusion, preservando schemas, campos JSON dinâmicos e validação de chaves com regras v2 (issue #240).
 
 ## [0.45.0] - 2026-11-06
 
