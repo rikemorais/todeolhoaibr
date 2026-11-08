@@ -85,6 +85,7 @@ Para cobrir layouts de eleições antigas, SP/2002 e SP/2010 foram processados c
 |---|---:|---:|---:|---|---|
 | 2002/SP | 169.127.314 | 94,2 s | 344,5 MiB (25) | não | `20261108T002244Z-951b9d42` |
 | 2010/SP | 212.938.583 | 119,1 s | 380,0 MiB (52) | não | `20261108T003147Z-b9b7d108` |
+| 2012/SP | 126.380.036 | 77,8 s | 335,7 MiB (33) | não | `20261108T003608Z-0f77f1ba` |
 
 As execuções foram confirmadas como sucesso pela API do painel. Para reproduzir os smokes, use um bucket descartável por ano:
 
@@ -96,8 +97,12 @@ TODEOLHO_S3_BUCKET_SILVER=silver-smoke-hist-2002-sp-rss \
 TODEOLHO_S3_BUCKET_SILVER=silver-smoke-hist-2010-sp-rss \
   docker compose run --rm --build refino refinar silver tse-votacao-secao \
   --filtro ano=2010 --filtro uf=SP
+
+TODEOLHO_S3_BUCKET_SILVER=silver-smoke-hist-2012-sp \
+  docker compose run --rm --build refino refinar silver tse-votacao-secao \
+  --filtro ano=2012 --filtro uf=SP
 ```
 
-A cobertura medida agora inclui 2024 (26 UFs com snapshot Bronze), SP/2002 e SP/2010. O histórico completo de votação ocupa cerca de 16,4 GB no Bronze; os outros anos ainda aguardam smoke com o plano atualizado.
+A cobertura medida agora inclui 2024 (26 UFs com snapshot Bronze), SP/2002, SP/2010 e SP/2012. O histórico completo de votação ocupa cerca de 16,4 GB no Bronze; os outros anos ainda aguardam smoke com o plano atualizado.
 
 As consultas de candidaturas e bens verificam duplicatas agrupando somente as colunas de chave, reduzem a contagem de grupos duplicados a um escalar e aplicam a asserção às linhas projetadas. Isso evitou a janela global sobre as linhas completas: o smoke anterior de candidaturas com `COUNT(*) OVER (...)` alcançou 4.074.896 KiB (3,89 GiB) mesmo com concorrência 1. Despesas pagas usa pool de 256 MiB e spill de 8 GiB; um teste anterior com pool de 1 GiB atingiu 2.213.732 KiB (2,11 GiB), então o limite do pool foi reduzido. No container limitado a 2 GiB, a tarefa concluiu com código 0 e sem OOM, mas o pico `memory.peak` atingiu o teto exato de 2.097.152 KiB. O executor local não aplica cgroup, por isso o RSS amostrado localmente com pool de 512 MiB foi 1.723.348 KiB. A amostra anterior AC/RO publicou 156.259 e 349.871 linhas, com pico cgroup abaixo de 1,3 GiB; os novos resultados de AM/BA/CE/MG/PR/RJ/SP estão detalhados acima.
