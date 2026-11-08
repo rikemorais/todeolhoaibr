@@ -24,6 +24,7 @@ use crate::{ErroDeRefino, EscritorParquetTipado, SnapshotBronze};
 
 const COL_MANIFESTO: &str = "_tdoa_origem_manifesto";
 const COL_PARTE: &str = "_tdoa_origem_parte";
+const COL_URL: &str = "_tdoa_origem_url";
 const COL_ORDINAL: &str = "_tdoa_origem_ordinal";
 const COL_JSON_ORIGINAL: &str = "_tdoa_json_original";
 
@@ -130,7 +131,12 @@ impl EntradaSqlPreparada {
                 restante = &token[fim + 2..];
                 continue;
             }
-            let Some(nome) = placeholder.strip_prefix("OPCIONAL:") else {
+            let expressao_opcional = placeholder.strip_prefix("EXPR_OPCIONAL:");
+            let nome = if let Some(nome) = expressao_opcional {
+                nome
+            } else if let Some(nome) = placeholder.strip_prefix("OPCIONAL:") {
+                nome
+            } else {
                 return Err(ErroExecutorSql::Configuracao(
                     "placeholder SQL desconhecido".into(),
                 ));
@@ -147,9 +153,14 @@ impl EntradaSqlPreparada {
             if self.colunas_bronze.contains(nome) {
                 saida.push('"');
                 saida.push_str(nome);
-                saida.push_str("\" AS \"");
-                saida.push_str(nome);
                 saida.push('"');
+                if expressao_opcional.is_none() {
+                    saida.push_str(" AS \"");
+                    saida.push_str(nome);
+                    saida.push('"');
+                }
+            } else if expressao_opcional.is_some() {
+                saida.push_str("CAST(NULL AS VARCHAR)");
             } else {
                 saida.push_str("CAST(NULL AS VARCHAR) AS \"");
                 saida.push_str(nome);
@@ -235,6 +246,7 @@ async fn preparar_snapshot_interno(
                 &lote.registros,
                 &lote.origem.manifesto,
                 &lote.origem.parte,
+                &lote.origem.tabela,
                 lote.primeiro_ordinal,
                 incluir_json_original,
                 interpretar_json_aninhado,
@@ -271,14 +283,21 @@ fn anexar_linhagem(
     lote: &RecordBatch,
     manifesto: &str,
     parte: &str,
+    url: &str,
     primeiro_ordinal: u64,
     incluir_json_original: bool,
     interpretar_json_aninhado: bool,
 ) -> Result<RecordBatch, ErroDeRefino> {
     let schema_origem = lote.schema();
-    if [COL_MANIFESTO, COL_PARTE, COL_ORDINAL, COL_JSON_ORIGINAL]
-        .iter()
-        .any(|nome| schema_origem.index_of(nome).is_ok())
+    if [
+        COL_MANIFESTO,
+        COL_PARTE,
+        COL_URL,
+        COL_ORDINAL,
+        COL_JSON_ORIGINAL,
+    ]
+    .iter()
+    .any(|nome| schema_origem.index_of(nome).is_ok())
     {
         return Err(ErroDeRefino::Decodificacao(
             "o Parquet Bronze usa um nome reservado para linhagem SQL".into(),
@@ -308,6 +327,7 @@ fn anexar_linhagem(
             arrow::datatypes::DataType::Utf8,
             false,
         )),
+        Arc::new(Field::new(COL_URL, arrow::datatypes::DataType::Utf8, false)),
         Arc::new(Field::new(
             COL_ORDINAL,
             arrow::datatypes::DataType::UInt64,
@@ -321,6 +341,10 @@ fn anexar_linhagem(
         ))) as _,
         Arc::new(StringArray::from_iter_values(std::iter::repeat_n(
             parte,
+            lote.num_rows(),
+        ))) as _,
+        Arc::new(StringArray::from_iter_values(std::iter::repeat_n(
+            url,
             lote.num_rows(),
         ))) as _,
         Arc::new(UInt64Array::from_iter_values(
@@ -417,6 +441,13 @@ pub async fn executar_sql(
         arrow::datatypes::DataType::Boolean,
         Volatility::Immutable,
         Arc::new(assert_true),
+    ));
+    contexto.register_udf(create_udf(
+        "tdoa_assert_true_named",
+        vec![DataType::Boolean, DataType::Utf8],
+        DataType::Boolean,
+        Volatility::Immutable,
+        Arc::new(assert_true_named),
     ));
     contexto.register_udf(create_udf(
         "tdoa_json_get",
@@ -568,6 +599,76 @@ fn assert_true(argumentos: &[ColumnarValue]) -> datafusion::common::Result<Colum
         ));
     }
     Ok(ColumnarValue::Array(array))
+}
+
+/// Assertion SQL com diagnóstico da regra e da primeira linha inválida no batch.
+fn assert_true_named(argumentos: &[ColumnarValue]) -> datafusion::common::Result<ColumnarValue> {
+    let condicao = argumentos.first().ok_or_else(|| {
+        datafusion::common::DataFusionError::Execution(
+            "tdoa_assert_true_named requer uma expressão booleana".into(),
+        )
+    })?;
+    let nome = argumentos.get(1).ok_or_else(|| {
+        datafusion::common::DataFusionError::Execution(
+            "tdoa_assert_true_named requer o nome da validação".into(),
+        )
+    })?;
+    let quantidade = match condicao {
+        ColumnarValue::Array(array) => array.len(),
+        ColumnarValue::Scalar(_) => match nome {
+            ColumnarValue::Array(array) => array.len(),
+            ColumnarValue::Scalar(_) => 1,
+        },
+    };
+    let condicao = condicao.clone().into_array(quantidade)?;
+    let valores = condicao
+        .as_any()
+        .downcast_ref::<BooleanArray>()
+        .ok_or_else(|| {
+            datafusion::common::DataFusionError::Execution(
+                "tdoa_assert_true_named recebeu condição diferente de Boolean".into(),
+            )
+        })?;
+    let nomes = nome.clone().into_array(quantidade)?;
+    let nomes = nomes
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .ok_or_else(|| {
+            datafusion::common::DataFusionError::Execution(
+                "tdoa_assert_true_named recebeu nome diferente de Utf8".into(),
+            )
+        })?;
+    if let Some(linha) =
+        (0..valores.len()).find(|&linha| valores.is_null(linha) || !valores.value(linha))
+    {
+        let regra = if nomes.is_null(linha) {
+            "regra sem nome"
+        } else {
+            nomes.value(linha)
+        };
+        return Err(datafusion::common::DataFusionError::Execution(format!(
+            "validação SQL Silver '{regra}' falhou na linha {linha} do batch"
+        )));
+    }
+    Ok(ColumnarValue::Array(condicao))
+}
+
+#[cfg(test)]
+mod testes_assertions {
+    use super::*;
+
+    #[test]
+    fn assertion_nomeada_informa_regra_e_indice_da_linha_invalida() {
+        let argumentos = [
+            ColumnarValue::Array(Arc::new(BooleanArray::from(vec![true, false]))),
+            ColumnarValue::Array(Arc::new(StringArray::from(vec!["chave", "chave"]))),
+        ];
+
+        let erro = assert_true_named(&argumentos).unwrap_err().to_string();
+
+        assert!(erro.contains("chave"));
+        assert!(erro.contains("linha 1 do batch"));
+    }
 }
 
 #[cfg(test)]

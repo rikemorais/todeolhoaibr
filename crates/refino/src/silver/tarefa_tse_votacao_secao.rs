@@ -1,6 +1,5 @@
 //! Tarefa Silver para cada recurso eleitoral `ano × UF` de votação do TSE.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,12 +9,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao},
-    tse_votacao_secao::{esquema_tse_votacao_secao, transformar_tse_votacao_secao},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
+    tse_votacao_secao::esquema_tse_votacao_secao,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "tse-votacao-secao-v1";
+const REGRA: &str = "tse-votacao-secao-v2";
+const SQL: &str = include_str!("../../sql/silver/tse_votacao_secao.sql");
 
 /// Tarefa para um arquivo de votos por seção de uma eleição e unidade federativa.
 pub struct TarefaDeSilverTseVotacaoSecao {
@@ -103,8 +103,15 @@ pub async fn publicar_tse_votacao_secao(
         });
     }
 
-    let mut chaves_vistas = HashSet::new();
-    publicar_transformacao(
+    let sql = SQL
+        .replace("{{ANO_RECURSO}}", &ano.to_string())
+        .replace("{{UF_RECURSO}}", uf);
+    let executor = ConfiguracaoExecutorSql {
+        limite_memoria_bytes: 256 * 1024 * 1024,
+        limite_spill_bytes: 8 * 1024 * 1024 * 1024,
+        ..ConfiguracaoExecutorSql::default()
+    };
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
         snapshot,
@@ -117,10 +124,8 @@ pub async fn publicar_tse_votacao_secao(
             iniciada_em,
             id_execucao,
         },
-        |lote| {
-            transformar_tse_votacao_secao(lote, ano, uf, &mut chaves_vistas)
-                .map_err(|erro| erro.to_string())
-        },
+        &sql,
+        &executor,
     )
     .await
 }

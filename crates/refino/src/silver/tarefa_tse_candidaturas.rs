@@ -1,6 +1,5 @@
 //! Tarefa Silver para o consolidado nacional de candidaturas de cada eleição.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -11,12 +10,13 @@ use todeolho_nucleo::{
 };
 
 use super::{
-    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_selecionada},
-    tse_candidaturas::{esquema_tse_candidaturas, transformar_tse_candidaturas},
+    publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql_com_json_string_original},
+    tse_candidaturas::esquema_tse_candidaturas,
 };
-use crate::SnapshotBronze;
+use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
-const REGRA: &str = "tse-candidatura-registro-v1";
+const REGRA: &str = "tse-candidatura-registro-v2";
+const SQL: &str = include_str!("../../sql/silver/tse_candidaturas.sql");
 
 /// Tarefa para publicar o consolidado `BRASIL` de um recurso anual Bronze.
 pub struct TarefaDeSilverTseCandidaturas {
@@ -106,11 +106,12 @@ pub async fn publicar_tse_candidaturas(
         });
     }
 
-    let mut chaves_vistas = HashSet::new();
-    publicar_transformacao_selecionada(
+    let sql = SQL.replace("{{ANO_RECURSO}}", &ano.to_string());
+    let snapshot_brasil = snapshot.filtrar_partes(parte_brasil);
+    publicar_transformacao_sql_com_json_string_original(
         bronze,
         silver,
-        snapshot,
+        &snapshot_brasil,
         ConfiguracaoDePublicacao {
             fonte: "tse",
             recurso,
@@ -120,11 +121,8 @@ pub async fn publicar_tse_candidaturas(
             iniciada_em,
             id_execucao,
         },
-        parte_brasil,
-        |lote| {
-            transformar_tse_candidaturas(lote, ano, &mut chaves_vistas)
-                .map_err(|erro| erro.to_string())
-        },
+        &sql,
+        &ConfiguracaoExecutorSql::default(),
     )
     .await
 }
