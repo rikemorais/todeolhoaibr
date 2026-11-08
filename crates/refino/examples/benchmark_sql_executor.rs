@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     drop(fluxo);
     escritor.fechar()?;
+    let duracao_sql_e_escrita = iniciou.elapsed();
     let rss_pico = amostrador_rss.finalizar();
 
     println!("dataset=sintetico");
@@ -78,7 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("limite_memoria_bytes={}", configuracao.limite_memoria_bytes);
     println!("pico_rss_observado_bytes={rss_pico}");
     println!("pico_spill_observado_bytes={spill_pico}");
-    println!("duracao_sql_e_escrita_ms={}", iniciou.elapsed().as_millis());
+    println!(
+        "duracao_sql_e_escrita_ms={}",
+        duracao_sql_e_escrita.as_millis()
+    );
     Ok(())
 }
 
