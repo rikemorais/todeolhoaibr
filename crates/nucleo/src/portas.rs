@@ -99,6 +99,8 @@ pub enum RespostaCondicional {
     NaoModificado,
     /// A origem devolveu um corpo novo.
     Modificado {
+        /// Status HTTP que devolveu o corpo.
+        status: u16,
         /// Tipo de conteúdo (`Content-Type`) do novo corpo.
         tipo_de_conteudo: String,
         /// Validador do novo conteúdo (ETag), quando informado.
@@ -155,6 +157,7 @@ pub trait ClienteHttp: Send + Sync {
     ) -> Result<RespostaCondicional, ErroDeIngestao> {
         let resposta = self.obter(url, aceita).await?;
         Ok(RespostaCondicional::Modificado {
+            status: 200,
             tipo_de_conteudo: resposta.tipo_de_conteudo,
             versao: None,
             corpo: resposta.corpo,

@@ -173,7 +173,8 @@ impl ClienteHttpComRetentativas {
                 self.cliente
                     .get(url)
                     .timeout(TEMPO_LIMITE)
-                    .header(header::ACCEPT, aceita),
+                    .header(header::ACCEPT, aceita)
+                    .header(header::ACCEPT_ENCODING, "identity"),
             )
             .await?;
 
@@ -199,7 +200,8 @@ impl ClienteHttpComRetentativas {
             .cliente
             .get(url)
             .timeout(TEMPO_LIMITE)
-            .header(header::ACCEPT, aceita);
+            .header(header::ACCEPT, aceita)
+            .header(header::ACCEPT_ENCODING, "identity");
         if let Some(validador) = validador {
             requisicao = requisicao.header(header::IF_NONE_MATCH, validador);
         }
@@ -220,6 +222,7 @@ impl ClienteHttpComRetentativas {
             .map_err(|erro| Falha::transitoria(descrever(erro)))?;
 
         Ok(RespostaCondicional::Modificado {
+            status: status.as_u16(),
             tipo_de_conteudo,
             versao,
             corpo: corpo.to_vec(),
@@ -561,6 +564,46 @@ mod testes {
             .unwrap_err();
         assert!(erro.to_string().contains("host HTTP não autorizado"));
         assert!(!erro.to_string().contains("segredo"));
+    }
+
+    #[tokio::test]
+    async fn content_length_maior_que_o_corpo_falha_no_adapter() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!(
+            "http://127.0.0.1:{}/recurso",
+            ouvinte.local_addr().unwrap().port()
+        );
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut pedido = Vec::new();
+            let mut buf = [0u8; 512];
+            while !pedido.windows(4).any(|janela| janela == b"\r\n\r\n") {
+                let lidos = conexao.read(&mut buf).unwrap();
+                assert!(lidos > 0);
+                pedido.extend_from_slice(&buf[..lidos]);
+            }
+            let pedido = String::from_utf8_lossy(&pedido).to_ascii_lowercase();
+            assert!(pedido.contains("accept-encoding: identity"));
+            conexao
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                      Content-Length: 100\r\nConnection: close\r\n\r\n{\"dados\":[1]}",
+                )
+                .unwrap();
+        });
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas {
+            tentativas: 1,
+            espera_inicial: Duration::ZERO,
+        })
+        .unwrap();
+
+        let erro = cliente.obter(&url, "application/json").await.unwrap_err();
+
+        assert!(erro.to_string().contains(&url));
+        servidor.join().unwrap();
     }
 
     #[test]

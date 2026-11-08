@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
@@ -88,6 +89,32 @@ impl TarefaDeIngestaoHttp {
         }
     }
 
+    /// Verifica apenas a sintaxe de respostas JSON. O corpo continua opaco e é
+    /// persistido byte a byte; nenhuma validação de schema é feita aqui.
+    fn validar_resposta(
+        &self,
+        url: &str,
+        status: u16,
+        tipo_de_conteudo: &str,
+        corpo: &[u8],
+    ) -> Result<(), ErroDeIngestao> {
+        if matches!(status, 204 | 205) || !eh_json(tipo_de_conteudo) {
+            return Ok(());
+        }
+
+        // IgnoredAny percorre a sintaxe sem montar uma árvore Value proporcional
+        // ao documento. A precisão arbitrária aceita a gramática JSON de números
+        // sem exigir que caibam em i64/u64/f64.
+        let mut deserializador = serde_json::Deserializer::from_slice(corpo);
+        let resultado = serde::de::IgnoredAny::deserialize(&mut deserializador)
+            .and_then(|_| deserializador.end());
+        resultado.map_err(|erro| ErroDeIngestao::Http {
+            url: url.to_owned(),
+            detalhe: format!("resposta JSON inválida: {erro}"),
+        })?;
+        Ok(())
+    }
+
     async fn gravar_json<T: serde::Serialize>(
         &self,
         contexto: &ContextoDeExecucao,
@@ -132,7 +159,10 @@ impl TarefaDeIngestaoHttp {
                 match contexto.armazenamento.ler(&anterior.chave).await? {
                     Some(corpo)
                         if corpo.len() as u64 == anterior.bytes
-                            && hex::encode(Sha256::digest(&corpo)) == anterior.sha256 =>
+                            && hex::encode(Sha256::digest(&corpo)) == anterior.sha256
+                            && self
+                                .validar_resposta(url, 200, &anterior.tipo_de_conteudo, &corpo)
+                                .is_ok() =>
                     {
                         Ok(PaginaResolvida {
                             corpo,
@@ -149,10 +179,21 @@ impl TarefaDeIngestaoHttp {
                 }
             }
             RespostaCondicional::Modificado {
+                status,
                 tipo_de_conteudo,
                 versao,
                 corpo,
-            } => Ok(self.classificar_modificado(anterior, tipo_de_conteudo, versao, corpo)),
+            } => {
+                let tipo_validado = if tipo_de_conteudo.trim().is_empty() {
+                    anterior
+                        .map(|parte| parte.tipo_de_conteudo.as_str())
+                        .unwrap_or_default()
+                } else {
+                    tipo_de_conteudo.as_str()
+                };
+                self.validar_resposta(url, status, tipo_validado, &corpo)?;
+                Ok(self.classificar_modificado(anterior, tipo_de_conteudo, versao, corpo))
+            }
         }
     }
 
@@ -169,10 +210,14 @@ impl TarefaDeIngestaoHttp {
             .await?
         {
             RespostaCondicional::Modificado {
+                status,
                 tipo_de_conteudo,
                 versao,
                 corpo,
-            } => Ok(self.classificar_modificado(None, tipo_de_conteudo, versao, corpo)),
+            } => {
+                self.validar_resposta(url, status, &tipo_de_conteudo, &corpo)?;
+                Ok(self.classificar_modificado(None, tipo_de_conteudo, versao, corpo))
+            }
             RespostaCondicional::NaoModificado => {
                 Err(self
                     .erro_de_paginacao(format!("origem respondeu 304 sem validador para {url}")))
@@ -195,12 +240,18 @@ impl TarefaDeIngestaoHttp {
             && anterior.bytes == corpo.len() as u64
         {
             let versao_final = versao.or_else(|| anterior.versao.clone());
+            let tipo_final = if tipo_de_conteudo.trim().is_empty() {
+                anterior.tipo_de_conteudo.clone()
+            } else {
+                tipo_de_conteudo
+            };
             let mut parte = anterior.clone();
-            let mudou = versao_final != parte.versao;
+            let mudou = versao_final != parte.versao || tipo_final != parte.tipo_de_conteudo;
             parte.versao = versao_final.clone();
+            parte.tipo_de_conteudo = tipo_final.clone();
             return PaginaResolvida {
                 corpo,
-                tipo_de_conteudo: anterior.tipo_de_conteudo.clone(),
+                tipo_de_conteudo: tipo_final,
                 versao: versao_final,
                 sha256,
                 reuso: Some(parte),
@@ -421,6 +472,19 @@ pub(crate) fn extensao(tipo_de_conteudo: &str) -> &'static str {
     }
 }
 
+fn eh_json(tipo_de_conteudo: &str) -> bool {
+    let tipo = tipo_de_conteudo
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    tipo == "application/json"
+        || tipo
+            .split_once('/')
+            .is_some_and(|(_, subtipo)| subtipo.ends_with("+json"))
+}
+
 #[cfg(test)]
 mod testes {
     use std::collections::HashMap;
@@ -553,6 +617,86 @@ mod testes {
     }
 
     #[tokio::test]
+    async fn nao_publica_resposta_json_truncada() {
+        const CORPO_PARCIAL: &str = r#"{"dados":[{"id":1}"#;
+        let (contexto, armazenamento) = contexto(&[("https://api/estados", CORPO_PARCIAL)]);
+        let tarefa =
+            TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
+
+        let resultado = tarefa.executar(&contexto).await;
+
+        assert!(
+            resultado.is_err(),
+            "a resposta parcial foi aceita como completa"
+        );
+        assert!(
+            armazenamento.objetos.lock().unwrap().is_empty(),
+            "a resposta parcial não deve publicar parte, manifesto ou ponteiro"
+        );
+    }
+
+    #[test]
+    fn reconhece_json_por_media_type_sem_interpretar_outros_formatos() {
+        assert!(eh_json("application/json; charset=utf-8"));
+        assert!(eh_json("application/problem+json"));
+        assert!(eh_json("application/vnd.api+json"));
+        assert!(!eh_json("text/plain; charset=utf-8"));
+    }
+
+    #[test]
+    fn valida_json_sem_materializar_dom_e_aceita_numero_fora_da_faixa_f64() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        tarefa
+            .validar_resposta("https://api/r", 200, "application/json", b"1e400")
+            .unwrap();
+        assert!(
+            tarefa
+                .validar_resposta("https://api/r", 200, "application/json", b"{\"a\":")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn resposta_sem_corpo_e_valida_so_em_status_sem_conteudo() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        tarefa
+            .validar_resposta("https://api/r", 204, "application/json", b"")
+            .unwrap();
+        assert!(
+            tarefa
+                .validar_resposta("https://api/r", 200, "application/json", b"")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn resposta_identica_atualiza_tipo_de_conteudo_retido() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+        let corpo = b"{malformado";
+        let anterior = ParteRaw {
+            chave: "parte.json".into(),
+            url: "https://api/r".into(),
+            bytes: corpo.len() as u64,
+            sha256: hex::encode(Sha256::digest(corpo)),
+            tipo_de_conteudo: "application/json".into(),
+            versao: Some("v1".into()),
+        };
+
+        let resolvida = tarefa.classificar_modificado(
+            Some(&anterior),
+            "text/plain".into(),
+            Some("v2".into()),
+            corpo.to_vec(),
+        );
+
+        assert!(resolvida.mudou);
+        assert_eq!(resolvida.tipo_de_conteudo, "text/plain");
+        assert_eq!(resolvida.reuso.unwrap().tipo_de_conteudo, "text/plain");
+    }
+
+    #[tokio::test]
     async fn detecta_paginacao_em_loop() {
         const EM_LOOP: &str = r#"{"links":[{"rel":"next","href":"https://api/1"}]}"#;
         let (contexto, _) = contexto(&[("https://api/1", EM_LOOP)]);
@@ -615,6 +759,7 @@ mod testes {
     #[derive(Default)]
     struct HttpCondicional {
         chamadas: Mutex<u32>,
+        validadores: Mutex<Vec<Option<String>>>,
     }
 
     #[async_trait]
@@ -638,10 +783,15 @@ mod testes {
             validador: Option<&str>,
         ) -> Result<RespostaCondicional, ErroDeIngestao> {
             *self.chamadas.lock().unwrap() += 1;
+            self.validadores
+                .lock()
+                .unwrap()
+                .push(validador.map(str::to_owned));
             if validador == Some("v1") {
                 Ok(RespostaCondicional::NaoModificado)
             } else {
                 Ok(RespostaCondicional::Modificado {
+                    status: 200,
                     tipo_de_conteudo: "application/json".to_owned(),
                     versao: Some("v1".to_owned()),
                     corpo: UNICA.as_bytes().to_vec(),
@@ -711,6 +861,51 @@ mod testes {
         assert_eq!(*http.chamadas.lock().unwrap(), 3);
     }
 
+    #[tokio::test]
+    async fn rebaixa_quando_parte_json_do_304_tem_sintaxe_invalida() {
+        let armazenamento = Arc::new(ArmazenamentoMapa::default());
+        let http = Arc::new(HttpCondicional::default());
+        let contexto = ContextoDeExecucao {
+            id_execucao: "e1".into(),
+            iniciada_em: Utc::now(),
+            armazenamento: armazenamento.clone(),
+            http: http.clone(),
+            progresso: None,
+        };
+        let tarefa =
+            TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
+        let corpo = b"{\"dados\":[";
+        let chave = "parte.json".to_owned();
+        armazenamento
+            .gravar(ObjetoRaw {
+                chave: chave.clone(),
+                conteudo: corpo.to_vec(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let anterior = ParteRaw {
+            chave,
+            url: "https://api/estados".into(),
+            bytes: corpo.len() as u64,
+            sha256: hex::encode(Sha256::digest(corpo)),
+            tipo_de_conteudo: "application/json".into(),
+            versao: Some("v1".into()),
+        };
+
+        let resolvida = tarefa
+            .resolver_pagina(&contexto, "https://api/estados", Some(&anterior))
+            .await
+            .unwrap();
+
+        assert_eq!(resolvida.corpo, UNICA.as_bytes());
+        assert_eq!(*http.chamadas.lock().unwrap(), 2);
+        assert_eq!(
+            *http.validadores.lock().unwrap(),
+            vec![Some("v1".to_owned()), None]
+        );
+    }
+
     /// Sempre responde 200 com o mesmo corpo e sem validador (não suporta
     /// requisição condicional).
     #[derive(Default)]
@@ -740,6 +935,7 @@ mod testes {
         ) -> Result<RespostaCondicional, ErroDeIngestao> {
             *self.chamadas.lock().unwrap() += 1;
             Ok(RespostaCondicional::Modificado {
+                status: 200,
                 tipo_de_conteudo: "application/json".to_owned(),
                 versao: None,
                 corpo: UNICA.as_bytes().to_vec(),
