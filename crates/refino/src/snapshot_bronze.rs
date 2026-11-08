@@ -96,6 +96,22 @@ impl SnapshotBronze {
         &self.manifesto
     }
 
+    /// Cria uma visão do mesmo snapshot contendo somente as partes selecionadas.
+    ///
+    /// A chave do manifesto original permanece para revalidar a versão Bronze antes
+    /// da publicação; cada parte selecionada continua sendo verificada por tamanho e hash.
+    pub fn filtrar_partes(
+        &self,
+        mut incluir: impl FnMut(&todeolho_nucleo::raw::ParteRaw) -> bool,
+    ) -> Self {
+        let mut manifesto = self.manifesto.clone();
+        manifesto.partes.retain(|parte| incluir(parte));
+        Self {
+            chave_manifesto: self.chave_manifesto.clone(),
+            manifesto,
+        }
+    }
+
     /// Baixa uma parte listada no manifesto e valida tamanho e SHA-256.
     ///
     /// O download e a verificação usam arquivo temporário e memória limitada.
@@ -402,5 +418,22 @@ mod testes {
             .unwrap();
 
         assert!(snapshot.is_none());
+    }
+
+    #[tokio::test]
+    async fn filtra_partes_sem_alterar_o_manifesto_original() {
+        let (armazenamento, _) = fixture();
+        let mut snapshot = SnapshotBronze::vigente(&armazenamento, "tse", "prestacao-contas")
+            .await
+            .unwrap()
+            .unwrap();
+        let mut parte_estadual = snapshot.manifesto.partes[0].clone();
+        parte_estadual.url = "despesas_contratadas_candidatos_2024_AC".into();
+        snapshot.manifesto.partes.push(parte_estadual);
+        let selecionado = snapshot.filtrar_partes(|parte| parte.url.ends_with("BRASIL"));
+
+        assert_eq!(selecionado.chave_manifesto(), snapshot.chave_manifesto());
+        assert_eq!(selecionado.manifesto().partes.len(), 1);
+        assert_eq!(snapshot.manifesto().partes.len(), 2);
     }
 }
