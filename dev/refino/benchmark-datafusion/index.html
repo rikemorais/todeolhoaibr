@@ -1494,6 +1494,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#votacao-por-secao-amostras-historicas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção, amostras históricas
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1761,7 +1770,61 @@
 </tr>
 </tbody>
 </table>
-<p>Os smokes anteriores com a janela global falharam em estados grandes por OOM ou pelo teto de spill de 2 GiB. A primeira agregação escalar, ainda com oito colunas separadas, ultrapassou 8 GiB de spill em SP. Depois de compactar a chave com prefixos de comprimento, as 26 UFs disponíveis concluíram sem OOM. SP é o caso medido mais próximo do limite operacional. Um smoke adicional de SP (136,5 s, pico 1,99 GiB) gravou o histórico no bucket normal <code>execucoes</code>; a API da UI confirmou a execução <code>20261107T212424Z-23c97421</code> como sucesso. O Parquet dessa execução continuou em bucket Silver descartável. Essa cobertura vale para 2024; o histórico completo de votação ocupa cerca de 16,4 GB no Bronze e os demais anos ainda aguardam smoke com o plano atualizado.</p>
+<p>Os smokes anteriores com a janela global falharam em estados grandes por OOM ou pelo teto de spill de 2 GiB. A primeira agregação escalar, ainda com oito colunas separadas, ultrapassou 8 GiB de spill em SP. Depois de compactar a chave com prefixos de comprimento, as 26 UFs disponíveis concluíram sem OOM. SP é o caso medido mais próximo do limite operacional. Um smoke adicional de SP (136,5 s, pico 1,99 GiB) gravou o histórico no bucket normal <code>execucoes</code>; a API da UI confirmou a execução <code>20261107T212424Z-23c97421</code> como sucesso. O Parquet dessa execução continuou em bucket Silver descartável.</p>
+<h3 id="votacao-por-secao-amostras-historicas">Votação por seção, amostras históricas<a class="headerlink" href="#votacao-por-secao-amostras-historicas" title="Permanent link">&para;</a></h3>
+<p>Para cobrir layouts de eleições antigas, SP/2002 e SP/2010 foram processados com a SQL atualizada, concorrência 1 e limite de memória do container em 2 GiB. Cada execução publicou a saída em um bucket Silver descartável; nenhum ponteiro vigente foi alterado. <code>docker stats</code> foi consultado repetidamente durante cada execução; o valor abaixo é o máximo observado, não o pico exato do kernel.</p>
+<table>
+<thead>
+<tr>
+<th>Ano/UF</th>
+<th style="text-align: right;">Bytes Silver publicados</th>
+<th style="text-align: right;">Tempo</th>
+<th style="text-align: right;">Pico <code>docker stats</code> (amostras)</th>
+<th>OOM</th>
+<th>Execução no painel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2002/SP</td>
+<td style="text-align: right;">169.127.314</td>
+<td style="text-align: right;">94,2 s</td>
+<td style="text-align: right;">344,5 MiB (25)</td>
+<td>não</td>
+<td><code>20261108T002244Z-951b9d42</code></td>
+</tr>
+<tr>
+<td>2010/SP</td>
+<td style="text-align: right;">212.938.583</td>
+<td style="text-align: right;">119,1 s</td>
+<td style="text-align: right;">380,0 MiB (52)</td>
+<td>não</td>
+<td><code>20261108T003147Z-b9b7d108</code></td>
+</tr>
+<tr>
+<td>2012/SP</td>
+<td style="text-align: right;">126.380.036</td>
+<td style="text-align: right;">77,8 s</td>
+<td style="text-align: right;">335,7 MiB (33)</td>
+<td>não</td>
+<td><code>20261108T003608Z-0f77f1ba</code></td>
+</tr>
+</tbody>
+</table>
+<p>As execuções foram confirmadas como sucesso pela API do painel. Para reproduzir os smokes, use um bucket descartável por ano:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">TODEOLHO_S3_BUCKET_SILVER</span><span class="o">=</span>silver-smoke-hist-2002-sp-rss<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>tse-votacao-secao<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2002</span><span class="w"> </span>--filtro<span class="w"> </span><span class="nv">uf</span><span class="o">=</span>SP
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">TODEOLHO_S3_BUCKET_SILVER</span><span class="o">=</span>silver-smoke-hist-2010-sp-rss<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>tse-votacao-secao<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2010</span><span class="w"> </span>--filtro<span class="w"> </span><span class="nv">uf</span><span class="o">=</span>SP
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nv">TODEOLHO_S3_BUCKET_SILVER</span><span class="o">=</span>silver-smoke-hist-2012-sp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>tse-votacao-secao<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2012</span><span class="w"> </span>--filtro<span class="w"> </span><span class="nv">uf</span><span class="o">=</span>SP
+</code></pre></div>
+<p>A cobertura medida agora inclui 2024 (26 UFs com snapshot Bronze), SP/2002, SP/2010 e SP/2012. O histórico completo de votação ocupa cerca de 16,4 GB no Bronze; os outros anos ainda aguardam smoke com o plano atualizado.</p>
 <p>As consultas de candidaturas e bens verificam duplicatas agrupando somente as colunas de chave, reduzem a contagem de grupos duplicados a um escalar e aplicam a asserção às linhas projetadas. Isso evitou a janela global sobre as linhas completas: o smoke anterior de candidaturas com <code>COUNT(*) OVER (...)</code> alcançou 4.074.896 KiB (3,89 GiB) mesmo com concorrência 1. Despesas pagas usa pool de 256 MiB e spill de 8 GiB; um teste anterior com pool de 1 GiB atingiu 2.213.732 KiB (2,11 GiB), então o limite do pool foi reduzido. No container limitado a 2 GiB, a tarefa concluiu com código 0 e sem OOM, mas o pico <code>memory.peak</code> atingiu o teto exato de 2.097.152 KiB. O executor local não aplica cgroup, por isso o RSS amostrado localmente com pool de 512 MiB foi 1.723.348 KiB. A amostra anterior AC/RO publicou 156.259 e 349.871 linhas, com pico cgroup abaixo de 1,3 GiB; os novos resultados de AM/BA/CE/MG/PR/RJ/SP estão detalhados acima.</p>
 
 
