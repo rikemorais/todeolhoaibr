@@ -563,6 +563,39 @@ mod testes {
         assert!(!erro.to_string().contains("segredo"));
     }
 
+    #[tokio::test]
+    async fn content_length_maior_que_o_corpo_falha_no_adapter() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!(
+            "http://127.0.0.1:{}/recurso",
+            ouvinte.local_addr().unwrap().port()
+        );
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            assert!(conexao.read(&mut buf).unwrap() > 0);
+            conexao
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                      Content-Length: 100\r\nConnection: close\r\n\r\n{\"dados\":[1]}",
+                )
+                .unwrap();
+        });
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas {
+            tentativas: 1,
+            espera_inicial: Duration::ZERO,
+        })
+        .unwrap();
+
+        let erro = cliente.obter(&url, "application/json").await.unwrap_err();
+
+        assert!(erro.to_string().contains(&url));
+        servidor.join().unwrap();
+    }
+
     #[test]
     fn limite_e_compartilhado_por_host_e_respeita_o_mais_restritivo() {
         let host = "teste-limite-compartilhado.example";
