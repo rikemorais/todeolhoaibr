@@ -4,8 +4,12 @@
 
 use std::fs::{self, File};
 use std::path::Path;
-use std::sync::Arc;
-use std::time::Instant;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU64, Ordering},
+};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
 use arrow::array::{StringArray, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema};
@@ -16,6 +20,7 @@ use todeolho_refino::{
 };
 
 const TAMANHO_LOTE: usize = 8_192;
+const INTERVALO_AMOSTRA_RSS: Duration = Duration::from_millis(20);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,22 +53,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let consulta = "SELECT id, SUM(CAST(valor AS BIGINT)) AS total FROM bronze WHERE descricao <> '' GROUP BY id";
     let iniciou = Instant::now();
+    let amostrador_rss = AmostradorRss::iniciar(INTERVALO_AMOSTRA_RSS);
     let mut fluxo = executar_sql(&bronze, &spill, consulta, &configuracao).await?;
     let caminho_saida = temporario.path().join("silver.parquet");
     let mut escritor =
         EscritorParquetTipado::novo_em(File::create(&caminho_saida)?, fluxo.schema())?;
     let mut linhas_saida = 0u64;
-    let mut rss_pico = rss_atual_bytes().unwrap_or_default();
     let mut spill_pico = bytes_em_disco(&spill)?;
     while let Some(lote) = fluxo.next().await {
         let lote = lote?;
         linhas_saida += lote.num_rows() as u64;
         escritor.escrever_lote(&lote)?;
-        rss_pico = rss_pico.max(rss_atual_bytes().unwrap_or_default());
         spill_pico = spill_pico.max(bytes_em_disco(&spill)?);
     }
     drop(fluxo);
     escritor.fechar()?;
+    let duracao_sql_e_escrita = iniciou.elapsed();
+    let rss_pico = amostrador_rss.finalizar();
 
     println!("dataset=sintetico");
     println!("linhas_entrada={linhas}");
@@ -73,7 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("limite_memoria_bytes={}", configuracao.limite_memoria_bytes);
     println!("pico_rss_observado_bytes={rss_pico}");
     println!("pico_spill_observado_bytes={spill_pico}");
-    println!("duracao_sql_e_escrita_ms={}", iniciou.elapsed().as_millis());
+    println!(
+        "duracao_sql_e_escrita_ms={}",
+        duracao_sql_e_escrita.as_millis()
+    );
     Ok(())
 }
 
@@ -144,4 +153,53 @@ fn rss_atual_bytes() -> Option<u64> {
         .parse::<u64>()
         .ok()?;
     Some(kib.saturating_mul(1024))
+}
+
+struct AmostradorRss {
+    parar: Arc<AtomicBool>,
+    pico_bytes: Arc<AtomicU64>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl AmostradorRss {
+    fn iniciar(intervalo: Duration) -> Self {
+        let parar = Arc::new(AtomicBool::new(false));
+        let pico_bytes = Arc::new(AtomicU64::new(rss_atual_bytes().unwrap_or_default()));
+        let parar_thread = Arc::clone(&parar);
+        let pico_thread = Arc::clone(&pico_bytes);
+        let thread = thread::spawn(move || {
+            loop {
+                if let Some(rss) = rss_atual_bytes() {
+                    pico_thread.fetch_max(rss, Ordering::Relaxed);
+                }
+                if parar_thread.load(Ordering::Relaxed) {
+                    break;
+                }
+                thread::sleep(intervalo);
+            }
+        });
+
+        Self {
+            parar,
+            pico_bytes,
+            thread: Some(thread),
+        }
+    }
+
+    fn finalizar(mut self) -> u64 {
+        self.parar.store(true, Ordering::Relaxed);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+        self.pico_bytes.load(Ordering::Relaxed)
+    }
+}
+
+impl Drop for AmostradorRss {
+    fn drop(&mut self) {
+        self.parar.store(true, Ordering::Relaxed);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
 }
