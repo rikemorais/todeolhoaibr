@@ -1640,7 +1640,8 @@ despesas) são separadas e <code>sob_demanda</code>.</p>
 </ul>
 <h2 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h2>
 <p>Três recursos JSON <strong>paginados</strong> (a API devolve links <code>rel: "next"</code>), percorridos
-página a página por <code>TarefaDeIngestaoHttp</code> e gravados <strong>opacos</strong> na Raw
+página a página por <code>TarefaDeIngestaoHttp</code>. A tarefa verifica a sintaxe do JSON e grava
+os bytes originais sem validar schema ou interpretar os valores na Raw
 (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>):</p>
 <table>
 <thead>

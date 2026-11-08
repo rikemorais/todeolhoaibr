@@ -1666,8 +1666,9 @@
 <ul>
 <li>Uma <strong>requisição por série</strong>, que traz a <strong>história completa</strong> em JSON, da API do SGS
   (<code>https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json</code>).</li>
-<li>Cada resposta é gravada <strong>opaca</strong> na camada Raw — a ingestão não interpreta o JSON (ver
-  <a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>).</li>
+<li>Cada resposta é gravada byte a byte na camada Raw. Para <code>Content-Type</code> JSON, a ingestão
+  verifica apenas a sintaxe antes de publicar; não valida schema nem interpreta valores para
+  transformação (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>).</li>
 </ul>
 <h3 id="series">Séries<a class="headerlink" href="#series" title="Permanent link">&para;</a></h3>
 <table>
