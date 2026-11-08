@@ -6,8 +6,9 @@ Séries macroeconômicas do **Banco Central**, via **SGS** (Sistema Gerenciador 
 
 - Uma **requisição por série**, que traz a **história completa** em JSON, da API do SGS
   (`https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json`).
-- Cada resposta é gravada **opaca** na camada Raw — a ingestão não interpreta o JSON (ver
-  [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)).
+- Cada resposta é gravada byte a byte na camada Raw. Para `Content-Type` JSON, a ingestão
+  verifica apenas a sintaxe antes de publicar; não valida schema nem interpreta valores para
+  transformação ([ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)).
 
 ### Séries
 

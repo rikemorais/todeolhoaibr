@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
@@ -93,17 +94,24 @@ impl TarefaDeIngestaoHttp {
     fn validar_resposta(
         &self,
         url: &str,
+        status: u16,
         tipo_de_conteudo: &str,
         corpo: &[u8],
     ) -> Result<(), ErroDeIngestao> {
-        if eh_json(tipo_de_conteudo) {
-            serde_json::from_slice::<serde_json::Value>(corpo).map_err(|erro| {
-                ErroDeIngestao::Http {
-                    url: url.to_owned(),
-                    detalhe: format!("resposta JSON inválida: {erro}"),
-                }
-            })?;
+        if matches!(status, 204 | 205) || !eh_json(tipo_de_conteudo) {
+            return Ok(());
         }
+
+        // IgnoredAny percorre a sintaxe sem montar uma árvore Value proporcional
+        // ao documento. A precisão arbitrária aceita a gramática JSON de números
+        // sem exigir que caibam em i64/u64/f64.
+        let mut deserializador = serde_json::Deserializer::from_slice(corpo);
+        let resultado = serde::de::IgnoredAny::deserialize(&mut deserializador)
+            .and_then(|_| deserializador.end());
+        resultado.map_err(|erro| ErroDeIngestao::Http {
+            url: url.to_owned(),
+            detalhe: format!("resposta JSON inválida: {erro}"),
+        })?;
         Ok(())
     }
 
@@ -153,7 +161,7 @@ impl TarefaDeIngestaoHttp {
                         if corpo.len() as u64 == anterior.bytes
                             && hex::encode(Sha256::digest(&corpo)) == anterior.sha256
                             && self
-                                .validar_resposta(url, &anterior.tipo_de_conteudo, &corpo)
+                                .validar_resposta(url, 200, &anterior.tipo_de_conteudo, &corpo)
                                 .is_ok() =>
                     {
                         Ok(PaginaResolvida {
@@ -171,11 +179,19 @@ impl TarefaDeIngestaoHttp {
                 }
             }
             RespostaCondicional::Modificado {
+                status,
                 tipo_de_conteudo,
                 versao,
                 corpo,
             } => {
-                self.validar_resposta(url, &tipo_de_conteudo, &corpo)?;
+                let tipo_validado = if tipo_de_conteudo.trim().is_empty() {
+                    anterior
+                        .map(|parte| parte.tipo_de_conteudo.as_str())
+                        .unwrap_or_default()
+                } else {
+                    tipo_de_conteudo.as_str()
+                };
+                self.validar_resposta(url, status, tipo_validado, &corpo)?;
                 Ok(self.classificar_modificado(anterior, tipo_de_conteudo, versao, corpo))
             }
         }
@@ -194,11 +210,12 @@ impl TarefaDeIngestaoHttp {
             .await?
         {
             RespostaCondicional::Modificado {
+                status,
                 tipo_de_conteudo,
                 versao,
                 corpo,
             } => {
-                self.validar_resposta(url, &tipo_de_conteudo, &corpo)?;
+                self.validar_resposta(url, status, &tipo_de_conteudo, &corpo)?;
                 Ok(self.classificar_modificado(None, tipo_de_conteudo, versao, corpo))
             }
             RespostaCondicional::NaoModificado => {
@@ -223,12 +240,18 @@ impl TarefaDeIngestaoHttp {
             && anterior.bytes == corpo.len() as u64
         {
             let versao_final = versao.or_else(|| anterior.versao.clone());
+            let tipo_final = if tipo_de_conteudo.trim().is_empty() {
+                anterior.tipo_de_conteudo.clone()
+            } else {
+                tipo_de_conteudo
+            };
             let mut parte = anterior.clone();
-            let mudou = versao_final != parte.versao;
+            let mudou = versao_final != parte.versao || tipo_final != parte.tipo_de_conteudo;
             parte.versao = versao_final.clone();
+            parte.tipo_de_conteudo = tipo_final.clone();
             return PaginaResolvida {
                 corpo,
-                tipo_de_conteudo: anterior.tipo_de_conteudo.clone(),
+                tipo_de_conteudo: tipo_final,
                 versao: versao_final,
                 sha256,
                 reuso: Some(parte),
@@ -620,6 +643,59 @@ mod testes {
         assert!(!eh_json("text/plain; charset=utf-8"));
     }
 
+    #[test]
+    fn valida_json_sem_materializar_dom_e_aceita_numero_fora_da_faixa_f64() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        tarefa
+            .validar_resposta("https://api/r", 200, "application/json", b"1e400")
+            .unwrap();
+        assert!(
+            tarefa
+                .validar_resposta("https://api/r", 200, "application/json", b"{\"a\":")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn resposta_sem_corpo_e_valida_so_em_status_sem_conteudo() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        tarefa
+            .validar_resposta("https://api/r", 204, "application/json", b"")
+            .unwrap();
+        assert!(
+            tarefa
+                .validar_resposta("https://api/r", 200, "application/json", b"")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn resposta_identica_atualiza_tipo_de_conteudo_retido() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+        let corpo = b"{malformado";
+        let anterior = ParteRaw {
+            chave: "parte.json".into(),
+            url: "https://api/r".into(),
+            bytes: corpo.len() as u64,
+            sha256: hex::encode(Sha256::digest(corpo)),
+            tipo_de_conteudo: "application/json".into(),
+            versao: Some("v1".into()),
+        };
+
+        let resolvida = tarefa.classificar_modificado(
+            Some(&anterior),
+            "text/plain".into(),
+            Some("v2".into()),
+            corpo.to_vec(),
+        );
+
+        assert!(resolvida.mudou);
+        assert_eq!(resolvida.tipo_de_conteudo, "text/plain");
+        assert_eq!(resolvida.reuso.unwrap().tipo_de_conteudo, "text/plain");
+    }
+
     #[tokio::test]
     async fn detecta_paginacao_em_loop() {
         const EM_LOOP: &str = r#"{"links":[{"rel":"next","href":"https://api/1"}]}"#;
@@ -683,6 +759,7 @@ mod testes {
     #[derive(Default)]
     struct HttpCondicional {
         chamadas: Mutex<u32>,
+        validadores: Mutex<Vec<Option<String>>>,
     }
 
     #[async_trait]
@@ -706,10 +783,15 @@ mod testes {
             validador: Option<&str>,
         ) -> Result<RespostaCondicional, ErroDeIngestao> {
             *self.chamadas.lock().unwrap() += 1;
+            self.validadores
+                .lock()
+                .unwrap()
+                .push(validador.map(str::to_owned));
             if validador == Some("v1") {
                 Ok(RespostaCondicional::NaoModificado)
             } else {
                 Ok(RespostaCondicional::Modificado {
+                    status: 200,
                     tipo_de_conteudo: "application/json".to_owned(),
                     versao: Some("v1".to_owned()),
                     corpo: UNICA.as_bytes().to_vec(),
@@ -818,6 +900,10 @@ mod testes {
 
         assert_eq!(resolvida.corpo, UNICA.as_bytes());
         assert_eq!(*http.chamadas.lock().unwrap(), 2);
+        assert_eq!(
+            *http.validadores.lock().unwrap(),
+            vec![Some("v1".to_owned()), None]
+        );
     }
 
     /// Sempre responde 200 com o mesmo corpo e sem validador (não suporta
@@ -849,6 +935,7 @@ mod testes {
         ) -> Result<RespostaCondicional, ErroDeIngestao> {
             *self.chamadas.lock().unwrap() += 1;
             Ok(RespostaCondicional::Modificado {
+                status: 200,
                 tipo_de_conteudo: "application/json".to_owned(),
                 versao: None,
                 corpo: UNICA.as_bytes().to_vec(),

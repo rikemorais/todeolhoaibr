@@ -10,7 +10,8 @@ despesas) são separadas e `sob_demanda`.
 ## O que é ingerido
 
 Três recursos JSON **paginados** (a API devolve links `rel: "next"`), percorridos
-página a página por `TarefaDeIngestaoHttp` e gravados **opacos** na Raw
+página a página por `TarefaDeIngestaoHttp`. A tarefa verifica a sintaxe do JSON e grava
+os bytes originais sem validar schema ou interpretar os valores na Raw
 ([ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md)):
 
 | Recurso | Endpoint | Depende de |
