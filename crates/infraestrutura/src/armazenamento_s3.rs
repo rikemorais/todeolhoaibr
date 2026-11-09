@@ -165,6 +165,10 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         Ok(())
     }
 
+    async fn listar_prefixo(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
+        self.listar_chaves(prefixo).await
+    }
+
     async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
         self.repetir(chave, "DELETE", || self.bucket.delete_object(chave))
             .await?;
