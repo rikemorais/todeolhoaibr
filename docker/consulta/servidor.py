@@ -64,9 +64,19 @@ aside { width: 240px; border-right: 1px solid var(--borda); overflow: auto;
   padding: 10px; flex: none; background: var(--fundo-2); }
 aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
   color: var(--texto-2); margin: 4px 6px 8px; }
+aside details { margin: 2px 0; }
+aside details details { margin-left: 8px; }
+aside summary { cursor: pointer; list-style: none; border-radius: 6px; padding: 5px 6px;
+  color: var(--texto); font-weight: 600; }
+aside summary::-webkit-details-marker { display: none; }
+aside summary::before { content: "▸"; display: inline-block; width: 1.1em; color: var(--texto-2); }
+aside details[open] > summary::before { content: "▾"; }
+aside summary:hover { background: var(--acento-fundo); color: var(--acento); }
+aside summary .quantidade { float: right; color: var(--texto-2); font-size: 11px; font-weight: 400; }
 aside button { display: block; width: 100%; text-align: left; border: 0; background: none;
   color: var(--texto); padding: 5px 6px; border-radius: 6px; cursor: pointer;
   font: inherit; word-break: break-all; }
+aside details details button { padding-left: 22px; font-size: 12px; }
 aside button:hover { background: var(--acento-fundo); color: var(--acento); }
 section { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .editor { padding: 12px 16px; border-bottom: 1px solid var(--borda); }
@@ -115,22 +125,77 @@ td.nulo { color: var(--texto-2); font-style: italic; }
 <script>
 const $ = (s) => document.querySelector(s);
 const sql = $("#sql"), status = $("#status"), resultado = $("#resultado");
+const NOMES_FONTES = {
+  camara: "Câmara", senado: "Senado", ibge: "IBGE", bcb: "Banco Central",
+  tse: "TSE", ipeadata: "Ipeadata",
+};
+
+function grupoDaTabela(tabela) {
+  const separador = tabela.indexOf("_");
+  if (separador < 0) return { camada: "outros", fonte: "outros" };
+  const camada = tabela.slice(0, separador);
+  const restante = tabela.slice(separador + 1);
+  const separadorFonte = restante.indexOf("_");
+  const fonte = separadorFonte < 0 ? restante : restante.slice(0, separadorFonte);
+  return { camada: ["bronze", "silver"].includes(camada) ? camada : "outros", fonte };
+}
+
+function rotuloCamada(camada) {
+  return ({ bronze: "Bronze", silver: "Silver", outros: "Outras tabelas" })[camada] || camada;
+}
+
+function rotuloFonte(fonte) {
+  return NOMES_FONTES[fonte] || fonte.replaceAll("_", " ");
+}
+
+function secaoToggle(chave, rotulo, quantidade) {
+  const details = document.createElement("details");
+  details.dataset.grupo = chave;
+  const summary = document.createElement("summary");
+  summary.appendChild(document.createTextNode(rotulo));
+  const contador = document.createElement("span");
+  contador.className = "quantidade";
+  contador.textContent = quantidade;
+  summary.appendChild(contador);
+  details.appendChild(summary);
+  return details;
+}
 
 async function carregarTabelas() {
   try {
     const r = await fetch("api/tabelas");
     const d = await r.json();
     const div = $("#tabelas");
+    const abertas = new Set([...div.querySelectorAll("details[open]")].map((el) => el.dataset.grupo));
     div.innerHTML = "";
     if (!d.tabelas || !d.tabelas.length) {
       div.innerHTML = '<span class="dica">nenhuma tabela</span>';
       return;
     }
-    for (const t of d.tabelas) {
-      const b = document.createElement("button");
-      b.textContent = t;
-      b.onclick = () => { sql.value = `SELECT * FROM ${t} LIMIT 100;`; rodar(); };
-      div.appendChild(b);
+    const grupos = new Map();
+    for (const tabela of [...d.tabelas].sort()) {
+      const { camada, fonte } = grupoDaTabela(tabela);
+      if (!grupos.has(camada)) grupos.set(camada, new Map());
+      const fontes = grupos.get(camada);
+      if (!fontes.has(fonte)) fontes.set(fonte, []);
+      fontes.get(fonte).push(tabela);
+    }
+    for (const [camada, fontes] of grupos) {
+      const quantidade = [...fontes.values()].reduce((total, tabelas) => total + tabelas.length, 0);
+      const camadaToggle = secaoToggle(`camada:${camada}`, rotuloCamada(camada), quantidade);
+      camadaToggle.open = abertas.has(camadaToggle.dataset.grupo);
+      for (const [fonte, tabelas] of fontes) {
+        const fonteToggle = secaoToggle(`fonte:${camada}:${fonte}`, rotuloFonte(fonte), tabelas.length);
+        fonteToggle.open = abertas.has(fonteToggle.dataset.grupo);
+        for (const tabela of tabelas) {
+          const b = document.createElement("button");
+          b.textContent = tabela;
+          b.onclick = () => { sql.value = `SELECT * FROM ${tabela} LIMIT 100;`; rodar(); };
+          fonteToggle.appendChild(b);
+        }
+        camadaToggle.appendChild(fonteToggle);
+      }
+      div.appendChild(camadaToggle);
     }
   } catch (e) { $("#tabelas").innerHTML = '<span class="dica">falha ao listar</span>'; }
 }
