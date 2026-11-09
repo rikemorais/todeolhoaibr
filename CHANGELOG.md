@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.47.1] - 2026-11-09
+
 ### Corrigido
 
 - Rejeita arquivos HTTP sem tamanho declarado quando o EOF não tem framing verificável; valida JSON grande em fluxo antes de publicar manifesto (issue #261).
