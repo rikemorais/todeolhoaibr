@@ -306,7 +306,7 @@ async fn preparar_contexto() -> Result<ContextoDeExecucao> {
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento,
@@ -605,7 +605,7 @@ async fn passada_tse_despesas_pagas_silver(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -766,7 +766,7 @@ async fn passada_tse_votacao_secao(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -1084,7 +1084,7 @@ async fn passada_tse_silver(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -1295,7 +1295,7 @@ async fn passada_camara_silver(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -1513,7 +1513,7 @@ async fn passada_senado_silver(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -1620,7 +1620,7 @@ async fn passada_bcb_silver(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -1747,7 +1747,7 @@ async fn passada_ibge_silver(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(silver),
@@ -1866,7 +1866,7 @@ async fn passada(
         id_execucao: format!(
             "{}-{}",
             iniciada_em.format("%Y%m%dT%H%M%SZ"),
-            &Uuid::new_v4().simple().to_string()[..8]
+            Uuid::new_v4().simple()
         ),
         iniciada_em,
         armazenamento: Arc::clone(bronze),

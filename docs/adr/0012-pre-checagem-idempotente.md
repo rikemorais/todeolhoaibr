@@ -32,6 +32,7 @@ Uma pré-checagem comum às tarefas decide, **antes de buscar**, se o recurso pr
 **Integridade pelo tamanho, barata**
 
 - O manifesto, gravado por último, é o marcador de completude ([ADR 0006](0006-layout-da-camada-raw.md)).
+- Em paginação, se uma execução falhar antes de gravar o novo manifesto, remove apenas as partes novas gravadas por essa execução. Partes reutilizadas do manifesto anterior são preservadas.
 - A integridade das partes é conferida pelo **tamanho** (`ArmazenamentoRaw::tamanho`, um `HEAD`), não relendo o conteúdo. Reler um ZIP de centenas de MB a cada rodada estouraria o limite de 256 MB do contêiner ([ADR 0010](0010-selecao-e-arquivos-grandes.md)). O `sha256` do manifesto continua sendo a procedência gravada na ingestão, usada na comparação com a origem, não para re-hashear o arquivo local.
 
 ## Consequências
