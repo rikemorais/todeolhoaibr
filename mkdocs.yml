@@ -130,6 +130,8 @@ nav:
   - Refino:
       - refino/bronze.md
       - refino/silver.md
+      - refino/pesquisa-tse-2014-2022.md
+      - refino/pesquisa-tse-2014-sup.md
   - Fontes de dados:
       - fontes/ibge.md
       - fontes/ibge-pib-municipios.md
