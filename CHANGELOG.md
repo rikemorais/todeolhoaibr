@@ -7,6 +7,20 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.49.0] - 2026-11-09
+
+### Adicionado
+
+- Módulo `nucleo::orfas` para recuperação de partes Raw órfãs após cancelamento ou erro ambíguo (issue #269).
+- `verificar_manifesto_ou_limpar` verifica se o manifesto realmente foi persistido antes de decidir o rollback, devolvendo `ResultadoVerificacao` com três estados (confirmado, ausente, ilegível).
+- `limpar_orfas_do_recurso` varre prefixo e remove partes desprotegidas, excluindo a execução corrente e protegendo execuções com manifesto ilegível.
+- `listar_prefixo` na porta `ArmazenamentoRaw` (default vazio) e implementado no adapter S3.
+- Varredura pré-execução de órfãs em `ingestao_http`.
+
+### Corrigido
+
+- Erro na verificação de manifesto após escrita ambígua agora é logado (antes era silenciado com `.ok()`).
+
 ## [0.48.0] - 2026-11-09
 
 ### Adicionado
