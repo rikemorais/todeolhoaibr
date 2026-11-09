@@ -38,6 +38,9 @@ pub fn esquema_camara_partidos() -> Arc<Schema> {
         Field::new("sigla", DataType::Utf8, true),
         Field::new("nome", DataType::Utf8, true),
         Field::new("uri", DataType::Utf8, true),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -80,10 +83,11 @@ pub fn transformar_camara_partidos(
             return Err(ErroCamaraPartidosSilver::IdDuplicado { linha });
         }
     }
-    let saida: Vec<Arc<dyn Array>> = arrays
+    let mut saida: Vec<Arc<dyn Array>> = arrays
         .iter()
         .map(|array| Arc::new((*array).clone()) as Arc<dyn Array>)
         .collect();
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
     RecordBatch::try_new(esquema_camara_partidos(), saida)
         .map_err(|_| ErroCamaraPartidosSilver::Schema)
 }

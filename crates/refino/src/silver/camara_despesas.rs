@@ -45,6 +45,9 @@ pub fn esquema_camara_despesas() -> Arc<Schema> {
         Field::new("valor_liquido", DataType::Decimal128(18, 6), true),
         Field::new("valor_restituicao", DataType::Decimal128(18, 6), true),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -127,24 +130,23 @@ pub fn transformar_camara_despesas(
     }
 
     let coluna_texto = |indice: usize| Arc::new(colunas[indice].clone()) as Arc<dyn Array>;
-    RecordBatch::try_new(
-        esquema_camara_despesas(),
-        vec![
-            Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
-            coluna_texto(0),
-            coluna_texto(1),
-            coluna_texto(2),
-            coluna_texto(3),
-            data_array(emissao)?,
-            data_array(pagamento)?,
-            decimal_array(documento)?,
-            decimal_array(glosa)?,
-            decimal_array(liquido)?,
-            decimal_array(restituicao)?,
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroCamaraDespesasSilver::Schema)
+    let mut saida: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
+        coluna_texto(0),
+        coluna_texto(1),
+        coluna_texto(2),
+        coluna_texto(3),
+        data_array(emissao)?,
+        data_array(pagamento)?,
+        decimal_array(documento)?,
+        decimal_array(glosa)?,
+        decimal_array(liquido)?,
+        decimal_array(restituicao)?,
+        Arc::new(StringArray::from(originais)),
+    ];
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_camara_despesas(), saida)
+        .map_err(|_| ErroCamaraDespesasSilver::Schema)
 }
 
 #[cfg(test)]

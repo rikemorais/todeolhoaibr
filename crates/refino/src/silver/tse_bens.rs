@@ -63,6 +63,9 @@ pub fn esquema_tse_bens() -> Arc<Schema> {
         Field::new("descricao_bem", DataType::Utf8, true),
         Field::new("valor_bem", DataType::Decimal128(18, 2), true),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -154,25 +157,23 @@ pub fn transformar_tse_bens(
             Arc::new(StringArray::from(vec![None::<&str>; lote.num_rows()]))
         }
     };
-    RecordBatch::try_new(
-        esquema_tse_bens(),
-        vec![
-            Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
-            Arc::new(colunas[1].clone()),
-            Arc::new(colunas[2].clone()),
-            Arc::new(colunas[3].clone()),
-            Arc::new(colunas[4].clone()),
-            Arc::new(UInt32Array::from(ordens)),
-            Arc::new(Date32Array::from(datas_eleicao)),
-            Arc::new(Date32Array::from(datas_atualizacao)),
-            texto_preenchido(codigo_tipo),
-            texto_preenchido(tipo),
-            texto_preenchido(descricao),
-            Arc::new(decimal_array(valores)?),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroTseBensSilver::Schema)
+    let mut cols: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
+        Arc::new(colunas[1].clone()),
+        Arc::new(colunas[2].clone()),
+        Arc::new(colunas[3].clone()),
+        Arc::new(colunas[4].clone()),
+        Arc::new(UInt32Array::from(ordens)),
+        Arc::new(Date32Array::from(datas_eleicao)),
+        Arc::new(Date32Array::from(datas_atualizacao)),
+        texto_preenchido(codigo_tipo),
+        texto_preenchido(tipo),
+        texto_preenchido(descricao),
+        Arc::new(decimal_array(valores)?),
+        Arc::new(StringArray::from(originais)),
+    ];
+    cols.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_tse_bens(), cols).map_err(|_| ErroTseBensSilver::Schema)
 }
 
 fn coluna_obrigatoria<'a>(

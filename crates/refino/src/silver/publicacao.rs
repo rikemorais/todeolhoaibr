@@ -14,8 +14,9 @@ use todeolho_nucleo::{
 use crate::{
     EscritorParquetTipado, SnapshotBronze,
     executor_sql::{
-        ConfiguracaoExecutorSql, ErroExecutorSql, executar_sql, preparar_snapshot,
-        preparar_snapshot_com_json_original, preparar_snapshot_com_json_string_original,
+        COL_MANIFESTO, COL_ORDINAL, COL_PARTE, ConfiguracaoExecutorSql, ErroExecutorSql,
+        executar_sql, preparar_snapshot, preparar_snapshot_com_json_original,
+        preparar_snapshot_com_json_string_original,
     },
 };
 
@@ -172,6 +173,7 @@ async fn publicar_transformacao_sql_interno(
             )
         })?;
     let esquema_saida = fluxo.schema();
+    validar_linhagem(&esquema_saida).map_err(|detalhe| erro_manifesto(recurso, detalhe))?;
     if esquema
         .as_ref()
         .is_some_and(|esperado| !schemas_compativeis(esperado, &esquema_saida))
@@ -337,6 +339,24 @@ fn normalizar_schema_lote(
     }
     RecordBatch::try_new(esperado.clone(), lote.columns().to_vec())
         .map_err(|_| "resultado SQL não pode usar a nulabilidade declarada pelo contrato")
+}
+
+fn validar_linhagem(esquema: &SchemaRef) -> Result<(), String> {
+    for (nome, tipo) in [
+        (COL_MANIFESTO, arrow::datatypes::DataType::Utf8),
+        (COL_PARTE, arrow::datatypes::DataType::Utf8),
+        (COL_ORDINAL, arrow::datatypes::DataType::UInt64),
+    ] {
+        match esquema.field_with_name(nome) {
+            Ok(campo) if campo.data_type() == &tipo => {}
+            _ => {
+                return Err(format!(
+                    "contrato SQL Silver deve projetar {nome} ({tipo:?})"
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn erro_manifesto(recurso: &str, erro: impl std::fmt::Display) -> ErroDeIngestao {

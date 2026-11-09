@@ -3,7 +3,10 @@ WITH contadas AS (
     SELECT *, COUNT(*) OVER (PARTITION BY id) AS __tdoa_contagem_chave
     FROM bronze
 )
-SELECT {{COLUNAS_BRONZE}}
+SELECT {{COLUNAS_BRONZE}},
+    origem._tdoa_origem_manifesto,
+    origem._tdoa_origem_parte,
+    origem._tdoa_origem_ordinal
 FROM contadas AS origem
 WHERE tdoa_assert_true(origem.id IS NOT NULL AND TRIM(origem.id) <> '')
   AND tdoa_assert_true(origem.__tdoa_contagem_chave = 1)

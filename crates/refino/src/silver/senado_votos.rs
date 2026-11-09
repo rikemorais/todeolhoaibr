@@ -54,6 +54,9 @@ pub fn esquema_senado_votos() -> Arc<Schema> {
         Field::new("uf", DataType::Utf8, true),
         Field::new("voto", DataType::Utf8, true),
         Field::new("voto_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -145,21 +148,21 @@ pub fn transformar_senado_votos(lote: &RecordBatch) -> Result<RecordBatch, ErroS
         }
     }
 
-    RecordBatch::try_new(
-        esquema_senado_votos(),
-        vec![
-            Arc::new(StringArray::from(codigo_sessao)),
-            Arc::new(StringArray::from(data_sessao)),
-            Arc::new(UInt32Array::from(ordem_voto)),
-            Arc::new(StringArray::from(codigo_parlamentar)),
-            Arc::new(StringArray::from(nome_parlamentar)),
-            Arc::new(StringArray::from(sigla_partido)),
-            Arc::new(StringArray::from(uf)),
-            Arc::new(StringArray::from(voto)),
-            Arc::new(StringArray::from(voto_original)),
-        ],
-    )
-    .map_err(|_| ErroSenadoVotosSilver::Schema)
+    let n_linhas = codigo_sessao.len();
+    let mut colunas: Vec<Arc<dyn arrow::array::Array>> = vec![
+        Arc::new(StringArray::from(codigo_sessao)),
+        Arc::new(StringArray::from(data_sessao)),
+        Arc::new(UInt32Array::from(ordem_voto)),
+        Arc::new(StringArray::from(codigo_parlamentar)),
+        Arc::new(StringArray::from(nome_parlamentar)),
+        Arc::new(StringArray::from(sigla_partido)),
+        Arc::new(StringArray::from(uf)),
+        Arc::new(StringArray::from(voto)),
+        Arc::new(StringArray::from(voto_original)),
+    ];
+    colunas.extend(crate::executor_sql::colunas_linhagem_teste(n_linhas));
+    RecordBatch::try_new(esquema_senado_votos(), colunas)
+        .map_err(|_| ErroSenadoVotosSilver::Schema)
 }
 
 fn registros_de_votos(json: &Value) -> Option<Vec<&Value>> {
