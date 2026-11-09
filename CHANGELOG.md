@@ -7,6 +7,21 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.50.0] - 2026-11-09
+
+### Adicionado
+
+- Decodificação bronze 100% em fluxo: CSV e ZIP-CSV são lidos em streaming sem carregar o arquivo inteiro em memória (issue #164).
+- `LeitorAutoEncoding`: auto-detecção de encoding por amostragem dos primeiros 16 KB — UTF-8 passa direto, Latin-1 é transcodificado via `encoding_rs_io`.
+- `partes_de_csv_em_fluxo`: caminho streaming para CSV "solto" (ex.: CEAPS do Senado).
+- `DecodificadorCsv::decodificar_arquivo`: lê do disco em fluxo em vez de carregar em memória.
+- `descartar_uma_linha`: descarte de preâmbulo com buffer fixo (sem alocar a linha descartada).
+
+### Alterado
+
+- `DecodificadorZipCsv` unificado: `novo()` e `em_fluxo()` produzem o mesmo decodificador (sempre streaming).
+- `partes_de_zip_csv` agora delega para `partes_de_zip_csv_em_fluxo`.
+
 ## [0.49.0] - 2026-11-09
 
 ### Adicionado
