@@ -136,6 +136,8 @@ pub struct DownloadHttp {
     /// Tamanho total do arquivo em bytes, quando a origem informa
     /// (`Content-Length` de um `200`, ou o total do `Content-Range` de um `206`).
     pub tamanho_total: Option<u64>,
+    /// `true` quando o protocolo distingue fim válido de EOF truncado sem total.
+    pub enquadramento_verificavel: bool,
     /// Fluxo do corpo, lido sob demanda.
     pub fluxo: FluxoDeBytes,
 }
