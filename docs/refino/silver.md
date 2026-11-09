@@ -72,6 +72,14 @@ e métricas de rejeição são parte do contrato alvo; o publicador atual ainda 
 os emite de forma estruturada, então não ativar um contrato que dependa dessa
 quarentena antes de implementá-la.
 
+A referência `(manifesto, parte, ordinal)` precisa constar da linha Silver
+publicada, além do manifesto da execução. O leitor Bronze já a fornece ao
+executor SQL, mas nem toda consulta atual a projeta na saída; esse é um
+requisito pendente de correção antes de considerar completa a linhagem por
+linha. As tarefas com duas saídas, como sessões e votos do Senado, também
+precisam expor resultado por tabela; até lá, conferir seus ponteiros
+individualmente em caso de falha parcial.
+
 ### Referência técnica da linha bronze
 
 O leitor [`LeitorDeParteBronze`](../../crates/refino/src/linhagem.rs) percorre uma parte Parquet em lotes, sem projeção ou filtro, e associa cada registro à chave do manifesto bronze, à chave da parte, ao nome da tabela de origem e ao ordinal da linha na parte (começando em 1). O ordinal continua entre lotes e não depende do tamanho do lote de leitura. Assim, duas linhas iguais no mesmo Parquet ainda têm referências distintas, e variantes com a mesma sequência oficial permanecem rastreáveis.

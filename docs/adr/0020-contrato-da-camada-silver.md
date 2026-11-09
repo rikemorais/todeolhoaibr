@@ -17,12 +17,13 @@ O bucket `silver` usará partes Parquet, manifesto e ponteiro de versão vigente
 
 Cada contrato declara campos obrigatórios, conversões opcionais, chave de
 negócio quando houver, política de duplicatas e limiares. O padrão é **zero
-rejeições** para campo obrigatório ausente ou inválido, conversão obrigatória
-falha, chave repetida com conteúdo divergente e linha que não possa ser ligada
-ao manifesto, parte e ordinal Bronze. Qualquer ocorrência dessas classes faz a
-execução falhar antes da troca do ponteiro. Um contrato só pode aceitar outro
-limiar com justificativa, versão de regra nova e fixture que confirme o destino
-das linhas rejeitadas; não há limite percentual implícito.
+rejeições** para campo obrigatório ausente ou inválido e conversão obrigatória
+falha. Para essas duas classes, um contrato pode declarar limite absoluto
+inteiro por motivo: até o limite, a linha é excluída da saída e registrada na
+quarentena; acima dele, toda a publicação falha. Isso exige justificativa,
+versão de regra nova e fixture de aceitação e ultrapassagem do limite. Conflito
+de chave e ausência de referência Bronze têm limite fixo zero, sem exceção:
+qualquer ocorrência bloqueia o ponteiro. Não há limite percentual implícito.
 
 Um campo opcional inválido pode virar nulo somente se o contrato nomear a
 conversão e conservar o valor de origem em coluna original ou `registro_original`.
@@ -44,13 +45,24 @@ contratos novos que dependam de rejeição recuperável precisam dessa capacidad
 antes da ativação.
 
 A unidade de publicação é a tabela Silver de um recurso. Partes e manifesto
-são gravados antes de seu ponteiro; falha, cancelamento ou mudança do ponteiro
-Bronze não alteram a versão Silver vigente. Tabelas irmãs oriundas do mesmo ZIP
-têm ponteiros independentes: se uma falhar, as já publicadas continuam válidas,
-e a execução registra o estado de cada tabela. Um consumidor que exija um
-snapshot conjunto deve esperar todas apontarem para a mesma versão Bronze;
-não se presume uma transação entre tabelas. Reprocessamento por nova versão
-Bronze ou nova regra conserva versões antigas para recuperação.
+são gravados antes de seu ponteiro; falha ou cancelamento antes dessa troca
+mantém a versão vigente anterior. Tabelas irmãs oriundas do mesmo ZIP têm
+ponteiros independentes: se uma falhar, as já publicadas continuam válidas.
+O contrato alvo exige resultado observável por tabela, mesmo quando elas
+compartilhem uma invocação; atualmente há tarefas com um único status para
+duas saídas e invocações separadas sem registro pai comum. Até esse registro
+existir, o operador deve conferir o ponteiro de cada tabela e as execuções
+individuais. Um consumidor que exija um snapshot conjunto deve esperar todas
+apontarem para a mesma versão Bronze; não se presume transação entre tabelas.
+Reprocessamento por nova versão Bronze ou nova regra conserva versões antigas
+para recuperação.
+
+A conferência do ponteiro Bronze antes de publicar e a proteção por recência
+do ponteiro Silver são verificações sequenciais, não uma transação entre
+buckets. O contrato alvo requer impedir que uma execução antiga passe a ser
+vigente após a Bronze mudar ou após uma execução Silver mais recente publicar;
+o publicador atual ainda precisa de proteção contra essas corridas e de estado
+explícito quando uma atualização de ponteiro for recusada.
 
 As transformações Silver serão expressas preferencialmente em arquivos SQL versionados sob `crates/refino/sql/silver/` e executadas pelo Apache DataFusion dentro do processo Rust do `refino`. O código os incorpora com `include_str!`, então a imagem distroless não precisa de shell nem de SQL montado em volume. Cada contrato seleciona explicitamente colunas, conversões, regras e versão; não inferir schema por conveniência nem interpolar valores externos em SQL. Rust continua responsável pela decodificação Bronze, por funções de domínio que não fiquem claras em SQL e pela orquestração, linhagem e publicação.
 
