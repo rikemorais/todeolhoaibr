@@ -1473,6 +1473,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Recorte validado: 2014">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comparacao-de-conteudo-entre-_br-_brasil-e-ufs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comparação de conteúdo entre _BR, _brasil e UFs
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -1608,17 +1623,132 @@ schemas próprios (distintos das famílias principais) e, respectivamente,
 separados até identificar sua relação semântica com as prestações ordinárias.
 Todos os campos físicos observados são <code>Utf8</code> anuláveis no Parquet Bronze;
 tipagem Silver exige contrato explícito por família.</p>
+<h3 id="comparacao-de-conteudo-entre-_br-_brasil-e-ufs">Comparação de conteúdo entre <code>_BR</code>, <code>_brasil</code> e UFs<a class="headerlink" href="#comparacao-de-conteudo-entre-_br-_brasil-e-ufs" title="Permanent link">&para;</a></h3>
+<p>Comparei todas as linhas por SHA-256 da serialização JSON dos campos físicos,
+sem gravar ou exibir valores individuais. Nas seis famílias, todos os hashes
+distintos de <code>_BR</code> e das UFs aparecem também em <code>_brasil</code>, e <code>_BR</code> não compartilha
+hashes com as UFs. Porém, inclusão de hashes não garante a mesma multiplicidade
+de linhas; por isso comparei também a contagem de cada hash nos dois recortes.
+As 27 partes estaduais por família foram checadas contra a coluna <code>UF</code>: nenhuma
+linha divergiu do sufixo de origem.</p>
+<table>
+<thead>
+<tr>
+<th>Família</th>
+<th style="text-align: right;">Linhas em <code>_brasil</code></th>
+<th style="text-align: right;">Hashes distintos</th>
+<th style="text-align: right;">Linhas repetidas idênticas em <code>_brasil</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>despesas_candidatos_2014</code></td>
+<td style="text-align: right;">2.247.108</td>
+<td style="text-align: right;">2.124.540</td>
+<td style="text-align: right;">122.568</td>
+</tr>
+<tr>
+<td><code>despesas_comites_2014</code></td>
+<td style="text-align: right;">54.970</td>
+<td style="text-align: right;">49.341</td>
+<td style="text-align: right;">5.629</td>
+</tr>
+<tr>
+<td><code>despesas_partidos_2014</code></td>
+<td style="text-align: right;">55.370</td>
+<td style="text-align: right;">50.086</td>
+<td style="text-align: right;">5.284</td>
+</tr>
+<tr>
+<td><code>receitas_candidatos_2014</code></td>
+<td style="text-align: right;">427.489</td>
+<td style="text-align: right;">427.212</td>
+<td style="text-align: right;">277</td>
+</tr>
+<tr>
+<td><code>receitas_comites_2014</code></td>
+<td style="text-align: right;">9.173</td>
+<td style="text-align: right;">9.115</td>
+<td style="text-align: right;">58</td>
+</tr>
+<tr>
+<td><code>receitas_partidos_2014</code></td>
+<td style="text-align: right;">12.247</td>
+<td style="text-align: right;">12.227</td>
+<td style="text-align: right;">20</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Família</th>
+<th style="text-align: right;">Linhas em <code>_brasil</code></th>
+<th style="text-align: right;">Linhas em <code>_BR</code> + UFs</th>
+<th style="text-align: right;">Hashes com multiplicidade divergente</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>despesas_candidatos_2014</code></td>
+<td style="text-align: right;">2.247.108</td>
+<td style="text-align: right;">2.247.108</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><code>despesas_comites_2014</code></td>
+<td style="text-align: right;">54.970</td>
+<td style="text-align: right;">54.970</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><code>despesas_partidos_2014</code></td>
+<td style="text-align: right;">55.370</td>
+<td style="text-align: right;">54.659</td>
+<td style="text-align: right;">551</td>
+</tr>
+<tr>
+<td><code>receitas_candidatos_2014</code></td>
+<td style="text-align: right;">427.489</td>
+<td style="text-align: right;">427.489</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><code>receitas_comites_2014</code></td>
+<td style="text-align: right;">9.173</td>
+<td style="text-align: right;">9.173</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><code>receitas_partidos_2014</code></td>
+<td style="text-align: right;">12.247</td>
+<td style="text-align: right;">11.993</td>
+<td style="text-align: right;">254</td>
+</tr>
+</tbody>
+</table>
+<p>Quatro famílias têm multiplicidade idêntica por hash em <code>_brasil</code> e na soma de
+<code>_BR</code> com as UFs. Em <code>despesas_partidos_2014</code>, <code>_brasil</code> tem 551 hashes que não
+aparecem nos outros recortes e 711 linhas a mais; em <code>receitas_partidos_2014</code>,
+tem 254 hashes adicionais e 254 linhas a mais. Portanto, escolher <code>_brasil</code>
+como fonte única descartaria a possibilidade de reconciliar esses registros
+adicionais. Também há repetições exatas dentro dos próprios arquivos <code>_brasil</code>,
+sobretudo nas despesas. Não as removi nem inferi uma chave de lançamento: falta
+determinar se representam cópias da origem ou lançamentos distintos. A
+evidência é limitada às seis famílias ordinárias de 2014; não define o
+tratamento dos conjuntos <code>_sup</code>.</p>
 <p>Os nomes <code>_BR</code>, <code>_BRASIL</code>, <code>_brasil</code> e <code>_sup</code> são distintos no manifesto. Não
 devem ser somados nem tratados como cópias sem comparar schema, conteúdo e
 procedência. O contrato Silver precisa decidir por família e ano qual conjunto
 publicar, quais registros são complementares ou retificações, e como medir
 conflitos e duplicatas. A regra de 2024 não pode ser aplicada a esses anos
 somente pela semelhança dos nomes.</p>
-<p>Próxima validação: comparar o conteúdo de <code>_BR</code> e <code>_brasil</code> com as partes por UF,
-verificar a correspondência entre UF declarada e arquivo de origem, medir
-nulidade, unicidade e colisões das chaves candidatas e identificar a relação
-semântica dos arquivos <code>_sup</code> antes de fixar tipagem e deduplicação. O schema
-físico já foi conferido para todas as partes de 2014. As pesquisas de
+<p>Próxima validação em 2014: medir nulidade, unicidade e colisões das chaves
+candidatas, investigar as linhas e multiplicidades divergentes em
+<code>despesas_partidos_2014</code> e <code>receitas_partidos_2014</code>, e identificar a relação
+semântica dos arquivos <code>_sup</code> antes de fixar tipagem e deduplicação. Schema,
+hashes de conteúdo e correspondência da UF já foram verificados para as partes
+listadas. Para 2016–2022, essas verificações ainda estão pendentes. As pesquisas de
 <a href="../pesquisa-tse-2002/">2002</a>, <a href="../pesquisa-tse-2004-2006/">2004–2006</a>, <a href="../pesquisa-tse-2008/">2008</a>,
 <a href="../pesquisa-tse-2010-2012/">2010–2012</a> e <a href="../pesquisa-tse-2024/">2024</a>
 registram os demais recortes disponíveis.</p>
