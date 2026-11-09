@@ -57,6 +57,23 @@ impl ErroDePagina {
 const ACEITA_JSON: &str = "application/json";
 const LIMITE_DE_PAGINAS: usize = 1_000;
 const TENTATIVAS_JSON_INVALIDO: u32 = 3;
+const LIMITE_JSON_DECODIFICADO: u64 = 256 * 1024 * 1024;
+
+fn descomprimir_gzip(corpo: &[u8]) -> std::io::Result<Vec<u8>> {
+    descomprimir_gzip_com_limite(corpo, LIMITE_JSON_DECODIFICADO)
+}
+
+fn descomprimir_gzip_com_limite(corpo: &[u8], limite: u64) -> std::io::Result<Vec<u8>> {
+    let mut decoder = flate2::read::MultiGzDecoder::new(corpo).take(limite + 1);
+    let mut bytes = Vec::new();
+    decoder.read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limite {
+        return Err(std::io::Error::other(
+            "resposta gzip excede o limite após decodificação",
+        ));
+    }
+    Ok(bytes)
+}
 
 /// Baixa um recurso HTTP e grava cada resposta, byte a byte, na camada Raw.
 pub struct TarefaDeIngestaoHttp {
@@ -121,7 +138,7 @@ impl TarefaDeIngestaoHttp {
         codificacao_de_conteudo: Option<&str>,
         corpo: &[u8],
     ) -> Result<(), ErroDePagina> {
-        if matches!(status, 204 | 205) || !eh_json(tipo_de_conteudo) {
+        if matches!(status, 204 | 205) {
             return Ok(());
         }
 
@@ -133,15 +150,12 @@ impl TarefaDeIngestaoHttp {
         {
             None
         } else if codificacao.eq_ignore_ascii_case("gzip") {
-            let mut bytes = Vec::new();
-            flate2::read::GzDecoder::new(corpo)
-                .read_to_end(&mut bytes)
-                .map_err(|erro| {
-                    ErroDePagina::JsonInvalido(ErroDeIngestao::Http {
-                        url: url.to_owned(),
-                        detalhe: format!("resposta gzip inválida: {erro}"),
-                    })
-                })?;
+            let bytes = descomprimir_gzip(corpo).map_err(|erro| {
+                ErroDePagina::JsonInvalido(ErroDeIngestao::Http {
+                    url: url.to_owned(),
+                    detalhe: format!("resposta gzip inválida: {erro}"),
+                })
+            })?;
             Some(bytes)
         } else {
             return Err(ErroDePagina::Outro(ErroDeIngestao::Http {
@@ -149,6 +163,9 @@ impl TarefaDeIngestaoHttp {
                 detalhe: format!("Content-Encoding não suportado: {codificacao}"),
             }));
         };
+        if !eh_json(tipo_de_conteudo) {
+            return Ok(());
+        }
         let mut deserializador =
             serde_json::Deserializer::from_slice(decodificado.as_deref().unwrap_or(corpo));
         let resultado = serde::de::IgnoredAny::deserialize(&mut deserializador)
@@ -468,9 +485,7 @@ impl TarefaDeIngestaoHttp {
                 .await?;
 
             let corpo_paginacao = if resolvida.corpo.starts_with(&[0x1f, 0x8b]) {
-                let mut decodificado = Vec::new();
-                flate2::read::GzDecoder::new(resolvida.corpo.as_slice())
-                    .read_to_end(&mut decodificado)
+                let decodificado = descomprimir_gzip(&resolvida.corpo)
                     .map_err(|erro| self.erro_de_paginacao(erro.to_string()))?;
                 Some(decodificado)
             } else {
@@ -676,6 +691,7 @@ mod testes {
 
     struct HttpCodificado {
         corpo: Vec<u8>,
+        segunda: Option<Vec<u8>>,
         codificacao: &'static str,
     }
 
@@ -687,7 +703,7 @@ mod testes {
 
         async fn obter_condicional_com_codificacao(
             &self,
-            _: &str,
+            url: &str,
             _: &str,
             _: Option<&str>,
         ) -> Result<(RespostaCondicional, Option<String>), ErroDeIngestao> {
@@ -696,7 +712,11 @@ mod testes {
                     status: 200,
                     tipo_de_conteudo: "application/json".into(),
                     versao: None,
-                    corpo: self.corpo.clone(),
+                    corpo: if url.ends_with("/2") {
+                        self.segunda.as_ref().unwrap_or(&self.corpo).clone()
+                    } else {
+                        self.corpo.clone()
+                    },
                 },
                 Some(self.codificacao.into()),
             ))
@@ -808,12 +828,24 @@ mod testes {
         corpo: Vec<u8>,
         codificacao: &'static str,
     ) -> (ContextoDeExecucao, Arc<ArmazenamentoEmMemoria>) {
+        contexto_codificado_com_segunda(corpo, None, codificacao)
+    }
+
+    fn contexto_codificado_com_segunda(
+        corpo: Vec<u8>,
+        segunda: Option<Vec<u8>>,
+        codificacao: &'static str,
+    ) -> (ContextoDeExecucao, Arc<ArmazenamentoEmMemoria>) {
         let armazenamento = Arc::new(ArmazenamentoEmMemoria::default());
         let contexto = ContextoDeExecucao {
             id_execucao: "exec".into(),
             iniciada_em: Utc::now(),
             armazenamento: armazenamento.clone(),
-            http: Arc::new(HttpCodificado { corpo, codificacao }),
+            http: Arc::new(HttpCodificado {
+                corpo,
+                segunda,
+                codificacao,
+            }),
             progresso: None,
         };
         (contexto, armazenamento)
@@ -900,6 +932,35 @@ mod testes {
         encoder.finish().unwrap()
     }
 
+    #[test]
+    fn le_todos_os_membros_gzip_e_limita_expansao() {
+        let mut corpo = gzip(br#"{"dados": "#);
+        corpo.extend(gzip(br#"[1]}"#));
+        assert_eq!(descomprimir_gzip(&corpo).unwrap(), br#"{"dados": [1]}"#);
+        assert!(descomprimir_gzip_com_limite(&corpo, 5).is_err());
+    }
+
+    #[test]
+    fn rejeita_encoding_invalido_mesmo_para_resposta_nao_json() {
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+        assert!(
+            tarefa
+                .validar_resposta("https://api/r", 200, "text/plain", Some("br"), b"texto")
+                .is_err()
+        );
+        assert!(
+            tarefa
+                .validar_resposta(
+                    "https://api/r",
+                    200,
+                    "text/plain",
+                    Some("gzip"),
+                    b"gzip truncado"
+                )
+                .is_err()
+        );
+    }
+
     #[tokio::test]
     async fn valida_gzip_e_preserva_bytes_recebidos_na_raw() {
         let corpo = gzip(br#"{"dados":[1]}"#);
@@ -915,15 +976,19 @@ mod testes {
 
     #[tokio::test]
     async fn paginacao_le_json_gzip_decodificado() {
-        let corpo = gzip(br#"{"dados":[1],"links":[]}"#);
-        let (contexto, armazenamento) = contexto_codificado(corpo.clone(), "gzip");
+        let primeira = gzip(br#"{"dados":[1],"links":[{"rel":"next","href":"https://api/2"}]}"#);
+        let segunda = gzip(br#"{"dados":[2],"links":[]}"#);
+        let (contexto, armazenamento) =
+            contexto_codificado_com_segunda(primeira.clone(), Some(segunda.clone()), "gzip");
         let tarefa =
-            TarefaDeIngestaoHttp::paginada("f", "r", "https://api/r".into(), LinksDePaginacao);
+            TarefaDeIngestaoHttp::paginada("f", "r", "https://api/1".into(), LinksDePaginacao);
 
         let resumo = tarefa.executar(&contexto).await.unwrap();
 
-        assert_eq!(resumo.partes, 1);
-        assert_eq!(armazenamento.objetos.lock().unwrap()[0].conteudo, corpo);
+        assert_eq!(resumo.partes, 2);
+        let objetos = armazenamento.objetos.lock().unwrap();
+        assert_eq!(objetos[0].conteudo, primeira);
+        assert_eq!(objetos[1].conteudo, segunda);
     }
 
     #[tokio::test]
