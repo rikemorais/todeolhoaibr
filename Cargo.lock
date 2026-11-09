@@ -3425,7 +3425,7 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "todeolho-cli"
-version = "0.47.4"
+version = "0.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "todeolho-fontes"
-version = "0.47.4"
+version = "0.48.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3461,7 +3461,7 @@ dependencies = [
 
 [[package]]
 name = "todeolho-infraestrutura"
-version = "0.47.4"
+version = "0.48.0"
 dependencies = [
  "async-trait",
  "fs4",
@@ -3477,7 +3477,7 @@ dependencies = [
 
 [[package]]
 name = "todeolho-nucleo"
-version = "0.47.4"
+version = "0.48.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3492,7 +3492,7 @@ dependencies = [
 
 [[package]]
 name = "todeolho-painel"
-version = "0.47.4"
+version = "0.48.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3507,7 +3507,7 @@ dependencies = [
 
 [[package]]
 name = "todeolho-refino"
-version = "0.47.4"
+version = "0.48.0"
 dependencies = [
  "arrow",
  "async-trait",
