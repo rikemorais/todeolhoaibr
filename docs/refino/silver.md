@@ -22,6 +22,11 @@ As quatro famílias Silver já existentes do TSE usam SQL versionado executado p
 
 O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
 
+A [especificação de contratos da fase 0](contratos-silver-fase0.md) detalha tipos,
+nulos, normalização, deduplicação e tabelas internas para cada família. Esta
+matriz resume o grão e a evidência de chave; “candidata” não autoriza descartar
+linhas nem ativar uma relação sem validação do recorte.
+
 | Entrada bronze | Família | Grão candidato da silver | Chave candidata / validação necessária |
 | --- | --- | --- | --- |
 | `camara-despesas` | Legislativo | lançamento CEAP | `ideDocumento` é candidato, mas não único; preservar todas as linhas até definir chave |
