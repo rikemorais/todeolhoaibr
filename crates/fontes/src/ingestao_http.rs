@@ -59,6 +59,11 @@ const LIMITE_DE_PAGINAS: usize = 1_000;
 const TENTATIVAS_JSON_INVALIDO: u32 = 3;
 const LIMITE_JSON_DECODIFICADO: u64 = 256 * 1024 * 1024;
 
+/// Remoções de partes órfãs durante rollback: até 4 em paralelo.
+const CONCORRENCIA_REMOCAO: usize = 4;
+/// Limite de tempo total para limpar partes órfãs no rollback.
+const DEADLINE_REMOCAO: std::time::Duration = std::time::Duration::from_secs(30);
+
 fn descomprimir_gzip(corpo: &[u8]) -> std::io::Result<Vec<u8>> {
     descomprimir_gzip_com_limite(corpo, LIMITE_JSON_DECODIFICADO)
 }
@@ -393,10 +398,16 @@ impl Tarefa for TarefaDeIngestaoHttp {
             .executar_com_rastreamento(contexto, &mut novas, &mut manifesto_gravado)
             .await;
         if resultado.is_err() && !manifesto_gravado {
-            for chave in novas {
-                if let Err(erro) = contexto.armazenamento.remover(&chave).await {
-                    tracing::warn!(%chave, %erro, "não foi possível remover parte Raw órfã");
-                }
+            let falhas = contexto
+                .armazenamento
+                .remover_lote(&novas, CONCORRENCIA_REMOCAO, DEADLINE_REMOCAO)
+                .await;
+            for falha in &falhas {
+                tracing::warn!(
+                    chave = %falha.chave,
+                    detalhe = %falha.detalhe,
+                    "não foi possível remover parte Raw órfã; pendente de recuperação"
+                );
             }
         }
         resultado
