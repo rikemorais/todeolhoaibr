@@ -59,14 +59,20 @@ para recuperação.
 
 A conferência do ponteiro Bronze antes de publicar e a proteção por recência
 do ponteiro Silver são verificações sequenciais, não uma transação entre
-buckets. O contrato alvo requer impedir que uma execução antiga passe a ser
-vigente após a Bronze mudar ou após uma execução Silver mais recente publicar;
-o publicador atual ainda precisa de proteção contra essas corridas e de estado
-explícito quando uma atualização de ponteiro for recusada.
+buckets. A serialização local impede a inversão de ponteiros entre tarefas de
+um mesmo processo, e a recusa de um ponteiro Silver antigo deve aparecer como
+falha da tarefa. Publicadores em processos distintos ainda exigem comparação e
+troca atômica do ponteiro no armazenamento. Como Bronze e Silver são buckets
+distintos, nem essa troca garante que o Bronze não avance logo depois da
+conferência. Até haver leitura que valide a versão Bronze referenciada pelo
+ponteiro Silver, consumidores não devem tratar o ponteiro Silver isolado como
+prova de atualidade em relação ao Bronze. A ativação de contratos que exijam
+essa garantia depende dessas duas capacidades; a fase 0 define o requisito,
+mas não declara que o armazenamento atual oferece transação entre buckets.
 
 As transformações Silver serão expressas preferencialmente em arquivos SQL versionados sob `crates/refino/sql/silver/` e executadas pelo Apache DataFusion dentro do processo Rust do `refino`. O código os incorpora com `include_str!`, então a imagem distroless não precisa de shell nem de SQL montado em volume. Cada contrato seleciona explicitamente colunas, conversões, regras e versão; não inferir schema por conveniência nem interpolar valores externos em SQL. Rust continua responsável pela decodificação Bronze, por funções de domínio que não fiquem claras em SQL e pela orquestração, linhagem e publicação.
 
-O executor consulta exclusivamente as partes enumeradas pelo snapshot do manifesto vigente. Deve transmitir batches sem reter o conjunto inteiro em memória sem limite, carregar a identidade de origem (manifesto, parte e ordinal) explicitamente durante o plano e encaminhar o resultado ao publicador comum. Não depender da ordem de saída do plano. O publicador continua gravando Parquets e manifesto antes de trocar o ponteiro; a saída só fica vigente quando todas as partes estão completas e a versão Bronze de entrada ainda é a mesma.
+O executor consulta exclusivamente as partes enumeradas pelo snapshot do manifesto vigente. Deve transmitir batches sem reter o conjunto inteiro em memória sem limite, carregar a identidade de origem (manifesto, parte e ordinal) explicitamente durante o plano e encaminhar o resultado ao publicador comum. Não depender da ordem de saída do plano. Antes da ativação de cada contrato, a consulta precisa projetar as três referências na linha publicada e o publicador precisa rejeitar schema ou lote que as omita ou produza referências nulas. `registro_original` sozinho não identifica duas ocorrências iguais; o contrato `camara_tramitacoes.sql`, entre outros, ainda não cumpre essa exigência. O publicador grava Parquets e manifesto antes de trocar o ponteiro; a conferência sequencial do Bronze reduz a janela de desatualização, mas não equivale a uma transação entre buckets.
 
 O DataFusion será embutido, sem introduzir um serviço externo ou substituir o agendador, a CLI, o painel ou o catálogo de contratos. Operações que precisem de spill devem usar o `DiskManager` com diretório temporário dedicado por execução sob a raiz temporária do processo, quota explícita e arquivos removidos ao descartar o contexto. O executor aplica limites de memória e de entrada, inicia com uma partição por consulta e deixa o paralelismo entre tarefas sob controle do Dagron; os valores podem ser ajustados pela configuração do executor e devem ser medidos em dados representativos. A configuração inicial é 512 MiB de memória, 2 GiB de spill, 100 GiB de entrada e batches de 8.192 linhas. Se algum limite for excedido, a consulta falha e a publicação não avança.
 
