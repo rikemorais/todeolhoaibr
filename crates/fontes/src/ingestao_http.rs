@@ -394,20 +394,48 @@ impl Tarefa for TarefaDeIngestaoHttp {
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let mut novas = Vec::new();
         let mut manifesto_gravado = false;
+        let mut chave_manifesto = String::new();
         let resultado = self
-            .executar_com_rastreamento(contexto, &mut novas, &mut manifesto_gravado)
+            .executar_com_rastreamento(
+                contexto,
+                &mut novas,
+                &mut manifesto_gravado,
+                &mut chave_manifesto,
+            )
             .await;
-        if resultado.is_err() && !manifesto_gravado {
-            let falhas = contexto
-                .armazenamento
-                .remover_lote(&novas, CONCORRENCIA_REMOCAO, DEADLINE_REMOCAO)
-                .await;
-            for falha in &falhas {
-                tracing::warn!(
-                    chave = %falha.chave,
-                    detalhe = %falha.detalhe,
-                    "não foi possível remover parte Raw órfã; pendente de recuperação"
-                );
+        if resultado.is_err() {
+            if manifesto_gravado {
+                // Erro após marcar o manifesto como gravado: a escrita pode ter
+                // chegado ao servidor (resultado ambíguo). Verificar antes de apagar.
+                match todeolho_nucleo::verificar_manifesto_ou_limpar(
+                    contexto.armazenamento.as_ref(),
+                    &chave_manifesto,
+                    &novas,
+                )
+                .await
+                {
+                    Ok(_) => {}
+                    Err(erro) => {
+                        warn!(
+                            %erro,
+                            manifesto = %chave_manifesto,
+                            "falha ao verificar manifesto após erro ambíguo; \
+                             partes órfãs pendentes de recuperação"
+                        );
+                    }
+                }
+            } else {
+                let falhas = contexto
+                    .armazenamento
+                    .remover_lote(&novas, CONCORRENCIA_REMOCAO, DEADLINE_REMOCAO)
+                    .await;
+                for falha in &falhas {
+                    tracing::warn!(
+                        chave = %falha.chave,
+                        detalhe = %falha.detalhe,
+                        "não foi possível remover parte Raw órfã; pendente de recuperação"
+                    );
+                }
             }
         }
         resultado
@@ -442,6 +470,7 @@ impl TarefaDeIngestaoHttp {
         contexto: &ContextoDeExecucao,
         novas: &mut Vec<String>,
         manifesto_gravado: &mut bool,
+        chave_manifesto_out: &mut String,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let local = LocalizacaoRaw::nova(
             &self.fonte,
@@ -449,6 +478,20 @@ impl TarefaDeIngestaoHttp {
             contexto.iniciada_em,
             &contexto.id_execucao,
         );
+
+        // Varredura de órfãs: limpa partes de execuções anteriores que não
+        // concluíram (cancelamento abrupto, rollback incompleto). A varredura é
+        // best-effort: falhas não impedem a execução.
+        let prefixo_recurso = format!("{}/{}/", self.fonte, self.recurso);
+        if let Err(erro) = todeolho_nucleo::limpar_orfas_do_recurso(
+            contexto.armazenamento.as_ref(),
+            &prefixo_recurso,
+            &contexto.id_execucao,
+        )
+        .await
+        {
+            warn!(%erro, recurso = %self.recurso, "falha ao varrer órfãs antes da execução");
+        }
 
         // Estado anterior na Raw, para o motivo da reingestão (ausente, incompleta
         // ou desatualizada) refletir o que de fato havia guardado.
@@ -586,8 +629,10 @@ impl TarefaDeIngestaoHttp {
         };
         // A resposta de uma gravação remota pode ser perdida depois do commit;
         // a partir daqui não apagamos partes que um manifesto talvez já referencie.
+        let chave_manifesto = local.manifesto();
+        *chave_manifesto_out = chave_manifesto.clone();
         *manifesto_gravado = true;
-        self.gravar_json(contexto, local.manifesto(), &manifesto)
+        self.gravar_json(contexto, chave_manifesto, &manifesto)
             .await?;
 
         // Ponteiro para a próxima rodada localizar este manifesto. Sem validador
@@ -1181,6 +1226,22 @@ mod testes {
             _: &mut (dyn tokio::io::AsyncRead + Send + Unpin),
         ) -> Result<(), ErroDeIngestao> {
             unreachable!("a ingestão paginada não grava fluxo")
+        }
+
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.objetos.lock().unwrap().remove(chave);
+            Ok(())
+        }
+
+        async fn listar_prefixo(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
+            Ok(self
+                .objetos
+                .lock()
+                .unwrap()
+                .keys()
+                .filter(|chave| chave.starts_with(prefixo))
+                .cloned()
+                .collect())
         }
 
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
