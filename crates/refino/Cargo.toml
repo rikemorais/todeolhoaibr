@@ -9,13 +9,13 @@ rust-version.workspace = true
 [dependencies]
 todeolho-nucleo.workspace = true
 
-arrow = "59.2.0"
+arrow = "59.3.2"
 async-trait.workspace = true
 chrono.workspace = true
 hex.workspace = true
 futures.workspace = true
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
-parquet = "59.2.0"
+parquet = "59.3.2"
 encoding_rs_io = "0.1.7"
 serde_json.workspace = true
 sha2.workspace = true
