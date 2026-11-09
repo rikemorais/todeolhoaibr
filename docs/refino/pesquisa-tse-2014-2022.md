@@ -205,6 +205,40 @@ partes por UF e que somente essas ocorrências adicionais diferem. Portanto,
 observação não define uma chave de negócio, a semântica de `_sup` nem uma regra
 automática para outros anos ou versões do recurso.
 
+#### Sondas de chave dos lançamentos partidários de 2016
+
+No `_brasil` das duas famílias partidárias, testei combinações de campos do
+próprio lançamento. Campos vazios, `#NULO`, `#NE`, `-1` e `-3` foram tratados
+como incompletos. As contagens vêm do mesmo manifesto fixado; nenhuma linha
+ou identificador pessoal foi exibido. `Linhas em grupos repetidos` inclui todas
+as ocorrências das chaves completas que aparecem mais de uma vez.
+
+| Família / campos além de eleição, CNPJ e sequencial do prestador, UF | Linhas | Chaves incompletas | Chaves completas distintas | Grupos repetidos | Linhas em grupos repetidos |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Despesas: tipo e número do documento | 282.727 | 60.468 | 125.712 | 23.952 | 120.499 |
+| Despesas: documento, data e valor | 282.727 | 60.468 | 158.686 | 13.255 | 76.828 |
+| Despesas: documento, data, valor e CPF/CNPJ do fornecedor | 282.727 | 60.468 | 170.346 | 7.951 | 59.864 |
+| Receitas: número do recibo eleitoral | 140.496 | 3.618 | 135.101 | 454 | 2.231 |
+| Receitas: número do documento | 140.496 | 83.211 | 37.875 | 2.657 | 22.067 |
+| Receitas: recibo e número do documento | 140.496 | 84.059 | 56.437 | 0 | 0 |
+
+Nas despesas, `Tipo do documento` e `Número do documento` estão incompletos
+nas mesmas 60.468 linhas; os demais campos da primeira combinação estão
+preenchidos. Entre os 23.952 grupos repetidos dessa combinação, 23.714 contêm
+linhas fisicamente diferentes (118.961 ocorrências), e 238 contêm somente
+cópias idênticas (1.538 ocorrências). Acrescentar data, valor e fornecedor não
+resolve todas as colisões. Nas receitas, 3.618 linhas não têm recibo eleitoral e
+83.211 não têm número de documento; o subconjunto com ambos é único, mas deixa
+84.059 linhas fora da chave.
+
+O consolidado também contém linhas fisicamente idênticas repetidas: 14.404
+ocorrências de despesas e 1.172 de receitas além da primeira por hash de linha.
+Nenhuma combinação de campos físicos pode distinguir essas ocorrências. Não
+presumi que sejam cópias descartáveis nem tratei hash ou número de linha gerado
+na consulta como chave de negócio. A Silver deve preservar a multiplicidade e
+a proveniência; uma identidade de lançamento ou regra explícita para ausência
+de identidade precisa ser definida antes de publicar essas famílias.
+
 As quatro partes `_sup` de 2016 têm zero linhas neste snapshot Bronze. Isso não
 altera a conclusão da [pesquisa oficial sobre `_sup`](pesquisa-tse-2014-sup.md):
 o TSE publica esse recurso separadamente, mas não documenta sua relação linha a
@@ -221,8 +255,9 @@ recurso distinto, mas não documenta a relação linha a linha com a prestação
 regular; devem permanecer separados. Para 2016–2022, schemas, contagens e hashes
 de conteúdo agora foram comparados por família e recorte. Em 2016, a cobertura
 partidária adicional de `BR` e `DF` sustenta usar `_brasil` como fonte completa
-deste snapshot, condicionada à revalidação em novas versões. A identidade das
-chaves de negócio não foi determinada por estas comparações de conteúdo. As pesquisas de [2002](pesquisa-tse-2002.md),
+deste snapshot, condicionada à revalidação em novas versões. As sondas das
+famílias de partidos em 2016 também rejeitam as combinações testadas como chave
+completa e única. As pesquisas de [2002](pesquisa-tse-2002.md),
 [2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
 [2010–2012](pesquisa-tse-2010-2012.md) e [2024](pesquisa-tse-2024.md)
 registram os demais recortes disponíveis.
