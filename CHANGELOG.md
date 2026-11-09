@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.51.3] - 2026-11-09
+
+### Documentação
+
+- Identifica a cobertura adicional `BR` e `DF` dos lançamentos partidários TSE 2016 e alinha a orientação de fonte Silver para o snapshot validado (issue #185, PR #293).
+
 ## [0.51.2] - 2026-11-09
 
 ### Documentação
