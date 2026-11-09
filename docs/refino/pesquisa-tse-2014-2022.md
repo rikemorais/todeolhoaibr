@@ -5,13 +5,25 @@ Bronze local em 2026-11-09. Conta partes Parquet por nome de tabela interna;
 não valida linhas, chaves, tipos nem equivalência entre partes por UF e
 consolidados. Portanto, ainda não autoriza publicação Silver desses anos.
 
-| Ano | Partes | Famílias observadas | Formas nacionais e arquivos especiais |
-| --- | ---: | --- | --- |
-| 2014 | 178 | despesas/receitas de candidatos, comitês e partidos (seis famílias) | Cada família tem `_BR` e `_brasil`, além de 26 UFs; quatro arquivos `_sup` aparecem nas famílias de candidatos/partidos. |
-| 2016 | 112 | despesas/receitas de candidatos e partidos na prestação final (quatro famílias) | Cada família tem 26 UFs, `_brasil` e `_sup`. |
-| 2018 | 116 | despesas contratadas, despesas pagas, receitas e doador originário de candidatos (quatro famílias) | Cada família tem 27 partes regionais, `_BR` e `_BRASIL`. |
-| 2020 | 108 | As mesmas quatro famílias de 2018 | Cada família tem 26 UFs e `_BRASIL`; não há `_BR` no manifesto. |
-| 2022 | 116 | As mesmas quatro famílias de 2018 | Cada família tem 27 partes regionais, `_BR` e `_BRASIL`. |
+Todos os manifestos abaixo estão sob
+`tse/prestacao-contas/ano=AAAA/data_ingestao=2026-11-05/execucao=20261105T041222Z-8947609b/_manifesto.json`,
+substituindo `AAAA` pelo ano da primeira coluna. Essa chave fixa identifica o
+snapshot contado mesmo quando `_ultima_versao.json` mudar.
+
+| Ano | Partes | Tabelas internas e número de partes por prefixo |
+| --- | ---: | --- |
+| 2014 | 178 | `despesas_candidatos_2014`, `despesas_comites_2014`, `despesas_partidos_2014`, `receitas_candidatos_2014`, `receitas_comites_2014`, `receitas_partidos_2014`: **29 cada**; `despesas_candidatos_prestacao_contas_final_2014`, `despesas_partidos_prestacao_contas_final_2014`, `receitas_candidatos_prestacao_contas_final_2014`, `receitas_partidos_prestacao_contas_final_2014`: **1 `_sup` cada**. Total: 6 × 29 + 4 = 178. |
+| 2016 | 112 | `despesas_candidatos_prestacao_contas_final_2016`, `despesas_partidos_prestacao_contas_final_2016`, `receitas_candidatos_prestacao_contas_final_2016`, `receitas_partidos_prestacao_contas_final_2016`: **28 cada** (26 UFs, `_brasil`, `_sup`). |
+| 2018 | 116 | `despesas_contratadas_candidatos_2018`, `despesas_pagas_candidatos_2018`, `receitas_candidatos_2018`, `receitas_candidatos_doador_originario_2018`: **29 cada** (27 UFs, `_BR`, `_BRASIL`). |
+| 2020 | 108 | `despesas_contratadas_candidatos_2020`, `despesas_pagas_candidatos_2020`, `receitas_candidatos_2020`, `receitas_candidatos_doador_originario_2020`: **27 cada** (26 UFs, `_BRASIL`). |
+| 2022 | 116 | `despesas_contratadas_candidatos_2022`, `despesas_pagas_candidatos_2022`, `receitas_candidatos_2022`, `receitas_candidatos_doador_originario_2022`: **29 cada** (27 UFs, `_BR`, `_BRASIL`). |
+
+O agrupamento remove somente o sufixo da parte (`_UF`, `_BR`, `_BRASIL`,
+`_brasil` ou `_sup`); os prefixos acima são os nomes das tabelas internas
+observadas no campo `url` do manifesto. Em 2014, as seis famílias principais
+têm 27 UFs, `_BR` e `_brasil`; quatro arquivos `_sup` adicionais compõem o total.
+Em 2018 e 2022 há 27 UFs, `_BR` e `_BRASIL` por família; `_BR` não aparece
+em 2020.
 
 Os nomes `_BR`, `_BRASIL`, `_brasil` e `_sup` são distintos no manifesto. Não
 devem ser somados nem tratados como cópias sem comparar schema, conteúdo e
@@ -23,6 +35,6 @@ somente pela semelhança dos nomes.
 Próxima validação: ler os schemas físicos de cada família, comparar as formas
 nacionais com as UFs e medir nulidade, unicidade e colisões das chaves candidatas
 antes de fixar a tipagem e a deduplicação. As pesquisas de
-[2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
+[2002](pesquisa-tse-2002.md), [2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
 [2010–2012](pesquisa-tse-2010-2012.md) e [2024](pesquisa-tse-2024.md)
 registram os demais recortes disponíveis.
