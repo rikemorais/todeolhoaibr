@@ -1643,6 +1643,7 @@
 <p><strong>Integridade pelo tamanho, barata</strong></p>
 <ul>
 <li>O manifesto, gravado por último, é o marcador de completude (<a href="../0006-layout-da-camada-raw/">ADR 0006</a>).</li>
+<li>Em paginação, se uma execução falhar antes de gravar o novo manifesto, remove apenas as partes novas gravadas por essa execução. Partes reutilizadas do manifesto anterior são preservadas.</li>
 <li>A integridade das partes é conferida pelo <strong>tamanho</strong> (<code>ArmazenamentoRaw::tamanho</code>, um <code>HEAD</code>), não relendo o conteúdo. Reler um ZIP de centenas de MB a cada rodada estouraria o limite de 256 MB do contêiner (<a href="../0010-selecao-e-arquivos-grandes/">ADR 0010</a>). O <code>sha256</code> do manifesto continua sendo a procedência gravada na ingestão, usada na comparação com a origem, não para re-hashear o arquivo local.</li>
 </ul>
 <h2 id="consequencias">Consequências<a class="headerlink" href="#consequencias" title="Permanent link">&para;</a></h2>
