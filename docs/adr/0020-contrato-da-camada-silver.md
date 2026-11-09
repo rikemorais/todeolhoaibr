@@ -13,7 +13,44 @@ Cada **tabela silver** terá contrato versionado com grão, chave de negócio, t
 
 O bucket `silver` usará partes Parquet, manifesto e ponteiro de versão vigente. O manifesto identificará o recurso, a tabela e a versão do bronze de entrada, a versão do contrato/regra e as contagens de entrada, saída, duplicatas e rejeições por motivo. O ponteiro só será publicado após todas as partes e o manifesto estarem íntegros. Uma nova versão do bronze **ou da regra** exige nova materialização; versões anteriores continuam disponíveis para consulta ou recuperação. Nenhuma transformação altera raw ou bronze.
 
-Rejeições serão observáveis e recuperáveis, com motivo e referência à origem. A política exata de armazenamento e os limites aceitáveis de rejeição serão definidos por contrato antes da implementação. Não descartar linhas silenciosamente.
+### Política de qualidade e falha parcial
+
+Cada contrato declara campos obrigatórios, conversões opcionais, chave de
+negócio quando houver, política de duplicatas e limiares. O padrão é **zero
+rejeições** para campo obrigatório ausente ou inválido, conversão obrigatória
+falha, chave repetida com conteúdo divergente e linha que não possa ser ligada
+ao manifesto, parte e ordinal Bronze. Qualquer ocorrência dessas classes faz a
+execução falhar antes da troca do ponteiro. Um contrato só pode aceitar outro
+limiar com justificativa, versão de regra nova e fixture que confirme o destino
+das linhas rejeitadas; não há limite percentual implícito.
+
+Um campo opcional inválido pode virar nulo somente se o contrato nomear a
+conversão e conservar o valor de origem em coluna original ou `registro_original`.
+Essas conversões são contadas por motivo, mas não eliminam a linha. Valores
+sentinela não são convertidos globalmente: cada família define quais significam
+ausência. Duplicatas integrais só podem ser removidas quando o contrato comprovar
+que são cópias e declarar a comparação completa; sem essa prova, manter todas
+as ocorrências com a referência técnica da linha. Hash de conteúdo não é chave
+de negócio.
+
+O diagnóstico de rejeição contém motivo estável, versão da regra, manifesto
+Bronze, parte, tabela interna e ordinal. A linha original permanece no Bronze;
+o diagnóstico não precisa copiar identificadores pessoais. O destino planejado
+é `silver/_quarentena/<fonte>/<recurso>/tabela=<nome>/execucao=<id>/`, separado da tabela
+publicada. Contagens de entrada, saída, conversões opcionais, cópias removidas
+e rejeições por motivo pertencem ao manifesto da execução. O publicador atual
+ainda não grava esse diagnóstico estruturado nem todas essas métricas; os
+contratos novos que dependam de rejeição recuperável precisam dessa capacidade
+antes da ativação.
+
+A unidade de publicação é a tabela Silver de um recurso. Partes e manifesto
+são gravados antes de seu ponteiro; falha, cancelamento ou mudança do ponteiro
+Bronze não alteram a versão Silver vigente. Tabelas irmãs oriundas do mesmo ZIP
+têm ponteiros independentes: se uma falhar, as já publicadas continuam válidas,
+e a execução registra o estado de cada tabela. Um consumidor que exija um
+snapshot conjunto deve esperar todas apontarem para a mesma versão Bronze;
+não se presume uma transação entre tabelas. Reprocessamento por nova versão
+Bronze ou nova regra conserva versões antigas para recuperação.
 
 As transformações Silver serão expressas preferencialmente em arquivos SQL versionados sob `crates/refino/sql/silver/` e executadas pelo Apache DataFusion dentro do processo Rust do `refino`. O código os incorpora com `include_str!`, então a imagem distroless não precisa de shell nem de SQL montado em volume. Cada contrato seleciona explicitamente colunas, conversões, regras e versão; não inferir schema por conveniência nem interpolar valores externos em SQL. Rust continua responsável pela decodificação Bronze, por funções de domínio que não fiquem claras em SQL e pela orquestração, linhagem e publicação.
 
