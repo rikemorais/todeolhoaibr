@@ -165,10 +165,8 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     }
 
     async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
-        self.bucket
-            .delete_object(chave)
-            .await
-            .map_err(|e| self.erro(chave, e))?;
+        self.repetir_escrita(chave, || self.bucket.delete_object(chave))
+            .await?;
         Ok(())
     }
 
@@ -450,6 +448,7 @@ mod testes {
                     200 => "OK",
                     204 => "No Content",
                     404 => "Not Found",
+                    503 => "Service Unavailable",
                     status => panic!("status de mock não previsto: {status}"),
                 };
                 let tamanho_corpo = resposta
@@ -704,6 +703,25 @@ mod testes {
         for tentativa in 1..=TENTATIVAS_DE_ESCRITA {
             assert!(jitter(tentativa) < std::time::Duration::from_millis(200));
         }
+    }
+
+    #[tokio::test]
+    async fn remover_repete_apos_falha_transitoria() {
+        // 1ª tentativa: 503 (transitório, reconhecido por `eh_transitorio`).
+        // 2ª tentativa: 204 (sucesso).
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(503, "", "Service Unavailable"),
+            resposta_s3(204, "", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+
+        // Deve ter sucesso após retry automático.
+        s3.remover("objeto-teste").await.unwrap();
+
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 2, "deve ter tentado duas vezes");
+        assert!(requisicoes[0].starts_with("DELETE /teste-raw-79/objeto-teste"));
+        assert!(requisicoes[1].starts_with("DELETE /teste-raw-79/objeto-teste"));
     }
 
     // --- Integração: #[ignore] por padrão; `cargo test -- --ignored` com o versitygw no ar ---
