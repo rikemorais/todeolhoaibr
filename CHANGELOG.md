@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- Remove partes novas sem manifesto quando uma execução paginada falha, preservando partes reutilizadas (issue #262).
+
 ## [0.47.1] - 2026-11-09
 
 ### Corrigido

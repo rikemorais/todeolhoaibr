@@ -296,6 +296,29 @@ impl Tarefa for TarefaDeIngestaoHttp {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        let mut novas = Vec::new();
+        let mut manifesto_gravado = false;
+        let resultado = self
+            .executar_com_rastreamento(contexto, &mut novas, &mut manifesto_gravado)
+            .await;
+        if resultado.is_err() && !manifesto_gravado {
+            for chave in novas {
+                if let Err(erro) = contexto.armazenamento.remover(&chave).await {
+                    tracing::warn!(%chave, %erro, "não foi possível remover parte Raw órfã");
+                }
+            }
+        }
+        resultado
+    }
+}
+
+impl TarefaDeIngestaoHttp {
+    async fn executar_com_rastreamento(
+        &self,
+        contexto: &ContextoDeExecucao,
+        novas: &mut Vec<String>,
+        manifesto_gravado: &mut bool,
+    ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let local = LocalizacaoRaw::nova(
             &self.fonte,
             &self.recurso,
@@ -369,6 +392,7 @@ impl Tarefa for TarefaDeIngestaoHttp {
                 Some(parte) => parte,
                 None => {
                     let chave = local.parte(numero, extensao(&tipo_de_conteudo));
+                    novas.push(chave.clone());
                     let parte = ParteRaw {
                         chave: chave.clone(),
                         url: url.clone(),
@@ -427,6 +451,9 @@ impl Tarefa for TarefaDeIngestaoHttp {
             concluida_em: Utc::now(),
             partes,
         };
+        // A resposta de uma gravação remota pode ser perdida depois do commit;
+        // a partir daqui não apagamos partes que um manifesto talvez já referencie.
+        *manifesto_gravado = true;
         self.gravar_json(contexto, local.manifesto(), &manifesto)
             .await?;
 
@@ -511,6 +538,14 @@ mod testes {
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
             self.objetos.lock().unwrap().push(objeto);
+            Ok(())
+        }
+
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.objetos
+                .lock()
+                .unwrap()
+                .retain(|objeto| objeto.chave != chave);
             Ok(())
         }
 
@@ -606,13 +641,21 @@ mod testes {
     async fn sem_manifesto_quando_uma_pagina_falha() {
         let (contexto, armazenamento) = contexto(&[("https://api/1", PAGINA_1)]);
 
-        assert!(tarefa_paginada().executar(&contexto).await.is_err());
+        let erro = tarefa_paginada().executar(&contexto).await.unwrap_err();
+        assert!(matches!(
+            erro,
+            ErroDeIngestao::Http { ref url, .. } if url == "https://api/2"
+        ));
 
         let objetos = armazenamento.objetos.lock().unwrap();
         assert!(
             objetos
                 .iter()
                 .all(|o| !o.chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos.is_empty(),
+            "partes novas devem ser removidas no rollback"
         );
     }
 
@@ -633,6 +676,17 @@ mod testes {
             armazenamento.objetos.lock().unwrap().is_empty(),
             "a resposta parcial não deve publicar parte, manifesto ou ponteiro"
         );
+    }
+
+    #[tokio::test]
+    async fn remove_partes_anteriores_quando_pagina_seguinte_tem_json_invalido() {
+        let (contexto, armazenamento) = contexto(&[
+            ("https://api/1", PAGINA_1),
+            ("https://api/2", r#"{"dados":["#),
+        ]);
+
+        assert!(tarefa_paginada().executar(&contexto).await.is_err());
+        assert!(armazenamento.objetos.lock().unwrap().is_empty());
     }
 
     #[test]
