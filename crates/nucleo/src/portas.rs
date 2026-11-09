@@ -376,9 +376,7 @@ mod testes {
         let arm = ArmazenamentoContador {
             chamadas: AtomicUsize::new(0),
         };
-        let falhas = arm
-            .remover_lote(&[], 4, Duration::from_secs(5))
-            .await;
+        let falhas = arm.remover_lote(&[], 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());
         assert_eq!(arm.chamadas.load(Ordering::Relaxed), 0);
     }
@@ -389,9 +387,7 @@ mod testes {
             chamadas: AtomicUsize::new(0),
         };
         let chaves: Vec<String> = (0..10).map(|i| format!("chave-{i}")).collect();
-        let falhas = arm
-            .remover_lote(&chaves, 4, Duration::from_secs(5))
-            .await;
+        let falhas = arm.remover_lote(&chaves, 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());
         assert_eq!(arm.chamadas.load(Ordering::Relaxed), 10);
     }
@@ -400,12 +396,14 @@ mod testes {
     async fn remover_lote_coleta_falhas_individuais() {
         let arm = ArmazenamentoQueFalha;
         let chaves = vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
-        let falhas = arm
-            .remover_lote(&chaves, 4, Duration::from_secs(5))
-            .await;
+        let falhas = arm.remover_lote(&chaves, 4, Duration::from_secs(5)).await;
         assert_eq!(falhas.len(), 3);
         for falha in &falhas {
-            assert!(falha.detalhe.contains("S3 indisponível"), "{}", falha.detalhe);
+            assert!(
+                falha.detalhe.contains("S3 indisponível"),
+                "{}",
+                falha.detalhe
+            );
         }
     }
 
@@ -457,9 +455,7 @@ mod testes {
 
         let arm = SemRemocao;
         let chaves = vec!["a".to_owned(), "b".to_owned()];
-        let falhas = arm
-            .remover_lote(&chaves, 4, Duration::from_secs(5))
-            .await;
+        let falhas = arm.remover_lote(&chaves, 4, Duration::from_secs(5)).await;
         assert_eq!(falhas.len(), 2);
         for falha in &falhas {
             assert!(
