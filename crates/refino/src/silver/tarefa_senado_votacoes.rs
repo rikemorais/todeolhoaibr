@@ -29,10 +29,11 @@ pub struct TarefaDeSilverSenadoVotacoes {
     recurso: String,
     destino: String,
     votos: bool,
+    ambas: bool,
 }
 
 impl TarefaDeSilverSenadoVotacoes {
-    /// Cria a tarefa para o snapshot Bronze de um ano.
+    /// Cria a tarefa legada que publica sessões e votos do ano.
     pub fn nova(
         bronze: Arc<dyn ArmazenamentoRaw>,
         snapshot: Arc<SnapshotBronze>,
@@ -45,7 +46,19 @@ impl TarefaDeSilverSenadoVotacoes {
             destino: recurso.clone(),
             recurso,
             votos: false,
+            ambas: true,
         }
+    }
+
+    /// Cria somente a tarefa de sessões para execução com estado por tabela.
+    pub fn nova_sessoes(
+        bronze: Arc<dyn ArmazenamentoRaw>,
+        snapshot: Arc<SnapshotBronze>,
+        recurso: impl Into<String>,
+    ) -> Self {
+        let mut tarefa = Self::nova(bronze, snapshot, recurso);
+        tarefa.ambas = false;
+        tarefa
     }
 
     /// Cria a tarefa da tabela filha de votos, com nome próprio no DAG.
@@ -65,6 +78,7 @@ impl TarefaDeSilverSenadoVotacoes {
             recurso,
             destino,
             votos: true,
+            ambas: false,
         })
     }
 
@@ -77,6 +91,19 @@ impl TarefaDeSilverSenadoVotacoes {
             estado_na_raw(silver, "senado", &self.destino).await?,
             Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
         );
+        if self.ambas {
+            let destino_votos =
+                recurso_votos(&self.recurso).ok_or_else(|| ErroDeIngestao::Manifesto {
+                    recurso: self.recurso.clone(),
+                    detalhe: "recurso de votações sem ano no caminho".into(),
+                })?;
+            let versao_votos = format!("{execucao}|regra={REGRA_VOTOS}");
+            let votos_atuais = matches!(
+                estado_na_raw(silver, "senado", &destino_votos).await?,
+                Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao_votos.as_str())
+            );
+            return Ok(!atual || !votos_atuais);
+        }
         Ok(!atual)
     }
 }
@@ -102,7 +129,7 @@ impl Tarefa for TarefaDeSilverSenadoVotacoes {
             )
             .await;
         }
-        publicar_senado_votacoes(
+        let sessoes = publicar_senado_votacoes(
             self.bronze.as_ref(),
             contexto.armazenamento.as_ref(),
             &self.snapshot,
@@ -110,7 +137,25 @@ impl Tarefa for TarefaDeSilverSenadoVotacoes {
             contexto.iniciada_em,
             &contexto.id_execucao,
         )
-        .await
+        .await?;
+        if self.ambas {
+            let votos = publicar_senado_votos(
+                self.bronze.as_ref(),
+                contexto.armazenamento.as_ref(),
+                &self.snapshot,
+                &self.recurso,
+                contexto.iniciada_em,
+                &contexto.id_execucao,
+            )
+            .await?;
+            return Ok(ResumoDaTarefa {
+                partes: sessoes.partes + votos.partes,
+                bytes: sessoes.bytes + votos.bytes,
+                reaproveitada: sessoes.reaproveitada && votos.reaproveitada,
+                motivo: None,
+            });
+        }
+        Ok(sessoes)
     }
 }
 
@@ -198,13 +243,31 @@ mod testes {
     use chrono::Utc;
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use sha2::{Digest, Sha256};
-    use todeolho_nucleo::{LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, UltimaVersao};
+    use todeolho_nucleo::{
+        ClienteHttp, DownloadHttp, InformacoesDoArquivo, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
+        ParteRaw, RespostaHttp, UltimaVersao,
+    };
     use tokio::io::{AsyncRead, AsyncReadExt};
 
     use super::*;
 
     #[derive(Default)]
     struct Memoria(std::sync::Mutex<HashMap<String, Vec<u8>>>);
+
+    struct HttpInerte;
+
+    #[async_trait]
+    impl ClienteHttp for HttpInerte {
+        async fn obter(&self, _: &str, _: &str) -> Result<RespostaHttp, ErroDeIngestao> {
+            unreachable!()
+        }
+        async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+            unreachable!()
+        }
+        async fn baixar(&self, _: &str) -> Result<DownloadHttp, ErroDeIngestao> {
+            unreachable!()
+        }
+    }
 
     #[async_trait]
     impl ArmazenamentoRaw for Memoria {
@@ -322,7 +385,7 @@ mod testes {
         let (bronze, snapshot) = fonte(&["S1"]).await;
         let silver = Memoria::default();
         let recurso = "votacoes/ano=2024";
-        let tarefa = TarefaDeSilverSenadoVotacoes::nova(
+        let tarefa = TarefaDeSilverSenadoVotacoes::nova_sessoes(
             Arc::new(Memoria::default()),
             snapshot.clone(),
             recurso,
@@ -362,6 +425,31 @@ mod testes {
                 .await
                 .unwrap()
                 .reaproveitada
+        );
+    }
+
+    #[tokio::test]
+    async fn construtor_legado_publica_sessoes_e_votos_pelo_executar() {
+        let (bronze, snapshot) = fonte(&["S1"]).await;
+        let bronze = Arc::new(bronze);
+        let silver = Arc::new(Memoria::default());
+        let tarefa = TarefaDeSilverSenadoVotacoes::nova(bronze, snapshot, "votacoes/ano=2024");
+        let contexto = ContextoDeExecucao {
+            id_execucao: "silver-legado".into(),
+            iniciada_em: Utc::now(),
+            armazenamento: silver.clone(),
+            http: Arc::new(HttpInerte),
+            progresso: None,
+        };
+        assert!(tarefa.pendente(silver.as_ref()).await.unwrap());
+        assert_eq!(tarefa.executar(&contexto).await.unwrap().partes, 2);
+        assert!(!tarefa.pendente(silver.as_ref()).await.unwrap());
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao("senado", "votos/ano=2024"))
+                .await
+                .unwrap()
+                .is_some()
         );
     }
 
