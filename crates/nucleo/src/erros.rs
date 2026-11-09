@@ -30,14 +30,6 @@ pub enum ErroDeIngestao {
         /// Descrição da falha, já sem a URL (que aparece na mensagem).
         detalhe: String,
     },
-    /// A resposta anunciada como JSON não contém um documento sintaticamente completo.
-    #[error("resposta JSON inválida em {url}: {detalhe}")]
-    JsonInvalido {
-        /// URL da resposta inválida.
-        url: String,
-        /// Detalhe do erro sintático.
-        detalhe: String,
-    },
 
     /// Falha ao ler ou gravar um objeto na camada Raw.
     #[error("falha no armazenamento ao acessar {chave}: {detalhe}")]
