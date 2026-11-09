@@ -168,31 +168,44 @@
 <a href=#168 id=168 data-nosnippet>168</a>        })
 <a href=#169 id=169 data-nosnippet>169</a>    }
 <a href=#170 id=170 data-nosnippet>170</a>
-<a href=#171 id=171 data-nosnippet>171</a>    <span class="doccomment">/// Consulta o arquivo na origem, sem baixá-lo.
-<a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">async fn </span>informacoes(<span class="kw-2">&amp;</span><span class="self">self</span>, url: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;InformacoesDoArquivo, ErroDeIngestao&gt;;
-<a href=#173 id=173 data-nosnippet>173</a>
-<a href=#174 id=174 data-nosnippet>174</a>    <span class="doccomment">/// Baixa um arquivo como fluxo, para gravá-lo sem carregá-lo na memória.
-<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">async fn </span>baixar(<span class="kw-2">&amp;</span><span class="self">self</span>, url: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;DownloadHttp, ErroDeIngestao&gt;;
-<a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a>    <span class="doccomment">/// Baixa a partir de `inicio` (em bytes; `0` é do começo), para **retomar**
-<a href=#178 id=178 data-nosnippet>178</a>    /// um download interrompido sem perder nem duplicar byte. `versao` é o
-<a href=#179 id=179 data-nosnippet>179</a>    /// validador (ETag) da primeira resposta: a implementação deve enviar
-<a href=#180 id=180 data-nosnippet>180</a>    /// `If-Range`, de modo a só retomar se o arquivo não mudou. O
-<a href=#181 id=181 data-nosnippet>181</a>    /// [`DownloadHttp::inicio`] devolvido diz onde o fluxo realmente começa — se
-<a href=#182 id=182 data-nosnippet>182</a>    /// não for igual a `inicio`, a origem não honrou a retomada e o chamador deve
-<a href=#183 id=183 data-nosnippet>183</a>    /// recomeçar do zero em vez de emendar.
-<a href=#184 id=184 data-nosnippet>184</a>    ///
-<a href=#185 id=185 data-nosnippet>185</a>    /// A implementação padrão ignora `inicio`/`versao` e baixa do começo, para
-<a href=#186 id=186 data-nosnippet>186</a>    /// clientes que não suportam `Range`; quem retoma detecta o `inicio` devolvido
-<a href=#187 id=187 data-nosnippet>187</a>    /// (`0`) diferente do pedido e recomeça.
-<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">async fn </span>baixar_a_partir_de(
-<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#190 id=190 data-nosnippet>190</a>        url: <span class="kw-2">&amp;</span>str,
-<a href=#191 id=191 data-nosnippet>191</a>        inicio: u64,
-<a href=#192 id=192 data-nosnippet>192</a>        versao: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#193 id=193 data-nosnippet>193</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;DownloadHttp, ErroDeIngestao&gt; {
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let _ </span>= (inicio, versao);
-<a href=#195 id=195 data-nosnippet>195</a>        <span class="self">self</span>.baixar(url).<span class="kw">await
-<a href=#196 id=196 data-nosnippet>196</a>    </span>}
-<a href=#197 id=197 data-nosnippet>197</a>}
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="doccomment">/// GET condicional com o valor de `Content-Encoding` da resposta. O padrão
+<a href=#172 id=172 data-nosnippet>172</a>    /// preserva os clientes existentes, que entregam corpos sem codificação.
+<a href=#173 id=173 data-nosnippet>173</a>    </span><span class="kw">async fn </span>obter_condicional_com_codificacao(
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#175 id=175 data-nosnippet>175</a>        url: <span class="kw-2">&amp;</span>str,
+<a href=#176 id=176 data-nosnippet>176</a>        aceita: <span class="kw-2">&amp;</span>str,
+<a href=#177 id=177 data-nosnippet>177</a>        validador: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#178 id=178 data-nosnippet>178</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(RespostaCondicional, <span class="prelude-ty">Option</span>&lt;String&gt;), ErroDeIngestao&gt; {
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="self">self</span>.obter_condicional(url, aceita, validador)
+<a href=#180 id=180 data-nosnippet>180</a>            .<span class="kw">await
+<a href=#181 id=181 data-nosnippet>181</a>            </span>.map(|resposta| (resposta, <span class="prelude-val">None</span>))
+<a href=#182 id=182 data-nosnippet>182</a>    }
+<a href=#183 id=183 data-nosnippet>183</a>
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="doccomment">/// Consulta o arquivo na origem, sem baixá-lo.
+<a href=#185 id=185 data-nosnippet>185</a>    </span><span class="kw">async fn </span>informacoes(<span class="kw-2">&amp;</span><span class="self">self</span>, url: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;InformacoesDoArquivo, ErroDeIngestao&gt;;
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="doccomment">/// Baixa um arquivo como fluxo, para gravá-lo sem carregá-lo na memória.
+<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">async fn </span>baixar(<span class="kw-2">&amp;</span><span class="self">self</span>, url: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;DownloadHttp, ErroDeIngestao&gt;;
+<a href=#189 id=189 data-nosnippet>189</a>
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// Baixa a partir de `inicio` (em bytes; `0` é do começo), para **retomar**
+<a href=#191 id=191 data-nosnippet>191</a>    /// um download interrompido sem perder nem duplicar byte. `versao` é o
+<a href=#192 id=192 data-nosnippet>192</a>    /// validador (ETag) da primeira resposta: a implementação deve enviar
+<a href=#193 id=193 data-nosnippet>193</a>    /// `If-Range`, de modo a só retomar se o arquivo não mudou. O
+<a href=#194 id=194 data-nosnippet>194</a>    /// [`DownloadHttp::inicio`] devolvido diz onde o fluxo realmente começa — se
+<a href=#195 id=195 data-nosnippet>195</a>    /// não for igual a `inicio`, a origem não honrou a retomada e o chamador deve
+<a href=#196 id=196 data-nosnippet>196</a>    /// recomeçar do zero em vez de emendar.
+<a href=#197 id=197 data-nosnippet>197</a>    ///
+<a href=#198 id=198 data-nosnippet>198</a>    /// A implementação padrão ignora `inicio`/`versao` e baixa do começo, para
+<a href=#199 id=199 data-nosnippet>199</a>    /// clientes que não suportam `Range`; quem retoma detecta o `inicio` devolvido
+<a href=#200 id=200 data-nosnippet>200</a>    /// (`0`) diferente do pedido e recomeça.
+<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">async fn </span>baixar_a_partir_de(
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#203 id=203 data-nosnippet>203</a>        url: <span class="kw-2">&amp;</span>str,
+<a href=#204 id=204 data-nosnippet>204</a>        inicio: u64,
+<a href=#205 id=205 data-nosnippet>205</a>        versao: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#206 id=206 data-nosnippet>206</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;DownloadHttp, ErroDeIngestao&gt; {
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">let _ </span>= (inicio, versao);
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="self">self</span>.baixar(url).<span class="kw">await
+<a href=#209 id=209 data-nosnippet>209</a>    </span>}
+<a href=#210 id=210 data-nosnippet>210</a>}
 </code></pre></div></section></main></body></html>
