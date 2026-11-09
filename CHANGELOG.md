@@ -7,6 +7,16 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.51.0] - 2026-11-09
+
+### Adicionado
+
+- Organiza o catálogo do console SQL em grupos recolhíveis por camada Bronze/Silver e por fonte, preservando os nomes SQL das views (issue #286, PR #287).
+
+### Documentação
+
+- Registra a validação das prestações de contas TSE de 2014 e as pendências de conteúdo, chaves e tabelas suplementares (issue #185, PR #285).
+
 ## [0.50.2] - 2026-11-09
 
 ### Documentação
