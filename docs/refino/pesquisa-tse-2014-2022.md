@@ -183,6 +183,28 @@ despesas de partidos, `_brasil` contém 6.811 ocorrências de hash adicionais;
 para receitas de partidos, contém 1.266. Não encontrei hashes presentes apenas
 nas UFs nesses dois recortes nacionais. Preservei os registros divergentes.
 
+#### Cobertura dos lançamentos partidários de 2016
+
+Agrupei as duas famílias de partidos pelo campo físico `UF`, comparando o
+consolidado `_brasil` com a soma das 26 partes por UF do mesmo manifesto. Todas
+as UFs presentes nas partes têm a mesma contagem no consolidado. A diferença
+inteira está em `BR` e `DF`, que não têm parte territorial própria nesse
+snapshot:
+
+| Família | `UF=BR` só em `_brasil` | `UF=DF` só em `_brasil` | Total adicional |
+| --- | ---: | ---: | ---: |
+| `despesas_partidos_prestacao_contas_final_2016` | 6.716 | 95 | 6.811 |
+| `receitas_partidos_prestacao_contas_final_2016` | 1.215 | 51 | 1.266 |
+
+Todas as linhas `BR` dessas famílias têm `Tipo diretorio = Direção Nacional`;
+as `DF` têm `Tipo diretorio = Direção Estadual/Distrital`. A comparação anterior
+por hash e multiplicidade confirma que o consolidado contém todas as linhas das
+partes por UF e que somente essas ocorrências adicionais diferem. Portanto,
+**para este snapshot**, `_brasil` é o recorte completo das quatro famílias de
+2016 e as partes por UF são subconjuntos; somá-los duplicaria lançamentos. Essa
+observação não define uma chave de negócio, a semântica de `_sup` nem uma regra
+automática para outros anos ou versões do recurso.
+
 As quatro partes `_sup` de 2016 têm zero linhas neste snapshot Bronze. Isso não
 altera a conclusão da [pesquisa oficial sobre `_sup`](pesquisa-tse-2014-sup.md):
 o TSE publica esse recurso separadamente, mas não documenta sua relação linha a
@@ -197,10 +219,10 @@ de conteúdo para a identidade das linhas. A semântica dos arquivos `_sup` foi
 pesquisada em [nota separada](pesquisa-tse-2014-sup.md): o TSE os publica como
 recurso distinto, mas não documenta a relação linha a linha com a prestação
 regular; devem permanecer separados. Para 2016–2022, schemas, contagens e hashes
-de conteúdo agora foram comparados por família e recorte. As divergências de
-partidos em 2016 ainda precisam de explicação de domínio antes de escolher
-`_brasil` ou as UFs como fonte Silver. A identidade das chaves de negócio não
-foi determinada por estas comparações de conteúdo. As pesquisas de [2002](pesquisa-tse-2002.md),
+de conteúdo agora foram comparados por família e recorte. Em 2016, a cobertura
+partidária adicional de `BR` e `DF` sustenta usar `_brasil` como fonte completa
+deste snapshot, condicionada à revalidação em novas versões. A identidade das
+chaves de negócio não foi determinada por estas comparações de conteúdo. As pesquisas de [2002](pesquisa-tse-2002.md),
 [2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
 [2010–2012](pesquisa-tse-2010-2012.md) e [2024](pesquisa-tse-2024.md)
 registram os demais recortes disponíveis.
