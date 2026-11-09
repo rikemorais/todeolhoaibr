@@ -7,6 +7,19 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.48.0] - 2026-11-09
+
+### Adicionado
+
+- Método `remover_lote` na porta `ArmazenamentoRaw` com concorrência limitada, deadline global e coleta de falhas individuais via `FalhaDeRemocao` (issue #270).
+
+### Corrigido
+
+- `remover()` no adapter S3 agora retenta falhas transitórias com backoff exponencial (4 tentativas).
+- Rollback de partes HTTP usa `remover_lote` (4 paralelos, 30s deadline) em vez de loop sequencial.
+- Chaves removidas com sucesso não são mais reportadas como falha quando o deadline expira.
+- Logs de retry identificam a operação (PUT, DELETE, POST) em vez de "gravação" genérica.
+
 ## [0.47.4] - 2026-11-09
 
 ### Corrigido
