@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ResultadoVerificacao"],"fn":["limpar_orfas_do_recurso","verificar_manifesto_ou_limpar"]};

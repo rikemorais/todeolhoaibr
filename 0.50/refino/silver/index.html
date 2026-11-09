@@ -1,0 +1,3008 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentação do todeolhoaibr: ingestão de dados públicos brasileiros (político-socioeconômicos) com arquitetura hexagonal em Rust, camada Raw opaca e refino em medalhão.">
+      
+      
+        <meta name="author" content="Henrique Morais">
+      
+      
+        <link rel="canonical" href="https://rikemorais.github.io/todeolhoaibr/latest/refino/silver/">
+      
+      
+        <link rel="prev" href="../bronze/">
+      
+      
+        <link rel="next" href="../../fontes/ibge/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>Camada silver — contrato inicial - Tô de Olho AI</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+   <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: white; }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#camada-silver-contrato-inicial" class="md-skip">
+          Pular para conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href="../.." title="Tô de Olho AI" class="md-header__button md-logo" aria-label="Tô de Olho AI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m0-4.5c5 0 9.27 3.11 11 7.5-1.73 4.39-6 7.5-11 7.5S2.73 16.39 1 12c1.73-4.39 6-7.5 11-7.5M3.18 12a9.821 9.821 0 0 0 17.64 0 9.821 9.821 0 0 0-17.64 0"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tô de Olho AI
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Camada silver — contrato inicial
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Tema do sistema"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Tema do sistema" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Modo escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Modo escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Modo claro"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Modo claro" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando busca
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/rikemorais/todeolhoaibr" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    rikemorais/todeolhoaibr
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../adr/" class="md-tabs__link">
+          
+  
+    
+  
+  Arquitetura
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../bronze/" class="md-tabs__link">
+          
+  
+    
+  
+  Refino
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../fontes/ibge/" class="md-tabs__link">
+          
+  
+    
+  
+  Fontes de dados
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../diagramas/" class="md-tabs__link">
+        
+  
+    
+  
+  Diagramas
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../api/" class="md-tabs__link">
+        
+  
+    
+  
+  Referência de API
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tô de Olho AI" class="md-nav__button md-logo" aria-label="Tô de Olho AI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m0-4.5c5 0 9.27 3.11 11 7.5-1.73 4.39-6 7.5-11 7.5S2.73 16.39 1 12c1.73-4.39 6-7.5 11-7.5M3.18 12a9.821 9.821 0 0 0 17.64 0 9.821 9.821 0 0 0-17.64 0"/></svg>
+
+    </a>
+    Tô de Olho AI
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/rikemorais/todeolhoaibr" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    rikemorais/todeolhoaibr
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../adr/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Arquitetura
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Arquitetura
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0001-registrar-decisoes-com-adrs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0001. Registrar decisões com ADRs, em português do Brasil
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0002-monorepo-em-camadas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0002. Monorepo Cargo em camadas, aplicando SOLID e POO
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0003-dagron-core-com-executor-proprio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0003. dagron-core para o grafo, com executor próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0004-factory-method-para-fontes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0004. Factory Method para adicionar fontes de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0005-armazenamento-s3-com-versitygw/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0005. API S3 servida pelo versitygw, em vez do LocalStack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0006-layout-da-camada-raw/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0006. Layout imutável da camada Raw, com manifesto
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0007-docker-para-maquinas-modestas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0007. Docker como única dependência, pensando em máquinas modestas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0008-painel-de-execucoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0008. Painel próprio de execuções, alimentado por um histórico no armazenamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0009-interface-de-arquivos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0009. Interface web do versitygw para navegar pelos arquivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0010-selecao-e-arquivos-grandes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0010. Seleção com aviso de espaço e ingestão de arquivos grandes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0011-versionamento-e-commits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0011. Versionamento semântico e Conventional Commits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0012-pre-checagem-idempotente/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0012. Pré-checagem idempotente antes de ingerir
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0013-autenticacao-e-limite-de-taxa-no-cliente-http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0013. Autenticação e limite de taxa no cliente HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0014. Camada Raw opaca em bytes e refino em estágio separado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0015. Arquitetura de dados em medalhão: raw → bronze → silver → gold → diamond
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0016-documentacao-com-material-for-mkdocs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0016. Documentação como site estático com Material for MkDocs no GitHub Pages
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0017-fontes-organizadas-por-pasta/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0017. Organização das fontes por pasta, uma por fonte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0018-motor-de-consulta-duckdb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0018. Motor de consulta analítica: DuckDB sobre Parquet no versitygw
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0019-disparo-do-bronze-por-reconciliacao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0019. Disparo do bronze por reconciliação agendada
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0020-contrato-da-camada-silver/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0020. Contratos, publicação e execução SQL da camada silver
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/modelo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modelo de ADR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Refino
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Refino
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bronze/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camada bronze
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Camada silver — contrato inicial
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Camada silver — contrato inicial
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contribuir-com-uma-transformacao-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contribuir com uma transformação SQL
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contratos-eleitorais-sqldatafusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contratos eleitorais SQL/DataFusion
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cobertura-planejada-do-catalogo-bronze" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cobertura planejada do catálogo bronze
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contrato-minimo-por-tabela" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contrato mínimo por tabela
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contrato mínimo por tabela">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#referencia-tecnica-da-linha-bronze" class="md-nav__link">
+    <span class="md-ellipsis">
+      Referência técnica da linha bronze
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paridade-e-smoke-sqldatafusion-2026-11-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paridade e smoke SQL/DataFusion (2026-11-06)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidencia-disponivel-no-repositorio" class="md-nav__link">
+    <span class="md-ellipsis">
+      Evidência disponível no repositório
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Evidência disponível no repositório">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#despesas-da-camara-ceap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Despesas da Câmara (CEAP)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tramitacoes-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tramitações da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#candidaturas-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Candidaturas do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bens-declarados-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bens declarados do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#despesas-do-senado-ceaps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Despesas do Senado (CEAPS)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amostras-locais-do-bronze-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Amostras locais do bronze (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validacao-de-chaves-no-bronze-local" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validação de chaves no bronze local
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validação de chaves no bronze local">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#series-bcb-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Séries BCB no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Candidaturas e bens do TSE no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prestacao-de-contas-do-tse-em-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prestação de contas do TSE em 2024
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conjuntos-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conjuntos da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proxima-validacao-da-fase-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Próxima validação da fase 0
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fontes de dados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Fontes de dados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ibge/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ibge — malha territorial (Localidades) e indicadores macro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ibge-pib-municipios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ibge-pib-municipios — PIB per capita dos municípios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/bcb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte bcb — séries macroeconômicas (Banco Central/SGS)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ipeadata/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ipeadata — séries socioeconômicas regionais (IPEA)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara — API da Câmara dos Deputados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara-despesas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-despesas — despesas da CEAP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara-votacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-votacoes — proposições e votações nominais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara-tramitacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-tramitacoes — histórico de tramitações
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/senado-despesas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte senado-despesas — despesas da CEAPS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/senado-votacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte senado-votacoes — matérias e votações nominais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/tse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte tse — votos por seção eleitoral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/tse-prestacao-contas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte tse-prestacao-contas — prestação de contas de campanha
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/tse-candidaturas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte tse-candidaturas — candidaturas e bens declarados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../diagramas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Diagramas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Referência de API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contribuir-com-uma-transformacao-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contribuir com uma transformação SQL
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contratos-eleitorais-sqldatafusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contratos eleitorais SQL/DataFusion
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cobertura-planejada-do-catalogo-bronze" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cobertura planejada do catálogo bronze
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contrato-minimo-por-tabela" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contrato mínimo por tabela
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contrato mínimo por tabela">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#referencia-tecnica-da-linha-bronze" class="md-nav__link">
+    <span class="md-ellipsis">
+      Referência técnica da linha bronze
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paridade-e-smoke-sqldatafusion-2026-11-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paridade e smoke SQL/DataFusion (2026-11-06)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidencia-disponivel-no-repositorio" class="md-nav__link">
+    <span class="md-ellipsis">
+      Evidência disponível no repositório
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Evidência disponível no repositório">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#despesas-da-camara-ceap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Despesas da Câmara (CEAP)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tramitacoes-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tramitações da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#candidaturas-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Candidaturas do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bens-declarados-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bens declarados do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#despesas-do-senado-ceaps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Despesas do Senado (CEAPS)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amostras-locais-do-bronze-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Amostras locais do bronze (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validacao-de-chaves-no-bronze-local" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validação de chaves no bronze local
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validação de chaves no bronze local">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#series-bcb-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Séries BCB no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Candidaturas e bens do TSE no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      Votação por seção do TSE no bronze local (2026-11-05)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prestacao-de-contas-do-tse-em-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prestação de contas do TSE em 2024
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conjuntos-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conjuntos da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proxima-validacao-da-fase-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Próxima validação da fase 0
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/rikemorais/todeolhoaibr/edit/main/docs/refino/silver.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="camada-silver-contrato-inicial">Camada silver — contrato inicial<a class="headerlink" href="#camada-silver-contrato-inicial" title="Permanent link">&para;</a></h1>
+<p><strong>Estado:</strong> implementação em andamento na <a href="https://github.com/rikemorais/todeolhoaibr/issues/188">issue #188</a>; a migração das transformações para SQL/DataFusion está em execução no <a href="https://github.com/rikemorais/todeolhoaibr/issues/236">épico #236</a>. BCB, agregados IBGE, Câmara e Senado já publicam tabelas Silver; consulte a cobertura abaixo. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
+<p>Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket <code>silver</code>. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são <strong>candidatas</strong>: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.</p>
+<h2 id="contribuir-com-uma-transformacao-sql">Contribuir com uma transformação SQL<a class="headerlink" href="#contribuir-com-uma-transformacao-sql" title="Permanent link">&para;</a></h2>
+<p>Contratos SQL ficam versionados em <code>crates/refino/sql/silver/</code> e entram no binário com <code>include_str!</code>. A consulta lê a tabela <code>bronze</code>, preparada somente com as partes do manifesto fixado. Além das colunas Bronze, há quatro colunas internas de linhagem: <code>_tdoa_origem_manifesto</code>, <code>_tdoa_origem_parte</code>, <code>_tdoa_origem_url</code> (nome/tabela da parte) e <code>_tdoa_origem_ordinal</code>. A URL permite que contratos selecionem uma tabela específica dentro de um recurso ZIP, como a parte consolidada <code>BRASIL</code> do TSE. Para contratos que preservam colunas de origem dinâmicas, o executor também pode fornecer <code>_tdoa_json_original</code>, serializado pelo adaptador; os casts, validações e projeções continuam no SQL. A consulta deve projetar explicitamente as colunas Silver definidas pelo schema do contrato. Valores externos nunca são interpolados no SQL; em <code>senado_processos.sql</code>, o ano é validado como número no caminho do recurso antes de ser inserido na consulta; detalhes usam a coluna Bronze <code>ano</code>.</p>
+<p>O adaptador <code>TarefaDeSilverSql</code> associa a consulta embutida, nome/versionamento da regra e schema de saída ao publicador comum. A execução transmite batches para Parquet temporário; não use coleta integral do resultado. O limite inicial é 512 MiB de memória, 2 GiB de spill, 100 GiB de entrada, uma partição por consulta e batches de 8.192 linhas. Esses limites são configuráveis por tarefa e devem ser medidos antes de ampliar uma família de fontes.</p>
+<p>O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra <code>tdoa_json_get(json, chave)</code> para leitura de campos escalares/objetos e <code>tdoa_json_expand_votos(json)</code> para normalizar as listas atuais e legadas do Senado em uma lista SQL que <code>UNNEST</code> expande. São funções genéricas de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. <code>UNNEST</code> descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.</p>
+<p>O smoke e benchmark sintético reproduzível do executor está em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a>. Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.</p>
+<h2 id="contratos-eleitorais-sqldatafusion">Contratos eleitorais SQL/DataFusion<a class="headerlink" href="#contratos-eleitorais-sqldatafusion" title="Permanent link">&para;</a></h2>
+<p>As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em registro_original, a linhagem é mantida pelo publicador e a votação por seção permanece fora de silver --todas por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.</p>
+<h2 id="cobertura-planejada-do-catalogo-bronze">Cobertura planejada do catálogo bronze<a class="headerlink" href="#cobertura-planejada-do-catalogo-bronze" title="Permanent link">&para;</a></h2>
+<p>O <a href="../../crates/refino/src/catalogo.rs">catálogo</a> tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. <code>recurso</code> e <code>versão bronze</code> fazem parte da procedência, mas não substituem a chave de negócio.</p>
+<table>
+<thead>
+<tr>
+<th>Entrada bronze</th>
+<th>Família</th>
+<th>Grão candidato da silver</th>
+<th>Chave candidata / validação necessária</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>camara-despesas</code></td>
+<td>Legislativo</td>
+<td>lançamento CEAP</td>
+<td><code>ideDocumento</code> é candidato, mas não único; preservar todas as linhas até definir chave</td>
+</tr>
+<tr>
+<td><code>camara-votacoes</code></td>
+<td>Legislativo</td>
+<td>registro de um dos sete conjuntos anuais</td>
+<td>contrato separado para <code>proposicoes</code>, <code>proposicoesAutores</code>, <code>votacoes</code>, <code>votacoesVotos</code>, <code>votacoesObjetos</code>, <code>votacoesProposicoes</code> e <code>votacoesOrientacoes</code>; chaves de 2024 abaixo</td>
+</tr>
+<tr>
+<td><code>camara-tramitacoes</code></td>
+<td>Legislativo</td>
+<td>evento de tramitação</td>
+<td>não há chave de negócio única comprovada; preservar repetições e usar proveniência do recurso/snapshot</td>
+</tr>
+<tr>
+<td><code>camara-deputados</code></td>
+<td>Legislativo</td>
+<td>deputado em exercício na versão Bronze vigente</td>
+<td><code>id</code> oficial (513/513 distintos na amostra local; cada versão é uma fotografia)</td>
+</tr>
+<tr>
+<td><code>camara-partidos</code></td>
+<td>Legislativo</td>
+<td>partido no cadastro observado</td>
+<td><code>id</code> oficial (21/21 distintos na amostra local; não prova unicidade histórica)</td>
+</tr>
+<tr>
+<td><code>camara-legislaturas</code></td>
+<td>Legislativo</td>
+<td>período de atividade parlamentar</td>
+<td><code>id</code> sequencial (57/57 distintos na amostra local)</td>
+</tr>
+<tr>
+<td><code>senado-despesas</code></td>
+<td>Legislativo</td>
+<td>lançamento CEAPS</td>
+<td><code>COD_DOCUMENTO</code> candidato, único quando presente na amostra; preservar linhas sem código</td>
+</tr>
+<tr>
+<td><code>senado-votacoes</code></td>
+<td>Legislativo</td>
+<td>uma sessão de votação nominal</td>
+<td><code>codigoSessaoVotacao</code> (3.652/3.652 distintos no recorte local consultado); votos continuam aninhados</td>
+</tr>
+<tr>
+<td><code>senado-parlamentares</code></td>
+<td>Legislativo</td>
+<td>parlamentar em legislatura</td>
+<td><code>IdentificacaoParlamentar.CodigoParlamentar</code> e <code>legislatura</code> no bronze local</td>
+</tr>
+<tr>
+<td><code>senado-processos</code></td>
+<td>Legislativo</td>
+<td>um processo na listagem anual</td>
+<td><code>id</code> textual único no recurso; <code>ano</code> UInt16 do caminho</td>
+</tr>
+<tr>
+<td><code>senado-processos-detalhes</code></td>
+<td>Legislativo</td>
+<td>um detalhe por processo em cada recurso anual</td>
+<td><code>id</code> textual; <code>ano</code> UInt16; demais campos preservados em <code>processo_original</code></td>
+</tr>
+<tr>
+<td><code>tse-candidaturas</code></td>
+<td>Eleitoral</td>
+<td>candidatura por eleição</td>
+<td>ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; <a href="#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05">validação histórica abaixo</a></td>
+</tr>
+<tr>
+<td><code>tse-bens</code></td>
+<td>Eleitoral</td>
+<td>bem declarado</td>
+<td>ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano</td>
+</tr>
+<tr>
+<td><code>tse-prestacao-contas</code></td>
+<td>Eleitoral</td>
+<td>lançamento por tabela interna</td>
+<td>contrato por conjunto e ano; sequências de 2024 colidem no consolidado, conforme <a href="#prestacao-de-contas-do-tse-em-2024">validação abaixo</a>; o <a href="../pesquisa-tse-2014-2022/">inventário 2014–2022</a> mostra formas nacionais e suplementares que exigem validação própria</td>
+</tr>
+<tr>
+<td><code>tse-votacao-secao</code></td>
+<td>Eleitoral</td>
+<td>voto agregado por seção e votável</td>
+<td>ano, eleição, UF, turno, município, zona, seção, cargo e votável; <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05">recortes validados abaixo</a></td>
+</tr>
+<tr>
+<td><code>bcb</code></td>
+<td>Série</td>
+<td>observação SGS</td>
+<td>série (do recurso) e <code>data</code>; <code>valor</code> decimal; data no formato <code>DD/MM/AAAA</code> no fixture</td>
+</tr>
+<tr>
+<td><code>ipeadata</code></td>
+<td>Série</td>
+<td>observação OData</td>
+<td><code>SERCODIGO</code>, <code>TERCODIGO</code> e <code>VALDATA</code> candidatos; <code>NIVNOME</code> distingue Brasil, estados, municípios e regiões</td>
+</tr>
+<tr>
+<td><code>ibge-estados</code></td>
+<td>Território</td>
+<td>UF</td>
+<td>código IBGE e vigência</td>
+</tr>
+<tr>
+<td><code>ibge-regioes</code></td>
+<td>Território</td>
+<td>região</td>
+<td>código IBGE e vigência</td>
+</tr>
+<tr>
+<td><code>ibge-municipios</code></td>
+<td>Território</td>
+<td>município</td>
+<td>código IBGE e vigência</td>
+</tr>
+<tr>
+<td><code>ibge-ipca</code></td>
+<td>Agregado IBGE</td>
+<td>variável × localidade × período</td>
+<td>variável, classificações, nível, localidade e período; validar classificações</td>
+</tr>
+<tr>
+<td><code>ibge-inpc</code></td>
+<td>Agregado IBGE</td>
+<td>variável × localidade × período</td>
+<td>idem</td>
+</tr>
+<tr>
+<td><code>ibge-pib-municipios</code></td>
+<td>Agregado IBGE</td>
+<td>variável × localidade × período</td>
+<td>idem; município somente se nível N6</td>
+</tr>
+<tr>
+<td><code>ibge-pib-trimestral</code></td>
+<td>Agregado IBGE</td>
+<td>variável × localidade × período</td>
+<td>idem</td>
+</tr>
+<tr>
+<td><code>ibge-pnad-desocupacao</code></td>
+<td>Agregado IBGE</td>
+<td>variável × localidade × período</td>
+<td>idem</td>
+</tr>
+<tr>
+<td><code>ibge-populacao-municipios</code></td>
+<td>Agregado IBGE</td>
+<td>variável × localidade × período</td>
+<td>idem; município somente se nível N6</td>
+</tr>
+</tbody>
+</table>
+<h2 id="contrato-minimo-por-tabela">Contrato mínimo por tabela<a class="headerlink" href="#contrato-minimo-por-tabela" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Nome estável, tabela bronze de origem, grão e chave de negócio, incluindo escopo temporal.</li>
+<li>Colunas de saída, tipos Arrow/Parquet, nulabilidade, unidades e conversão de sentinelas.</li>
+<li>Regra de deduplicação determinística e tratamento de correções da origem.</li>
+<li>Política para inválidos: motivo, contagem, referência à linha de origem e limiar de falha.</li>
+<li>Versão do contrato/regra e linhagem até manifesto, recurso e tabela bronze.</li>
+</ol>
+<h3 id="referencia-tecnica-da-linha-bronze">Referência técnica da linha bronze<a class="headerlink" href="#referencia-tecnica-da-linha-bronze" title="Permanent link">&para;</a></h3>
+<p>O leitor <a href="../../crates/refino/src/linhagem.rs"><code>LeitorDeParteBronze</code></a> percorre uma parte Parquet em lotes, sem projeção ou filtro, e associa cada registro à chave do manifesto bronze, à chave da parte, ao nome da tabela de origem e ao ordinal da linha na parte (começando em 1). O ordinal continua entre lotes e não depende do tamanho do lote de leitura. Assim, duas linhas iguais no mesmo Parquet ainda têm referências distintas, e variantes com a mesma sequência oficial permanecem rastreáveis.</p>
+<p>O <a href="../../crates/refino/src/snapshot_bronze.rs"><code>SnapshotBronze</code></a> lê o ponteiro e o manifesto vigentes, confere fonte/recurso e permite baixar somente partes listadas no manifesto. O download é em fluxo para arquivo temporário; tamanho e SHA-256 são verificados antes de abrir o leitor em lotes. Ponteiro ou manifesto inválido causam erro; ausência de ponteiro ou manifesto válido sem partes significa que não há dados Bronze a transformar.</p>
+<p>Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conferir o ponteiro bronze antes de publicar sua própria versão, para não publicar resultado de uma entrada que já foi substituída. A referência da linha vale somente para a versão bronze selecionada e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.</p>
+<p>O <a href="../../crates/refino/src/escritor.rs"><code>EscritorParquetTipado</code></a> recebe o schema Arrow do contrato Silver e grava lotes <code>RecordBatch</code> em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente.</p>
+<p>O contrato <code>bcb.sgs.observacao.v1</code> é definido em <a href="../../crates/refino/sql/silver/bcb_sgs.sql"><code>bcb_sgs.sql</code></a>: <code>data</code> em <code>Date32</code> e <code>valor</code> em <code>Decimal128(18,6)</code>, sem conversão por <code>f64</code>. A consulta exige data <code>DD/MM/AAAA</code> e valor decimal com ponto e até seis casas; dados inválidos ou nulos falham antes de publicar. O adaptador <a href="../../crates/refino/src/silver/tarefa_bcb.rs"><code>TarefaDeSilverBcb</code></a> usa <code>TarefaDeSilverSql</code> e o publicador comum, que mantém manifesto, ponteiro, idempotência e revalidação do snapshot Bronze. A regra <code>bcb-sgs-v2</code> reprocessa uma vez o que foi publicado pelo transformador Arrow anterior. A nulabilidade do schema publicado permanece a do contrato; nulos em campos obrigatórios são rejeitados na borda Arrow/Parquet. A CLI aceita <code>todeolho refinar silver bcb</code> e <code>todeolho refinar silver --todas --intervalo 3600</code>. A execução Silver aparece no painel com o selo azul.</p>
+<p>O contrato <code>ibge.agregado.observacao.v1</code> está em <a href="../../crates/refino/sql/silver/ibge_agregados.sql"><code>ibge_agregados.sql</code></a>. Mantém IDs, classificações e período como texto, preserva o valor recebido em <code>valor_original</code> e acrescenta <code>valor_decimal</code> (<code>Decimal128(38,9)</code>) quando o conteúdo corresponde a decimal simples com ponto. Valor nulo, sentinela textual ou valor acima da escala permitida recebe decimal nulo, sem descartar a linha nem classificar sentinelas sem metadados da tabela. <code>TarefaDeSilverIbge</code> publica manifesto e ponteiro com idempotência por versão Bronze/regra e verifica que o ponteiro Bronze não mudou durante a transformação. A regra <code>ibge-agregado-v2</code> reprocessa uma vez os recursos que foram publicados pelo transformador Arrow anterior. A CLI oferece as seis fontes agregadas com contrato: <code>ibge-ipca</code>, <code>ibge-inpc</code>, <code>ibge-pib-municipios</code>, <code>ibge-pib-trimestral</code>, <code>ibge-pnad-desocupacao</code> e <code>ibge-populacao-municipios</code>. <code>ibge-estados</code>, <code>ibge-regioes</code> e <code>ibge-municipios</code> ainda não têm contrato Silver e ficam fora de <code>--todas</code>. A reconciliação percorre as fontes suportadas; passadas vazias não são registradas no painel. Fixtures comparam o Parquet SQL ao transformador Arrow anterior, mantido somente em builds de teste.</p>
+<h3 id="paridade-e-smoke-sqldatafusion-2026-11-06">Paridade e smoke SQL/DataFusion (2026-11-06)<a class="headerlink" href="#paridade-e-smoke-sqldatafusion-2026-11-06" title="Permanent link">&para;</a></h3>
+<p>As fixtures de publicação comparam os <code>RecordBatch</code> Silver da consulta com a implementação Arrow anterior. Cobrem datas e decimais BCB válidos, datas inválidas/nulas, precisão excedida, chaves IBGE que incluem classificação, códigos com zero à esquerda, sentinelas textuais e valores nulos. Os testes confirmam chave única nos casos válidos e ausência de ponteiro quando a consulta BCB rejeita dados inválidos.</p>
+<p>O smoke foi executado com o binário local no perfil dev e o Bronze/VersityGW desta máquina. As onze séries BCB publicaram 5.125 linhas em 46.676 bytes de Parquet; a execução levou aproximadamente 1 s e a chave (<code>recurso</code>, <code>data</code>) não teve duplicatas nem datas nulas. O IPCA publicou 562 linhas; uma passada das seis famílias IBGE publicou/reutilizou no total 247.923 linhas. Consulta de somente leitura no DuckDB encontrou zero linhas em chaves repetidas nos seis recortes, usando (<code>variavel_id</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>localidade_id</code>, <code>periodo</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Fonte IBGE</th>
+<th style="text-align: right;">Linhas publicadas</th>
+<th style="text-align: right;">Linhas em chaves repetidas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPCA</td>
+<td style="text-align: right;">562</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>INPC</td>
+<td style="text-align: right;">571</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>PIB municipal</td>
+<td style="text-align: right;">122.540</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>PIB trimestral</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>PNAD desocupação</td>
+<td style="text-align: right;">1.566</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>População municipal</td>
+<td style="text-align: right;">122.562</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>O executor usou os limites padrão de 512 MiB de memória e 2 GiB de spill; o smoke real não amostrou RSS nem spill. Como referência operacional do engine, o benchmark sintético em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a> processou 10 milhões de linhas com orçamento de 64 MiB, RSS amostrado de 187.551.744 bytes e 160.236.672 bytes de spill em 27.503 ms; esses números não representam as fontes BCB/IBGE. A primeira compilação <code>--release</code> limpa da imagem levou 8 min 28 s, incluindo compilação inicial das dependências. As implementações manuais antigas ficam sob <code>cfg(test)</code> para paridade; em runtime, as duas regras usam 33 linhas de SQL versionado, além dos schemas e adaptadores Rust.</p>
+<p>O contrato <code>senado.parlamentar.legislatura.v1</code> extrai <code>CodigoParlamentar</code> com <code>tdoa_json_get</code> no contrato SQL <a href="../../crates/refino/sql/silver/senado_parlamentares.sql"><code>senado_parlamentares.sql</code></a>, tipa <code>legislatura</code> como <code>UInt16</code> a partir do recurso <code>parlamentares/legislatura=NN</code> e preserva os textos originais de identificação e mandato. O código permanece texto, inclusive quando a API o entrega como número, para não perder zeros à esquerda nos IDs textuais. A chave candidata (<code>CodigoParlamentar</code>, <code>legislatura</code>) foi validada no Bronze local; o mandato aninhado não é explodido. A regra <code>senado-parlamentar-v2</code> reprocessa os snapshots transformados pela versão Arrow. Smoke local em 2026-11-07 publicou as nove legislaturas vigentes no Bronze (49–57), e a segunda reconciliação não alterou nenhuma delas. A <a href="https://legis.senado.leg.br/dadosabertos/v3/api-docs">OpenAPI oficial do Senado</a> documenta a listagem por legislatura. A CLI oferece <code>todeolho refinar silver senado-parlamentares</code>; a fonte também entra em <code>--todas</code> e na reconciliação periódica.</p>
+<p>O contrato <code>senado.processo.v1</code> publica uma linha por matéria em cada listagem anual, tipa <code>id</code> como texto e <code>ano</code> como <code>UInt16</code>, e mantém todos os campos da API em <code>processo_original</code> JSON. A transformação e a validação de IDs únicos estão em <code>senado_processos.sql</code>; o ano validado do recurso anual é fornecido como parâmetro SQL. Uma coluna interna conserva dinamicamente todos os campos e valores JSON da origem, inclusive campos novos, antes de sua projeção no contrato. A listagem anual é uma fotografia do catálogo consultado naquele ano, não um histórico de versões da matéria. IDs foram únicos e não vazios nos snapshots locais de 2010 (2.965 linhas), 2023 (5.432) e 2024 (4.947); essa validação é por recurso anual. A regra v2 reprocessa uma vez os snapshots existentes. Uma lista JSON sem registros não gera parte Bronze e, portanto, não tenta criar um Parquet Silver de schema indefinido. A CLI oferece <code>todeolho refinar silver senado-processos</code>; a fonte entra em <code>--todas</code> e na reconciliação periódica.</p>
+<p>O contrato <code>senado.processo.detalhe.v1</code> publica uma linha por processo no recurso anual, com <code>id</code> como texto, <code>ano</code> como <code>UInt16</code> e os campos Bronze preservados em <code>processo_original</code> JSON. A consulta <code>senado_processos_detalhes.sql</code> valida ano e unicidade do ID sem explodir despachos, classificações ou outros objetos aninhados; <code>_tdoa_json_original</code> inclui dinamicamente todas as colunas Bronze. A regra v2 reprocessa uma vez os snapshots existentes. No Bronze local consultado, 163.156 linhas tinham 163.156 IDs distintos e anos válidos. A CLI oferece <code>todeolho refinar silver senado-processos-detalhes</code>; a fonte entra em <code>--todas</code> e na reconciliação periódica.</p>
+<p>O leitor Silver também aceita partes Bronze legadas cujo Parquet tem schema raiz vazio e nenhuma linha: elas produzem uma parte Silver vazia usando o schema declarado pelo contrato. Um arquivo sem colunas que declare linhas continua sendo erro.</p>
+<p>O contrato <code>senado.votacao.sessao.v1</code> é executado por <a href="../../crates/refino/sql/silver/senado_votacoes.sql"><code>senado_votacoes.sql</code></a>: valida <code>codigoSessaoVotacao</code> por recurso anual e preserva cada registro do Bronze, incluindo <code>votos</code> como JSON textual aninhado. A chave teve 3.652 valores distintos em 3.652 linhas no recorte local consultado; os demais anos disponíveis foram cobertos pelo smoke local descrito abaixo. O contrato complementar <code>senado.voto.nominal.v1</code>, em <a href="../../crates/refino/sql/silver/senado_votos.sql"><code>senado_votos.sql</code></a>, publica uma linha por voto em <code>votos/ano=AAAA</code>, mantendo sessão, data, ordinal original, campos disponíveis do parlamentar, voto e objeto integral em <code>voto_original</code>. O SQL expande arrays com <code>UNNEST</code>; a UDF de compatibilidade aceita arrays e envelopes <code>votoParlamentar</code>/<code>VotoParlamentar</code>, inclusive sob <code>Votos</code>/<code>votos</code>, e voto único como objeto. A chave técnica é (<code>codigo_sessao_votacao</code>, <code>ordem_voto</code>), sem descartar ocorrências repetidas. Sessões com arrays vazios ou votos nulos continuam na tabela de sessões e não criam linhas filhas; identificadores parlamentares ausentes ou inválidos interrompem a publicação. A regra <code>senado-votacao-v2</code>/<code>senado-voto-nominal-v2</code> reprocessa as versões anteriores. Os testes comparam os lotes SQL ao transformador Arrow em fixtures atuais e legados, incluindo array vazio e JSON nulo, e validam a ordem dos votos e os vínculos com as sessões. Smoke local em 2026-11-07 publicou os 36 anos disponíveis no Bronze (1991–2026), com relações de sessão e voto para cada ano; a segunda reconciliação reportou <code>sem alterações na origem</code> para todos. A documentação oficial descreve os campos como tabelas relacionadas (<a href="https://www12.senado.leg.br/dados-abertos/legislativo/plenario/votacoes-nominais/info/webservice-de-votacoes-nominais-por-data-da-sessao-plenaria">serviço de votações nominais</a>). A CLI <code>todeolho refinar silver senado-votacoes</code> publica as duas relações e segue incluída em <code>--todas</code> e na reconciliação periódica.</p>
+<p>O contrato <code>camara.partido.v1</code> valida <code>id</code> como identificador não nulo e não vazio e preserva <code>id</code>, <code>sigla</code>, <code>nome</code> e <code>uri</code> como texto. O ID teve 21 valores distintos nas 21 linhas da amostra local descrita acima; isso é evidência apenas para o cadastro observado, não para histórico ou futuras versões. A projeção e a validação de unicidade agora ficam no contrato SQL <code>camara_partidos.sql</code>, executado pelo publicador DataFusion. A regra v2 reprocessa os snapshots existentes uma vez. A tarefa acompanha o ponteiro Bronze e é idempotente por versão e regra. A CLI oferece <code>todeolho refinar silver camara-partidos</code>; a fonte também entra em <code>--todas</code> e na reconciliação periódica.</p>
+<p>O contrato <code>camara.legislatura.periodo.v1</code> tipa o ID sequencial como <code>UInt16</code>, as datas <code>dataInicio</code> e <code>dataFim</code> como <code>Date32</code> e o ano <code>dataEleicao</code> como <code>UInt16</code>; preserva <code>uri</code> como texto. Rejeita IDs inválidos ou duplicados, datas fora do formato ISO e intervalos invertidos. A transformação agora está no contrato SQL <code>camara_legislaturas.sql</code>, que usa <code>arrow_try_cast</code> para produzir os tipos unsigned do contrato; a regra v2 reprocessa os snapshots existentes uma vez. A documentação oficial descreve os períodos parlamentares como sequenciais desde a primeira legislatura e lista início, fim e ano eleitoral (<a href="https://dadosabertos.camara.leg.br/api/v2/api-docs">API de legislaturas</a>). O conjunto observado teve 57 IDs distintos em 57 linhas. A CLI oferece <code>todeolho refinar silver camara-legislaturas</code>; a fonte participa de <code>--todas</code> e da reconciliação periódica.</p>
+<p>O contrato <code>camara.deputado.exercicio.v1</code> trata cada versão Bronze como a fotografia vigente dos deputados em exercício, sem inferir histórico a partir de uma listagem sem intervalo temporal. Preserva <code>id</code>, URIs, nome, partido, UF, legislatura, foto e e-mail; identificadores e atributos categóricos permanecem texto. <code>id</code> deve ser numérico, obrigatório e único na fotografia. A transformação está no contrato SQL <code>camara_deputados.sql</code>, e a regra v2 reprocessa os snapshots existentes uma vez. A lista da Câmara teve 513 IDs distintos nas 513 linhas observadas. A <a href="https://dadosabertos.camara.leg.br/api/v2/api-docs">API oficial</a> descreve o endpoint de deputados e os filtros temporais; a CLI oferece <code>todeolho refinar silver camara-deputados</code>, incluído em <code>--todas</code> e na reconciliação periódica.</p>
+<p>Os sete contratos da fonte <code>camara-votacoes</code> são SQL versionado em <code>crates/refino/sql/silver/</code>. Validam a chave candidata de cada conjunto por recurso anual e projetam somente as colunas de origem, preservando todas as linhas e o schema Bronze (texto); diferenças de colunas entre recursos são acomodadas pela projeção montada a partir do schema observado. As regras usam v2; <code>votacoesVotos</code> usa v3 para reprocessar a publicação anterior. Não fazem deduplicação nem cruzamento entre tabelas. Em <code>votacoesVotos</code>, linhas com chave candidata incompleta são preservadas e não participam da verificação de duplicidade. No snapshot local de 2004 havia uma linha sem <code>deputado_id</code>; ela foi mantida na publicação. Os Parquets Silver são independentes por conjunto e ano; <code>--todas</code> percorre os recursos Bronze presentes, e a pré-checagem inclui snapshot e versão da regra. A CLI oferece <code>todeolho refinar silver camara-votacoes</code>. A matriz de unicidade disponível foi medida somente em 2024: os anos anteriores ainda precisam de smoke test contra Bronze vigente antes de serem considerados cobertos por evidência.</p>
+<p>O console DuckDB cria views <code>bronze_*</code> e <code>silver_*</code> a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.</p>
+<h2 id="evidencia-disponivel-no-repositorio">Evidência disponível no repositório<a class="headerlink" href="#evidencia-disponivel-no-repositorio" title="Permanent link">&para;</a></h2>
+<h3 id="despesas-da-camara-ceap">Despesas da Câmara (CEAP)<a class="headerlink" href="#despesas-da-camara-ceap" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>camara.despesa.ceap.v2</code> é executado por SQL/DataFusion (regra <code>camara-despesa-ceap-v3</code>) e publica uma linha por lançamento anual, tipa o ano do caminho como <code>UInt16</code>, datas de emissão/restituição como <code>Date32</code> e os quatro valores monetários como <code>Decimal128(18,6)</code>. A precisão de seis casas é necessária para preservar valores históricos de 2013–2015; no Bronze local, nenhuma linha supera 12 dígitos inteiros ou seis decimais. Identificadores permanecem texto. Campos ausentes ou em branco nesses campos opcionais viram nulos; valor preenchido fora do formato esperado interrompe a publicação. <code>registro_original</code> preserva todos os campos do Bronze, inclusive campos que ainda não têm projeção tipada. A consulta não deduplica: <code>ideDocumento</code> colide no conjunto histórico e não é chave única comprovada. A CLI <code>todeolho refinar silver camara-despesas</code> aceita um recurso anual, participa de <code>--todas</code> e da reconciliação Silver.</p>
+<h3 id="tramitacoes-da-camara">Tramitações da Câmara<a class="headerlink" href="#tramitacoes-da-camara" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>camara.tramitacao.evento.v1</code> é executado por SQL/DataFusion (regra <code>camara-tramitacao-evento-v2</code>), publica cada linha do recurso anual e tipa <code>ano</code> como <code>UInt16</code>, <code>sequencia</code> como <code>UInt32</code> quando presente e <code>dataHora</code> como <code>Timestamp(Microsecond)</code>. Identificadores, códigos e números permanecem texto; <code>registro_original</code> retém todos os campos Bronze. Colunas opcionais ausentes em alguns anos são materializadas como nulas. A amostra local tinha 1.879.478 linhas: <code>idTramitacao</code> possuía apenas 988 valores distintos e faltava em 174 linhas; o par <code>uriProposicao</code> + <code>sequencia</code> se repetia, inclusive com órgãos/despachos diferentes e com cópias exatas. Por isso nenhuma dessas combinações é tratada como chave única, e nenhuma linha é rejeitada ou deduplicada por repetição. A proveniência do recurso e do snapshot Bronze identifica o conjunto processado. A CLI <code>todeolho refinar silver camara-tramitacoes</code> publica os anos individualmente e integra <code>--todas</code> e a reconciliação Silver.</p>
+<h3 id="candidaturas-do-tse">Candidaturas do TSE<a class="headerlink" href="#candidaturas-do-tse" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>tse.candidatura.registro.v1</code>, executado por <a href="../../crates/refino/sql/silver/tse_candidaturas.sql"><code>tse_candidaturas.sql</code></a>, publica uma linha por registro do consolidado nacional <code>BRASIL</code> em cada recurso eleitoral anual. As partes por UF do mesmo ZIP não são somadas ao consolidado. <code>ano_eleicao</code> é <code>UInt16</code>; <code>codigo_eleicao</code>, <code>uf</code>, <code>unidade_eleitoral</code>, <code>codigo_cargo</code>, <code>numero_candidato</code> e <code>sequencia_candidato</code> permanecem texto para preservar códigos e zeros à esquerda. A chave candidata é a combinação completa desses campos com o ano do recurso; ela é validada entre lotes e duplicatas interrompem a publicação. A análise Bronze mediu unicidade dessa chave nos 17 anos eleitorais locais, de 1994 a 2026; a chave curta eleição + sequência colide em eleições antigas.</p>
+<p><code>data_eleicao</code> e <code>data_nascimento</code> são <code>Date32</code>; <code>idade_data_posse</code> é <code>UInt8</code>. Datas não interpretáveis ou fora da faixa plausível e sentinelas de idade são tipadas como nulas, sem remover a linha. <code>registro_original</code> conserva todos os campos e nomes publicados naquele ano, inclusive os aliases históricos (por exemplo <code>NM_EMAIL</code>/<code>DS_EMAIL</code>), sem projetá-los como colunas canônicas antes de uma regra de domínio. A regra <code>tse-candidatura-registro-v2</code> reprocessa as saídas Arrow anteriores; a consulta SQL valida a chave em todo o recurso antes de publicar. Use <code>todeolho refinar silver tse-candidaturas</code> para processar os recursos disponíveis; a fonte também participa de <code>silver --todas</code>.</p>
+<p>Smoke local nos 17 consolidados Bronze (1994–2026): 3.703.307 linhas de entrada e saída, sem linhas removidas, 2.428 datas da eleição, 121.623 datas de nascimento e 1.464.963 idades tipadas como nulas (inclui campos ausentes e sentinelas), e zero data da eleição fora da faixa tipada. A chave completa foi validada durante o processamento de cada lote. A segunda reconciliação não republicou nenhum ano, e o modo periódico não registrou execução no painel quando todos já estavam em dia. Com concorrência 2, a execução levou 7min41s; o recurso mais lento foi 2012, em 143,3s. O fluxo limita cada lote a 65.536 registros; esta execução não mediu o pico de RSS, que permanece pendente como evidência operacional da issue #189.</p>
+<p>Smoke SQL em bucket isolado (2026-11-07): os 17 recursos publicaram 3.703.307 linhas. A contagem e o multiconjunto SHA-256 de <code>registro_original</code> coincidiram com a saída Arrow anterior; os demais anos já estavam na versão SQL e foram reaproveitados. O SQL validou a chave completa em cada recurso e selecionou somente a tabela <code>BRASIL</code> pela URL de origem, sem somar as partes por UF. A validação de duplicatas agrupa somente as colunas da chave e reduz o resultado a um escalar, em vez de calcular uma janela sobre linhas completas. Com concorrência 1, o smoke integral levou cerca de 11min40s e o RSS máximo observado por amostragem de 50 ms foi 905.420 KiB (~884 MiB), abaixo do limite de 2 GiB do serviço <code>refino</code>.</p>
+<h3 id="bens-declarados-do-tse">Bens declarados do TSE<a class="headerlink" href="#bens-declarados-do-tse" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>tse.candidatura.bem.v1</code>, executado por <a href="../../crates/refino/sql/silver/tse_bens.sql"><code>tse_bens.sql</code></a>, publica uma linha por bem no consolidado nacional <code>BRASIL</code> de cada eleição, sem somar as partes por UF. A chave composta é (<code>ano_eleicao</code>, <code>codigo_eleicao</code>, <code>uf</code>, <code>unidade_eleitoral</code>, <code>sequencia_candidato</code>, <code>ordem_bem</code>), validada entre lotes. A ordem é lida de <code>NR_ORDEM_CANDIDATO</code> nos layouts de 2006–2012 e 2016 e de <code>NR_ORDEM_BEM_CANDIDATO</code> em 2014 e 2018–2026; não se infere o alias por uma regra monotônica. A chave eleitoral do bem também permite vinculá-lo à candidatura de mesmo ano, eleição, UF, unidade eleitoral e sequência do candidato.</p>
+<p><code>ano_eleicao</code> é <code>UInt16</code>, <code>ordem_bem</code> é <code>UInt32</code>, as datas são <code>Date32</code> e <code>valor_bem</code> é <code>Decimal128(18,2)</code>. Valores são convertidos por aritmética decimal exata a partir da vírgula brasileira. Datas não interpretáveis ou fora da faixa plausível viram nulas sem remover a linha, e <code>registro_original</code> preserva todos os campos e aliases de origem; isso é necessário, por exemplo, para valores de última atualização antigos que não são datas válidas. Smoke local nos 11 consolidados (2006–2026): 5.101.128 linhas de entrada e saída, zero valores ou ordens nulos/inválidos, 8.967 datas de eleição nulas e 4.041.301 atualizações nulas; nenhuma linha foi removida. Um join Silver por ano encontrou exatamente uma candidatura para cada bem (zero bens sem correspondência). A segunda passada reconheceu os 11 recursos como atualizados e não os republicou; a primeira execução levou 4min52s com concorrência 2, sem medição de pico de RSS (evidência operacional ainda pendente na issue #189). Use <code>todeolho refinar silver tse-bens</code>; a fonte também integra <code>silver --todas</code> e sua reconciliação periódica.</p>
+<p>Smoke SQL em bucket isolado (2026-11-07): os 11 recursos publicaram 5.101.128 linhas. A contagem e o multiconjunto SHA-256 de <code>registro_original</code> coincidiram com a saída Arrow anterior; a chave foi validada pelo contrato SQL e cada ano foi publicado sem alterar a Silver vigente. A validação usa a mesma agregação escalar por chave. Com concorrência 1, o smoke integral levou cerca de 7min13s e o RSS máximo observado por amostragem de 50 ms foi 527.448 KiB (~515 MiB), abaixo do limite de 2 GiB do serviço <code>refino</code>.</p>
+<h3 id="votacao-por-secao-do-tse">Votação por seção do TSE<a class="headerlink" href="#votacao-por-secao-do-tse" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>tse.votacao.secao.v1</code>, executado por <a href="../../crates/refino/sql/silver/tse_votacao_secao.sql"><code>tse_votacao_secao.sql</code></a> (regra v2), publica uma linha por (<code>ano_eleicao</code>, <code>codigo_eleicao</code>, <code>uf</code>, <code>turno</code>, <code>codigo_municipio</code>, <code>zona</code>, <code>secao</code>, <code>codigo_cargo</code>, <code>numero_votavel</code>) a partir de cada recurso <code>votacao_secao/ano=AAAA/uf=UF</code>. Ano e turno são inteiros tipados, votos são <code>UInt32</code>, data de eleição é <code>Date32</code>; os códigos permanecem texto e todos os campos de origem são preservados em <code>registro_original</code>. A unicidade é verificada por uma agregação escalar de chaves com prefixo de comprimento, evitando a janela global sobre as linhas completas; duplicatas interrompem a publicação. A tarefa usa pool de memória DataFusion de 256 MiB e limite de spill de 8 GiB por recurso.</p>
+<p>Os recursos <code>BR</code> e estaduais são complementares: o primeiro contém votos presidenciais e os segundos cargos estaduais. A tarefa mantém ambos, validando que cada linha estadual pertence à UF do recurso. Os recursos 1998/BR e 2010/VT e 2010/ZZ são excluídos porque a Bronze atual não recupera seus cabeçalhos e a chave padrão não está disponível. O TSE informa que os resultados de 1998 são incompletos (<a href="https://dadosabertos.tse.jus.br/dataset/resultados-1998">catálogo oficial</a>); esses três recursos precisam de trabalho separado na decodificação Bronze antes de entrarem no contrato. O restante do histórico precisa ser monitorado contra mudanças nos layouts publicados.</p>
+<p>Em smokes release no cgroup de 2 GiB (2026-11-07), a chave escalar compacta concluiu para todas as 26 UFs com snapshot Bronze disponível em 2024; DF não gerou tarefa. Os picos cgroup por UF estão detalhados em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a>. SP foi o caso mais pesado: 781.508.516 bytes publicados, 134 s e pico de 2.099.367.936 bytes (1,95 GiB); uma repetição para validar a UI concluiu em 136,5 s, com pico de 2.133.766.144 bytes (1,99 GiB), sem OOM. Essa execução aparece no histórico normal da UI como <code>20261107T212424Z-23c97421</code>; somente o histórico foi escrito no bucket <code>execucoes</code>, enquanto o Parquet permaneceu em bucket Silver descartável. Nenhum ponteiro Silver vigente foi alterado. O histórico completo de votação ocupa cerca de 16,4 GB no Bronze e os demais anos ainda aguardam smoke com o plano atualizado.</p>
+<p>Execute explicitamente com <code>todeolho refinar silver tse-votacao-secao</code>. A coleção local consultada ocupa cerca de 16,4 GB, então não participa de <code>silver --todas</code> ou da sua reconciliação periódica. Para smoke parcial, use <code>--filtro ano=2024 --filtro uf=AC,RO</code>; ambos os filtros são opcionais e repetíveis, e os valores aceitam listas separadas por vírgula. Votos por seção anteriores a 1998 não são publicados pelo TSE. A cobertura da chave foi validada no Bronze em AC e RO de 1998–2026. No smoke Silver 2024, AC e RO publicaram 156.259 e 349.871 linhas respectivamente, contagens iguais às partes Bronze e sem duplicatas de chave composta. Três reconciliações seguintes reconheceram ambos recursos como em dia.</p>
+<h3 id="despesas-do-senado-ceaps">Despesas do Senado (CEAPS)<a class="headerlink" href="#despesas-do-senado-ceaps" title="Permanent link">&para;</a></h3>
+<p>O contrato <code>senado.despesa.ceaps.v1</code>, em <a href="../../crates/refino/sql/silver/senado_despesas.sql"><code>senado_despesas.sql</code></a>, tipa <code>ANO</code> do recurso como <code>UInt16</code>, <code>MES</code> como <code>UInt8</code>, <code>DATA</code> como <code>Date32</code> e <code>VALOR_REEMBOLSADO</code> como <code>Decimal128(18,2)</code>. CNPJ/CPF, fornecedor, documento e <code>COD_DOCUMENTO</code> continuam texto para preservar zeros à esquerda. A conversão decimal SQL usa ponto apenas como formato intermediário após validar a vírgula brasileira, sem <code>f64</code>; aceita frações de zero a duas casas, <code>,95</code>, negativos e quebras CR/LF embutidas no valor histórico de 2013. No Bronze local havia 398.172 linhas de 2008 a 2026; <code>COD_DOCUMENTO</code> foi único em 398.170 linhas e estava ausente em duas. O código é validado quando preenchido; registros sem código não são removidos nem deduplicados. Dois registros de 2015 têm aspas malformadas no campo <code>DOCUMENTO</code> da origem CSV, o que desloca colunas no Bronze: preservamos essas linhas e os campos Bronze em <code>registro_original</code>, mas deixamos data e valor tipados nulos para não interpretar texto deslocado como despesa. Para as demais linhas, a Silver deixa <code>DATA</code> tipada nula quando o ano é anterior a 1900 ou posterior ao ano de competência + 1, preservando o texto de origem; essa faixa cobre as 75 datas parseadas fora dos limites encontradas na amostra Bronze local. Valores negativos permanecem com o sinal recebido. A regra <code>senado-despesa-ceaps-v4</code> reprocessa os snapshots publicados pelo transformador Arrow e mantém a política atual. Os testes comparam a saída SQL com a saída Arrow para o fixture CEAPS. Smoke local em 2026-11-07 publicou os 19 anos disponíveis no Bronze (2008–2026), e a segunda reconciliação não alterou nenhum ano. A CLI <code>todeolho refinar silver senado-despesas</code> publica cada ano e participa de <code>--todas</code> e da reconciliação Silver.</p>
+<ul>
+<li>O decodificador de agregados IBGE já produz as dez colunas <code>variavel_id</code>, <code>variavel</code>, <code>unidade</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>nivel_nome</code>, <code>localidade_id</code>, <code>localidade_nome</code>, <code>periodo</code> e <code>valor</code>. O fixture mostra <code>nivel_id=N6</code> e código municipal <code>1100015</code>, ambos a preservar como texto.</li>
+<li>O fixture do BCB traz <code>data=01/06/1989</code> e <code>valor=19.68</code>; converter data e decimal exige regra explícita. O CSV de despesas do Senado exemplifica <code>52,38</code>, então o parser numérico não pode ser global para todas as fontes.</li>
+<li>A ingestão de votações da Câmara declara sete conjuntos anuais. O bronze CSV recebe o nome de tabela <code>votacoes</code>, mas o conjunto está no caminho do recurso; um contrato silver único para essa entrada misturaria grãos diferentes.</li>
+<li>O detalhe de processo do Senado vira uma linha por objeto, com campos aninhados em JSON compacto. O fixture confirma <code>id</code> e <code>conteudo</code> aninhado, mas não prova a unicidade entre recursos/anos.</li>
+<li>A ingestão do Ipeadata declara séries municipais e <code>ivs</code> regional/estadual, mas a amostra bronze mostra também linhas nacionais e estaduais nas séries ADH. O nível geográfico precisa vir de <code>NIVNOME</code> por observação, sem presumir município pelo código da série.</li>
+</ul>
+<h3 id="amostras-locais-do-bronze-2026-11-05">Amostras locais do bronze (2026-11-05)<a class="headerlink" href="#amostras-locais-do-bronze-2026-11-05" title="Permanent link">&para;</a></h3>
+<p>O armazenamento local contém Parquet para <strong>todas as 26 entradas</strong>. Inspecionei uma parte de cada entrada com DuckDB; isso confirma presença e nomes de colunas, mas não valida chaves, nulos ou variação entre anos/tabelas internas. Exemplos relevantes:</p>
+<table>
+<thead>
+<tr>
+<th>Entrada</th>
+<th>Colunas observadas na amostra</th>
+<th>Conclusão para o contrato</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bcb</code></td>
+<td><code>data</code>, <code>valor</code></td>
+<td><code>data</code> e <code>valor</code> chegam como texto; <code>selic-mensal</code> tem 483 linhas e 483 datas distintas na amostra consultada.</td>
+</tr>
+<tr>
+<td><code>ibge-pib-municipios</code></td>
+<td><code>variavel_id</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>localidade_id</code>, <code>periodo</code>, <code>valor</code></td>
+<td>A amostra consultada tem 122.540 linhas, todas <code>nivel_id=N6</code>; a chave ainda precisa incluir classificações.</td>
+</tr>
+<tr>
+<td><code>ipeadata</code></td>
+<td><code>NIVNOME</code>, <code>SERCODIGO</code>, <code>TERCODIGO</code>, <code>VALDATA</code>, <code>VALVALOR</code></td>
+<td>ADH_GINI traz Brasil (3), estados (81) e municípios (16.692); AVS_IVS traz Brasil (16), estados (432) e regiões (80).</td>
+</tr>
+<tr>
+<td><code>camara-votacoes</code></td>
+<td><code>idVotacao</code>, <code>uriVotacao</code>, <code>siglaBancada</code>, <code>orientacao</code></td>
+<td>A parte inspecionada corresponde a orientação; os outros seis conjuntos exigem contratos próprios.</td>
+</tr>
+<tr>
+<td><code>tse-prestacao-contas</code></td>
+<td><code>Cód. Eleição</code>, <code>Data e hora</code>, <code>Valor despesa</code></td>
+<td>A parte inspecionada usa cabeçalhos antigos com espaços/acentos; não serve de schema para todas as eleições.</td>
+</tr>
+<tr>
+<td><code>tse-votacao-secao</code></td>
+<td><code>CD_MUNICIPIO</code>, <code>NR_ZONA</code>, <code>NR_SECAO</code>, <code>NR_VOTAVEL</code>, <code>QT_VOTOS</code></td>
+<td>A parte inspecionada permite formular chave candidata por eleição/turno/seção/cargo/votável; validar duplicatas e recortes por UF.</td>
+</tr>
+</tbody>
+</table>
+<p>As consultas acima são somente leitura. Não foram inspecionados registros individuais de candidaturas ou prestação de contas.</p>
+<h2 id="validacao-de-chaves-no-bronze-local">Validação de chaves no bronze local<a class="headerlink" href="#validacao-de-chaves-no-bronze-local" title="Permanent link">&para;</a></h2>
+<p>As contagens abaixo foram obtidas com DuckDB sobre os Parquets locais, sem retornar registros individuais. <strong>Não são prova de chave universal</strong>: os globais podem incluir versões históricas, e os recortes TSE cobrem somente as partes indicadas. O contrato silver deve usar apenas a versão vigente de cada recurso e repetir a validação em anos/layouts diferentes.</p>
+<table>
+<thead>
+<tr>
+<th>Tabela e recorte</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Chaves distintas</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BCB <code>selic-mensal</code>, <code>data</code></td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">483</td>
+<td>Sem nulos; todas as 11 séries locais foram conferidas abaixo.</td>
+</tr>
+<tr>
+<td>Ipeadata, (<code>SERCODIGO</code>, <code>TERCODIGO</code>, <code>VALDATA</code>)</td>
+<td style="text-align: right;">67.632</td>
+<td style="text-align: right;">67.632</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE estados, <code>id</code></td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">27</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE regiões, <code>id</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE municípios, <code>id</code></td>
+<td style="text-align: right;">5.571</td>
+<td style="text-align: right;">5.571</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>IBGE IPCA, chave com variável, classificações, nível, localidade e período</td>
+<td style="text-align: right;">562</td>
+<td style="text-align: right;">562</td>
+<td>Sem nulos nos campos variável, localidade e período.</td>
+</tr>
+<tr>
+<td>IBGE INPC, mesma chave</td>
+<td style="text-align: right;">571</td>
+<td style="text-align: right;">571</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>IBGE PIB municipal, mesma chave</td>
+<td style="text-align: right;">122.540</td>
+<td style="text-align: right;">122.540</td>
+<td>Mesma condição; <code>nivel_id=N6</code> na amostra local.</td>
+</tr>
+<tr>
+<td>IBGE PIB trimestral, mesma chave</td>
+<td style="text-align: right;">122</td>
+<td style="text-align: right;">122</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>IBGE PNAD desocupação, mesma chave</td>
+<td style="text-align: right;">1.566</td>
+<td style="text-align: right;">1.566</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>IBGE população municipal, mesma chave</td>
+<td style="text-align: right;">122.562</td>
+<td style="text-align: right;">122.562</td>
+<td>Mesma condição.</td>
+</tr>
+<tr>
+<td>Câmara deputados, <code>id</code></td>
+<td style="text-align: right;">513</td>
+<td style="text-align: right;">513</td>
+<td>Sem nulos no conjunto local consultado; vigência/histórico ainda exigem contrato.</td>
+</tr>
+<tr>
+<td>Câmara partidos, <code>id</code></td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">21</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>Câmara legislaturas, <code>id</code></td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">57</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>Senado parlamentares, (<code>IdentificacaoParlamentar.CodigoParlamentar</code>, <code>legislatura</code>)</td>
+<td style="text-align: right;">2.035</td>
+<td style="text-align: right;">2.035</td>
+<td>Código extraído do JSON compacto; sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>Senado votações, <code>codigoSessaoVotacao</code></td>
+<td style="text-align: right;">3.652</td>
+<td style="text-align: right;">3.652</td>
+<td>Sem nulos no conjunto local consultado; conferir semântica em outros anos.</td>
+</tr>
+<tr>
+<td>Senado processos, <code>id</code>, ano 2024</td>
+<td style="text-align: right;">4.947</td>
+<td style="text-align: right;">4.947</td>
+<td>Único no recorte; glob completo contém Parquet antigo de zero colunas.</td>
+</tr>
+<tr>
+<td>Senado processos-detalhes, <code>id</code></td>
+<td style="text-align: right;">163.156</td>
+<td style="text-align: right;">163.156</td>
+<td>Sem nulos no conjunto local consultado.</td>
+</tr>
+<tr>
+<td>TSE votação por seção 2014/AC, (<code>CD_ELEICAO</code>, <code>NR_TURNO</code>, <code>CD_MUNICIPIO</code>, <code>NR_ZONA</code>, <code>NR_SECAO</code>, <code>CD_CARGO</code>, <code>NR_VOTAVEL</code>)</td>
+<td style="text-align: right;">224.661</td>
+<td style="text-align: right;">224.661</td>
+<td>Única no recorte; validação histórica de AC e RO abaixo.</td>
+</tr>
+<tr>
+<td>TSE candidaturas 2014, uma parte, (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>)</td>
+<td style="text-align: right;">879</td>
+<td style="text-align: right;">879</td>
+<td>Única na parte; validação dos consolidados por ano abaixo.</td>
+</tr>
+<tr>
+<td>TSE bens 2014, uma parte, (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>, <code>NR_ORDEM_BEM_CANDIDATO</code>)</td>
+<td style="text-align: right;">3.588</td>
+<td style="text-align: right;">3.588</td>
+<td>Única na parte; validação dos consolidados por ano abaixo.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="series-bcb-no-bronze-local-2026-11-05">Séries BCB no bronze local (2026-11-05)<a class="headerlink" href="#series-bcb-no-bronze-local-2026-11-05" title="Permanent link">&para;</a></h3>
+<p>Há uma versão Parquet por recurso nas 11 séries disponíveis. Em cada série, <code>data</code> é única e não vazia. Todas as 5.125 datas são interpretáveis por <code>%d/%m/%Y</code>, e todos os <code>valor</code> são conversíveis para <code>DECIMAL(18,6)</code> no DuckDB. A chave candidata da silver é (<code>recurso</code>, <code>data</code>); o recurso distingue séries com a mesma data. Esta validação cobre somente as versões locais observadas, não futuras correções ou novas séries.</p>
+<table>
+<thead>
+<tr>
+<th>Série</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Datas distintas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cambio-dolar-mensal</code></td>
+<td style="text-align: right;">885</td>
+<td style="text-align: right;">885</td>
+</tr>
+<tr>
+<td><code>cdi-mensal</code></td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">483</td>
+</tr>
+<tr>
+<td><code>credito-total-pib</code></td>
+<td style="text-align: right;">375</td>
+<td style="text-align: right;">375</td>
+</tr>
+<tr>
+<td><code>divida-liquida-setor-publico-pib</code></td>
+<td style="text-align: right;">298</td>
+<td style="text-align: right;">298</td>
+</tr>
+<tr>
+<td><code>ibc-br</code></td>
+<td style="text-align: right;">284</td>
+<td style="text-align: right;">284</td>
+</tr>
+<tr>
+<td><code>igpm-mensal</code></td>
+<td style="text-align: right;">449</td>
+<td style="text-align: right;">449</td>
+</tr>
+<tr>
+<td><code>inadimplencia-credito-total</code></td>
+<td style="text-align: right;">187</td>
+<td style="text-align: right;">187</td>
+</tr>
+<tr>
+<td><code>inpc-mensal</code></td>
+<td style="text-align: right;">570</td>
+<td style="text-align: right;">570</td>
+</tr>
+<tr>
+<td><code>ipca-12-meses</code></td>
+<td style="text-align: right;">550</td>
+<td style="text-align: right;">550</td>
+</tr>
+<tr>
+<td><code>ipca-mensal</code></td>
+<td style="text-align: right;">561</td>
+<td style="text-align: right;">561</td>
+</tr>
+<tr>
+<td><code>selic-mensal</code></td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">483</td>
+</tr>
+</tbody>
+</table>
+<h3 id="candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05">Candidaturas e bens do TSE no bronze local (2026-11-05)<a class="headerlink" href="#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05" title="Permanent link">&para;</a></h3>
+<p>As contagens abaixo usam <strong>somente</strong> a parte <code>BRASIL</code> indicada pelo manifesto vigente de cada ano. Os ZIPs também contêm partes por UF; somá-las ao consolidado duplica candidaturas. Na amostra de 2000, as partes por UF têm 457.171 linhas e 399.455 chaves contextuais, enquanto <code>BRASIL</code> tem 399.455 linhas e chaves. Os conjuntos de chaves das duas representações são iguais, mas cinco partes por UF repetem internamente 57.716 chaves com linhas diferentes. A Silver precisa escolher uma representação e definir a política para divergências de atributos antes de publicar candidatos.</p>
+<p>Para candidaturas, a chave curta (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>) colide em 2000, 2002, 2004, 2006 e 2008. A chave candidata completa é (<code>ANO_ELEICAO</code>, <code>CD_ELEICAO</code>, <code>SG_UF</code>, <code>SG_UE</code>, <code>CD_CARGO</code>, <code>NR_CANDIDATO</code>, <code>SQ_CANDIDATO</code>). Nos 17 consolidados, ela é única por ano e seus campos não são SQL <code>NULL</code>. <code>ANO_ELEICAO</code> delimita anos distintos; a tabela mostra a contagem da chave sem ele, por já estar agrupada por ano.</p>
+<table>
+<thead>
+<tr>
+<th>Ano</th>
+<th style="text-align: right;">Linhas <code>BRASIL</code></th>
+<th style="text-align: right;">Chave curta distinta</th>
+<th style="text-align: right;">Chave completa distinta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1994</td>
+<td style="text-align: right;">12.035</td>
+<td style="text-align: right;">12.035</td>
+<td style="text-align: right;">12.035</td>
+</tr>
+<tr>
+<td>1996</td>
+<td style="text-align: right;">321.790</td>
+<td style="text-align: right;">321.790</td>
+<td style="text-align: right;">321.790</td>
+</tr>
+<tr>
+<td>1998</td>
+<td style="text-align: right;">15.092</td>
+<td style="text-align: right;">15.092</td>
+<td style="text-align: right;">15.092</td>
+</tr>
+<tr>
+<td>2000</td>
+<td style="text-align: right;">399.455</td>
+<td style="text-align: right;">3.243</td>
+<td style="text-align: right;">399.455</td>
+</tr>
+<tr>
+<td>2002</td>
+<td style="text-align: right;">18.109</td>
+<td style="text-align: right;">5.169</td>
+<td style="text-align: right;">18.109</td>
+</tr>
+<tr>
+<td>2004</td>
+<td style="text-align: right;">402.157</td>
+<td style="text-align: right;">1.874</td>
+<td style="text-align: right;">402.157</td>
+</tr>
+<tr>
+<td>2006</td>
+<td style="text-align: right;">19.303</td>
+<td style="text-align: right;">3.205</td>
+<td style="text-align: right;">19.303</td>
+</tr>
+<tr>
+<td>2008</td>
+<td style="text-align: right;">382.079</td>
+<td style="text-align: right;">69.286</td>
+<td style="text-align: right;">382.079</td>
+</tr>
+<tr>
+<td>2010</td>
+<td style="text-align: right;">22.577</td>
+<td style="text-align: right;">22.577</td>
+<td style="text-align: right;">22.577</td>
+</tr>
+<tr>
+<td>2012</td>
+<td style="text-align: right;">483.741</td>
+<td style="text-align: right;">483.741</td>
+<td style="text-align: right;">483.741</td>
+</tr>
+<tr>
+<td>2014</td>
+<td style="text-align: right;">26.263</td>
+<td style="text-align: right;">26.263</td>
+<td style="text-align: right;">26.263</td>
+</tr>
+<tr>
+<td>2016</td>
+<td style="text-align: right;">498.391</td>
+<td style="text-align: right;">498.391</td>
+<td style="text-align: right;">498.391</td>
+</tr>
+<tr>
+<td>2018</td>
+<td style="text-align: right;">29.287</td>
+<td style="text-align: right;">29.287</td>
+<td style="text-align: right;">29.287</td>
+</tr>
+<tr>
+<td>2020</td>
+<td style="text-align: right;">558.804</td>
+<td style="text-align: right;">558.804</td>
+<td style="text-align: right;">558.804</td>
+</tr>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">29.322</td>
+<td style="text-align: right;">29.322</td>
+<td style="text-align: right;">29.322</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">463.885</td>
+<td style="text-align: right;">463.885</td>
+<td style="text-align: right;">463.885</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">21.017</td>
+<td style="text-align: right;">21.017</td>
+<td style="text-align: right;">21.017</td>
+</tr>
+</tbody>
+</table>
+<p>Nos bens, o campo de ordem é <code>NR_ORDEM_CANDIDATO</code> em 2006–2012 e 2016, e <code>NR_ORDEM_BEM_CANDIDATO</code> em 2014 e 2018–2026. A mudança <strong>não é monotônica por ano</strong>. A chave candidata (<code>ANO_ELEICAO</code>, <code>CD_ELEICAO</code>, <code>SG_UF</code>, <code>SG_UE</code>, <code>SQ_CANDIDATO</code>, ordem) é única por ano nos 11 consolidados; seus campos não são SQL <code>NULL</code>. A chave curta (<code>CD_ELEICAO</code>, <code>SQ_CANDIDATO</code>, ordem) colide em 2006 e 2008. A associação (<code>ANO_ELEICAO</code>, <code>CD_ELEICAO</code>, <code>SG_UF</code>, <code>SG_UE</code>, <code>SQ_CANDIDATO</code>) encontrou uma candidatura única para cada linha de bem nos 11 anos locais.</p>
+<table>
+<thead>
+<tr>
+<th>Ano</th>
+<th style="text-align: right;">Bens <code>BRASIL</code></th>
+<th style="text-align: right;">Chave curta distinta</th>
+<th style="text-align: right;">Chave completa distinta</th>
+<th style="text-align: right;">Sem candidatura</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2006</td>
+<td style="text-align: right;">82.361</td>
+<td style="text-align: right;">33.317</td>
+<td style="text-align: right;">82.361</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2008</td>
+<td style="text-align: right;">791.319</td>
+<td style="text-align: right;">345.796</td>
+<td style="text-align: right;">791.319</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2010</td>
+<td style="text-align: right;">81.226</td>
+<td style="text-align: right;">81.226</td>
+<td style="text-align: right;">81.226</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2012</td>
+<td style="text-align: right;">895.663</td>
+<td style="text-align: right;">895.663</td>
+<td style="text-align: right;">895.663</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2014</td>
+<td style="text-align: right;">83.053</td>
+<td style="text-align: right;">83.053</td>
+<td style="text-align: right;">83.053</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2016</td>
+<td style="text-align: right;">977.510</td>
+<td style="text-align: right;">977.510</td>
+<td style="text-align: right;">977.510</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2018</td>
+<td style="text-align: right;">93.527</td>
+<td style="text-align: right;">93.527</td>
+<td style="text-align: right;">93.527</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2020</td>
+<td style="text-align: right;">1.015.279</td>
+<td style="text-align: right;">1.015.279</td>
+<td style="text-align: right;">1.015.279</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">92.559</td>
+<td style="text-align: right;">92.559</td>
+<td style="text-align: right;">92.559</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">911.185</td>
+<td style="text-align: right;">911.185</td>
+<td style="text-align: right;">911.185</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">77.446</td>
+<td style="text-align: right;">77.446</td>
+<td style="text-align: right;">77.446</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>Esses números verificam as versões locais vigentes, não mudanças futuras da origem. Antes de materializar, validar também sentinelas de texto, correções entre versões e a cobertura do consolidado em todos os anos. As partes por UF de 2000 mostram que unicidade de chave não resolve sozinha divergências de atributos.</p>
+<h3 id="votacao-por-secao-do-tse-no-bronze-local-2026-11-05">Votação por seção do TSE no bronze local (2026-11-05)<a class="headerlink" href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05" title="Permanent link">&para;</a></h3>
+<p>Cada recurso <code>ano</code> × <code>uf</code> de AC e RO tem uma única versão Parquet local. Nas 30 partes desses estados, de 1998 a 2026, a chave candidata (<code>ANO_ELEICAO</code>, <code>CD_ELEICAO</code>, <code>SG_UF</code>, <code>NR_TURNO</code>, <code>CD_MUNICIPIO</code>, <code>NR_ZONA</code>, <code>NR_SECAO</code>, <code>CD_CARGO</code>, <code>NR_VOTAVEL</code>) é única por ano e não tem campos SQL <code>NULL</code> nem vazios; <code>SG_UF</code> concorda com o recurso. A tabela mostra a contagem da chave sem <code>ANO_ELEICAO</code>, pois já está agrupada por ano. Acrescentar <code>SG_UF</code> explicita o escopo geográfico, mesmo que ela não tenha sido necessária para distinguir as linhas de AC e RO.</p>
+<table>
+<thead>
+<tr>
+<th>Ano</th>
+<th style="text-align: right;">Linhas AC + RO</th>
+<th style="text-align: right;">Chaves distintas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1998</td>
+<td style="text-align: right;">350.606</td>
+<td style="text-align: right;">350.606</td>
+</tr>
+<tr>
+<td>2000</td>
+<td style="text-align: right;">253.934</td>
+<td style="text-align: right;">253.934</td>
+</tr>
+<tr>
+<td>2002</td>
+<td style="text-align: right;">475.169</td>
+<td style="text-align: right;">475.169</td>
+</tr>
+<tr>
+<td>2004</td>
+<td style="text-align: right;">309.136</td>
+<td style="text-align: right;">309.136</td>
+</tr>
+<tr>
+<td>2006</td>
+<td style="text-align: right;">485.207</td>
+<td style="text-align: right;">485.207</td>
+</tr>
+<tr>
+<td>2008</td>
+<td style="text-align: right;">344.724</td>
+<td style="text-align: right;">344.724</td>
+</tr>
+<tr>
+<td>2010</td>
+<td style="text-align: right;">544.097</td>
+<td style="text-align: right;">544.097</td>
+</tr>
+<tr>
+<td>2012</td>
+<td style="text-align: right;">434.002</td>
+<td style="text-align: right;">434.002</td>
+</tr>
+<tr>
+<td>2014</td>
+<td style="text-align: right;">633.544</td>
+<td style="text-align: right;">633.544</td>
+</tr>
+<tr>
+<td>2016</td>
+<td style="text-align: right;">463.463</td>
+<td style="text-align: right;">463.463</td>
+</tr>
+<tr>
+<td>2018</td>
+<td style="text-align: right;">797.825</td>
+<td style="text-align: right;">797.825</td>
+</tr>
+<tr>
+<td>2020</td>
+<td style="text-align: right;">484.535</td>
+<td style="text-align: right;">484.535</td>
+</tr>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">788.644</td>
+<td style="text-align: right;">788.644</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">506.130</td>
+<td style="text-align: right;">506.130</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">754.814</td>
+<td style="text-align: right;">754.814</td>
+</tr>
+</tbody>
+</table>
+<p>Como recorte de uma UF grande, SP/2024 tem 9.611.657 linhas e o mesmo número de chaves distintas, sem campos da chave vazios ou UF divergente. A regra ainda precisa ser validada nos outros recursos, inclusive <code>uf=BR</code> nos anos em que existe, e em versões futuras. A Silver deve ler a versão apontada por <code>_ultima_versao.json</code> de cada recurso, não um glob que reúna execuções antigas.</p>
+<h3 id="prestacao-de-contas-do-tse-em-2024">Prestação de contas do TSE em 2024<a class="headerlink" href="#prestacao-de-contas-do-tse-em-2024" title="Permanent link">&para;</a></h3>
+<p>O manifesto vigente de <code>tse/prestacao-contas/ano=2024</code> contém quatro conjuntos diferentes, cada um com 26 partes por UF e um consolidado <code>BRASIL</code>: <code>despesas_contratadas_candidatos</code>, <code>receitas_candidatos</code>, <code>despesas_pagas_candidatos</code> e <code>receitas_candidatos_doador_originario</code>. Cada conjunto precisa de contrato Silver próprio. As contagens abaixo usam <strong>somente</strong> a parte <code>BRASIL</code> de cada um; nenhum identificador pessoal foi exibido.</p>
+<table>
+<thead>
+<tr>
+<th>Conjunto</th>
+<th>Chave sequencial testada, além de <code>CD_ELEICAO</code> e <code>SQ_PRESTADOR_CONTAS</code></th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Chaves distintas</th>
+<th style="text-align: right;">Hashes de linha distintos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Despesas contratadas</td>
+<td><code>SQ_DESPESA</code></td>
+<td style="text-align: right;">4.452.310</td>
+<td style="text-align: right;">3.125.686</td>
+<td style="text-align: right;">4.380.965</td>
+</tr>
+<tr>
+<td>Receitas</td>
+<td><code>SQ_RECEITA</code></td>
+<td style="text-align: right;">2.041.059</td>
+<td style="text-align: right;">1.898.067</td>
+<td style="text-align: right;">2.038.794</td>
+</tr>
+<tr>
+<td>Despesas pagas</td>
+<td>(<code>SQ_DESPESA</code>, <code>SQ_PARCELAMENTO_DESPESA</code>)</td>
+<td style="text-align: right;">3.719.729</td>
+<td style="text-align: right;">3.719.650</td>
+<td style="text-align: right;">3.719.650</td>
+</tr>
+<tr>
+<td>Doador originário</td>
+<td><code>SQ_RECEITA</code></td>
+<td style="text-align: right;">534.344</td>
+<td style="text-align: right;">452.567</td>
+<td style="text-align: right;">533.011</td>
+</tr>
+</tbody>
+</table>
+<p>Os campos das chaves testadas não são SQL <code>NULL</code>, mas o <a href="../pesquisa-tse-2024/">leiaute oficial de 2024 e a análise das variantes</a> mostram sentinelas <code>-1</code>: 159.100 sequências de despesas contratadas, 66.599 de receitas e 433.385 pares de sequência/documento de doador originário. As colisões persistem após excluí-las. Nenhuma das quatro combinações é única. Acrescentar <code>TP_PRESTACAO_CONTAS</code> ou <code>DT_PRESTACAO_CONTAS</code> não resolve as três primeiras; em doador originário, é o <strong>documento</strong>, não a data, que eleva a cardinalidade para 529.130. Hashes de linha mostram variantes de atributos em despesas contratadas, receitas e doador originário, mas não são chave de negócio nem regra de descarte.</p>
+<p>Nas 56 chaves repetidas de despesas pagas, a comparação exata encontrou 135 linhas e 56 linhas distintas: as 79 excedentes são cópias idênticas no consolidado local. A tarefa Silver de <code>despesas_pagas_candidatos</code> 2024 executa <a href="../../crates/refino/sql/silver/tse_despesas_pagas.sql"><code>tse_despesas_pagas.sql</code></a> (regra v2) e usa (<code>AA_ELEICAO</code>, <code>CD_ELEICAO</code>, <code>SQ_PRESTADOR_CONTAS</code>, <code>SQ_DESPESA</code>, <code>SQ_PARCELAMENTO_DESPESA</code>), remove somente registros integrais iguais e falha se uma chave tiver conteúdo diferente. <code>SQ_PRESTADOR_CONTAS</code> permanece texto porque seus valores não cabem em <code>UInt32</code>; despesas pagas, data e valor são tipados. Smoke na parte <code>BRASIL</code>: 3.719.729 linhas de entrada, 3.719.650 de saída, 79 cópias exatas removidas, zero nulos em data/valor e zero chaves repetidas. A execução no perfil de desenvolvimento levou 525,5 s; o maior RSS amostrado foi cerca de 1,07 GB. A reconciliação seguinte reconheceu o recurso em dia. O contrato SQL agrupa pela chave e compara SHA-256 do registro integral, removendo as cópias e interrompendo conflitos; não emite a métrica por linha que a implementação Arrow registrava. Smoke SQL em bucket isolado (2026-11-07) publicou as mesmas 3.719.650 linhas; o multiconjunto SHA-256 de <code>registro_original</code> coincidiu com o Arrow, e data e valor tiveram zero nulos nas duas saídas. O snapshot carregou somente a parte <code>BRASIL</code>. Um teste com pool de 1 GiB e spill de 8 GiB usou cerca de 3,7 GB de spill, mas atingiu RSS de 2.213.732 KiB (~2,11 GiB), acima do limite de 2 GiB do container. Com pool de 512 MiB e spill de 8 GiB, o smoke final isolado levou 501,8 s, publicou as mesmas 3.719.650 linhas e teve RSS local máximo de 1.723.348 KiB (~1,64 GiB). No container com limite de 2 GiB, a tarefa concluiu sem OOM, mas o pico cgroup atingiu o teto exato. O pool foi reduzido para 256 MiB; novo smoke release em container limitado a 2 GiB concluiu em 70,7 s, sem OOM, e publicou novamente 154.370.020 bytes. O pico cgroup ainda atingiu o teto exato, sem redução observável em relação ao pool de 512 MiB; portanto, a tarefa conclui sob esse limite, mas o cgroup fica saturado durante o processamento. Nenhuma dessas execuções alterou o ponteiro Silver vigente. O pico de spill não foi medido na passada final.</p>
+<p>Use <code>todeolho refinar silver tse-prestacao-contas</code> para publicar essa tabela. A cobertura permanece limitada a despesas pagas de 2024; despesas contratadas, receitas, doador originário e os demais anos aguardam contratos próprios. Despesas contratadas, receitas e doador originário devem preservar variantes até que a identidade de cada linha esteja definida. O leitor já fornece identidade técnica por versão, parte e ordinal. O CSV oficial de AC confirma que as colisões de despesas contratadas e receitas já estão na origem, conforme a pesquisa vinculada.</p>
+<p>O ano de 2002 contém quatro conjuntos internos com outros nomes (<code>DespesaCandidato</code>, <code>ReceitaCandidato</code>, <code>DespesaComite</code>, <code>ReceitaComite</code>). A <a href="../pesquisa-tse-2002/">validação específica de 2002</a> mediu schemas, tipos candidatos, nulos e duplicatas em cada um: todos têm cópias exatas e as combinações exploratórias de contexto/data/documento/valor colidem. O contrato candidato preserva cada linha com referência técnica à versão, parte e ordinal, sem deduplicação automática. Em 2012 há partes por sigla e consolidados com leiautes diferentes. Não aplicar a chave de 2024 retroativamente; a próxima validação deve separar outros anos e comparar consolidados com partes por UF.</p>
+<p>A <a href="../pesquisa-tse-2004-2006/">validação de 2004 e 2006</a> cobre oito tabelas internas, todas com cópias exatas. Os candidatos de 2004 não têm <code>SEQUENCIAL_CANDIDATO</code> e alguns cabeçalhos são expressões literais; em 2006, os candidatos mudam para nomes por extenso, enquanto os comitês mantêm outra convenção. Datas e valores preenchidos converteram nos formatos testados, mas a regra tipada precisa tratar ausências e impedir arredondamento de valores. Ainda não há chave de negócio validada para esses anos.</p>
+<p>Em <a href="../pesquisa-tse-2008/">2008</a>, o manifesto tem quatro CSVs de contas e um TXT de leiaute que o Bronze também expôs como Parquet de uma linha. A Silver deve excluir <code>leiaute-2008</code> do catálogo tabular. Os quatro conjuntos de contas têm 7.124.045 linhas somadas, datas e valores preenchidos conversíveis nos formatos testados, mas alguns nomes físicos diferem do TXT de documentação e não há chave de lançamento validada.</p>
+<p>O <a href="../pesquisa-tse-2010-2012/">inventário e a reconciliação de 2010 e 2012</a> identificam seis famílias em cada ano. Em 2010, as 168 partes foram conferidas contra os membros do ZIP: a UF da coluna corresponde ao caminho original, embora o manifesto Bronze registre só o nome da família. Em 2012, os consolidados <code>_brasil</code> e as demais partes têm volumes e schemas diferentes; receitas partidárias por UF/<code>BR</code> têm 19 colunas posicionais contra 25 nomeadas em <code>_brasil</code>. A comparação completa de receitas e despesas de comitês encontrou linhas exclusivas em ambos os lados e colisões na chave candidata. Datas de receitas de candidatos e comitês exigem formatos distintos. Ainda não há chave de lançamento nem regra de consolidação para publicar essas famílias na Silver.</p>
+<h3 id="conjuntos-da-camara">Conjuntos da Câmara<a class="headerlink" href="#conjuntos-da-camara" title="Permanent link">&para;</a></h3>
+<p>Os sete conjuntos abaixo foram validados <strong>apenas no ano de 2024</strong>. Cada conjunto requer tabela silver própria, mesmo que o decodificador CSV do bronze use o nome genérico <code>votacoes</code>:</p>
+<p>O leiaute oficial descreve <code>proposicoesAutores</code> como uma relação em que uma proposição pode aparecer uma vez por autor, então a chave precisa incluir a posição/ordem de assinatura. Para <code>votacoesVotos</code>, a origem descreve uma linha por voto de parlamentar e avisa que também pode haver registros individuais em algumas votações simbólicas. Portanto, votos não devem ser deduplicados nem descartados por tipo de votação. Os arquivos são atualizados diariamente; antes de transformar todos os anos, é necessário validar cada schema e as chaves candidatas contra os Parquets Bronze vigentes, não apenas contra o recorte de 2024. Consulte a <a href="https://dadosabertos.camara.leg.br/swagger/api.html">documentação oficial dos arquivos de proposições e votações</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Conjunto</th>
+<th>Chave candidata</th>
+<th style="text-align: right;">Linhas</th>
+<th style="text-align: right;">Chaves distintas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>proposicoes</code></td>
+<td><code>id</code></td>
+<td style="text-align: right;">61.536</td>
+<td style="text-align: right;">61.536</td>
+</tr>
+<tr>
+<td><code>proposicoesAutores</code></td>
+<td>(<code>idProposicao</code>, <code>ordemAssinatura</code>)</td>
+<td style="text-align: right;">97.124</td>
+<td style="text-align: right;">97.124</td>
+</tr>
+<tr>
+<td><code>votacoes</code></td>
+<td><code>id</code></td>
+<td style="text-align: right;">10.373</td>
+<td style="text-align: right;">10.373</td>
+</tr>
+<tr>
+<td><code>votacoesVotos</code></td>
+<td>(<code>idVotacao</code>, <code>deputado_id</code>)</td>
+<td style="text-align: right;">116.400</td>
+<td style="text-align: right;">116.400</td>
+</tr>
+<tr>
+<td><code>votacoesObjetos</code></td>
+<td>(<code>idVotacao</code>, <code>proposicao_id</code>)</td>
+<td style="text-align: right;">60.950</td>
+<td style="text-align: right;">60.950</td>
+</tr>
+<tr>
+<td><code>votacoesProposicoes</code></td>
+<td>(<code>idVotacao</code>, <code>proposicao_id</code>)</td>
+<td style="text-align: right;">7.459</td>
+<td style="text-align: right;">7.459</td>
+</tr>
+<tr>
+<td><code>votacoesOrientacoes</code></td>
+<td>(<code>idVotacao</code>, <code>siglaBancada</code>)</td>
+<td style="text-align: right;">4.361</td>
+<td style="text-align: right;">4.361</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Chaves rejeitadas ou ainda ambíguas:</strong></p>
+<ul>
+<li>Câmara despesas: <code>ideDocumento</code> tem 3.897.462 valores distintos em 5.235.506 linhas, com seis valores ausentes. Mesmo (<code>ano</code>, <code>ideDocumento</code>, <code>numParcela</code>, <code>nuDeputadoId</code>) tem só 4.078.766 combinações. Em 2024, as 232.918 linhas são distintas quando se exclui apenas a procedência; portanto a repetição de ID <strong>não prova duplicação de registro</strong>.</li>
+<li>Câmara tramitações: <code>idTramitacao</code> tem apenas 988 valores distintos em 1.879.478 linhas, com 174 ausentes. Mesmo (<code>uriProposicao</code>, <code>idTramitacao</code>) tem 1.871.298 combinações. Em 2024, há 112.979 linhas, 112.916 linhas distintas sem a procedência e 112.915 combinações de (<code>uriProposicao</code>, <code>idTramitacao</code>, <code>sequencia</code>, <code>dataHora</code>). Há duplicatas exatas e ao menos uma colisão semântica nessa chave composta; a política precisa distingui-las.</li>
+<li>Senado despesas: <code>COD_DOCUMENTO</code> tem 398.170 valores distintos em 398.172 linhas, com dois ausentes. A combinação com <code>ANO</code> ainda não é única (398.171 combinações), enquanto <strong>todas as 398.172 linhas são distintas</strong> sem a procedência. Revisar os documentos ausentes e não eliminar linhas por esse código.</li>
+<li>Senado processos: o glob local inclui um Parquet antigo com zero colunas, que o DuckDB não consegue ler; a validação de <code>id</code> sobre o conjunto completo ficou pendente. O decodificador atual já evita produzir esse formato em arrays vazios (PR #183), mas a amostra antiga permanece no armazenamento.</li>
+<li>A tabela <code>receitas_partidos_2012_MT</code> da prestação de contas do TSE (parte bronze <code>00150</code>, ano 2012) tinha uma data de registro como nome de coluna. Os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. A <a href="../pesquisa-tse-2012/">pesquisa do leiaute de 2012</a> mostra que o <code>LEIAME.pdf</code> do ZIP não descreve as 19 posições e que o cabeçalho de 25 campos do consolidado não serve para mapeá-las. A chave silver continua pendente de leiaute oficial específico.</li>
+</ul>
+<p>As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.</p>
+<h2 id="proxima-validacao-da-fase-0">Próxima validação da fase 0<a class="headerlink" href="#proxima-validacao-da-fase-0" title="Permanent link">&para;</a></h2>
+<p>Conferir amostras das 26 entradas do catálogo e todas as tabelas internas dos ZIPs, incluindo anos antigos e recentes; fixar chaves e schemas somente depois dessa conferência. A fase 1 (#186) implementa o mecanismo; as fases 2–4 (#187–#189) entregam os contratos específicos.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar para o topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../bronze/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Camada bronze">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Camada bronze
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../fontes/ibge/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Fonte ibge — malha territorial (Localidades) e indicadores macro">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                Fonte ibge — malha territorial (Localidades) e indicadores macro
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Henrique Morais
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.action.edit"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "mais 1 nesta p\u00e1gina", "search.result.more.other": "# mais nesta p\u00e1gina", "search.result.none": "Nenhum documento encontrado", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+    
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
+</html>
