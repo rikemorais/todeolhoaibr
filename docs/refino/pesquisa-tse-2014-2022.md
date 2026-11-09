@@ -48,6 +48,32 @@ separados até identificar sua relação semântica com as prestações ordinár
 Todos os campos físicos observados são `Utf8` anuláveis no Parquet Bronze;
 tipagem Silver exige contrato explícito por família.
 
+### Comparação de conteúdo entre `_BR`, `_brasil` e UFs
+
+Comparei todas as linhas por SHA-256 da serialização JSON dos campos físicos,
+sem gravar ou exibir valores individuais. Em todas as seis famílias, o conjunto
+de hashes distintos do `_brasil` contém todos os hashes observados nas partes
+por UF e em `_BR`. `_BR` e as partes por UF não compartilham hashes entre si.
+Assim, `_brasil` é uma representação completa no recorte medido; somá-la a `_BR`
+ou às UFs repetiria linhas. As 27 partes estaduais por família também foram
+checadas contra a coluna `UF`: nenhuma linha divergiu do sufixo de origem.
+
+| Família | Linhas em `_brasil` | Hashes distintos | Linhas repetidas idênticas em `_brasil` |
+| --- | ---: | ---: | ---: |
+| `despesas_candidatos_2014` | 2.247.108 | 2.124.540 | 122.568 |
+| `despesas_comites_2014` | 54.970 | 49.341 | 5.629 |
+| `despesas_partidos_2014` | 55.370 | 50.086 | 5.284 |
+| `receitas_candidatos_2014` | 427.489 | 427.212 | 277 |
+| `receitas_comites_2014` | 9.173 | 9.115 | 58 |
+| `receitas_partidos_2014` | 12.247 | 12.227 | 20 |
+
+`_brasil` evita a duplicação entre recortes geográficos, mas contém repetições
+exatas internas, sobretudo nas despesas. Não as removi nem inferi uma chave de
+lançamento: a próxima validação precisa medir chaves candidatas e determinar se
+essas repetições representam cópias da origem ou lançamentos distintos. A
+evidência é limitada ao manifesto e às seis famílias ordinárias de 2014; não
+determina o tratamento dos conjuntos `_sup`.
+
 Os nomes `_BR`, `_BRASIL`, `_brasil` e `_sup` são distintos no manifesto. Não
 devem ser somados nem tratados como cópias sem comparar schema, conteúdo e
 procedência. O contrato Silver precisa decidir por família e ano qual conjunto
