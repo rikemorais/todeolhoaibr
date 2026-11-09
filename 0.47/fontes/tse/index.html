@@ -1657,6 +1657,10 @@ atende às consultas por seção, cidade e estado.</p>
 <p>Um <strong>ZIP por UF e por eleição</strong> (anos pares de 1998 a 2026), baixado via
 <code>TarefaDeArquivo</code> como <strong>arquivo grande</strong> (em fluxo, sem carregar na memória) e gravado
 <strong>opaco</strong> na Raw (<a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>):</p>
+<p>Para esses ZIPs, a ingestão exige tamanho total (<code>Content-Length</code>/<code>Content-Range</code>) ou
+framing HTTP íntegro (chunked/HTTP/2). Se a origem terminar por EOF sem nenhum desses
+sinais, a tarefa falha e não publica manifesto; os bytes transferidos não são tratados
+como arquivo completo.</p>
 <ul>
 <li><code>https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_secao/votacao_secao_{ano}_{uf}.zip</code></li>
 <li><strong>408 arquivos</strong> no total. Eleições <strong>gerais</strong> (2002, 2006, 2010…) incluem <code>DF</code> e <code>BR</code>;
