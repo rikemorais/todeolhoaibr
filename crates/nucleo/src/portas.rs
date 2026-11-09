@@ -168,6 +168,19 @@ pub trait ClienteHttp: Send + Sync {
         })
     }
 
+    /// GET condicional com o valor de `Content-Encoding` da resposta. O padrão
+    /// preserva os clientes existentes, que entregam corpos sem codificação.
+    async fn obter_condicional_com_codificacao(
+        &self,
+        url: &str,
+        aceita: &str,
+        validador: Option<&str>,
+    ) -> Result<(RespostaCondicional, Option<String>), ErroDeIngestao> {
+        self.obter_condicional(url, aceita, validador)
+            .await
+            .map(|resposta| (resposta, None))
+    }
+
     /// Consulta o arquivo na origem, sem baixá-lo.
     async fn informacoes(&self, url: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao>;
 

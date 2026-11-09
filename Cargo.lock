@@ -3448,6 +3448,7 @@ version = "0.47.3"
 dependencies = [
  "async-trait",
  "chrono",
+ "flate2",
  "hex",
  "serde",
  "serde_json",
@@ -3516,6 +3517,7 @@ dependencies = [
  "datafusion",
  "encoding_rs",
  "encoding_rs_io",
+ "flate2",
  "futures",
  "hex",
  "parquet",

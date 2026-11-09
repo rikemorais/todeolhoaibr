@@ -8,6 +8,7 @@
 //! **validador da versão do raw** (`versao`) e, quando necessária, a versão da regra:
 //! reexecutar só reprocessa quando a entrada ou a regra mudou.
 
+use std::io::Read;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -23,6 +24,27 @@ use crate::decodificador::Decodificador;
 
 /// `Content-Type` registrado para as partes em Parquet do bronze.
 const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
+const LIMITE_JSON_DECODIFICADO: u64 = 256 * 1024 * 1024;
+
+fn json_gzip_decodificado(
+    caminho: &std::path::Path,
+) -> std::io::Result<Option<tempfile::NamedTempFile>> {
+    let mut entrada = std::fs::File::open(caminho)?;
+    let mut assinatura = [0u8; 2];
+    if entrada.read_exact(&mut assinatura).is_err() || assinatura != [0x1f, 0x8b] {
+        return Ok(None);
+    }
+    let entrada = std::fs::File::open(caminho)?;
+    let mut saida = tempfile::NamedTempFile::new()?;
+    let mut decoder = flate2::read::MultiGzDecoder::new(entrada).take(LIMITE_JSON_DECODIFICADO + 1);
+    let bytes = std::io::copy(&mut decoder, saida.as_file_mut())?;
+    if bytes > LIMITE_JSON_DECODIFICADO {
+        return Err(std::io::Error::other(
+            "JSON gzip excede 256 MiB após decodificação",
+        ));
+    }
+    Ok(Some(saida))
+}
 
 /// Decodifica um recurso do `raw` para o `bronze` (Parquet).
 ///
@@ -167,7 +189,16 @@ impl Tarefa for TarefaDeBronze {
                     url: parte.chave.clone(),
                 });
             }
-            arquivos.push(arquivo.into_temp_path());
+            if tipo_de_conteudo.to_ascii_lowercase().contains("json") {
+                match json_gzip_decodificado(arquivo.path())
+                    .map_err(|erro| self.erro_manifesto(erro.to_string()))?
+                {
+                    Some(decodificado) => arquivos.push(decodificado.into_temp_path()),
+                    None => arquivos.push(arquivo.into_temp_path()),
+                }
+            } else {
+                arquivos.push(arquivo.into_temp_path());
+            }
         }
         let caminhos: Vec<std::path::PathBuf> = arquivos.iter().map(|a| a.to_path_buf()).collect();
         let conteudos = self
@@ -250,6 +281,7 @@ impl Tarefa for TarefaDeBronze {
 #[cfg(test)]
 mod testes {
     use std::collections::HashMap;
+    use std::io::Write;
     use std::sync::Mutex;
 
     use chrono::{TimeZone, Utc};
@@ -258,6 +290,21 @@ mod testes {
     use super::*;
     use crate::decodificador::ParteBronze;
     use crate::escritor::{ErroDeRefino, Tabela};
+
+    #[test]
+    fn prepara_json_gzip_para_o_bronze_sem_alterar_arquivo_raw() {
+        let original = br#"[{"id":1}]"#;
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(original).unwrap();
+        let comprimido = encoder.finish().unwrap();
+        let mut arquivo = tempfile::NamedTempFile::new().unwrap();
+        arquivo.write_all(&comprimido).unwrap();
+
+        let decodificado = json_gzip_decodificado(arquivo.path()).unwrap().unwrap();
+
+        assert_eq!(std::fs::read(decodificado.path()).unwrap(), original);
+        assert_eq!(std::fs::read(arquivo.path()).unwrap(), comprimido);
+    }
 
     #[derive(Default)]
     struct RawEmMemoria {
