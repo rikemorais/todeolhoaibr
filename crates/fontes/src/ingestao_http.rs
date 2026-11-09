@@ -652,10 +652,11 @@ impl TarefaDeIngestaoHttp {
         )
         .await?;
         if !publicou {
-            warn!(
-                recurso = %self.recurso,
-                "outra rodada já publicou um ponteiro mais novo; este manifesto não é o vigente"
-            );
+            return Err(ErroDeIngestao::Manifesto {
+                recurso: self.recurso.clone(),
+                detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada"
+                    .into(),
+            });
         }
 
         Ok(resumo)
