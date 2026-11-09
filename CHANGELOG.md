@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.51.1] - 2026-11-09
+
+### Documentação
+
+- Mede chaves candidatas para as seis famílias regulares do TSE 2014 e documenta a semântica não definida dos arquivos `_sup` (issue #185, PR #289).
+
 ## [0.51.0] - 2026-11-09
 
 ### Adicionado
