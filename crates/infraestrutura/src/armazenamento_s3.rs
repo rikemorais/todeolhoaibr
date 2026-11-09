@@ -40,9 +40,10 @@ pub struct ArmazenamentoS3 {
 }
 
 impl ArmazenamentoS3 {
-    async fn repetir_escrita<T, F, Fut>(
+    async fn repetir<T, F, Fut>(
         &self,
         chave: &str,
+        rotulo: &str,
         mut operacao: F,
     ) -> Result<T, ErroDeIngestao>
     where
@@ -55,13 +56,13 @@ impl ArmazenamentoS3 {
                 Err(erro) if eh_transitorio(&erro) && tentativa < TENTATIVAS_DE_ESCRITA => {
                     let exponencial = ESPERA_BASE.saturating_mul(1 << (tentativa - 1));
                     let espera = exponencial + jitter(tentativa);
-                    warn!(%chave, %erro, tentativa, ?espera, "gravação S3 falhou; tentando novamente");
+                    warn!(%chave, %erro, tentativa, ?espera, %rotulo, "operação S3 falhou; tentando novamente");
                     tokio::time::sleep(espera).await;
                 }
                 Err(erro) => return Err(self.erro(chave, erro)),
             }
         }
-        unreachable!("ao menos uma tentativa de gravação é feita")
+        unreachable!("ao menos uma tentativa é feita")
     }
 
     /// Conecta ao serviço S3 com a configuração dada.
@@ -153,7 +154,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     }
 
     async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
-        self.repetir_escrita(&objeto.chave, || {
+        self.repetir(&objeto.chave, "PUT", || {
             self.bucket.put_object_with_content_type(
                 &objeto.chave,
                 &objeto.conteudo,
@@ -165,7 +166,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     }
 
     async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
-        self.repetir_escrita(chave, || self.bucket.delete_object(chave))
+        self.repetir(chave, "DELETE", || self.bucket.delete_object(chave))
             .await?;
         Ok(())
     }
@@ -178,7 +179,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     ) -> Result<(), ErroDeIngestao> {
         let primeira = ler_parte(fluxo).await.map_err(|e| self.erro(chave, e))?;
         if primeira.len() < TAMANHO_DA_PARTE {
-            self.repetir_escrita(chave, || {
+            self.repetir(chave, "PUT", || {
                 self.bucket
                     .put_object_with_content_type(chave, &primeira, tipo_de_conteudo)
             })
@@ -187,7 +188,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         }
 
         let envio = self
-            .repetir_escrita(chave, || {
+            .repetir(chave, "POST initiate-multipart", || {
                 self.bucket
                     .initiate_multipart_upload(chave, tipo_de_conteudo)
             })
@@ -293,7 +294,7 @@ impl ArmazenamentoS3 {
             }
         }
 
-        self.repetir_escrita(chave, || {
+        self.repetir(chave, "POST complete-multipart", || {
             self.bucket
                 .complete_multipart_upload(chave, id_do_envio, partes.clone())
         })
