@@ -8,6 +8,36 @@ use crate::decisao::EstadoNaRaw;
 use crate::erros::ErroDeIngestao;
 use crate::portas::{ArmazenamentoRaw, ObjetoRaw};
 use crate::raw::{LocalizacaoRaw, ManifestoRaw, UltimaVersao};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+
+type Trava = Arc<tokio::sync::Mutex<()>>;
+static TRAVAS: OnceLock<Mutex<HashMap<String, Trava>>> = OnceLock::new();
+
+/// Guarda a publicação de um recurso dentro deste processo, inclusive a
+/// conferência final da Bronze antes de publicar sua Silver.
+pub struct GuardaPublicacao {
+    _guarda: tokio::sync::OwnedMutexGuard<()>,
+}
+
+/// Serializa somente tarefas da mesma fonte e recurso neste processo.
+pub async fn bloquear_publicacao(fonte: &str, recurso: &str) -> GuardaPublicacao {
+    let chave = format!("{fonte}/{recurso}");
+    let trava = {
+        let mut travas = TRAVAS
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .unwrap();
+        Arc::clone(
+            travas
+                .entry(chave)
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
+        )
+    };
+    GuardaPublicacao {
+        _guarda: trava.lock_owned().await,
+    }
+}
 
 /// Lê o estado de um recurso na Raw.
 ///
@@ -96,19 +126,27 @@ pub async fn publicar_ponteiro(
     recurso: &str,
     nova: &UltimaVersao,
 ) -> Result<bool, ErroDeIngestao> {
-    // Serializa a leitura e gravação do ponteiro entre tarefas deste processo.
-    // O adaptador S3 ainda precisará de escrita condicional para coordenar
-    // publicadores em processos distintos.
-    static PUBLICACAO: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
-    let _guarda = PUBLICACAO
-        .get_or_init(|| tokio::sync::Mutex::new(()))
-        .lock()
-        .await;
+    let guarda = bloquear_publicacao(fonte, recurso).await;
+    publicar_ponteiro_sob_guarda(armazenamento, fonte, recurso, nova, &guarda).await
+}
+
+/// Publica após o chamador adquirir a guarda do recurso Bronze correspondente.
+/// Usado quando conferência Bronze e troca Silver precisam ser indivisíveis no processo.
+pub async fn publicar_ponteiro_sob_guarda(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+    nova: &UltimaVersao,
+    _guarda: &GuardaPublicacao,
+) -> Result<bool, ErroDeIngestao> {
     let chave = LocalizacaoRaw::ultima_versao(fonte, recurso);
 
     if let Some(bytes) = armazenamento.ler(&chave).await?
         && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(&bytes)
-        && vigente.iniciada_em > nova.iniciada_em
+        && (vigente.iniciada_em > nova.iniciada_em
+            || (vigente.iniciada_em.is_some()
+                && vigente.iniciada_em == nova.iniciada_em
+                && vigente.manifesto != nova.manifesto))
     {
         // Já há um ponteiro estritamente mais novo que o nosso: não sobrescreve.
         // (`None` ordena antes de qualquer data, então um ponteiro legado nunca
@@ -467,6 +505,28 @@ mod testes {
 
         assert!(!gravou);
         assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "nova");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_preserva_primeiro_manifesto_em_empate_de_inicio() {
+        let armazenamento = ArmazenamentoEmMemoria::default();
+        let inicio = Utc::now();
+        assert!(
+            publicar_ponteiro(
+                &armazenamento,
+                FONTE,
+                RECURSO,
+                &ponteiro("primeiro", inicio)
+            )
+            .await
+            .unwrap()
+        );
+        assert!(
+            !publicar_ponteiro(&armazenamento, FONTE, RECURSO, &ponteiro("segundo", inicio))
+                .await
+                .unwrap()
+        );
+        assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "primeiro");
     }
 
     #[tokio::test]
