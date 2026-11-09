@@ -142,6 +142,53 @@ linhas que diferem na comparação por hash. Não removi nem agrupei registros.
 Esses resultados rejeitam as combinações testadas para uso como chave única;
 uma identidade de negócio ainda precisa de evidência específica da origem.
 
+### Recortes validados: 2016–2022
+
+Validei o snapshot Bronze fixado em 2026-11-05 para as quatro famílias de cada
+ano. Cada família tem um único schema entre os Parquets do manifesto: 2016 tem
+26 UFs, `_brasil` e `_sup`; 2018 tem 27 UFs, `_BR` e `_BRASIL`; 2020 tem 26
+UFs e `_BRASIL`; 2022 tem 27 UFs, `_BR` e `_BRASIL`. O campo `UF` não foi
+normalizado nem excluído do hash.
+
+Para comparar conteúdo, calculei SHA-256 de `to_json(linha)` e comparei a
+multiplicidade de cada hash. Assim, zero grupos divergentes significa que os
+dois recortes contêm exatamente as mesmas linhas, inclusive suas repetições.
+`Repetidas` conta ocorrências além da primeira por hash dentro de cada recorte;
+nenhuma foi removida. Os valores são agregados e não incluem linhas ou dados
+pessoais.
+
+| Ano / família | Linhas UFs | Linhas `_BR` | Linhas `_BRASIL` / `_brasil` | Repetidas UFs / `_BR` / nacional | Grupos hash divergentes | Ocorrências divergentes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2016 `despesas_candidatos_prestacao_contas_final` | 5.588.616 | — | 5.588.616 | 63.612 / — / 63.612 | 0 | 0 |
+| 2016 `despesas_partidos_prestacao_contas_final` | 275.916 | — | 282.727 | 14.252 / — / 14.404 | 6.659 | 6.811 |
+| 2016 `receitas_candidatos_prestacao_contas_final` | 3.004.707 | — | 3.004.707 | 3.317 / — / 3.317 | 0 | 0 |
+| 2016 `receitas_partidos_prestacao_contas_final` | 139.230 | — | 140.496 | 1.172 / — / 1.172 | 1.266 | 1.266 |
+| 2018 `despesas_contratadas_candidatos` | 1.716.410 | 7.643 | 1.724.053 | 25.809 / 83 / 25.892 | 0 | 0 |
+| 2018 `despesas_pagas_candidatos` | 1.644.740 | 8.635 | 1.653.375 | 0 / 0 / 0 | 0 | 0 |
+| 2018 `receitas_candidatos` | 328.657 | 1.026 | 329.683 | 281 / 1 / 282 | 0 | 0 |
+| 2018 `receitas_candidatos_doador_originario` | 86.319 | 65.129 | 151.448 | 1.063 / 346 / 1.409 | 0 | 0 |
+| 2020 `despesas_contratadas_candidatos` | 4.107.531 | — | 4.107.531 | 55.321 / — / 55.321 | 0 | 0 |
+| 2020 `despesas_pagas_candidatos` | 3.086.924 | — | 3.086.924 | 0 / — / 0 | 0 | 0 |
+| 2020 `receitas_candidatos` | 2.339.073 | — | 2.339.073 | 1.432 / — / 1.432 | 0 | 0 |
+| 2020 `receitas_candidatos_doador_originario` | 662.577 | — | 662.577 | 1.084 / — / 1.084 | 0 | 0 |
+| 2022 `despesas_contratadas_candidatos` | 2.200.603 | 9.232 | 2.209.835 | 42.455 / 596 / 43.051 | 0 | 0 |
+| 2022 `despesas_pagas_candidatos` | 2.404.915 | 7.048 | 2.411.963 | 0 / 0 / 0 | 0 | 0 |
+| 2022 `receitas_candidatos` | 281.928 | 393.016 | 674.944 | 248 / 53 / 301 | 0 | 0 |
+| 2022 `receitas_candidatos_doador_originario` | 115.737 | 83.504 | 199.241 | 2.137 / 152 / 2.289 | 0 | 0 |
+
+Em 2018 e 2022, `_BRASIL` equivale exatamente à soma de `_BR` e UFs nas quatro
+famílias. Em 2020, `_BRASIL` equivale exatamente às UFs nas quatro famílias.
+Em 2016, `_brasil` equivale às UFs para despesas e receitas de candidatos. Para
+despesas de partidos, `_brasil` contém 6.811 ocorrências de hash adicionais;
+para receitas de partidos, contém 1.266. Não encontrei hashes presentes apenas
+nas UFs nesses dois recortes nacionais. Preservei os registros divergentes.
+
+As quatro partes `_sup` de 2016 têm zero linhas neste snapshot Bronze. Isso não
+altera a conclusão da [pesquisa oficial sobre `_sup`](pesquisa-tse-2014-sup.md):
+o TSE publica esse recurso separadamente, mas não documenta sua relação linha a
+linha com a prestação regular. Zero linhas no snapshot local não demonstra que
+o pacote oficial esteja vazio nem define a semântica do recurso.
+
 ### Próximas validações
 
 Em 2014, investigar as variantes e multiplicidades divergentes em
@@ -149,9 +196,11 @@ Em 2014, investigar as variantes e multiplicidades divergentes em
 de conteúdo para a identidade das linhas. A semântica dos arquivos `_sup` foi
 pesquisada em [nota separada](pesquisa-tse-2014-sup.md): o TSE os publica como
 recurso distinto, mas não documenta a relação linha a linha com a prestação
-regular; devem permanecer separados. Schemas, hashes de conteúdo, UF e essas
-sondas de chave já foram verificados para as partes de 2014. Para 2016–2022, a
-validação de conteúdo ainda está pendente. As pesquisas de [2002](pesquisa-tse-2002.md),
+regular; devem permanecer separados. Para 2016–2022, schemas, contagens e hashes
+de conteúdo agora foram comparados por família e recorte. As divergências de
+partidos em 2016 ainda precisam de explicação de domínio antes de escolher
+`_brasil` ou as UFs como fonte Silver. A identidade das chaves de negócio não
+foi determinada por estas comparações de conteúdo. As pesquisas de [2002](pesquisa-tse-2002.md),
 [2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
 [2010–2012](pesquisa-tse-2010-2012.md) e [2024](pesquisa-tse-2024.md)
 registram os demais recortes disponíveis.
