@@ -27,6 +27,8 @@ pub struct TarefaDeSilverSenadoVotacoes {
     bronze: Arc<dyn ArmazenamentoRaw>,
     snapshot: Arc<SnapshotBronze>,
     recurso: String,
+    destino: String,
+    votos: bool,
 }
 
 impl TarefaDeSilverSenadoVotacoes {
@@ -36,46 +38,71 @@ impl TarefaDeSilverSenadoVotacoes {
         snapshot: Arc<SnapshotBronze>,
         recurso: impl Into<String>,
     ) -> Self {
+        let recurso = recurso.into();
         Self {
             bronze,
             snapshot,
-            recurso: recurso.into(),
+            destino: recurso.clone(),
+            recurso,
+            votos: false,
         }
+    }
+
+    /// Cria a tarefa da tabela filha de votos, com nome próprio no DAG.
+    pub fn nova_votos(
+        bronze: Arc<dyn ArmazenamentoRaw>,
+        snapshot: Arc<SnapshotBronze>,
+        recurso: impl Into<String>,
+    ) -> Result<Self, ErroDeIngestao> {
+        let recurso = recurso.into();
+        let destino = recurso_votos(&recurso).ok_or_else(|| ErroDeIngestao::Manifesto {
+            recurso: recurso.clone(),
+            detalhe: "recurso de votações sem ano no caminho".into(),
+        })?;
+        Ok(Self {
+            bronze,
+            snapshot,
+            recurso,
+            destino,
+            votos: true,
+        })
     }
 
     /// Indica se a Silver acompanha o snapshot e a regra de transformação atuais.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
         let execucao = &self.snapshot.manifesto().id_execucao;
-        let versao_sessoes = format!("{execucao}|regra={REGRA}");
-        let sessao_atual = matches!(
-            estado_na_raw(silver, "senado", &self.recurso).await?,
-            Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao_sessoes.as_str())
+        let regra = if self.votos { REGRA_VOTOS } else { REGRA };
+        let versao = format!("{execucao}|regra={regra}");
+        let atual = matches!(
+            estado_na_raw(silver, "senado", &self.destino).await?,
+            Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
         );
-        let recurso_votos =
-            recurso_votos(&self.recurso).ok_or_else(|| ErroDeIngestao::Manifesto {
-                recurso: self.recurso.clone(),
-                detalhe: "recurso de votações sem ano no caminho".into(),
-            })?;
-        let versao_votos = format!("{execucao}|regra={REGRA_VOTOS}");
-        let votos_atuais = matches!(
-            estado_na_raw(silver, "senado", &recurso_votos).await?,
-            Some(ref estado) if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao_votos.as_str())
-        );
-        Ok(!sessao_atual || !votos_atuais)
+        Ok(!atual)
     }
 }
 
 #[async_trait]
 impl Tarefa for TarefaDeSilverSenadoVotacoes {
     fn nome(&self) -> &str {
-        &self.recurso
+        &self.destino
     }
 
     async fn executar(
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-        let sessoes = publicar_senado_votacoes(
+        if self.votos {
+            return publicar_senado_votos(
+                self.bronze.as_ref(),
+                contexto.armazenamento.as_ref(),
+                &self.snapshot,
+                &self.recurso,
+                contexto.iniciada_em,
+                &contexto.id_execucao,
+            )
+            .await;
+        }
+        publicar_senado_votacoes(
             self.bronze.as_ref(),
             contexto.armazenamento.as_ref(),
             &self.snapshot,
@@ -83,22 +110,7 @@ impl Tarefa for TarefaDeSilverSenadoVotacoes {
             contexto.iniciada_em,
             &contexto.id_execucao,
         )
-        .await?;
-        let votos = publicar_senado_votos(
-            self.bronze.as_ref(),
-            contexto.armazenamento.as_ref(),
-            &self.snapshot,
-            &self.recurso,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        )
-        .await?;
-        Ok(ResumoDaTarefa {
-            partes: sessoes.partes + votos.partes,
-            bytes: sessoes.bytes.saturating_add(votos.bytes),
-            reaproveitada: sessoes.reaproveitada && votos.reaproveitada,
-            motivo: None,
-        })
+        .await
     }
 }
 
@@ -315,17 +327,28 @@ mod testes {
             snapshot.clone(),
             recurso,
         );
+        let tarefa_votos = TarefaDeSilverSenadoVotacoes::nova_votos(
+            Arc::new(Memoria::default()),
+            snapshot.clone(),
+            recurso,
+        )
+        .unwrap();
+        assert_ne!(tarefa.nome(), tarefa_votos.nome());
         assert!(tarefa.pendente(&silver).await.unwrap());
+        assert!(tarefa_votos.pendente(&silver).await.unwrap());
         let resumo =
             publicar_senado_votacoes(&bronze, &silver, &snapshot, recurso, Utc::now(), "silver-1")
                 .await
                 .unwrap();
         assert_eq!(resumo.partes, 1);
+        assert!(!tarefa.pendente(&silver).await.unwrap());
+        assert!(tarefa_votos.pendente(&silver).await.unwrap());
         let votos =
             publicar_senado_votos(&bronze, &silver, &snapshot, recurso, Utc::now(), "silver-1")
                 .await
                 .unwrap();
         assert_eq!(votos.partes, 1);
+        assert!(!tarefa_votos.pendente(&silver).await.unwrap());
         assert!(
             silver
                 .ler(&LocalizacaoRaw::ultima_versao("senado", "votos/ano=2024"))
