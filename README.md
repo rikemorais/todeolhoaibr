@@ -201,7 +201,7 @@ Também é possível usar um cliente S3 em `http://localhost:7070`. A região e 
 As tabelas em Parquet do `bronze` são consultadas com SQL pelo **[DuckDB](https://duckdb.org/)** — uma "Athena local" que lê o Parquet **no lugar**, sem mover os dados ([ADR 0018](docs/adr/0018-motor-de-consulta-duckdb.md)). O serviço `consulta` sobe somente-leitura e já cria uma view por tabela (`bronze_<fonte>_<recurso>`, ex.: `bronze_camara_despesas`), com `ano`, `data_ingestao` e `execucao` vindos do caminho.
 
 ```bash
-# Console SQL web (editor + lista de tabelas), self-hosted, em http://localhost:4213
+# Console SQL web (editor + catálogo recolhível de tabelas), self-hosted, em http://localhost:4213
 docker compose up -d --build consulta
 
 # SQL no terminal (offline), com as views já carregadas
@@ -218,6 +218,8 @@ SELECT count(*) FROM read_parquet('s3://bronze/camara/despesas/ano=2024/**/*.par
 ```
 
 > O **console web** (`localhost:4213`) é nosso, self-hosted: não depende de serviço externo e as queries rodam 100% locais. A DuckDB Local UI oficial (`docker compose run --rm --service-ports consulta ui`) existe, mas depende da nuvem MotherDuck e costuma falhar na inicialização ([issue #167](https://github.com/rikemorais/todeolhoaibr/issues/167)); prefira o console web ou o `consulta sql`.
+
+No console web, o catálogo organiza as views em toggles por camada (`Bronze` e `Silver`) e, dentro de cada camada, por fonte (Câmara, Senado, IBGE, TSE e outras). Abrir uma tabela mantém o nome SQL completo, como `bronze_camara_despesas`.
 
 ### Encerrando
 

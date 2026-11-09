@@ -33,7 +33,7 @@ def base_recurso(recurso: str) -> str:
     return "/".join(p for p in recurso.split("/") if "=" not in p)
 
 
-def coletar(raiz: Path, camada: str) -> dict[str, list[str]]:
+def coletar(raiz: Path, camada: str, catalogo: dict[str, dict[str, str]] | None = None) -> dict[str, list[str]]:
     """Mapeia as views de uma camada para os Parquets da versão vigente."""
     tabelas: dict[str, list[str]] = {}
     if not raiz.is_dir():
@@ -49,6 +49,8 @@ def coletar(raiz: Path, camada: str) -> dict[str, list[str]]:
         if not fonte or not recurso:
             continue
         nome = sanitizar(f"{camada}_{fonte}_{recurso}")
+        if catalogo is not None:
+            catalogo[nome] = {"camada": camada, "fonte": fonte}
         for parte in manifesto.get("partes", []):
             chave = parte.get("chave")
             if chave:
@@ -57,7 +59,11 @@ def coletar(raiz: Path, camada: str) -> dict[str, list[str]]:
 
 
 def main() -> int:
-    tabelas = coletar(BRONZE, "bronze") | coletar(SILVER, "silver")
+    catalogo: dict[str, dict[str, str]] = {}
+    tabelas = coletar(BRONZE, "bronze", catalogo) | coletar(SILVER, "silver", catalogo)
+    if sys.argv[1:] == ["--catalogo-json"]:
+        print(json.dumps([{"nome": nome, **catalogo[nome]} for nome in sorted(catalogo)]))
+        return 0
     for nome in sorted(tabelas):
         arquivos = sorted(set(tabelas[nome]))
         lista = ", ".join("'" + a.replace("'", "''") + "'" for a in arquivos)
