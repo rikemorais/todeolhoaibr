@@ -982,6 +982,8 @@
       
         
       
+        
+      
     
     
       
@@ -1141,6 +1143,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#recortes-validados-20162022" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recortes validados: 2016–2022
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#proximas-validacoes" class="md-nav__link">
     <span class="md-ellipsis">
       Próximas validações
@@ -1175,6 +1186,27 @@
   
   <span class="md-ellipsis">
     TSE 2014: semântica do arquivo final suplementar
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pesquisa-tse-2016-2022/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fontes oficiais do TSE: prestação de contas 2016–2022
   </span>
   
 
@@ -1634,6 +1666,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#recortes-validados-20162022" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recortes validados: 2016–2022
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#proximas-validacoes" class="md-nav__link">
     <span class="md-ellipsis">
       Próximas validações
@@ -2053,15 +2094,199 @@ incompletas a mais que <code>_BR</code> + UFs; esta agregação não prova que s
 linhas que diferem na comparação por hash. Não removi nem agrupei registros.
 Esses resultados rejeitam as combinações testadas para uso como chave única;
 uma identidade de negócio ainda precisa de evidência específica da origem.</p>
+<h3 id="recortes-validados-20162022">Recortes validados: 2016–2022<a class="headerlink" href="#recortes-validados-20162022" title="Permanent link">&para;</a></h3>
+<p>Validei o snapshot Bronze fixado em 2026-11-05 para as quatro famílias de cada
+ano. Cada família tem um único schema entre os Parquets do manifesto: 2016 tem
+26 UFs, <code>_brasil</code> e <code>_sup</code>; 2018 tem 27 UFs, <code>_BR</code> e <code>_BRASIL</code>; 2020 tem 26
+UFs e <code>_BRASIL</code>; 2022 tem 27 UFs, <code>_BR</code> e <code>_BRASIL</code>. O campo <code>UF</code> não foi
+normalizado nem excluído do hash.</p>
+<p>Para comparar conteúdo, calculei SHA-256 de <code>to_json(linha)</code> e comparei a
+multiplicidade de cada hash. Assim, zero grupos divergentes significa que os
+dois recortes contêm exatamente as mesmas linhas, inclusive suas repetições.
+<code>Repetidas</code> conta ocorrências além da primeira por hash dentro de cada recorte;
+nenhuma foi removida. Os valores são agregados e não incluem linhas ou dados
+pessoais.</p>
+<table>
+<thead>
+<tr>
+<th>Ano / família</th>
+<th style="text-align: right;">Linhas UFs</th>
+<th style="text-align: right;">Linhas <code>_BR</code></th>
+<th style="text-align: right;">Linhas <code>_BRASIL</code> / <code>_brasil</code></th>
+<th style="text-align: right;">Repetidas UFs / <code>_BR</code> / nacional</th>
+<th style="text-align: right;">Grupos hash divergentes</th>
+<th style="text-align: right;">Ocorrências divergentes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2016 <code>despesas_candidatos_prestacao_contas_final</code></td>
+<td style="text-align: right;">5.588.616</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">5.588.616</td>
+<td style="text-align: right;">63.612 / — / 63.612</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2016 <code>despesas_partidos_prestacao_contas_final</code></td>
+<td style="text-align: right;">275.916</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">282.727</td>
+<td style="text-align: right;">14.252 / — / 14.404</td>
+<td style="text-align: right;">6.659</td>
+<td style="text-align: right;">6.811</td>
+</tr>
+<tr>
+<td>2016 <code>receitas_candidatos_prestacao_contas_final</code></td>
+<td style="text-align: right;">3.004.707</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">3.004.707</td>
+<td style="text-align: right;">3.317 / — / 3.317</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2016 <code>receitas_partidos_prestacao_contas_final</code></td>
+<td style="text-align: right;">139.230</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">140.496</td>
+<td style="text-align: right;">1.172 / — / 1.172</td>
+<td style="text-align: right;">1.266</td>
+<td style="text-align: right;">1.266</td>
+</tr>
+<tr>
+<td>2018 <code>despesas_contratadas_candidatos</code></td>
+<td style="text-align: right;">1.716.410</td>
+<td style="text-align: right;">7.643</td>
+<td style="text-align: right;">1.724.053</td>
+<td style="text-align: right;">25.809 / 83 / 25.892</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2018 <code>despesas_pagas_candidatos</code></td>
+<td style="text-align: right;">1.644.740</td>
+<td style="text-align: right;">8.635</td>
+<td style="text-align: right;">1.653.375</td>
+<td style="text-align: right;">0 / 0 / 0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2018 <code>receitas_candidatos</code></td>
+<td style="text-align: right;">328.657</td>
+<td style="text-align: right;">1.026</td>
+<td style="text-align: right;">329.683</td>
+<td style="text-align: right;">281 / 1 / 282</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2018 <code>receitas_candidatos_doador_originario</code></td>
+<td style="text-align: right;">86.319</td>
+<td style="text-align: right;">65.129</td>
+<td style="text-align: right;">151.448</td>
+<td style="text-align: right;">1.063 / 346 / 1.409</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2020 <code>despesas_contratadas_candidatos</code></td>
+<td style="text-align: right;">4.107.531</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">4.107.531</td>
+<td style="text-align: right;">55.321 / — / 55.321</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2020 <code>despesas_pagas_candidatos</code></td>
+<td style="text-align: right;">3.086.924</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">3.086.924</td>
+<td style="text-align: right;">0 / — / 0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2020 <code>receitas_candidatos</code></td>
+<td style="text-align: right;">2.339.073</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">2.339.073</td>
+<td style="text-align: right;">1.432 / — / 1.432</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2020 <code>receitas_candidatos_doador_originario</code></td>
+<td style="text-align: right;">662.577</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">662.577</td>
+<td style="text-align: right;">1.084 / — / 1.084</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2022 <code>despesas_contratadas_candidatos</code></td>
+<td style="text-align: right;">2.200.603</td>
+<td style="text-align: right;">9.232</td>
+<td style="text-align: right;">2.209.835</td>
+<td style="text-align: right;">42.455 / 596 / 43.051</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2022 <code>despesas_pagas_candidatos</code></td>
+<td style="text-align: right;">2.404.915</td>
+<td style="text-align: right;">7.048</td>
+<td style="text-align: right;">2.411.963</td>
+<td style="text-align: right;">0 / 0 / 0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2022 <code>receitas_candidatos</code></td>
+<td style="text-align: right;">281.928</td>
+<td style="text-align: right;">393.016</td>
+<td style="text-align: right;">674.944</td>
+<td style="text-align: right;">248 / 53 / 301</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2022 <code>receitas_candidatos_doador_originario</code></td>
+<td style="text-align: right;">115.737</td>
+<td style="text-align: right;">83.504</td>
+<td style="text-align: right;">199.241</td>
+<td style="text-align: right;">2.137 / 152 / 2.289</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>Em 2018 e 2022, <code>_BRASIL</code> equivale exatamente à soma de <code>_BR</code> e UFs nas quatro
+famílias. Em 2020, <code>_BRASIL</code> equivale exatamente às UFs nas quatro famílias.
+Em 2016, <code>_brasil</code> equivale às UFs para despesas e receitas de candidatos. Para
+despesas de partidos, <code>_brasil</code> contém 6.811 ocorrências de hash adicionais;
+para receitas de partidos, contém 1.266. Não encontrei hashes presentes apenas
+nas UFs nesses dois recortes nacionais. Preservei os registros divergentes.</p>
+<p>As quatro partes <code>_sup</code> de 2016 têm zero linhas neste snapshot Bronze. Isso não
+altera a conclusão da <a href="../pesquisa-tse-2014-sup/">pesquisa oficial sobre <code>_sup</code></a>:
+o TSE publica esse recurso separadamente, mas não documenta sua relação linha a
+linha com a prestação regular. Zero linhas no snapshot local não demonstra que
+o pacote oficial esteja vazio nem define a semântica do recurso.</p>
 <h3 id="proximas-validacoes">Próximas validações<a class="headerlink" href="#proximas-validacoes" title="Permanent link">&para;</a></h3>
 <p>Em 2014, investigar as variantes e multiplicidades divergentes em
 <code>despesas_partidos_2014</code> e <code>receitas_partidos_2014</code> e obter evidência oficial ou
 de conteúdo para a identidade das linhas. A semântica dos arquivos <code>_sup</code> foi
 pesquisada em <a href="../pesquisa-tse-2014-sup/">nota separada</a>: o TSE os publica como
 recurso distinto, mas não documenta a relação linha a linha com a prestação
-regular; devem permanecer separados. Schemas, hashes de conteúdo, UF e essas
-sondas de chave já foram verificados para as partes de 2014. Para 2016–2022, a
-validação de conteúdo ainda está pendente. As pesquisas de <a href="../pesquisa-tse-2002/">2002</a>,
+regular; devem permanecer separados. Para 2016–2022, schemas, contagens e hashes
+de conteúdo agora foram comparados por família e recorte. As divergências de
+partidos em 2016 ainda precisam de explicação de domínio antes de escolher
+<code>_brasil</code> ou as UFs como fonte Silver. A identidade das chaves de negócio não
+foi determinada por estas comparações de conteúdo. As pesquisas de <a href="../pesquisa-tse-2002/">2002</a>,
 <a href="../pesquisa-tse-2004-2006/">2004–2006</a>, <a href="../pesquisa-tse-2008/">2008</a>,
 <a href="../pesquisa-tse-2010-2012/">2010–2012</a> e <a href="../pesquisa-tse-2024/">2024</a>
 registram os demais recortes disponíveis.</p>
