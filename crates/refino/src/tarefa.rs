@@ -267,7 +267,11 @@ impl Tarefa for TarefaDeBronze {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        publicar_ponteiro(bronze, &self.fonte, &self.recurso, &ponteiro).await?;
+        if !publicar_ponteiro(bronze, &self.fonte, &self.recurso, &ponteiro).await? {
+            return Err(self.erro_manifesto(
+                "ponteiro Bronze mais recente preservado; esta execução não foi publicada".into(),
+            ));
+        }
 
         Ok(ResumoDaTarefa {
             partes: partes.len(),
