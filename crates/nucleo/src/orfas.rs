@@ -3,7 +3,7 @@
 //! incompleto). A limpeza só remove objetos comprovadamente desprotegidos — sem
 //! manifesto — e nunca atinge partes de ingestões vigentes.
 //!
-//! Ver issue #269 e PR #268 (revisão).
+//! Ver issue #269 e PR #278 (revisão).
 
 use std::collections::HashSet;
 use std::time::Duration;
@@ -14,94 +14,124 @@ use crate::erros::ErroDeIngestao;
 use crate::portas::{ArmazenamentoRaw, FalhaDeRemocao};
 use crate::raw::ManifestoRaw;
 
-/// Concorrência padrão para remoção de órfãs.
 const CONCORRENCIA: usize = 4;
-/// Deadline padrão para remoção de órfãs.
 const DEADLINE: Duration = Duration::from_secs(30);
+
+/// Resultado da verificação de manifesto após erro ambíguo.
+#[derive(Debug)]
+pub enum ResultadoVerificacao {
+    /// Manifesto existe e é válido — partes protegidas, nenhuma remoção feita.
+    ManifestoConfirmado,
+    /// Manifesto ausente — partes removidas (falhas individuais no vetor).
+    ManifestoAusente(Vec<FalhaDeRemocao>),
+    /// Manifesto presente mas ilegível — partes removidas por precaução.
+    ManifestoIlegivel(Vec<FalhaDeRemocao>),
+}
 
 /// Verifica se o manifesto de uma execução realmente foi gravado e, se não,
 /// remove as partes que ficariam desprotegidas.
 ///
 /// Cenário: a gravação do manifesto recebeu erro de rede, mas o servidor pode
 /// ter feito o commit. Esta função verifica o estado real antes de apagar.
-///
-/// Devolve `true` se o manifesto existe (partes protegidas), `false` se não
-/// existia e as partes foram limpas.
 pub async fn verificar_manifesto_ou_limpar(
     armazenamento: &dyn ArmazenamentoRaw,
     chave_manifesto: &str,
     partes_novas: &[String],
-) -> Result<bool, ErroDeIngestao> {
-    // Verifica se o manifesto realmente existe no armazenamento.
+) -> Result<ResultadoVerificacao, ErroDeIngestao> {
     match armazenamento.ler(chave_manifesto).await? {
         Some(bytes) => {
-            // O manifesto existe — verificar se é válido e referencia estas partes.
             if serde_json::from_slice::<ManifestoRaw>(&bytes).is_ok() {
                 info!(
                     manifesto = %chave_manifesto,
                     "manifesto confirmado após erro ambíguo; partes protegidas"
                 );
-                return Ok(true);
+                return Ok(ResultadoVerificacao::ManifestoConfirmado);
             }
-            // Manifesto existe mas é ilegível — partes ficam desprotegidas.
             warn!(
                 manifesto = %chave_manifesto,
                 "manifesto ilegível após erro ambíguo; removendo partes órfãs"
             );
+            let falhas =
+                remover_e_logar(armazenamento, partes_novas, "verificação de manifesto").await;
+            Ok(ResultadoVerificacao::ManifestoIlegivel(falhas))
         }
         None => {
             info!(
                 manifesto = %chave_manifesto,
                 "manifesto ausente após erro ambíguo; removendo partes órfãs"
             );
+            let falhas =
+                remover_e_logar(armazenamento, partes_novas, "verificação de manifesto").await;
+            Ok(ResultadoVerificacao::ManifestoAusente(falhas))
         }
     }
-
-    let falhas = armazenamento
-        .remover_lote(partes_novas, CONCORRENCIA, DEADLINE)
-        .await;
-    for falha in &falhas {
-        warn!(
-            chave = %falha.chave,
-            detalhe = %falha.detalhe,
-            "falha ao remover parte órfã após verificação de manifesto"
-        );
-    }
-
-    Ok(false)
 }
 
 /// Varre um prefixo no armazenamento e remove objetos que não pertencem a
-/// nenhum manifesto vigente.
+/// nenhum manifesto vigente nem à execução corrente.
 ///
-/// Funciona assim:
-/// 1. Lista todas as chaves sob `prefixo_recurso` (ex.: `fonte/recurso/`).
-/// 2. Para cada manifesto encontrado, coleta as partes referenciadas.
-/// 3. Qualquer chave que não seja um manifesto, um ponteiro, e que não esteja
-///    nas partes de nenhum manifesto, é uma órfã e será removida.
+/// `id_execucao_atual` exclui partes da ingestão em andamento para evitar
+/// colisão quando duas execuções do mesmo recurso se sobrepõem.
 ///
-/// Devolve o número de órfãs encontradas (mesmo que nem todas tenham sido
-/// removidas com sucesso).
+/// Se um manifesto listado não puder ser lido ou desserializado, todas as
+/// chaves sob a mesma execução são consideradas protegidas (princípio
+/// conservador: na dúvida, não apagar).
 pub async fn limpar_orfas_do_recurso(
     armazenamento: &dyn ArmazenamentoRaw,
     prefixo_recurso: &str,
+    id_execucao_atual: &str,
 ) -> Result<(usize, Vec<FalhaDeRemocao>), ErroDeIngestao> {
     let chaves = armazenamento.listar_prefixo(prefixo_recurso).await?;
     if chaves.is_empty() {
         return Ok((0, Vec::new()));
     }
 
-    // Coleta todas as chaves protegidas: manifestos, ponteiros e partes referenciadas.
     let mut protegidas = HashSet::new();
+
+    // Protege tudo da execução corrente.
+    for chave in &chaves {
+        if chave.contains(&format!("execucao={id_execucao_atual}/")) {
+            protegidas.insert(chave.clone());
+        }
+    }
+
     for chave in &chaves {
         if chave.ends_with("/_manifesto.json") {
             protegidas.insert(chave.clone());
-            // Lê o manifesto para encontrar partes referenciadas.
-            if let Ok(Some(bytes)) = armazenamento.ler(chave).await
-                && let Ok(manifesto) = serde_json::from_slice::<ManifestoRaw>(&bytes)
-            {
-                for parte in &manifesto.partes {
-                    protegidas.insert(parte.chave.clone());
+            match armazenamento.ler(chave).await {
+                Ok(Some(bytes)) => match serde_json::from_slice::<ManifestoRaw>(&bytes) {
+                    Ok(manifesto) => {
+                        for parte in &manifesto.partes {
+                            protegidas.insert(parte.chave.clone());
+                        }
+                    }
+                    Err(_) => {
+                        // Manifesto ilegível: proteger TODAS as chaves sob a mesma
+                        // execução para não apagar dados referenciados.
+                        warn!(
+                            manifesto = %chave,
+                            "manifesto ilegível; protegendo toda a execução"
+                        );
+                        let prefixo_exec = prefixo_da_execucao(chave);
+                        for outra in &chaves {
+                            if outra.starts_with(&prefixo_exec) {
+                                protegidas.insert(outra.clone());
+                            }
+                        }
+                    }
+                },
+                Ok(None) | Err(_) => {
+                    // Listou mas não conseguiu ler: proteger a execução inteira.
+                    warn!(
+                        manifesto = %chave,
+                        "falha ao ler manifesto listado; protegendo toda a execução"
+                    );
+                    let prefixo_exec = prefixo_da_execucao(chave);
+                    for outra in &chaves {
+                        if outra.starts_with(&prefixo_exec) {
+                            protegidas.insert(outra.clone());
+                        }
+                    }
                 }
             }
         }
@@ -110,7 +140,6 @@ pub async fn limpar_orfas_do_recurso(
         }
     }
 
-    // Órfãs: chaves que existem mas não são protegidas.
     let orfas: Vec<String> = chaves
         .into_iter()
         .filter(|chave| !protegidas.contains(chave))
@@ -127,18 +156,36 @@ pub async fn limpar_orfas_do_recurso(
         "encontradas partes órfãs; iniciando limpeza"
     );
 
+    let falhas = remover_e_logar(armazenamento, &orfas, "varredura").await;
+    Ok((total, falhas))
+}
+
+/// Extrai o prefixo da execução de uma chave de manifesto.
+/// Ex.: `ibge/estados/data=.../execucao=abc/_manifesto.json` → `ibge/estados/data=.../execucao=abc/`
+fn prefixo_da_execucao(chave_manifesto: &str) -> String {
+    match chave_manifesto.rfind('/') {
+        Some(pos) => chave_manifesto[..=pos].to_owned(),
+        None => chave_manifesto.to_owned(),
+    }
+}
+
+async fn remover_e_logar(
+    armazenamento: &dyn ArmazenamentoRaw,
+    chaves: &[String],
+    contexto: &str,
+) -> Vec<FalhaDeRemocao> {
     let falhas = armazenamento
-        .remover_lote(&orfas, CONCORRENCIA, DEADLINE)
+        .remover_lote(chaves, CONCORRENCIA, DEADLINE)
         .await;
     for falha in &falhas {
         warn!(
             chave = %falha.chave,
             detalhe = %falha.detalhe,
-            "falha ao remover parte órfã durante varredura"
+            contexto = %contexto,
+            "falha ao remover parte órfã"
         );
     }
-
-    Ok((total, falhas))
+    falhas
 }
 
 #[cfg(test)]
@@ -251,7 +298,7 @@ mod testes {
             ("p2".to_owned(), b"dados2".to_vec()),
         ]);
 
-        let protegido = verificar_manifesto_ou_limpar(
+        let resultado = verificar_manifesto_ou_limpar(
             &armazenamento,
             "_manifesto.json",
             &["p1".to_owned(), "p2".to_owned()],
@@ -259,7 +306,10 @@ mod testes {
         .await
         .unwrap();
 
-        assert!(protegido);
+        assert!(matches!(
+            resultado,
+            ResultadoVerificacao::ManifestoConfirmado
+        ));
         assert!(armazenamento.contem("p1"));
         assert!(armazenamento.contem("p2"));
     }
@@ -271,7 +321,7 @@ mod testes {
             ("p2".to_owned(), b"dados2".to_vec()),
         ]);
 
-        let protegido = verificar_manifesto_ou_limpar(
+        let resultado = verificar_manifesto_ou_limpar(
             &armazenamento,
             "_manifesto.json",
             &["p1".to_owned(), "p2".to_owned()],
@@ -279,24 +329,26 @@ mod testes {
         .await
         .unwrap();
 
-        assert!(!protegido);
+        assert!(matches!(resultado, ResultadoVerificacao::ManifestoAusente(ref f) if f.is_empty()));
         assert!(!armazenamento.contem("p1"));
         assert!(!armazenamento.contem("p2"));
     }
 
     #[tokio::test]
-    async fn manifesto_ilegivel_limpa_partes() {
+    async fn manifesto_ilegivel_limpa_partes_e_sinaliza() {
         let armazenamento = ArmazenamentoEmMemoria::com([
             ("_manifesto.json".to_owned(), b"nao e json".to_vec()),
             ("p1".to_owned(), b"dados".to_vec()),
         ]);
 
-        let protegido =
+        let resultado =
             verificar_manifesto_ou_limpar(&armazenamento, "_manifesto.json", &["p1".to_owned()])
                 .await
                 .unwrap();
 
-        assert!(!protegido);
+        assert!(
+            matches!(resultado, ResultadoVerificacao::ManifestoIlegivel(ref f) if f.is_empty())
+        );
         assert!(!armazenamento.contem("p1"));
     }
 
@@ -325,7 +377,7 @@ mod testes {
             ),
         ]);
 
-        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/")
+        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
             .await
             .unwrap();
         assert_eq!(total, 0);
@@ -335,7 +387,6 @@ mod testes {
 
     #[tokio::test]
     async fn remove_orfas_sem_manifesto() {
-        // Duas partes de uma execução que não tem manifesto (cancelada).
         let armazenamento = ArmazenamentoEmMemoria::com([
             (
                 "ibge/estados/exec2/parte-00001.json".to_owned(),
@@ -347,7 +398,7 @@ mod testes {
             ),
         ]);
 
-        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/")
+        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
             .await
             .unwrap();
         assert_eq!(total, 2);
@@ -358,7 +409,6 @@ mod testes {
 
     #[tokio::test]
     async fn preserva_partes_de_execucao_vigente_e_remove_as_orfas() {
-        // Exec1: completa com manifesto. Exec2: cancelada, sem manifesto.
         let manifesto = manifesto_com_partes(vec![parte("ibge/estados/exec1/parte-00001.json")]);
         let armazenamento = ArmazenamentoEmMemoria::com([
             (
@@ -369,7 +419,6 @@ mod testes {
                 "ibge/estados/exec1/parte-00001.json".to_owned(),
                 b"vigente".to_vec(),
             ),
-            // Órfãs de exec2 (sem manifesto):
             (
                 "ibge/estados/exec2/parte-00001.json".to_owned(),
                 b"orfa1".to_vec(),
@@ -380,16 +429,69 @@ mod testes {
             ),
         ]);
 
-        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/")
+        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
             .await
             .unwrap();
         assert_eq!(total, 2);
         assert!(falhas.is_empty());
-        // Vigentes preservadas:
         assert!(armazenamento.contem("ibge/estados/exec1/_manifesto.json"));
         assert!(armazenamento.contem("ibge/estados/exec1/parte-00001.json"));
-        // Órfãs removidas:
         assert!(!armazenamento.contem("ibge/estados/exec2/parte-00001.json"));
         assert!(!armazenamento.contem("ibge/estados/exec2/parte-00002.json"));
+    }
+
+    #[tokio::test]
+    async fn execucao_atual_nunca_e_removida() {
+        // Partes da execução corrente ainda sem manifesto — não são órfãs.
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (
+                "ibge/estados/execucao=corrente/parte-00001.json".to_owned(),
+                b"em andamento".to_vec(),
+            ),
+            (
+                "ibge/estados/execucao=velha/parte-00001.json".to_owned(),
+                b"orfa".to_vec(),
+            ),
+        ]);
+
+        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
+            .await
+            .unwrap();
+        assert_eq!(total, 1);
+        assert!(falhas.is_empty());
+        assert!(armazenamento.contem("ibge/estados/execucao=corrente/parte-00001.json"));
+        assert!(!armazenamento.contem("ibge/estados/execucao=velha/parte-00001.json"));
+    }
+
+    #[tokio::test]
+    async fn manifesto_ilegivel_protege_execucao_inteira() {
+        // Manifesto presente mas corrompido — todas as partes sob essa execução
+        // ficam protegidas (princípio conservador).
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (
+                "ibge/estados/exec1/_manifesto.json".to_owned(),
+                b"corrompido".to_vec(),
+            ),
+            (
+                "ibge/estados/exec1/parte-00001.json".to_owned(),
+                b"referenciada?".to_vec(),
+            ),
+            // Órfã real (outra execução):
+            (
+                "ibge/estados/exec2/parte-00001.json".to_owned(),
+                b"orfa".to_vec(),
+            ),
+        ]);
+
+        let (total, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
+            .await
+            .unwrap();
+        assert_eq!(total, 1);
+        assert!(falhas.is_empty());
+        // Protegidas apesar do manifesto ilegível:
+        assert!(armazenamento.contem("ibge/estados/exec1/_manifesto.json"));
+        assert!(armazenamento.contem("ibge/estados/exec1/parte-00001.json"));
+        // Órfã removida:
+        assert!(!armazenamento.contem("ibge/estados/exec2/parte-00001.json"));
     }
 }

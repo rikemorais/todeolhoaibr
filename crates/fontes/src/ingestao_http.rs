@@ -407,13 +407,23 @@ impl Tarefa for TarefaDeIngestaoHttp {
             if manifesto_gravado {
                 // Erro após marcar o manifesto como gravado: a escrita pode ter
                 // chegado ao servidor (resultado ambíguo). Verificar antes de apagar.
-                todeolho_nucleo::verificar_manifesto_ou_limpar(
+                match todeolho_nucleo::verificar_manifesto_ou_limpar(
                     contexto.armazenamento.as_ref(),
                     &chave_manifesto,
                     &novas,
                 )
                 .await
-                .ok();
+                {
+                    Ok(_) => {}
+                    Err(erro) => {
+                        warn!(
+                            %erro,
+                            manifesto = %chave_manifesto,
+                            "falha ao verificar manifesto após erro ambíguo; \
+                             partes órfãs pendentes de recuperação"
+                        );
+                    }
+                }
             } else {
                 let falhas = contexto
                     .armazenamento
@@ -476,6 +486,7 @@ impl TarefaDeIngestaoHttp {
         if let Err(erro) = todeolho_nucleo::limpar_orfas_do_recurso(
             contexto.armazenamento.as_ref(),
             &prefixo_recurso,
+            &contexto.id_execucao,
         )
         .await
         {
