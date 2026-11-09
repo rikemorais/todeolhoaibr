@@ -40,9 +40,10 @@ pub struct ArmazenamentoS3 {
 }
 
 impl ArmazenamentoS3 {
-    async fn repetir_escrita<T, F, Fut>(
+    async fn repetir<T, F, Fut>(
         &self,
         chave: &str,
+        rotulo: &str,
         mut operacao: F,
     ) -> Result<T, ErroDeIngestao>
     where
@@ -55,13 +56,13 @@ impl ArmazenamentoS3 {
                 Err(erro) if eh_transitorio(&erro) && tentativa < TENTATIVAS_DE_ESCRITA => {
                     let exponencial = ESPERA_BASE.saturating_mul(1 << (tentativa - 1));
                     let espera = exponencial + jitter(tentativa);
-                    warn!(%chave, %erro, tentativa, ?espera, "gravação S3 falhou; tentando novamente");
+                    warn!(%chave, %erro, tentativa, ?espera, %rotulo, "operação S3 falhou; tentando novamente");
                     tokio::time::sleep(espera).await;
                 }
                 Err(erro) => return Err(self.erro(chave, erro)),
             }
         }
-        unreachable!("ao menos uma tentativa de gravação é feita")
+        unreachable!("ao menos uma tentativa é feita")
     }
 
     /// Conecta ao serviço S3 com a configuração dada.
@@ -153,7 +154,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     }
 
     async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
-        self.repetir_escrita(&objeto.chave, || {
+        self.repetir(&objeto.chave, "PUT", || {
             self.bucket.put_object_with_content_type(
                 &objeto.chave,
                 &objeto.conteudo,
@@ -165,10 +166,8 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     }
 
     async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
-        self.bucket
-            .delete_object(chave)
-            .await
-            .map_err(|e| self.erro(chave, e))?;
+        self.repetir(chave, "DELETE", || self.bucket.delete_object(chave))
+            .await?;
         Ok(())
     }
 
@@ -180,7 +179,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     ) -> Result<(), ErroDeIngestao> {
         let primeira = ler_parte(fluxo).await.map_err(|e| self.erro(chave, e))?;
         if primeira.len() < TAMANHO_DA_PARTE {
-            self.repetir_escrita(chave, || {
+            self.repetir(chave, "PUT", || {
                 self.bucket
                     .put_object_with_content_type(chave, &primeira, tipo_de_conteudo)
             })
@@ -189,7 +188,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         }
 
         let envio = self
-            .repetir_escrita(chave, || {
+            .repetir(chave, "POST initiate-multipart", || {
                 self.bucket
                     .initiate_multipart_upload(chave, tipo_de_conteudo)
             })
@@ -295,7 +294,7 @@ impl ArmazenamentoS3 {
             }
         }
 
-        self.repetir_escrita(chave, || {
+        self.repetir(chave, "POST complete-multipart", || {
             self.bucket
                 .complete_multipart_upload(chave, id_do_envio, partes.clone())
         })
@@ -450,6 +449,7 @@ mod testes {
                     200 => "OK",
                     204 => "No Content",
                     404 => "Not Found",
+                    503 => "Service Unavailable",
                     status => panic!("status de mock não previsto: {status}"),
                 };
                 let tamanho_corpo = resposta
@@ -704,6 +704,25 @@ mod testes {
         for tentativa in 1..=TENTATIVAS_DE_ESCRITA {
             assert!(jitter(tentativa) < std::time::Duration::from_millis(200));
         }
+    }
+
+    #[tokio::test]
+    async fn remover_repete_apos_falha_transitoria() {
+        // 1ª tentativa: 503 (transitório, reconhecido por `eh_transitorio`).
+        // 2ª tentativa: 204 (sucesso).
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(503, "", "Service Unavailable"),
+            resposta_s3(204, "", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+
+        // Deve ter sucesso após retry automático.
+        s3.remover("objeto-teste").await.unwrap();
+
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 2, "deve ter tentado duas vezes");
+        assert!(requisicoes[0].starts_with("DELETE /teste-raw-79/objeto-teste"));
+        assert!(requisicoes[1].starts_with("DELETE /teste-raw-79/objeto-teste"));
     }
 
     // --- Integração: #[ignore] por padrão; `cargo test -- --ignored` com o versitygw no ar ---
