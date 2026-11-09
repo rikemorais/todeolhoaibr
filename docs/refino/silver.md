@@ -59,6 +59,19 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 4. Política para inválidos: motivo, contagem, referência à linha de origem e limiar de falha.
 5. Versão do contrato/regra e linhagem até manifesto, recurso e tabela bronze.
 
+### Qualidade e publicação
+
+O [ADR 0020](../adr/0020-contrato-da-camada-silver.md#politica-de-qualidade-e-falha-parcial)
+fixa limiar zero por padrão para falha de campo obrigatório, conversão
+obrigatória, conflito de chave e perda de linhagem. Conversão opcional para
+nulo exige valor original preservado e contagem por motivo. Duplicata integral
+é removida apenas por regra específica comprovada; famílias sem identidade
+validada preservam todas as ocorrências com manifesto, parte e ordinal Bronze.
+Uma falha mantém o ponteiro Silver anterior. Diagnóstico recuperável por linha
+e métricas de rejeição são parte do contrato alvo; o publicador atual ainda não
+os emite de forma estruturada, então não ativar um contrato que dependa dessa
+quarentena antes de implementá-la.
+
 ### Referência técnica da linha bronze
 
 O leitor [`LeitorDeParteBronze`](../../crates/refino/src/linhagem.rs) percorre uma parte Parquet em lotes, sem projeção ou filtro, e associa cada registro à chave do manifesto bronze, à chave da parte, ao nome da tabela de origem e ao ordinal da linha na parte (começando em 1). O ordinal continua entre lotes e não depende do tamanho do lote de leitura. Assim, duas linhas iguais no mesmo Parquet ainda têm referências distintas, e variantes com a mesma sequência oficial permanecem rastreáveis.
