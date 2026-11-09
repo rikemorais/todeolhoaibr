@@ -71,16 +71,25 @@ pub trait ArmazenamentoRaw: Send + Sync {
 
         let concorrencia = concorrencia.max(1);
         let falhas = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let removidas = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashSet::<
+            String,
+        >::new()));
 
         let trabalho = stream::iter(chaves.iter().cloned())
             .map(|chave| {
                 let falhas = falhas.clone();
+                let removidas = removidas.clone();
                 async move {
-                    if let Err(erro) = self.remover(&chave).await {
-                        falhas.lock().await.push(FalhaDeRemocao {
-                            chave,
-                            detalhe: erro.to_string(),
-                        });
+                    match self.remover(&chave).await {
+                        Ok(()) => {
+                            removidas.lock().await.insert(chave);
+                        }
+                        Err(erro) => {
+                            falhas.lock().await.push(FalhaDeRemocao {
+                                chave,
+                                detalhe: erro.to_string(),
+                            });
+                        }
                     }
                 }
             })
@@ -90,14 +99,17 @@ pub trait ArmazenamentoRaw: Send + Sync {
         let expirou = tokio::time::timeout(deadline, trabalho).await.is_err();
 
         let mut resultado = std::sync::Arc::try_unwrap(falhas)
-            .expect("único dono do Arc")
+            .expect("único dono do Arc de falhas")
             .into_inner();
 
         if expirou {
-            let ja_registradas: std::collections::HashSet<String> =
+            let ok = std::sync::Arc::try_unwrap(removidas)
+                .expect("único dono do Arc de removidas")
+                .into_inner();
+            let ja_falharam: std::collections::HashSet<String> =
                 resultado.iter().map(|f| f.chave.clone()).collect();
             for chave in chaves {
-                if !ja_registradas.contains(chave) {
+                if !ok.contains(chave) && !ja_falharam.contains(chave) {
                     resultado.push(FalhaDeRemocao {
                         chave: chave.clone(),
                         detalhe: "deadline de remoção expirado".into(),
@@ -398,6 +410,14 @@ mod testes {
         let chaves = vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
         let falhas = arm.remover_lote(&chaves, 4, Duration::from_secs(5)).await;
         assert_eq!(falhas.len(), 3);
+        let chaves_falhadas: std::collections::HashSet<&str> =
+            falhas.iter().map(|f| f.chave.as_str()).collect();
+        assert_eq!(
+            chaves_falhadas,
+            ["a", "b", "c"]
+                .into_iter()
+                .collect::<std::collections::HashSet<&str>>(),
+        );
         for falha in &falhas {
             assert!(
                 falha.detalhe.contains("S3 indisponível"),
@@ -416,13 +436,23 @@ mod testes {
             .remover_lote(&chaves, 4, Duration::from_millis(100))
             .await;
         let decorrido = inicio.elapsed();
-        // Deve ter terminado rápido (timeout), não ficado 3600s.
-        assert!(decorrido < Duration::from_secs(2));
-        // Todas as chaves aparecem como falha por timeout.
-        assert!(!falhas.is_empty());
+        // Deve ter terminado rapidamente (timeout de 100ms + margem), não 3600s.
         assert!(
-            falhas.iter().any(|f| f.detalhe.contains("deadline")),
-            "deve haver falha por deadline"
+            decorrido < Duration::from_secs(30),
+            "deadline deveria ter cortado; decorrido: {decorrido:?}"
+        );
+        // Todas as chaves pendentes aparecem como falha por timeout.
+        let chaves_falhadas: std::collections::HashSet<&str> =
+            falhas.iter().map(|f| f.chave.as_str()).collect();
+        assert_eq!(
+            chaves_falhadas,
+            ["x", "y"]
+                .into_iter()
+                .collect::<std::collections::HashSet<&str>>(),
+        );
+        assert!(
+            falhas.iter().all(|f| f.detalhe.contains("deadline")),
+            "todas as falhas devem ser por deadline"
         );
     }
 
