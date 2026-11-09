@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.51.2] - 2026-11-09
+
+### Documentação
+
+- Valida schemas, contagens e conteúdo dos recortes TSE de 2016 a 2022 e registra as divergências de partidos em 2016 (issue #185, PR #291).
+
 ## [0.51.1] - 2026-11-09
 
 ### Documentação
