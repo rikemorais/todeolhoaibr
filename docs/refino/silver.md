@@ -80,7 +80,9 @@ as tabelas atuais não oferecem linhagem por linha garantida. Cada contrato só
 pode ser marcado como conforme depois de projetar as três colunas, exigir que
 sejam não nulas no schema e testar que duas linhas iguais mantêm ordinais
 distintos. Sessões e votos do Senado têm tarefas e ponteiros separados; uma
-falha em votos não apaga a publicação anterior de sessões.
+falha em votos não apaga a publicação anterior de sessões. A imposição dessa
+linhagem nas consultas e no publicador está rastreada na
+[issue #300](https://github.com/rikemorais/todeolhoaibr/issues/300).
 
 ### Referência técnica da linha bronze
 

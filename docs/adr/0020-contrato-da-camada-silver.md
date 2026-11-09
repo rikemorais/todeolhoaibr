@@ -68,7 +68,9 @@ conferência. Até haver leitura que valide a versão Bronze referenciada pelo
 ponteiro Silver, consumidores não devem tratar o ponteiro Silver isolado como
 prova de atualidade em relação ao Bronze. A ativação de contratos que exijam
 essa garantia depende dessas duas capacidades; a fase 0 define o requisito,
-mas não declara que o armazenamento atual oferece transação entre buckets.
+mas não declara que o armazenamento atual oferece transação entre buckets. A
+implementação e os testes dessas garantias estão rastreados na
+[issue #300](https://github.com/rikemorais/todeolhoaibr/issues/300).
 
 As transformações Silver serão expressas preferencialmente em arquivos SQL versionados sob `crates/refino/sql/silver/` e executadas pelo Apache DataFusion dentro do processo Rust do `refino`. O código os incorpora com `include_str!`, então a imagem distroless não precisa de shell nem de SQL montado em volume. Cada contrato seleciona explicitamente colunas, conversões, regras e versão; não inferir schema por conveniência nem interpolar valores externos em SQL. Rust continua responsável pela decodificação Bronze, por funções de domínio que não fiquem claras em SQL e pela orquestração, linhagem e publicação.
 
