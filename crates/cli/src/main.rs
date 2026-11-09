@@ -1454,54 +1454,70 @@ async fn passada_senado_silver(
         else {
             continue;
         };
-        let tarefa = match tipo {
-            TipoSilverSenado::Despesas => TarefaSilverSenado::Despesas(
+        let snapshot = Arc::new(snapshot);
+        let novas = match tipo {
+            TipoSilverSenado::Despesas => vec![TarefaSilverSenado::Despesas(
                 TarefaDeSilverSenadoDespesas::nova(
                     Arc::clone(bronze),
-                    Arc::new(snapshot),
+                    Arc::clone(&snapshot),
                     &recurso,
                 )
                 .context("recurso de despesas sem ano no caminho")?,
-            ),
+            )],
             TipoSilverSenado::Parlamentares => {
                 let legislatura = recurso
                     .strip_prefix("parlamentares/legislatura=")
                     .context("recurso de parlamentares sem legislatura no caminho")?
                     .parse::<u16>()
                     .context("legislatura inválida no caminho do recurso Bronze")?;
-                TarefaSilverSenado::Parlamentares(TarefaDeSilverSenadoParlamentares::nova(
-                    Arc::clone(bronze),
-                    Arc::new(snapshot),
-                    &recurso,
-                    legislatura,
-                ))
+                vec![TarefaSilverSenado::Parlamentares(
+                    TarefaDeSilverSenadoParlamentares::nova(
+                        Arc::clone(bronze),
+                        Arc::clone(&snapshot),
+                        &recurso,
+                        legislatura,
+                    ),
+                )]
             }
             TipoSilverSenado::Votacoes => {
-                TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova(
-                    Arc::clone(bronze),
-                    Arc::new(snapshot),
-                    &recurso,
-                ))
+                vec![
+                    TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova(
+                        Arc::clone(bronze),
+                        Arc::clone(&snapshot),
+                        &recurso,
+                    )),
+                    TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova_votos(
+                        Arc::clone(bronze),
+                        Arc::clone(&snapshot),
+                        &recurso,
+                    )?),
+                ]
             }
             TipoSilverSenado::Processos => {
-                TarefaSilverSenado::Processos(TarefaDeSilverSenadoProcessos::nova(
-                    Arc::clone(bronze),
-                    Arc::new(snapshot),
-                    &recurso,
-                ))
+                vec![TarefaSilverSenado::Processos(
+                    TarefaDeSilverSenadoProcessos::nova(
+                        Arc::clone(bronze),
+                        Arc::clone(&snapshot),
+                        &recurso,
+                    ),
+                )]
             }
             TipoSilverSenado::ProcessosDetalhes => {
-                TarefaSilverSenado::ProcessosDetalhes(TarefaDeSilverSenadoProcessosDetalhes::nova(
-                    Arc::clone(bronze),
-                    Arc::new(snapshot),
-                    &recurso,
-                ))
+                vec![TarefaSilverSenado::ProcessosDetalhes(
+                    TarefaDeSilverSenadoProcessosDetalhes::nova(
+                        Arc::clone(bronze),
+                        Arc::clone(&snapshot),
+                        &recurso,
+                    ),
+                )]
             }
         };
-        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
-            continue;
+        for tarefa in novas {
+            if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+                continue;
+            }
+            tarefas.push(TarefaPlanejada::nova(tarefa));
         }
-        tarefas.push(TarefaPlanejada::nova(tarefa));
     }
     if tarefas.is_empty() {
         println!("Nada a refinar na Silver Senado (recursos em dia ou não ingeridos).");
