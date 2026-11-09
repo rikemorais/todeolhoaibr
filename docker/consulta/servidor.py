@@ -131,13 +131,12 @@ const NOMES_FONTES = {
 };
 
 function grupoDaTabela(tabela) {
-  const separador = tabela.indexOf("_");
-  if (separador < 0) return { camada: "outros", fonte: "outros" };
-  const camada = tabela.slice(0, separador);
-  const restante = tabela.slice(separador + 1);
-  const separadorFonte = restante.indexOf("_");
-  const fonte = separadorFonte < 0 ? restante : restante.slice(0, separadorFonte);
-  return { camada: ["bronze", "silver"].includes(camada) ? camada : "outros", fonte };
+  const separador = tabela.nome.indexOf("_");
+  return {
+    nome: tabela.nome,
+    camada: tabela.camada || "outros",
+    fonte: tabela.fonte || (separador < 0 ? "outros" : tabela.nome.slice(0, separador)),
+  };
 }
 
 function rotuloCamada(camada) {
@@ -172,13 +171,14 @@ async function carregarTabelas() {
       div.innerHTML = '<span class="dica">nenhuma tabela</span>';
       return;
     }
+    const catalogo = d.catalogo?.length ? d.catalogo : d.tabelas.map((nome) => ({ nome }));
     const grupos = new Map();
-    for (const tabela of [...d.tabelas].sort()) {
-      const { camada, fonte } = grupoDaTabela(tabela);
+    for (const item of catalogo.sort((a, b) => a.nome.localeCompare(b.nome))) {
+      const { nome, camada, fonte } = grupoDaTabela(item);
       if (!grupos.has(camada)) grupos.set(camada, new Map());
       const fontes = grupos.get(camada);
       if (!fontes.has(fonte)) fontes.set(fonte, []);
-      fontes.get(fonte).push(tabela);
+      fontes.get(fonte).push(nome);
     }
     for (const [camada, fontes] of grupos) {
       const quantidade = [...fontes.values()].reduce((total, tabelas) => total + tabelas.length, 0);
@@ -313,6 +313,24 @@ def listar_tabelas() -> list[str]:
     return [linha["table_name"] for linha in resultado.get("linhas", [])]
 
 
+def listar_catalogo(tabelas: list[str]) -> list[dict[str, str]]:
+    """Relaciona as views existentes à camada e fonte declaradas no manifesto."""
+    proc = subprocess.run(
+        ["python3", "/app/gerar_views.py", "--catalogo-json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return []
+    try:
+        catalogo = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return []
+    existentes = set(tabelas)
+    return [item for item in catalogo if item["nome"] in existentes]
+
+
 class Manipulador(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -334,7 +352,8 @@ class Manipulador(BaseHTTPRequestHandler):
         if self.path == "/" or self.path.startswith("/?"):
             self._responder(200, PAGINA.encode(), "text/html; charset=utf-8")
         elif self.path == "/api/tabelas":
-            self._json({"tabelas": listar_tabelas()})
+            tabelas = listar_tabelas()
+            self._json({"tabelas": tabelas, "catalogo": listar_catalogo(tabelas)})
         else:
             self._responder(404, b"nao encontrado", "text/plain")
 
