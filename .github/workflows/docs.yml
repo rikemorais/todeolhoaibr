@@ -23,11 +23,10 @@ on:
 permissions:
   contents: write
 
-# `main` e tags têm grupos distintos para um deploy de desenvolvimento não
-# substituir uma publicação de release que aguarda execução. Execuções de tags
-# continuam serializadas entre si, assim como as atualizações de `dev`.
+# Todos os deploys escrevem no mesmo branch gh-pages; serializa main e tags
+# para que o segundo job leia a versão publicada pelo primeiro.
 concurrency:
-  group: docs-deploy-${{ startsWith(github.ref, 'refs/tags/') && 'release' || 'dev' }}
+  group: docs-gh-pages
   cancel-in-progress: false
 
 jobs:
