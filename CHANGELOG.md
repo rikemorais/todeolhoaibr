@@ -7,6 +7,16 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.50.1] - 2026-11-09
+
+### Corrigido
+
+- Sincronizadas as versões dos crates locais no `Cargo.lock` com a release v0.50.0, restaurando os checks com `--locked` (PR #281).
+
+### Documentação
+
+- Inventário rastreável dos manifestos Bronze de prestação de contas do TSE de 2014 a 2022, como avanço dos contratos Silver da issue #185 (PR #280).
+
 ## [0.50.0] - 2026-11-09
 
 ### Adicionado
