@@ -35,6 +35,7 @@ struct PaginaResolvida {
 
 const ACEITA_JSON: &str = "application/json";
 const LIMITE_DE_PAGINAS: usize = 1_000;
+const TENTATIVAS_JSON_INVALIDO: u32 = 3;
 
 /// Baixa um recurso HTTP e grava cada resposta, byte a byte, na camada Raw.
 pub struct TarefaDeIngestaoHttp {
@@ -108,9 +109,9 @@ impl TarefaDeIngestaoHttp {
         let mut deserializador = serde_json::Deserializer::from_slice(corpo);
         let resultado = serde::de::IgnoredAny::deserialize(&mut deserializador)
             .and_then(|_| deserializador.end());
-        resultado.map_err(|erro| ErroDeIngestao::Http {
+        resultado.map_err(|erro| ErroDeIngestao::JsonInvalido {
             url: url.to_owned(),
-            detalhe: format!("resposta JSON inválida: {erro}"),
+            detalhe: erro.to_string(),
         })?;
         Ok(())
     }
@@ -313,6 +314,30 @@ impl Tarefa for TarefaDeIngestaoHttp {
 }
 
 impl TarefaDeIngestaoHttp {
+    /// Repete somente falhas sintáticas de JSON, que podem resultar de uma
+    /// interrupção transitória após uma resposta HTTP 200. Cada tentativa baixa
+    /// o corpo novamente; nenhuma gravação acontece antes da validação.
+    async fn resolver_pagina_com_retentativas(
+        &self,
+        contexto: &ContextoDeExecucao,
+        url: &str,
+        anterior: Option<&ParteRaw>,
+    ) -> Result<PaginaResolvida, ErroDeIngestao> {
+        for tentativa in 1..=TENTATIVAS_JSON_INVALIDO {
+            match self.resolver_pagina(contexto, url, anterior).await {
+                Err(erro @ ErroDeIngestao::JsonInvalido { .. })
+                    if tentativa < TENTATIVAS_JSON_INVALIDO =>
+                {
+                    let espera = std::time::Duration::from_millis(250 * u64::from(tentativa));
+                    warn!(%url, %erro, tentativa, ?espera, "resposta JSON inválida; baixando novamente");
+                    tokio::time::sleep(espera).await;
+                }
+                resultado => return resultado,
+            }
+        }
+        unreachable!("ao menos uma tentativa JSON é feita")
+    }
+
     async fn executar_com_rastreamento(
         &self,
         contexto: &ContextoDeExecucao,
@@ -367,7 +392,9 @@ impl TarefaDeIngestaoHttp {
             }
 
             let anterior = anteriores.get(&url);
-            let resolvida = self.resolver_pagina(contexto, &url, anterior).await?;
+            let resolvida = self
+                .resolver_pagina_com_retentativas(contexto, &url, anterior)
+                .await?;
 
             proxima = self
                 .paginacao
@@ -514,8 +541,9 @@ fn eh_json(tipo_de_conteudo: &str) -> bool {
 
 #[cfg(test)]
 mod testes {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, VecDeque};
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use todeolho_nucleo::{
         ArmazenamentoRaw, ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaCondicional,
@@ -565,6 +593,39 @@ mod testes {
 
     struct HttpFalso(HashMap<&'static str, &'static str>);
 
+    struct HttpSequencial {
+        respostas: Mutex<VecDeque<&'static str>>,
+        chamadas: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl ClienteHttp for HttpSequencial {
+        async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+            unreachable!("a ingestão paginada não consulta arquivos")
+        }
+
+        async fn baixar(&self, _: &str) -> Result<DownloadHttp, ErroDeIngestao> {
+            unreachable!("a ingestão paginada grava respostas em memória")
+        }
+
+        async fn obter(&self, url: &str, _: &str) -> Result<RespostaHttp, ErroDeIngestao> {
+            self.chamadas.fetch_add(1, Ordering::SeqCst);
+            let corpo =
+                self.respostas
+                    .lock()
+                    .unwrap()
+                    .pop_front()
+                    .ok_or_else(|| ErroDeIngestao::Http {
+                        url: url.into(),
+                        detalhe: "503: sem resposta de teste restante".into(),
+                    })?;
+            Ok(RespostaHttp {
+                tipo_de_conteudo: "application/json; charset=utf-8".into(),
+                corpo: corpo.as_bytes().to_vec(),
+            })
+        }
+    }
+
     #[async_trait]
     impl ClienteHttp for HttpFalso {
         async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
@@ -601,6 +662,28 @@ mod testes {
             progresso: None,
         };
         (contexto, armazenamento)
+    }
+
+    fn contexto_com_respostas_sequenciais(
+        respostas: &[&'static str],
+    ) -> (
+        ContextoDeExecucao,
+        Arc<ArmazenamentoEmMemoria>,
+        Arc<HttpSequencial>,
+    ) {
+        let armazenamento = Arc::new(ArmazenamentoEmMemoria::default());
+        let http = Arc::new(HttpSequencial {
+            respostas: Mutex::new(respostas.iter().copied().collect()),
+            chamadas: AtomicUsize::new(0),
+        });
+        let contexto = ContextoDeExecucao {
+            id_execucao: "exec".into(),
+            iniciada_em: Utc::now(),
+            armazenamento: armazenamento.clone(),
+            http: http.clone(),
+            progresso: None,
+        };
+        (contexto, armazenamento, http)
     }
 
     fn tarefa_paginada() -> TarefaDeIngestaoHttp {
@@ -676,6 +759,42 @@ mod testes {
             armazenamento.objetos.lock().unwrap().is_empty(),
             "a resposta parcial não deve publicar parte, manifesto ou ponteiro"
         );
+    }
+
+    #[tokio::test]
+    async fn repete_json_truncado_e_publica_a_resposta_valida() {
+        const CORPO_PARCIAL: &str = r#"{"dados":[{"id":1}"#;
+        const CORPO_VALIDO: &str = r#"{"dados":[{"id":1}]}"#;
+        let (contexto, armazenamento, http) =
+            contexto_com_respostas_sequenciais(&[CORPO_PARCIAL, CORPO_VALIDO]);
+        let tarefa =
+            TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
+
+        tarefa.executar(&contexto).await.unwrap();
+
+        assert_eq!(http.chamadas.load(Ordering::SeqCst), 2);
+        let objetos = armazenamento.objetos.lock().unwrap();
+        assert_eq!(objetos.len(), 3);
+        assert_eq!(objetos[0].conteudo, CORPO_VALIDO.as_bytes());
+        assert!(objetos[1].chave.ends_with("/_manifesto.json"));
+    }
+
+    #[tokio::test]
+    async fn interrompe_apos_o_limite_de_json_truncado_sem_publicar() {
+        const CORPO_PARCIAL: &str = r#"{"dados":[{"id":1}"#;
+        let (contexto, armazenamento, http) =
+            contexto_com_respostas_sequenciais(&[CORPO_PARCIAL, CORPO_PARCIAL, CORPO_PARCIAL]);
+        let tarefa =
+            TarefaDeIngestaoHttp::sem_paginacao("ibge", "estados", "https://api/estados".into());
+
+        let erro = tarefa.executar(&contexto).await.unwrap_err();
+
+        assert!(matches!(erro, ErroDeIngestao::JsonInvalido { .. }));
+        assert_eq!(
+            http.chamadas.load(Ordering::SeqCst),
+            TENTATIVAS_JSON_INVALIDO as usize
+        );
+        assert!(armazenamento.objetos.lock().unwrap().is_empty());
     }
 
     #[tokio::test]

@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- Repete até três vezes o download de uma resposta JSON sintaticamente inválida antes de falhar, sem publicar tentativas incompletas (issue #263).
+
 ## [0.47.2] - 2026-11-09
 
 ### Corrigido
