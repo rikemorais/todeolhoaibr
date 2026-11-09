@@ -5,32 +5,28 @@
 //! e com `;` como separador. O bronze só descompacta, reencoda para UTF-8 e põe em colunas;
 //! a interpretação dos campos é do silver.
 
-use crate::csv_zip::{partes_de_zip_csv, partes_de_zip_csv_em_fluxo};
+use crate::csv_zip::partes_de_zip_csv_em_fluxo;
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::ErroDeRefino;
 
 /// Decodifica um ZIP de CSVs em uma parte Parquet por CSV (entradas não-CSV são ignoradas).
+///
+/// Sempre opera em fluxo: lê a entrada do ZIP, transcodifica encoding e parseia CSV
+/// direto para lotes Parquet em disco, sem materializar o arquivo inteiro em memória.
+/// Auto-detecta UTF-8/Latin-1 via `utf8_passthrough`. Ver #164.
 pub struct DecodificadorZipCsv {
     separador: u8,
-    /// Decodifica cada CSV em fluxo (para arquivos grandes do TSE; assume Latin-1). Ver #171.
-    em_fluxo: bool,
 }
 
 impl DecodificadorZipCsv {
-    /// CSVs lidos inteiros na memória (auto-detecta UTF-8/Latin-1). Bom para arquivos modestos.
+    /// Cria o decodificador para o `separador` dado (ex.: `b';'`).
     pub const fn novo(separador: u8) -> Self {
-        Self {
-            separador,
-            em_fluxo: false,
-        }
+        Self { separador }
     }
 
-    /// CSVs lidos **em fluxo** (Latin-1), para pacotes grandes do TSE que estourariam a memória.
+    /// Alias para `novo`; mantido para compatibilidade — agora sempre streaming.
     pub const fn em_fluxo(separador: u8) -> Self {
-        Self {
-            separador,
-            em_fluxo: true,
-        }
+        Self::novo(separador)
     }
 }
 
@@ -45,24 +41,15 @@ impl Decodificador for DecodificadorZipCsv {
         bytes: &[u8],
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        if self.em_fluxo {
-            partes_de_zip_csv_em_fluxo(std::io::Cursor::new(bytes), self.separador)
-        } else {
-            partes_de_zip_csv(bytes, self.separador)
-        }
+        partes_de_zip_csv_em_fluxo(std::io::Cursor::new(bytes), self.separador)
     }
 
     fn decodificar_arquivo(
         &self,
         caminho: &std::path::Path,
-        tipo_de_conteudo: &str,
+        _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        if self.em_fluxo {
-            // Abre o ZIP direto do disco: não carrega o arquivo (de vários GB) na memória.
-            partes_de_zip_csv_em_fluxo(std::fs::File::open(caminho)?, self.separador)
-        } else {
-            self.decodificar(&std::fs::read(caminho)?, tipo_de_conteudo)
-        }
+        partes_de_zip_csv_em_fluxo(std::fs::File::open(caminho)?, self.separador)
     }
 }
 
