@@ -33,6 +33,26 @@ struct PaginaResolvida {
     mudou: bool,
 }
 
+#[derive(Debug)]
+enum ErroDePagina {
+    JsonInvalido(ErroDeIngestao),
+    Outro(ErroDeIngestao),
+}
+
+impl From<ErroDeIngestao> for ErroDePagina {
+    fn from(erro: ErroDeIngestao) -> Self {
+        Self::Outro(erro)
+    }
+}
+
+impl ErroDePagina {
+    fn em_ingestao(self) -> ErroDeIngestao {
+        match self {
+            Self::JsonInvalido(erro) | Self::Outro(erro) => erro,
+        }
+    }
+}
+
 const ACEITA_JSON: &str = "application/json";
 const LIMITE_DE_PAGINAS: usize = 1_000;
 const TENTATIVAS_JSON_INVALIDO: u32 = 3;
@@ -98,7 +118,7 @@ impl TarefaDeIngestaoHttp {
         status: u16,
         tipo_de_conteudo: &str,
         corpo: &[u8],
-    ) -> Result<(), ErroDeIngestao> {
+    ) -> Result<(), ErroDePagina> {
         if matches!(status, 204 | 205) || !eh_json(tipo_de_conteudo) {
             return Ok(());
         }
@@ -109,9 +129,11 @@ impl TarefaDeIngestaoHttp {
         let mut deserializador = serde_json::Deserializer::from_slice(corpo);
         let resultado = serde::de::IgnoredAny::deserialize(&mut deserializador)
             .and_then(|_| deserializador.end());
-        resultado.map_err(|erro| ErroDeIngestao::JsonInvalido {
-            url: url.to_owned(),
-            detalhe: erro.to_string(),
+        resultado.map_err(|erro| {
+            ErroDePagina::JsonInvalido(ErroDeIngestao::Http {
+                url: url.to_owned(),
+                detalhe: format!("resposta JSON inválida: {erro}"),
+            })
         })?;
         Ok(())
     }
@@ -148,7 +170,7 @@ impl TarefaDeIngestaoHttp {
         contexto: &ContextoDeExecucao,
         url: &str,
         anterior: Option<&ParteRaw>,
-    ) -> Result<PaginaResolvida, ErroDeIngestao> {
+    ) -> Result<PaginaResolvida, ErroDePagina> {
         let validador = anterior.and_then(|parte| parte.versao.as_deref());
         match contexto
             .http
@@ -204,7 +226,7 @@ impl TarefaDeIngestaoHttp {
         &self,
         contexto: &ContextoDeExecucao,
         url: &str,
-    ) -> Result<PaginaResolvida, ErroDeIngestao> {
+    ) -> Result<PaginaResolvida, ErroDePagina> {
         match contexto
             .http
             .obter_condicional(url, ACEITA_JSON, None)
@@ -219,10 +241,9 @@ impl TarefaDeIngestaoHttp {
                 self.validar_resposta(url, status, &tipo_de_conteudo, &corpo)?;
                 Ok(self.classificar_modificado(None, tipo_de_conteudo, versao, corpo))
             }
-            RespostaCondicional::NaoModificado => {
-                Err(self
-                    .erro_de_paginacao(format!("origem respondeu 304 sem validador para {url}")))
-            }
+            RespostaCondicional::NaoModificado => Err(self
+                .erro_de_paginacao(format!("origem respondeu 304 sem validador para {url}"))
+                .into()),
         }
     }
 
@@ -325,14 +346,12 @@ impl TarefaDeIngestaoHttp {
     ) -> Result<PaginaResolvida, ErroDeIngestao> {
         for tentativa in 1..=TENTATIVAS_JSON_INVALIDO {
             match self.resolver_pagina(contexto, url, anterior).await {
-                Err(erro @ ErroDeIngestao::JsonInvalido { .. })
-                    if tentativa < TENTATIVAS_JSON_INVALIDO =>
-                {
+                Err(ErroDePagina::JsonInvalido(erro)) if tentativa < TENTATIVAS_JSON_INVALIDO => {
                     let espera = std::time::Duration::from_millis(250 * u64::from(tentativa));
                     warn!(%url, %erro, tentativa, ?espera, "resposta JSON inválida; baixando novamente");
                     tokio::time::sleep(espera).await;
                 }
-                resultado => return resultado,
+                resultado => return resultado.map_err(ErroDePagina::em_ingestao),
             }
         }
         unreachable!("ao menos uma tentativa JSON é feita")
@@ -789,7 +808,7 @@ mod testes {
 
         let erro = tarefa.executar(&contexto).await.unwrap_err();
 
-        assert!(matches!(erro, ErroDeIngestao::JsonInvalido { .. }));
+        assert!(matches!(erro, ErroDeIngestao::Http { .. }));
         assert_eq!(
             http.chamadas.load(Ordering::SeqCst),
             TENTATIVAS_JSON_INVALIDO as usize
