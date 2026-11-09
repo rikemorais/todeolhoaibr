@@ -296,6 +296,29 @@ impl Tarefa for TarefaDeIngestaoHttp {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        let mut novas = Vec::new();
+        let mut manifesto_gravado = false;
+        let resultado = self
+            .executar_com_rastreamento(contexto, &mut novas, &mut manifesto_gravado)
+            .await;
+        if resultado.is_err() && !manifesto_gravado {
+            for chave in novas {
+                if let Err(erro) = contexto.armazenamento.remover(&chave).await {
+                    tracing::warn!(%chave, %erro, "não foi possível remover parte Raw órfã");
+                }
+            }
+        }
+        resultado
+    }
+}
+
+impl TarefaDeIngestaoHttp {
+    async fn executar_com_rastreamento(
+        &self,
+        contexto: &ContextoDeExecucao,
+        novas: &mut Vec<String>,
+        manifesto_gravado: &mut bool,
+    ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let local = LocalizacaoRaw::nova(
             &self.fonte,
             &self.recurso,
@@ -369,6 +392,7 @@ impl Tarefa for TarefaDeIngestaoHttp {
                 Some(parte) => parte,
                 None => {
                     let chave = local.parte(numero, extensao(&tipo_de_conteudo));
+                    novas.push(chave.clone());
                     let parte = ParteRaw {
                         chave: chave.clone(),
                         url: url.clone(),
@@ -429,6 +453,7 @@ impl Tarefa for TarefaDeIngestaoHttp {
         };
         self.gravar_json(contexto, local.manifesto(), &manifesto)
             .await?;
+        *manifesto_gravado = true;
 
         // Ponteiro para a próxima rodada localizar este manifesto. Sem validador
         // de recurso: a requisição condicional é por página (ver docs/adr/0012).
@@ -511,6 +536,14 @@ mod testes {
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
             self.objetos.lock().unwrap().push(objeto);
+            Ok(())
+        }
+
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.objetos
+                .lock()
+                .unwrap()
+                .retain(|objeto| objeto.chave != chave);
             Ok(())
         }
 
@@ -613,6 +646,10 @@ mod testes {
             objetos
                 .iter()
                 .all(|o| !o.chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos.is_empty(),
+            "partes novas devem ser removidas no rollback"
         );
     }
 
