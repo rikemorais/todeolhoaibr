@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.50.2] - 2026-11-09
+
+### Documentação
+
+- Validados schemas e contagens de linhas das prestações de contas TSE de 2014; separadas as pendências de conteúdo, chaves e tabelas suplementares (#185, PR #283).
+
 ## [0.50.1] - 2026-11-09
 
 ### Corrigido
