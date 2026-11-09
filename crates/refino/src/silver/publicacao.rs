@@ -289,7 +289,7 @@ async fn publicar_transformacao_sql_interno(
             tipo_de_conteudo: "application/json".into(),
         })
         .await?;
-    publicar_ponteiro(
+    let publicou = publicar_ponteiro(
         silver,
         fonte,
         recurso_destino,
@@ -300,6 +300,12 @@ async fn publicar_transformacao_sql_interno(
         },
     )
     .await?;
+    if !publicou {
+        return Err(erro_manifesto(
+            recurso,
+            "ponteiro Silver mais recente preservado; esta execução não foi publicada",
+        ));
+    }
     Ok(ResumoDaTarefa {
         partes: 1,
         bytes,
