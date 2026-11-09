@@ -55,9 +55,11 @@ publicar, quais registros são complementares ou retificações, e como medir
 conflitos e duplicatas. A regra de 2024 não pode ser aplicada a esses anos
 somente pela semelhança dos nomes.
 
-Próxima validação: ler os schemas físicos de cada família, comparar as formas
-nacionais com as UFs e medir nulidade, unicidade e colisões das chaves candidatas
-antes de fixar a tipagem e a deduplicação. As pesquisas de
+Próxima validação: comparar o conteúdo de `_BR` e `_brasil` com as partes por UF,
+verificar a correspondência entre UF declarada e arquivo de origem, medir
+nulidade, unicidade e colisões das chaves candidatas e identificar a relação
+semântica dos arquivos `_sup` antes de fixar tipagem e deduplicação. O schema
+físico já foi conferido para todas as partes de 2014. As pesquisas de
 [2002](pesquisa-tse-2002.md), [2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
 [2010–2012](pesquisa-tse-2010-2012.md) e [2024](pesquisa-tse-2024.md)
 registram os demais recortes disponíveis.
