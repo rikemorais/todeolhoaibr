@@ -79,6 +79,13 @@ impl TarefaDeArquivo {
         tamanho_informado: Option<u64>,
     ) -> Result<ArquivoGravado, ErroDeIngestao> {
         let primeiro = contexto.http.baixar_a_partir_de(&self.url, 0, None).await?;
+        let sem_conteudo = matches!(primeiro.status, 204 | 205);
+        if primeiro.status == 206 && primeiro.tamanho_total.is_none() {
+            return Err(ErroDeIngestao::Http {
+                url: self.url.clone(),
+                detalhe: "resposta 206 sem tamanho total não comprova arquivo completo".into(),
+            });
+        }
         // A primeira resposta tem de começar do início: um 206 fora de posição
         // seria um pedaço tratado como o arquivo inteiro.
         if primeiro.inicio != 0 {
@@ -121,7 +128,7 @@ impl TarefaDeArquivo {
             .gravar_fluxo(&chave, &tipo_de_conteudo, &mut leitor)
             .await?;
 
-        if total_esperado.is_none() {
+        if total_esperado.is_none() && !sem_conteudo {
             if eh_json(&tipo_de_conteudo) {
                 if let Err(erro) = validar_json_gravado(contexto, &chave, &self.url).await {
                     contexto.armazenamento.remover(&chave).await?;
@@ -188,14 +195,21 @@ async fn validar_json_gravado(
     let (mut escrita, leitura) = tokio::io::duplex(64 * 1024);
     let url_worker = url.to_owned();
     let validar = tokio::task::spawn_blocking(move || {
-        let leitor = SyncIoBridge::new(leitura);
-        let mut deserializador = serde_json::Deserializer::from_reader(leitor);
-        serde::de::IgnoredAny::deserialize(&mut deserializador)
-            .and_then(|_| deserializador.end())
-            .map_err(|erro| ErroDeIngestao::Http {
-                url: url_worker,
-                detalhe: format!("resposta JSON inválida: {erro}"),
-            })
+        let mut leitor = SyncIoBridge::new(leitura);
+        let resultado = {
+            let mut deserializador = serde_json::Deserializer::from_reader(&mut leitor);
+            serde::de::IgnoredAny::deserialize(&mut deserializador)
+                .and_then(|_| deserializador.end())
+        };
+        if resultado.is_err() {
+            // O storage ainda pode estar escrevendo no duplex. Drena o restante para
+            // desbloquear o produtor, preservando o erro sintático original.
+            let _ = std::io::copy(&mut leitor, &mut std::io::sink());
+        }
+        resultado.map_err(|erro| ErroDeIngestao::Http {
+            url: url_worker,
+            detalhe: format!("resposta JSON inválida: {erro}"),
+        })
     });
     let existe = contexto
         .armazenamento
@@ -512,6 +526,11 @@ impl AsyncRead for FluxoRetomavel {
                                 este.entregue, download.inicio
                             ))));
                         }
+                        if !download.enquadramento_verificavel && download.tamanho_total.is_none() {
+                            return Poll::Ready(Err(io::Error::other(
+                                "retomada sem tamanho ou framing verificável",
+                            )));
+                        }
                         // E precisa ser o MESMO arquivo (ETag/tamanho inalterados).
                         if download.versao != este.versao {
                             return Poll::Ready(Err(io::Error::other(
@@ -670,6 +689,8 @@ mod testes {
         consultas: Mutex<u32>,
         sem_tamanho: bool,
         enquadramento_verificavel: bool,
+        tipo_de_conteudo: String,
+        status: u16,
     }
 
     impl HttpFalso {
@@ -687,12 +708,31 @@ mod testes {
                 consultas: Mutex::new(0),
                 sem_tamanho: false,
                 enquadramento_verificavel: true,
+                tipo_de_conteudo: "application/zip".into(),
+                status: 200,
             }
         }
 
         fn sem_sinal_de_integridade(mut self) -> Self {
             self.sem_tamanho = true;
             self.enquadramento_verificavel = false;
+            self
+        }
+
+        fn como_json(mut self, corpo: &[u8]) -> Self {
+            self.conteudo = corpo.to_vec();
+            self.sem_tamanho = true;
+            self.enquadramento_verificavel = false;
+            self.tipo_de_conteudo = "application/json".into();
+            self
+        }
+
+        fn sem_conteudo(mut self, status: u16) -> Self {
+            self.conteudo.clear();
+            self.sem_tamanho = true;
+            self.enquadramento_verificavel = false;
+            self.tipo_de_conteudo = "application/json".into();
+            self.status = status;
             self
         }
 
@@ -773,7 +813,8 @@ mod testes {
             };
 
             Ok(DownloadHttp {
-                tipo_de_conteudo: "application/zip".into(),
+                status: self.status,
+                tipo_de_conteudo: self.tipo_de_conteudo.clone(),
                 versao,
                 inicio: inicio_real as u64,
                 tamanho_total: (!self.sem_tamanho).then_some(self.conteudo.len() as u64),
@@ -890,6 +931,31 @@ mod testes {
                 .keys()
                 .all(|chave| !chave.ends_with("parte-00001.zip"))
         );
+    }
+
+    #[tokio::test]
+    async fn json_truncado_em_arquivo_nao_publica_manifesto() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")).como_json(br#"{"itens":[1,"#));
+        let resultado = tarefa().executar(&cenario.contexto).await;
+        assert!(resultado.is_err());
+        let objetos = cenario.armazenamento.objetos.lock().unwrap();
+        assert!(
+            objetos
+                .keys()
+                .all(|chave| !chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .all(|chave| !chave.ends_with("parte-00001.json"))
+        );
+    }
+
+    #[tokio::test]
+    async fn status_204_sem_content_length_publica_arquivo_vazio() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")).sem_conteudo(204));
+        tarefa().executar(&cenario.contexto).await.unwrap();
+        assert!(!chaves(&cenario.armazenamento, "_manifesto.json").is_empty());
     }
 
     fn chaves(armazenamento: &ArmazenamentoEmMemoria, sufixo: &str) -> Vec<String> {
