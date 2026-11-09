@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.47.3] - 2026-11-09
+
 ### Corrigido
 
 - Faz até três tentativas totais para baixar uma resposta JSON sintaticamente válida, sem publicar tentativas incompletas (issue #263).
