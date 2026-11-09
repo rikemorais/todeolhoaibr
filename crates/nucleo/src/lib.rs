@@ -14,6 +14,7 @@ pub mod estado_raw;
 pub mod executor;
 pub mod fonte;
 pub mod historico;
+pub mod orfas;
 pub mod portas;
 pub mod raw;
 pub mod selecao;
@@ -33,6 +34,7 @@ pub use historico::{
     Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
     RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
 };
+pub use orfas::{limpar_orfas_do_recurso, verificar_manifesto_ou_limpar};
 pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FalhaDeRemocao, FluxoDeBytes,
     InformacoesDoArquivo, ObjetoRaw, RespostaCondicional, RespostaHttp,
