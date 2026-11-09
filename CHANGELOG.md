@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.51.4] - 2026-11-09
+
+### Documentação
+
+- Mede completude e colisões das chaves candidatas de receitas e despesas partidárias do TSE 2016 no snapshot Bronze (issue #185, PR #295).
+
 ## [0.51.3] - 2026-11-09
 
 ### Documentação
