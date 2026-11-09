@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["RespostaCondicional"],"struct":["DownloadHttp","InformacoesDoArquivo","ObjetoRaw","RespostaHttp"],"trait":["ArmazenamentoRaw","ClienteHttp"],"type":["FluxoDeBytes"]};
+window.SIDEBAR_ITEMS = {"enum":["RespostaCondicional"],"struct":["DownloadHttp","FalhaDeRemocao","InformacoesDoArquivo","ObjetoRaw","RespostaHttp"],"trait":["ArmazenamentoRaw","ClienteHttp"],"type":["FluxoDeBytes"]};
