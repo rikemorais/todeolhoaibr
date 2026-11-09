@@ -128,20 +128,18 @@ impl TarefaDeArquivo {
             .gravar_fluxo(&chave, &tipo_de_conteudo, &mut leitor)
             .await?;
 
-        if total_esperado.is_none() && !sem_conteudo {
-            if eh_json(&tipo_de_conteudo) {
-                if let Err(erro) = validar_json_gravado(contexto, &chave, &self.url).await {
-                    contexto.armazenamento.remover(&chave).await?;
-                    return Err(erro);
-                }
-            } else if !enquadramento_verificavel {
+        if !sem_conteudo && eh_json(&tipo_de_conteudo) {
+            if let Err(erro) = validar_json_gravado(contexto, &chave, &self.url).await {
                 contexto.armazenamento.remover(&chave).await?;
-                return Err(ErroDeIngestao::Http {
-                    url: self.url.clone(),
-                    detalhe: "transferência sem tamanho total nem enquadramento HTTP verificável"
-                        .into(),
-                });
+                return Err(erro);
             }
+        } else if total_esperado.is_none() && !sem_conteudo && !enquadramento_verificavel {
+            contexto.armazenamento.remover(&chave).await?;
+            return Err(ErroDeIngestao::Http {
+                url: self.url.clone(),
+                detalhe: "transferência sem tamanho total nem enquadramento HTTP verificável"
+                    .into(),
+            });
         }
 
         // Garantia final: só publicamos se o tamanho bater com o esperado.
@@ -949,6 +947,21 @@ mod testes {
                 .keys()
                 .all(|chave| !chave.ends_with("parte-00001.json"))
         );
+    }
+
+    #[tokio::test]
+    async fn json_truncado_com_tamanho_conhecido_repete_sem_publicar() {
+        let mut http = HttpFalso::novo(Some("v1")).como_json(br#"{"itens":[1,"#);
+        http.sem_tamanho = false;
+        let cenario = cenario(http);
+        let mut tarefa = tarefa();
+        tarefa.espera_entre_tentativas = Duration::ZERO;
+
+        let erro = tarefa.executar(&cenario.contexto).await.unwrap_err();
+
+        assert!(matches!(erro, ErroDeIngestao::Http { .. }));
+        assert_eq!(*cenario.http.downloads.lock().unwrap(), TENTATIVAS);
+        assert!(cenario.armazenamento.objetos.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
