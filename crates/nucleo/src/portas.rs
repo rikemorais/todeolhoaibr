@@ -43,8 +43,11 @@ pub trait ArmazenamentoRaw: Send + Sync {
         fluxo: &mut (dyn AsyncRead + Send + Unpin),
     ) -> Result<(), ErroDeIngestao>;
 
-    /// Lista chaves sob um prefixo. Útil para localizar partes órfãs. O padrão
-    /// devolve lista vazia — adapters que suportam listagem sobrescrevem.
+    /// Lista chaves sob um prefixo. Útil para localizar partes órfãs.
+    ///
+    /// O padrão devolve lista vazia: adapters que não sobrescrevem desabilitam a
+    /// varredura automática de órfãs (`limpar_orfas_do_recurso` retorna 0).
+    /// Adapters de produção (ex.: S3) devem implementar.
     async fn listar_prefixo(&self, _prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
         Ok(Vec::new())
     }
