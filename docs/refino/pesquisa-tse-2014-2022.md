@@ -94,12 +94,64 @@ publicar, quais registros são complementares ou retificações, e como medir
 conflitos e duplicatas. A regra de 2024 não pode ser aplicada a esses anos
 somente pela semelhança dos nomes.
 
-Próxima validação em 2014: medir nulidade, unicidade e colisões das chaves
-candidatas, investigar as linhas e multiplicidades divergentes em
-`despesas_partidos_2014` e `receitas_partidos_2014`, e identificar a relação
-semântica dos arquivos `_sup` antes de fixar tipagem e deduplicação. Schema,
-hashes de conteúdo e correspondência da UF já foram verificados para as partes
-listadas. Para 2016–2022, essas verificações ainda estão pendentes. As pesquisas de
-[2002](pesquisa-tse-2002.md), [2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
+### Chaves compostas preliminares
+
+O TSE informa que a estrutura pode variar por eleição e orienta consultar o
+`leia-me.pdf` de cada pacote ([grupo oficial de prestação de contas](https://dadosabertos.tse.jus.br/group/about/prestacao-de-contas-eleitorais)).
+O `LEIAME.pdf` do snapshot consultado descreve `#NULO`/`#NE` e os sentinelas
+numéricos `-1`/`-3`, mas não define chave de lançamento para estas seis famílias.
+Por isso, as combinações abaixo são sondas de unicidade, não contratos aceitos:
+
+- Despesas: código da eleição, CNPJ do prestador, sequência do candidato/comitê/diretório, tipo e número do documento.
+- Receitas de candidatos: código da eleição, CNPJ do prestador, sequência do candidato, número do recibo eleitoral e número do documento.
+- Receitas de comitês e partidos: código da eleição, CNPJ do prestador, sequência do comitê/diretório, tipo e número do documento.
+
+Medi as partes do manifesto Bronze fixado em 2026-11-05: `_BR` mais 27 UFs
+(28 partes por família) e `_brasil` separadamente (uma parte). Campos vazios,
+`#NULO`, `#NE`, `-1` e `-3` foram tratados como incompletos, sem imprimir linhas
+ou valores pessoais. `Grupos repetidos` conta chaves completas com mais de uma
+linha; as linhas incompletas não entram nessa contagem.
+
+| Família | Recorte | Linhas | Chaves incompletas | Chaves completas distintas | Grupos repetidos | Linhas em grupos repetidos |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `despesas_candidatos_2014` | `_BR` + UFs | 2.247.108 | 365.944 | 982.230 | 125.254 | 1.024.188 |
+| `despesas_candidatos_2014` | `_brasil` | 2.247.108 | 365.944 | 982.230 | 125.254 | 1.024.188 |
+| `despesas_comites_2014` | `_BR` + UFs | 54.970 | 8.393 | 26.741 | 3.807 | 23.643 |
+| `despesas_comites_2014` | `_brasil` | 54.970 | 8.393 | 26.741 | 3.807 | 23.643 |
+| `despesas_partidos_2014` | `_BR` + UFs | 54.659 | 22.479 | 17.654 | 2.274 | 16.800 |
+| `despesas_partidos_2014` | `_brasil` | 55.370 | 22.993 | 17.764 | 2.306 | 16.919 |
+| `receitas_candidatos_2014` | `_BR` + UFs | 427.489 | 266.497 | 160.992 | 0 | 0 |
+| `receitas_candidatos_2014` | `_brasil` | 427.489 | 266.497 | 160.992 | 0 | 0 |
+| `receitas_comites_2014` | `_BR` + UFs | 9.173 | 1.937 | 7.236 | 0 | 0 |
+| `receitas_comites_2014` | `_brasil` | 9.173 | 1.937 | 7.236 | 0 | 0 |
+| `receitas_partidos_2014` | `_BR` + UFs | 11.993 | 2.813 | 9.180 | 0 | 0 |
+| `receitas_partidos_2014` | `_brasil` | 12.247 | 3.067 | 9.180 | 0 | 0 |
+
+Nenhuma combinação cobre todas as linhas com uma chave única. As três famílias
+de despesas têm colisões mesmo entre as linhas cujos campos estão completos.
+A combinação de recibo e número do documento é única nas 160.992 linhas
+completas de receitas de candidatos, mas outras 266.497 não têm todos esses
+campos. Usar apenas `Numero Recibo Eleitoral` deixa 2.958 linhas incompletas e
+4.342 grupos repetidos (15.926 linhas nesses grupos); acrescentar o número do
+documento elimina as colisões no subconjunto completo, mas não resolve a falta
+de identidade nas outras linhas. Receitas de comitês e partidos não colidem
+entre as linhas completas, mas têm linhas sem todos os campos da combinação. Em
+`receitas_partidos_2014`, `_brasil` tem 254 linhas a mais e também 254 chaves
+incompletas a mais que `_BR` + UFs; esta agregação não prova que sejam as mesmas
+linhas que diferem na comparação por hash. Não removi nem agrupei registros.
+Esses resultados rejeitam as combinações testadas para uso como chave única;
+uma identidade de negócio ainda precisa de evidência específica da origem.
+
+### Próximas validações
+
+Em 2014, investigar as variantes e multiplicidades divergentes em
+`despesas_partidos_2014` e `receitas_partidos_2014` e obter evidência oficial ou
+de conteúdo para a identidade das linhas. A semântica dos arquivos `_sup` foi
+pesquisada em [nota separada](pesquisa-tse-2014-sup.md): o TSE os publica como
+recurso distinto, mas não documenta a relação linha a linha com a prestação
+regular; devem permanecer separados. Schemas, hashes de conteúdo, UF e essas
+sondas de chave já foram verificados para as partes de 2014. Para 2016–2022, a
+validação de conteúdo ainda está pendente. As pesquisas de [2002](pesquisa-tse-2002.md),
+[2004–2006](pesquisa-tse-2004-2006.md), [2008](pesquisa-tse-2008.md),
 [2010–2012](pesquisa-tse-2010-2012.md) e [2024](pesquisa-tse-2024.md)
 registram os demais recortes disponíveis.
