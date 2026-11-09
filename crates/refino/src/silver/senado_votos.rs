@@ -161,8 +161,7 @@ pub fn transformar_senado_votos(lote: &RecordBatch) -> Result<RecordBatch, ErroS
         Arc::new(StringArray::from(voto_original)),
     ];
     colunas.extend(crate::executor_sql::colunas_linhagem_teste(n_linhas));
-    RecordBatch::try_new(esquema_senado_votos(), colunas)
-        .map_err(|_| ErroSenadoVotosSilver::Schema)
+    RecordBatch::try_new(esquema_senado_votos(), colunas).map_err(|_| ErroSenadoVotosSilver::Schema)
 }
 
 fn registros_de_votos(json: &Value) -> Option<Vec<&Value>> {
