@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use reqwest::{RequestBuilder, Response, StatusCode, header};
+use reqwest::{RequestBuilder, Response, StatusCode, Version, header};
 use todeolho_nucleo::{
     ClienteHttp, DownloadHttp, ErroDeIngestao, InformacoesDoArquivo, PerfilHttp,
     RespostaCondicional, RespostaHttp,
@@ -342,19 +342,31 @@ impl ClienteHttp for ClienteHttpComRetentativas {
         // `206` traz o início e o total no Content-Range; `200` (inclusive quando
         // a origem ignora o Range) começa do zero, com o total no Content-Length.
         let (inicio_real, tamanho_total) = if resposta.status() == StatusCode::PARTIAL_CONTENT {
-            faixa_de_conteudo(&resposta).unwrap_or((0, None))
+            faixa_de_conteudo(&resposta).ok_or_else(|| ErroDeIngestao::Http {
+                url: url.to_owned(),
+                detalhe: "resposta 206 sem Content-Range válido".into(),
+            })?
         } else {
             (
                 0,
                 cabecalho(&resposta, header::CONTENT_LENGTH).and_then(|total| total.parse().ok()),
             )
         };
+        let enquadramento_verificavel = tamanho_total.is_some()
+            || resposta.version() >= Version::HTTP_2
+            || cabecalho(&resposta, header::TRANSFER_ENCODING).is_some_and(|valor| {
+                valor
+                    .split(',')
+                    .any(|token| token.trim().eq_ignore_ascii_case("chunked"))
+            });
 
         Ok(DownloadHttp {
+            status: resposta.status().as_u16(),
             tipo_de_conteudo: tipo_de_conteudo(&resposta),
             versao: etag(&resposta),
             inicio: inicio_real,
             tamanho_total,
+            enquadramento_verificavel,
             fluxo: Box::new(StreamReader::new(
                 resposta
                     .bytes_stream()
@@ -529,6 +541,57 @@ mod testes {
         }),
         limite: None,
     };
+
+    #[tokio::test]
+    async fn download_chunked_sem_content_length_tem_fim_verificavel() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let porta = ouvinte.local_addr().unwrap().port();
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut pedido = [0u8; 1024];
+            assert!(conexao.read(&mut pedido).unwrap() > 0);
+            conexao
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhello\r\n0\r\n\r\n")
+                .unwrap();
+        });
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas::default()).unwrap();
+        let download = cliente
+            .baixar(&format!("http://127.0.0.1:{porta}/arquivo.zip"))
+            .await
+            .unwrap();
+
+        assert_eq!(download.tamanho_total, None);
+        assert!(download.enquadramento_verificavel);
+        servidor.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn eof_http11_sem_framing_nao_e_verificavel() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let porta = ouvinte.local_addr().unwrap().port();
+        let servidor = std::thread::spawn(move || {
+            let (mut conexao, _) = ouvinte.accept().unwrap();
+            let mut pedido = [0u8; 1024];
+            assert!(conexao.read(&mut pedido).unwrap() > 0);
+            conexao
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nConnection: close\r\n\r\nhello")
+                .unwrap();
+        });
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas::default()).unwrap();
+        let download = cliente
+            .baixar(&format!("http://127.0.0.1:{porta}/arquivo.zip"))
+            .await
+            .unwrap();
+        assert_eq!(download.tamanho_total, None);
+        assert!(!download.enquadramento_verificavel);
+        servidor.join().unwrap();
+    }
 
     #[test]
     fn credencial_ausente_ou_invalida_nao_expoe_segredo() {

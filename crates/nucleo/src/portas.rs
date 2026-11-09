@@ -124,6 +124,8 @@ pub type FluxoDeBytes = Box<dyn AsyncRead + Send + Unpin>;
 
 /// Resposta bem-sucedida cujo corpo ainda será lido aos poucos.
 pub struct DownloadHttp {
+    /// Status HTTP da resposta.
+    pub status: u16,
     /// Tipo de conteúdo (`Content-Type`) do arquivo.
     pub tipo_de_conteudo: String,
     /// Identifica a versão do arquivo na origem (ETag), quando informada.
@@ -136,6 +138,8 @@ pub struct DownloadHttp {
     /// Tamanho total do arquivo em bytes, quando a origem informa
     /// (`Content-Length` de um `200`, ou o total do `Content-Range` de um `206`).
     pub tamanho_total: Option<u64>,
+    /// `true` quando o protocolo distingue fim válido de EOF truncado sem total.
+    pub enquadramento_verificavel: bool,
     /// Fluxo do corpo, lido sob demanda.
     pub fluxo: FluxoDeBytes,
 }
