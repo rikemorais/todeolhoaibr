@@ -34,8 +34,8 @@ pub use historico::{
     RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
 };
 pub use portas::{
-    ArmazenamentoRaw, ClienteHttp, DownloadHttp, FluxoDeBytes, InformacoesDoArquivo, ObjetoRaw,
-    RespostaCondicional, RespostaHttp,
+    ArmazenamentoRaw, ClienteHttp, DownloadHttp, FalhaDeRemocao, FluxoDeBytes,
+    InformacoesDoArquivo, ObjetoRaw, RespostaCondicional, RespostaHttp,
 };
 pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
 pub use selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
