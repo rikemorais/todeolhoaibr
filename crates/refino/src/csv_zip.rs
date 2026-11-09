@@ -7,13 +7,49 @@
 //! A escrita é **em lotes** (row groups): as linhas são agrupadas e gravadas aos poucos, de
 //! modo que o pico de memória fique no tamanho de um lote, não no arquivo inteiro.
 
-use std::io::{Cursor, Read, Seek};
+use std::io::{BufRead, BufReader, Cursor, Read, Seek};
 
 use crate::decodificador::ParteBronze;
 use crate::escritor::{ErroDeRefino, EscritorParquet};
 
 /// Quantas linhas acumular antes de gravar um row group.
 const LINHAS_POR_LOTE: usize = 50_000;
+
+/// Leitor que auto-detecta encoding: UTF-8 passa direto, senão transcodifica de Latin-1.
+enum LeitorAutoEncoding<R> {
+    Utf8(BufReader<R>),
+    Latin1(encoding_rs_io::DecodeReaderBytes<BufReader<R>, Vec<u8>>),
+}
+
+impl<R: Read> Read for LeitorAutoEncoding<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Utf8(r) => r.read(buf),
+            Self::Latin1(r) => r.read(buf),
+        }
+    }
+}
+
+/// Envolve um `Read` num leitor que auto-detecta o encoding a partir dos primeiros bytes
+/// buffered. Se o conteúdo disponível no buffer for UTF-8 válido, os bytes passam direto;
+/// senão, são transcodificados de Windows-1252 — o mesmo critério de [`para_utf8`], mas
+/// em fluxo.
+fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
+    let mut buf = BufReader::with_capacity(16_384, fonte);
+    let e_utf8 = buf
+        .fill_buf()
+        .map_or(true, |a| std::str::from_utf8(a).is_ok());
+    if e_utf8 {
+        LeitorAutoEncoding::Utf8(buf)
+    } else {
+        LeitorAutoEncoding::Latin1(
+            encoding_rs_io::DecodeReaderBytesBuilder::new()
+                .encoding(Some(encoding_rs::WINDOWS_1252))
+                .strip_bom(true)
+                .build(buf),
+        )
+    }
+}
 
 /// Decodifica, para UTF-8, os bytes de um CSV que pode estar em UTF-8 ou em Windows-1252
 /// (Latin-1). Tenta UTF-8 primeiro; se não for válido, assume Windows-1252, que nunca falha.
@@ -157,41 +193,17 @@ fn sem_cabecalho_tse_2012(nome: &str) -> bool {
         .is_some_and(|uf| uf.len() == 2 && uf.bytes().all(|byte| byte.is_ascii_uppercase()))
 }
 
-/// Descompacta um ZIP em memória e decodifica cada CSV em uma parte Parquet, nomeada pelo
-/// arquivo interno (sem a extensão). Entradas que não sejam `.csv` são ignoradas.
+/// Descompacta um ZIP e decodifica cada CSV em uma parte Parquet. Delega para
+/// [`partes_de_zip_csv_em_fluxo`] — mantida para testes e chamadores com `&[u8]`.
 pub fn partes_de_zip_csv(bytes: &[u8], delimitador: u8) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-    let mut arquivo = zip::ZipArchive::new(Cursor::new(bytes))?;
-    let mut partes = Vec::new();
-
-    for indice in 0..arquivo.len() {
-        let mut entrada = arquivo.by_index(indice)?;
-        if !entrada.is_file() {
-            continue;
-        }
-        let nome_interno = entrada.name()?.into_owned();
-        if !e_tabular(&nome_interno) {
-            continue;
-        }
-        let mut conteudo = Vec::new();
-        entrada.read_to_end(&mut conteudo)?;
-        let texto = para_utf8(&conteudo);
-        drop(conteudo);
-        let nome = nome_logico(&nome_interno);
-        let parquet = parquet_de_csv(&texto, delimitador, 0, sem_cabecalho_tse_2012(&nome))?;
-        partes.push(ParteBronze::nova(nome, &parquet)?);
-    }
-
-    if partes.is_empty() {
-        return Err(ErroDeRefino::Decodificacao(
-            "nenhum CSV encontrado no ZIP".to_owned(),
-        ));
-    }
-    Ok(partes)
+    partes_de_zip_csv_em_fluxo(Cursor::new(bytes), delimitador)
 }
 
-/// Como [`partes_de_zip_csv`], mas decodifica cada CSV **em fluxo**, direto da entrada do
-/// ZIP, transcodificando de Latin-1 na hora — para arquivos grandes (ex.: CSVs consolidados
-/// do TSE, de vários GB), em que materializar o arquivo inteiro estouraria a memória (#171).
+/// Decodifica cada CSV de um ZIP **em fluxo**: lê a entrada do ZIP, transcodifica
+/// encoding e parseia CSV direto para lotes Parquet em disco, sem materializar o
+/// arquivo inteiro em memória. Usa `utf8_passthru`: se o CSV for UTF-8 válido,
+/// passa direto; senão, transcodifica de Windows-1252 (Latin-1). Remove BOM quando
+/// presente.
 pub fn partes_de_zip_csv_em_fluxo<F: Read + Seek>(
     fonte: F,
     delimitador: u8,
@@ -208,10 +220,7 @@ pub fn partes_de_zip_csv_em_fluxo<F: Read + Seek>(
         if !e_tabular(&nome_interno) {
             continue;
         }
-        // Transcodifica Latin-1 -> UTF-8 em fluxo (os ZIPs em fluxo são do TSE, Latin-1).
-        let leitor = encoding_rs_io::DecodeReaderBytesBuilder::new()
-            .encoding(Some(encoding_rs::WINDOWS_1252))
-            .build(entrada);
+        let leitor = leitor_auto_encoding(entrada);
         let nome = nome_logico(&nome_interno);
         partes.push(parte_em_arquivo(
             &nome,
@@ -240,6 +249,28 @@ pub fn partes_de_csv(
     let texto = para_utf8(bytes);
     let parquet = parquet_de_csv(&texto, delimitador, linhas_a_pular, false)?;
     Ok(vec![ParteBronze::nova(nome, &parquet)?])
+}
+
+/// Como [`partes_de_csv`], mas lê o CSV **em fluxo** a partir de um `Read`, transcodificando
+/// encoding e gravando Parquet em disco sem materializar o CSV inteiro em memória.
+pub fn partes_de_csv_em_fluxo<R: Read>(
+    fonte: R,
+    nome: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    let leitor = leitor_auto_encoding(fonte);
+    let mut leitor_buf = BufReader::new(leitor);
+    for _ in 0..linhas_a_pular {
+        let mut lixo = String::new();
+        leitor_buf.read_line(&mut lixo)?;
+    }
+    Ok(vec![parte_em_arquivo(
+        nome,
+        leitor_buf,
+        delimitador,
+        false,
+    )?])
 }
 
 #[cfg(test)]
@@ -392,4 +423,5 @@ pub(crate) mod testes {
         assert_eq!(linhas[0], vec![c("0")]);
         assert_eq!(linhas[total - 1], vec![c(&(total - 1).to_string())]);
     }
+
 }

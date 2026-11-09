@@ -4,15 +4,17 @@
 //! preâmbulo antes do cabeçalho) e para as votações da Câmara (UTF-8 com BOM). O bronze só
 //! reencoda para UTF-8 e põe em colunas — a interpretação dos campos é do silver.
 
-use crate::csv_zip::partes_de_csv;
+use crate::csv_zip::{partes_de_csv, partes_de_csv_em_fluxo};
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::ErroDeRefino;
 
 /// Decodifica um CSV solto em uma parte Parquet, com o nome lógico e o separador da fonte.
+///
+/// Quando chamado via `decodificar_arquivo`, opera em fluxo (lê do disco sem carregar
+/// o CSV inteiro em memória). Ver #164.
 pub struct DecodificadorCsv {
     nome: &'static str,
     separador: u8,
-    /// Linhas de preâmbulo a descartar antes do cabeçalho (ex.: 1 no CEAPS do Senado).
     linhas_a_pular: usize,
 }
 
@@ -34,6 +36,15 @@ impl Decodificador for DecodificadorCsv {
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
         partes_de_csv(bytes, self.nome, self.separador, self.linhas_a_pular)
+    }
+
+    fn decodificar_arquivo(
+        &self,
+        caminho: &std::path::Path,
+        _tipo_de_conteudo: &str,
+    ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+        let arquivo = std::fs::File::open(caminho)?;
+        partes_de_csv_em_fluxo(arquivo, self.nome, self.separador, self.linhas_a_pular)
     }
 }
 
