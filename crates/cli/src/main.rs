@@ -1480,17 +1480,21 @@ async fn passada_senado_silver(
                 )]
             }
             TipoSilverSenado::Votacoes => {
+                let Ok(votos) = TarefaDeSilverSenadoVotacoes::nova_votos(
+                    Arc::clone(bronze),
+                    Arc::clone(&snapshot),
+                    &recurso,
+                ) else {
+                    eprintln!("Atenção: recurso de votação Senado inválido: {recurso}");
+                    continue;
+                };
                 vec![
-                    TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova(
+                    TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova_sessoes(
                         Arc::clone(bronze),
                         Arc::clone(&snapshot),
                         &recurso,
                     )),
-                    TarefaSilverSenado::Votacoes(TarefaDeSilverSenadoVotacoes::nova_votos(
-                        Arc::clone(bronze),
-                        Arc::clone(&snapshot),
-                        &recurso,
-                    )?),
+                    TarefaSilverSenado::Votacoes(votos),
                 ]
             }
             TipoSilverSenado::Processos => {
