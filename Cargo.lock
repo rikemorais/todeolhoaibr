@@ -3454,6 +3454,7 @@ dependencies = [
  "sha2 0.11.1",
  "todeolho-nucleo",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 
