@@ -1,0 +1,74 @@
+# Contratos Silver da fase 0
+
+Esta especificação cobre as 26 entradas de `catalogo_refino()` no commit de 2026-11-09. Ela define o alvo de cada família e indica onde a evidência ainda não autoriza uma chave ou deduplicação. A [matriz do catálogo](silver.md#cobertura-planejada-do-catalogo-bronze) registra o grão e a chave candidata por entrada; o [ADR 0020](../adr/0020-contrato-da-camada-silver.md) rege publicação e qualidade. A existência de uma linha aqui não significa que a transformação esteja ativada nem que o publicador atual cumpra toda a política.
+
+## Convenções comuns
+
+- Cada linha publicada deve ter `_tdoa_origem_manifesto` e `_tdoa_origem_parte` como texto não nulo, e `_tdoa_origem_ordinal` como `UInt64` não nulo. A identidade técnica `(manifesto, parte, ordinal)` distingue ocorrências repetidas; não é chave de negócio. O manifesto Silver registra recurso Bronze, tabela interna e versão da regra. Consultas que não projetem essas colunas permanecem **não conformes** até a correção.
+- Identificadores, códigos territoriais, eleitorais e documentos são texto, mesmo quando contêm apenas dígitos. `TRIM` remove espaços de borda nos campos de chave; caixa, acentos e zeros à esquerda são preservados. Nenhum campo numérico ausente vira zero. Data sem fuso explícito usa `Date32`; instante com hora usa `Timestamp(Microsecond)` e exige fuso documentado antes de comparar fontes. Dinheiro usa `Decimal128(18,2)` quando a moeda é real; séries e indicadores usam escala declarada pela família.
+- Campo obrigatório nulo, vazio ou inválido bloqueia a publicação pelo padrão de limiar zero; exceção exige limiar absoluto, quarentena estruturada e versão nova, como no ADR. Campo opcional inválido pode virar nulo se o original permanecer recuperável e a conversão for contada. Não usar `TRY_CAST` silencioso para transformar inválido obrigatório em nulo.
+- Uma chave só é declarada única para o recorte em que a evidência a validou. Colisão de chave em contrato que exige unicidade bloqueia o ponteiro. Onde a chave não foi comprovada, manter todas as ocorrências, inclusive cópias exatas, com identidade técnica; não aplicar `DISTINCT`. Atualizações substituem a versão da tabela por novo manifesto e ponteiro, sem mutar versões anteriores.
+- País, região, UF e município são níveis explícitos. `nivel_id` ou coluna equivalente identifica o nível; município é nulo fora de `N6` ou de um registro efetivamente municipal. O ano pertence à chave só quando faz parte do período/eleição da própria linha ou do recurso validado.
+
+## Decisões por família
+
+`Obrig.` indica os campos mínimos para identificar o grão; demais atributos da origem ficam em `registro_original` ou coluna original equivalente enquanto não houver tipagem individual. `Preservar` significa conservar cada ocorrência sem deduplicar. Os tipos são o **alvo**; contratos SQL existentes podem cobrir apenas parte das colunas listadas.
+
+| Entrada(s) | Campos tipados e nulabilidade alvo | Normalização e duplicatas |
+| --- | --- | --- |
+| `camara-despesas` | `ano` `UInt16` obrigatório do recurso; `ideDocumento`, `idDeputado`, `tipoDespesa` texto anulável; `dataDocumento` `Date32` anulável; `valorDocumento` `Decimal128(18,2)` anulável, com original preservado | `ideDocumento` não identifica sozinho um lançamento. Preservar; data/valor inválidos preenchidos exigem rejeição ou exceção de contrato, nunca zero. |
+| `camara-votacoes` | Sete tabelas independentes descritas abaixo; IDs oficiais texto obrigatório por tabela, datas `Date32` ou timestamp quando a origem fornecer hora; campos auxiliares anuláveis | Validar vínculos e chave dentro do conjunto anual; preservar ocorrência até provar duplicata integral. Não juntar tabelas diferentes por `id` sozinho. |
+| `camara-tramitacoes` | `ano` `UInt16` e `uri_proposicao` texto obrigatórios; `sequencia` `UInt32`, `data_hora` `Timestamp(Microsecond)`, IDs e descrição anuláveis | `uriProposicao` não é chave de evento. Preservar repetições e ordem técnica; conversão preenchida inválida bloqueia a publicação. |
+| `camara-deputados`, `camara-partidos` | `id` texto obrigatório; nome/sigla/UF e demais atributos texto anulável | `TRIM` em ID; colisão de ID na fotografia bloqueia. Mudança de cadastro cria nova versão, não uma segunda linha corrente por ID. |
+| `camara-legislaturas` | `id` `UInt16`, `data_inicio` e `data_fim` `Date32` obrigatórios; `ano_eleicao` `UInt16` anulável | `data_fim >= data_inicio`; colisão de ID ou intervalo invertido bloqueia. |
+| `senado-despesas` | `ano` `UInt16` do recurso; `COD_DOCUMENTO`, senador e fornecedor texto anulável; `DATA`, `VALOR_REEMBOLSADO` como `Date32`, `Decimal128(18,2)` anuláveis | `COD_DOCUMENTO` falta em parte da origem; não usá-lo como chave única global. Preservar lançamentos sem código e cópias até identidade comprovada. |
+| `senado-votacoes` | Sessões: `codigoSessaoVotacao` texto obrigatório; data `Date32` anulável. Votos: chave da sessão + parlamentar texto obrigatório, escolha texto anulável | Duas tabelas e ponteiros independentes. A unicidade de sessão foi observada em recorte local; voto exige teste de multiplicidade por parlamentar antes de deduplicar. Sessão sem votos continua na tabela pai. |
+| `senado-parlamentares` | Código parlamentar e legislatura como texto obrigatórios; nome, partido, UF e situação texto anulável | A identidade é por parlamentar e legislatura, não apenas código; preservar mudanças da fotografia entre versões. |
+| `senado-processos`, `senado-processos-detalhes` | `id` texto e `ano` `UInt16` obrigatórios; detalhes aninhados em `processo_original` anulável | Chave `(ano,id)` dentro de cada tipo de tabela. Detalhes não se juntam à listagem pela posição da linha; ausência de pai deve ser contada. |
+| `tse-candidaturas` | Ano `UInt16` e componentes eleitorais da chave como texto obrigatórios; datas `Date32`, idade `UInt8` anuláveis | Aliases por ano explícitos; zeros à esquerda preservados; colisão da chave validada bloqueia. Sentinelas do TSE viram nulo somente por coluna prevista. |
+| `tse-bens` | Ano `UInt16`, eleição, UF, UE, candidato e ordem do bem texto obrigatórios; `valor_bem` `Decimal128(18,2)` anulável; datas `Date32` anuláveis | Normalizar nome da coluna de ordem por ano, nunca o valor do identificador; valor decimal preenchido inválido bloqueia. Colisão da chave bloqueia. |
+| `tse-prestacao-contas` | Tabelas internas e recortes anuais descritos abaixo. Documentos, eleição, prestador e candidato são texto; datas `Date32` ou timestamp; valor monetário `Decimal128(18,2)` quando a coluna indicar reais | Não há chave de lançamento completa e única comprovada para 2014 nem para as famílias partidárias de 2016. Preservar ocorrências e variantes nacionais/UF separadas até reconciliar conteúdo; nunca somar consolidado com suas partes. |
+| `tse-votacao-secao` | Ano `UInt16`, eleição/turno, UF, município, zona, seção, cargo, votável como texto obrigatórios; `quantidade_votos` `UInt32` obrigatório; `data_eleicao` `Date32` anulável | Chave composta por eleição, turno, seção, cargo e votável no escopo UF; conversão inválida ou colisão bloqueia. Zero de votos é valor válido, diferente de nulo. |
+| `bcb` | `data` `Date32`, `valor` `Decimal128(18,6)` obrigatórios; série identificada pelo recurso | `DD/MM/AAAA` e decimal com ponto no contrato atual. Data repetida na mesma série bloqueia; não converter por `f64`. |
+| `ipeadata` | `SERCODIGO`, `TERCODIGO`, `VALDATA`, `NIVNOME` texto obrigatório para chave candidata; `data` `Date32` e `valor` decimal de escala por série, anuláveis até validação | `NIVNOME` distingue Brasil, UF, município e região. Não converter `TERCODIGO` para inteiro nem atribuir município a agregados. Preservar até testar chave em séries distintas. |
+| `ibge-estados`, `ibge-regioes`, `ibge-municipios` | `id` IBGE texto obrigatório; `nome` texto obrigatório; nível explícito; UF/região pai texto anulável conforme tipo | `id` com zeros à esquerda; colisão dentro de uma fotografia bloqueia. Fotografia não implica período de vigência histórico: não inventar data de início/fim. |
+| `ibge-ipca`, `ibge-inpc`, `ibge-pib-municipios`, `ibge-pib-trimestral`, `ibge-pnad-desocupacao`, `ibge-populacao-municipios` | `variavel_id`, `classificacoes`, `nivel_id`, `localidade_id`, `periodo` texto obrigatórios; `valor_original` texto anulável; `valor_decimal` `Decimal128(38,9)` anulável | Chave inclui classificação e período; `nivel_id` define alcance geográfico. Valor textual não decimal permanece original e decimal nulo; sentinelas só ganham semântica após metadados específicos. Colisão da chave bloqueia após validação por recurso. |
+
+### Tabelas internas da Câmara
+
+O recurso `camara-votacoes` de 2024 contém sete conjuntos distintos. A amostra e as contagens de unicidade estão em [silver.md](silver.md#conjuntos-da-camara). Cada contrato inclui `ano` `UInt16` do recurso, preserva texto original dos campos não tipados e aplica o padrão de nulos e linhagem acima.
+
+| Tabela | Grão e chave candidata de 2024 | Campos mínimos obrigatórios |
+| --- | --- | --- |
+| `proposicoes` | proposição; `id` | `id` textual |
+| `proposicoesAutores` | assinatura; `idProposicao`, `ordemAssinatura` | ambos textuais; ordem pode ganhar `UInt32` adicional sem perder original |
+| `votacoes` | sessão; `id` | `id` textual |
+| `votacoesVotos` | voto; `idVotacao`, `deputado_id` | ambos textuais; opção de voto anulável |
+| `votacoesObjetos` | objeto; `idVotacao`, `proposicao_id` | ambos textuais |
+| `votacoesProposicoes` | proposição relacionada; `idVotacao`, `proposicao_id` | ambos textuais |
+| `votacoesOrientacoes` | orientação; `idVotacao`, `siglaBancada` | ambos textuais; orientação anulável |
+
+Essas chaves foram medidas em 2024, não em todos os anos. Uma linha sem componente obrigatório ou com colisão impede a ativação do contrato do ano correspondente; as demais tabelas podem publicar independentemente.
+
+### Tabelas internas da prestação de contas TSE
+
+O catálogo tem **uma** entrada `tse-prestacao-contas`, mas o ZIP carrega relações distintas. O [inventário 2014–2022](pesquisa-tse-2014-2022.md) fixa os manifestos, schemas e contagens; a [pesquisa de 2014 `_sup`](pesquisa-tse-2014-sup.md) trata os arquivos suplementares. O contrato de cada linha abaixo é por **família × ano × recorte escolhido**. Uma relação só é ativada depois de verificar cabeçalhos, sentinelas, chave ou ausência dela, multiplicidade e relação entre recortes.
+
+| Anos | Tabelas internas | Grão e decisão de identidade |
+| --- | --- | --- |
+| 2002 | `DespesaCandidato`, `ReceitaCandidato`, `DespesaComite`, `ReceitaComite` | Quatro lançamentos distintos. Combinações exploratórias colidem; conservar todas as ocorrências e os formatos de data/valor por tabela. Ver [pesquisa 2002](pesquisa-tse-2002.md). |
+| 2004, 2006 | Despesas e receitas de candidato/comitê nos nomes físicos de cada ZIP | Quatro relações por ano. Cabeçalhos mudam, inclusive nomes literais em 2004; não reaproveitar aliases nem inferir chave de outro ano. Ver [pesquisa 2004–2006](pesquisa-tse-2004-2006.md). |
+| 2008 | `despesas_candidatos`, `despesas_comites`, `receitas_candidatos`, `receitas_comites`; `leiaute-2008` é documentação, não tabela | Quatro relações de lançamento sem chave validada. O TXT do leiaute não entra no catálogo Silver. Ver [pesquisa 2008](pesquisa-tse-2008.md). |
+| 2010 | `ReceitasCandidatos`, `DespesasCandidatos`, `ReceitasComites`, `DespesasComites`, `ReceitasPartidos`, `DespesasPartidos` | Seis relações; 28 partes por família. O manifesto omite o caminho UF, então conservar parte e ordinal e validar UF da linha. Ver [pesquisa 2010–2012](pesquisa-tse-2010-2012.md). |
+| 2012 | `despesas_candidatos`, `despesas_comites`, `despesas_partidos`, `receitas_candidatos`, `receitas_comites`, `receitas_partidos` | Seis relações; `_brasil` e UFs divergem em cobertura/schema. Receitas partidárias por UF/BR têm 19 colunas posicionais sem mapeamento validado. Não publicar uma união presumida. |
+| 2014 | `despesas_candidatos`, `despesas_comites`, `despesas_partidos`; `receitas_candidatos`, `receitas_comites`, `receitas_partidos` | Lançamento por tipo de prestador. Sondas de documento/recibo têm campos faltantes ou colisões; identidade técnica por linha, sem deduplicação. |
+| 2014 | `despesas_candidatos_prestacao_contas_final`, `despesas_partidos_prestacao_contas_final`, `receitas_candidatos_prestacao_contas_final`, `receitas_partidos_prestacao_contas_final` em `_sup` | Relações suplementares próprias; não anexar à tabela ordinária sem prova de semântica e multiplicidade. |
+| 2016 | `despesas_candidatos_prestacao_contas_final`, `despesas_partidos_prestacao_contas_final`, `receitas_candidatos_prestacao_contas_final`, `receitas_partidos_prestacao_contas_final` | Lançamento final por prestador. Partidárias têm chaves incompletas/colisões medidas; preservar todas. `_brasil` inclui registros `UF=BR` ou `UF=DF` além das UFs publicadas. `_sup` segue separado. |
+| 2018, 2020, 2022 | `despesas_contratadas_candidatos`, `despesas_pagas_candidatos`, `receitas_candidatos`, `receitas_candidatos_doador_originario` | Quatro grãos distintos. `_BRASIL` reproduz UFs + `_BR` em 2018/2022 e UFs em 2020 no snapshot medido; selecionar um recorte com versão de regra, sem somar ambos. |
+| 2024 | `despesas_contratadas_candidatos`, `despesas_pagas_candidatos`, `receitas_candidatos`, `receitas_candidatos_doador_originario` | Quatro relações. Despesas pagas têm contrato SQL específico que remove apenas 79 cópias integrais no consolidado medido; as outras três não têm chave única validada e preservam variantes. Ver [pesquisa 2024](pesquisa-tse-2024.md). |
+
+Campos como `#NULO`, `#NE`, `-1` e `-3` têm interpretação **por coluna e ano** a partir do leia-me do pacote. `UF=BR` é nacional; `UF=DF` é Distrito Federal e não deve virar linha nacional. Valores monetários conservam a string original e recebem decimal apenas após validar separador e escala do layout anual. A ausência de chave comprovada não autoriza apagar uma ocorrência repetida.
+
+## Evidência mínima antes da ativação
+
+A fixture ou amostra real de cada contrato deve demonstrar: schema de entrada de pelo menos um ano antigo e um recente quando houver mudança; chave completa e unicidade ou decisão explícita de ausência de chave; datas, decimais e identificadores com zero à esquerda; nulos, sentinelas e linha inválida; duas ocorrências iguais com ordinais distintos; contagem de entrada, saída e rejeição; ponteiro anterior preservado em falha. Para CSV, JSON, IBGE agregado e TSE, o [registro de evidência](silver.md#evidencia-disponivel-no-repositorio) e as pesquisas vinculadas fornecem os recortes já medidos. Falta de evidência mantém a família planejada, sem publicar um contrato presumido.
