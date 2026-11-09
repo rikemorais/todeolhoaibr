@@ -195,7 +195,7 @@ impl ClienteHttpComRetentativas {
         url: &str,
         aceita: &str,
         validador: Option<&str>,
-    ) -> Result<RespostaCondicional, Falha> {
+    ) -> Result<(RespostaCondicional, Option<String>), Falha> {
         let mut requisicao = self
             .cliente
             .get(url)
@@ -210,23 +210,36 @@ impl ClienteHttpComRetentativas {
 
         let status = resposta.status();
         if status == StatusCode::NOT_MODIFIED {
-            return Ok(RespostaCondicional::NaoModificado);
+            return Ok((RespostaCondicional::NaoModificado, None));
         }
         verificar_status(status)?;
 
         let tipo_de_conteudo = tipo_de_conteudo(&resposta);
         let versao = etag(&resposta);
+        let codificacao_de_conteudo = resposta
+            .headers()
+            .get(header::CONTENT_ENCODING)
+            .map(|valor| {
+                valor
+                    .to_str()
+                    .map(str::to_owned)
+                    .map_err(|_| Falha::definitiva("Content-Encoding inválido".into()))
+            })
+            .transpose()?;
         let corpo = resposta
             .bytes()
             .await
             .map_err(|erro| Falha::transitoria(descrever(erro)))?;
 
-        Ok(RespostaCondicional::Modificado {
-            status: status.as_u16(),
-            tipo_de_conteudo,
-            versao,
-            corpo: corpo.to_vec(),
-        })
+        Ok((
+            RespostaCondicional::Modificado {
+                status: status.as_u16(),
+                tipo_de_conteudo,
+                versao,
+                corpo: corpo.to_vec(),
+            },
+            codificacao_de_conteudo,
+        ))
     }
 
     /// Repete a operação enquanto a falha for transitória.
@@ -284,6 +297,17 @@ impl ClienteHttp for ClienteHttpComRetentativas {
         aceita: &str,
         validador: Option<&str>,
     ) -> Result<RespostaCondicional, ErroDeIngestao> {
+        self.com_retentativas(url, || self.tentar_condicional(url, aceita, validador))
+            .await
+            .map(|(resposta, _)| resposta)
+    }
+
+    async fn obter_condicional_com_codificacao(
+        &self,
+        url: &str,
+        aceita: &str,
+        validador: Option<&str>,
+    ) -> Result<(RespostaCondicional, Option<String>), ErroDeIngestao> {
         self.com_retentativas(url, || self.tentar_condicional(url, aceita, validador))
             .await
     }

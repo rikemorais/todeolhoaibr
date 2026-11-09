@@ -10,6 +10,7 @@ todeolho-nucleo.workspace = true
 
 async-trait.workspace = true
 chrono.workspace = true
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 hex.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }

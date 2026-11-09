@@ -3,6 +3,7 @@
 //! na primeira vez), reaproveita o que não mudou e grava o restante na camada Raw.
 
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -117,6 +118,7 @@ impl TarefaDeIngestaoHttp {
         url: &str,
         status: u16,
         tipo_de_conteudo: &str,
+        codificacao_de_conteudo: Option<&str>,
         corpo: &[u8],
     ) -> Result<(), ErroDePagina> {
         if matches!(status, 204 | 205) || !eh_json(tipo_de_conteudo) {
@@ -126,7 +128,29 @@ impl TarefaDeIngestaoHttp {
         // IgnoredAny percorre a sintaxe sem montar uma árvore Value proporcional
         // ao documento. A precisão arbitrária aceita a gramática JSON de números
         // sem exigir que caibam em i64/u64/f64.
-        let mut deserializador = serde_json::Deserializer::from_slice(corpo);
+        let codificacao = codificacao_de_conteudo.unwrap_or("identity").trim();
+        let decodificado = if codificacao.is_empty() || codificacao.eq_ignore_ascii_case("identity")
+        {
+            None
+        } else if codificacao.eq_ignore_ascii_case("gzip") {
+            let mut bytes = Vec::new();
+            flate2::read::GzDecoder::new(corpo)
+                .read_to_end(&mut bytes)
+                .map_err(|erro| {
+                    ErroDePagina::JsonInvalido(ErroDeIngestao::Http {
+                        url: url.to_owned(),
+                        detalhe: format!("resposta gzip inválida: {erro}"),
+                    })
+                })?;
+            Some(bytes)
+        } else {
+            return Err(ErroDePagina::Outro(ErroDeIngestao::Http {
+                url: url.to_owned(),
+                detalhe: format!("Content-Encoding não suportado: {codificacao}"),
+            }));
+        };
+        let mut deserializador =
+            serde_json::Deserializer::from_slice(decodificado.as_deref().unwrap_or(corpo));
         let resultado = serde::de::IgnoredAny::deserialize(&mut deserializador)
             .and_then(|_| deserializador.end());
         resultado.map_err(|erro| {
@@ -174,17 +198,27 @@ impl TarefaDeIngestaoHttp {
         let validador = anterior.and_then(|parte| parte.versao.as_deref());
         match contexto
             .http
-            .obter_condicional(url, ACEITA_JSON, validador)
+            .obter_condicional_com_codificacao(url, ACEITA_JSON, validador)
             .await?
         {
-            RespostaCondicional::NaoModificado => {
+            (RespostaCondicional::NaoModificado, _) => {
                 let anterior = anterior.expect("304 só ocorre quando havia validador anterior");
                 match contexto.armazenamento.ler(&anterior.chave).await? {
                     Some(corpo)
                         if corpo.len() as u64 == anterior.bytes
                             && hex::encode(Sha256::digest(&corpo)) == anterior.sha256
                             && self
-                                .validar_resposta(url, 200, &anterior.tipo_de_conteudo, &corpo)
+                                .validar_resposta(
+                                    url,
+                                    200,
+                                    &anterior.tipo_de_conteudo,
+                                    if corpo.starts_with(&[0x1f, 0x8b]) {
+                                        Some("gzip")
+                                    } else {
+                                        None
+                                    },
+                                    &corpo,
+                                )
                                 .is_ok() =>
                     {
                         Ok(PaginaResolvida {
@@ -201,12 +235,15 @@ impl TarefaDeIngestaoHttp {
                     _ => self.rebaixar(contexto, url).await,
                 }
             }
-            RespostaCondicional::Modificado {
-                status,
-                tipo_de_conteudo,
-                versao,
-                corpo,
-            } => {
+            (
+                RespostaCondicional::Modificado {
+                    status,
+                    tipo_de_conteudo,
+                    versao,
+                    corpo,
+                },
+                codificacao_de_conteudo,
+            ) => {
                 let tipo_validado = if tipo_de_conteudo.trim().is_empty() {
                     anterior
                         .map(|parte| parte.tipo_de_conteudo.as_str())
@@ -214,7 +251,13 @@ impl TarefaDeIngestaoHttp {
                 } else {
                     tipo_de_conteudo.as_str()
                 };
-                self.validar_resposta(url, status, tipo_validado, &corpo)?;
+                self.validar_resposta(
+                    url,
+                    status,
+                    tipo_validado,
+                    codificacao_de_conteudo.as_deref(),
+                    &corpo,
+                )?;
                 Ok(self.classificar_modificado(anterior, tipo_de_conteudo, versao, corpo))
             }
         }
@@ -229,19 +272,28 @@ impl TarefaDeIngestaoHttp {
     ) -> Result<PaginaResolvida, ErroDePagina> {
         match contexto
             .http
-            .obter_condicional(url, ACEITA_JSON, None)
+            .obter_condicional_com_codificacao(url, ACEITA_JSON, None)
             .await?
         {
-            RespostaCondicional::Modificado {
-                status,
-                tipo_de_conteudo,
-                versao,
-                corpo,
-            } => {
-                self.validar_resposta(url, status, &tipo_de_conteudo, &corpo)?;
+            (
+                RespostaCondicional::Modificado {
+                    status,
+                    tipo_de_conteudo,
+                    versao,
+                    corpo,
+                },
+                codificacao_de_conteudo,
+            ) => {
+                self.validar_resposta(
+                    url,
+                    status,
+                    &tipo_de_conteudo,
+                    codificacao_de_conteudo.as_deref(),
+                    &corpo,
+                )?;
                 Ok(self.classificar_modificado(None, tipo_de_conteudo, versao, corpo))
             }
-            RespostaCondicional::NaoModificado => Err(self
+            (RespostaCondicional::NaoModificado, _) => Err(self
                 .erro_de_paginacao(format!("origem respondeu 304 sem validador para {url}"))
                 .into()),
         }
@@ -415,9 +467,18 @@ impl TarefaDeIngestaoHttp {
                 .resolver_pagina_com_retentativas(contexto, &url, anterior)
                 .await?;
 
+            let corpo_paginacao = if resolvida.corpo.starts_with(&[0x1f, 0x8b]) {
+                let mut decodificado = Vec::new();
+                flate2::read::GzDecoder::new(resolvida.corpo.as_slice())
+                    .read_to_end(&mut decodificado)
+                    .map_err(|erro| self.erro_de_paginacao(erro.to_string()))?;
+                Some(decodificado)
+            } else {
+                None
+            };
             proxima = self
                 .paginacao
-                .proxima_url(&resolvida.corpo)
+                .proxima_url(corpo_paginacao.as_deref().unwrap_or(&resolvida.corpo))
                 .map_err(|detalhe| self.erro_de_paginacao(detalhe))?;
 
             let PaginaResolvida {
@@ -561,6 +622,7 @@ fn eh_json(tipo_de_conteudo: &str) -> bool {
 #[cfg(test)]
 mod testes {
     use std::collections::{HashMap, VecDeque};
+    use std::io::Write;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -611,6 +673,43 @@ mod testes {
     }
 
     struct HttpFalso(HashMap<&'static str, &'static str>);
+
+    struct HttpCodificado {
+        corpo: Vec<u8>,
+        codificacao: &'static str,
+    }
+
+    #[async_trait]
+    impl ClienteHttp for HttpCodificado {
+        async fn obter(&self, _: &str, _: &str) -> Result<RespostaHttp, ErroDeIngestao> {
+            unreachable!("usa GET condicional")
+        }
+
+        async fn obter_condicional_com_codificacao(
+            &self,
+            _: &str,
+            _: &str,
+            _: Option<&str>,
+        ) -> Result<(RespostaCondicional, Option<String>), ErroDeIngestao> {
+            Ok((
+                RespostaCondicional::Modificado {
+                    status: 200,
+                    tipo_de_conteudo: "application/json".into(),
+                    versao: None,
+                    corpo: self.corpo.clone(),
+                },
+                Some(self.codificacao.into()),
+            ))
+        }
+
+        async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+            unreachable!("não consulta arquivos")
+        }
+
+        async fn baixar(&self, _: &str) -> Result<DownloadHttp, ErroDeIngestao> {
+            unreachable!("não baixa arquivos")
+        }
+    }
 
     struct HttpSequencial {
         respostas: Mutex<VecDeque<&'static str>>,
@@ -705,6 +804,21 @@ mod testes {
         (contexto, armazenamento, http)
     }
 
+    fn contexto_codificado(
+        corpo: Vec<u8>,
+        codificacao: &'static str,
+    ) -> (ContextoDeExecucao, Arc<ArmazenamentoEmMemoria>) {
+        let armazenamento = Arc::new(ArmazenamentoEmMemoria::default());
+        let contexto = ContextoDeExecucao {
+            id_execucao: "exec".into(),
+            iniciada_em: Utc::now(),
+            armazenamento: armazenamento.clone(),
+            http: Arc::new(HttpCodificado { corpo, codificacao }),
+            progresso: None,
+        };
+        (contexto, armazenamento)
+    }
+
     fn tarefa_paginada() -> TarefaDeIngestaoHttp {
         TarefaDeIngestaoHttp::paginada("f", "r", "https://api/1".into(), LinksDePaginacao)
     }
@@ -780,6 +894,58 @@ mod testes {
         );
     }
 
+    fn gzip(corpo: &[u8]) -> Vec<u8> {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(corpo).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    #[tokio::test]
+    async fn valida_gzip_e_preserva_bytes_recebidos_na_raw() {
+        let corpo = gzip(br#"{"dados":[1]}"#);
+        let (contexto, armazenamento) = contexto_codificado(corpo.clone(), "gzip");
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        tarefa.executar(&contexto).await.unwrap();
+
+        let objetos = armazenamento.objetos.lock().unwrap();
+        assert_eq!(objetos[0].conteudo, corpo);
+        assert!(objetos[1].chave.ends_with("/_manifesto.json"));
+    }
+
+    #[tokio::test]
+    async fn paginacao_le_json_gzip_decodificado() {
+        let corpo = gzip(br#"{"dados":[1],"links":[]}"#);
+        let (contexto, armazenamento) = contexto_codificado(corpo.clone(), "gzip");
+        let tarefa =
+            TarefaDeIngestaoHttp::paginada("f", "r", "https://api/r".into(), LinksDePaginacao);
+
+        let resumo = tarefa.executar(&contexto).await.unwrap();
+
+        assert_eq!(resumo.partes, 1);
+        assert_eq!(armazenamento.objetos.lock().unwrap()[0].conteudo, corpo);
+    }
+
+    #[tokio::test]
+    async fn rejeita_gzip_truncado_sem_publicar() {
+        let mut corpo = gzip(br#"{"dados":[1]}"#);
+        corpo.truncate(corpo.len() - 4);
+        let (contexto, armazenamento) = contexto_codificado(corpo, "gzip");
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        assert!(tarefa.executar(&contexto).await.is_err());
+        assert!(armazenamento.objetos.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn rejeita_content_encoding_desconhecido_sem_publicar() {
+        let (contexto, armazenamento) = contexto_codificado(br#"{"dados":[1]}"#.to_vec(), "br");
+        let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
+
+        assert!(tarefa.executar(&contexto).await.is_err());
+        assert!(armazenamento.objetos.lock().unwrap().is_empty());
+    }
+
     #[tokio::test]
     async fn repete_json_truncado_e_publica_a_resposta_valida() {
         const CORPO_PARCIAL: &str = r#"{"dados":[{"id":1}"#;
@@ -840,11 +1006,11 @@ mod testes {
         let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
 
         tarefa
-            .validar_resposta("https://api/r", 200, "application/json", b"1e400")
+            .validar_resposta("https://api/r", 200, "application/json", None, b"1e400")
             .unwrap();
         assert!(
             tarefa
-                .validar_resposta("https://api/r", 200, "application/json", b"{\"a\":")
+                .validar_resposta("https://api/r", 200, "application/json", None, b"{\"a\":")
                 .is_err()
         );
     }
@@ -854,11 +1020,11 @@ mod testes {
         let tarefa = TarefaDeIngestaoHttp::sem_paginacao("f", "r", "https://api/r".into());
 
         tarefa
-            .validar_resposta("https://api/r", 204, "application/json", b"")
+            .validar_resposta("https://api/r", 204, "application/json", None, b"")
             .unwrap();
         assert!(
             tarefa
-                .validar_resposta("https://api/r", 200, "application/json", b"")
+                .validar_resposta("https://api/r", 200, "application/json", None, b"")
                 .is_err()
         );
     }
