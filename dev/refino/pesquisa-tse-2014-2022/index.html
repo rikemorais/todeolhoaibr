@@ -1149,6 +1149,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Recortes validados: 2016–2022">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cobertura-dos-lancamentos-partidarios-de-2016" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cobertura dos lançamentos partidários de 2016
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1671,6 +1686,21 @@
       Recortes validados: 2016–2022
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Recortes validados: 2016–2022">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cobertura-dos-lancamentos-partidarios-de-2016" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cobertura dos lançamentos partidários de 2016
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -2271,6 +2301,44 @@ Em 2016, <code>_brasil</code> equivale às UFs para despesas e receitas de candi
 despesas de partidos, <code>_brasil</code> contém 6.811 ocorrências de hash adicionais;
 para receitas de partidos, contém 1.266. Não encontrei hashes presentes apenas
 nas UFs nesses dois recortes nacionais. Preservei os registros divergentes.</p>
+<h4 id="cobertura-dos-lancamentos-partidarios-de-2016">Cobertura dos lançamentos partidários de 2016<a class="headerlink" href="#cobertura-dos-lancamentos-partidarios-de-2016" title="Permanent link">&para;</a></h4>
+<p>Agrupei as duas famílias de partidos pelo campo físico <code>UF</code>, comparando o
+consolidado <code>_brasil</code> com a soma das 26 partes por UF do mesmo manifesto. Todas
+as UFs presentes nas partes têm a mesma contagem no consolidado. A diferença
+inteira está em <code>BR</code> e <code>DF</code>, que não têm parte territorial própria nesse
+snapshot:</p>
+<table>
+<thead>
+<tr>
+<th>Família</th>
+<th style="text-align: right;"><code>UF=BR</code> só em <code>_brasil</code></th>
+<th style="text-align: right;"><code>UF=DF</code> só em <code>_brasil</code></th>
+<th style="text-align: right;">Total adicional</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>despesas_partidos_prestacao_contas_final_2016</code></td>
+<td style="text-align: right;">6.716</td>
+<td style="text-align: right;">95</td>
+<td style="text-align: right;">6.811</td>
+</tr>
+<tr>
+<td><code>receitas_partidos_prestacao_contas_final_2016</code></td>
+<td style="text-align: right;">1.215</td>
+<td style="text-align: right;">51</td>
+<td style="text-align: right;">1.266</td>
+</tr>
+</tbody>
+</table>
+<p>Todas as linhas <code>BR</code> dessas famílias têm <code>Tipo diretorio = Direção Nacional</code>;
+as <code>DF</code> têm <code>Tipo diretorio = Direção Estadual/Distrital</code>. A comparação anterior
+por hash e multiplicidade confirma que o consolidado contém todas as linhas das
+partes por UF e que somente essas ocorrências adicionais diferem. Portanto,
+<strong>para este snapshot</strong>, <code>_brasil</code> é o recorte completo das quatro famílias de
+2016 e as partes por UF são subconjuntos; somá-los duplicaria lançamentos. Essa
+observação não define uma chave de negócio, a semântica de <code>_sup</code> nem uma regra
+automática para outros anos ou versões do recurso.</p>
 <p>As quatro partes <code>_sup</code> de 2016 têm zero linhas neste snapshot Bronze. Isso não
 altera a conclusão da <a href="../pesquisa-tse-2014-sup/">pesquisa oficial sobre <code>_sup</code></a>:
 o TSE publica esse recurso separadamente, mas não documenta sua relação linha a
@@ -2283,10 +2351,10 @@ de conteúdo para a identidade das linhas. A semântica dos arquivos <code>_sup<
 pesquisada em <a href="../pesquisa-tse-2014-sup/">nota separada</a>: o TSE os publica como
 recurso distinto, mas não documenta a relação linha a linha com a prestação
 regular; devem permanecer separados. Para 2016–2022, schemas, contagens e hashes
-de conteúdo agora foram comparados por família e recorte. As divergências de
-partidos em 2016 ainda precisam de explicação de domínio antes de escolher
-<code>_brasil</code> ou as UFs como fonte Silver. A identidade das chaves de negócio não
-foi determinada por estas comparações de conteúdo. As pesquisas de <a href="../pesquisa-tse-2002/">2002</a>,
+de conteúdo agora foram comparados por família e recorte. Em 2016, a cobertura
+partidária adicional de <code>BR</code> e <code>DF</code> sustenta usar <code>_brasil</code> como fonte completa
+deste snapshot, condicionada à revalidação em novas versões. A identidade das
+chaves de negócio não foi determinada por estas comparações de conteúdo. As pesquisas de <a href="../pesquisa-tse-2002/">2002</a>,
 <a href="../pesquisa-tse-2004-2006/">2004–2006</a>, <a href="../pesquisa-tse-2008/">2008</a>,
 <a href="../pesquisa-tse-2010-2012/">2010–2012</a> e <a href="../pesquisa-tse-2024/">2024</a>
 registram os demais recortes disponíveis.</p>
