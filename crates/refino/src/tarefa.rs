@@ -419,9 +419,11 @@ mod testes {
     }
 
     fn contexto(bronze: Arc<dyn ArmazenamentoRaw>, id: &str) -> ContextoDeExecucao {
+        let ordem = id.trim_start_matches("BR").parse::<i64>().unwrap_or(0);
         ContextoDeExecucao {
             id_execucao: id.into(),
-            iniciada_em: Utc.with_ymd_and_hms(2026, 11, 3, 12, 0, 0).unwrap(),
+            iniciada_em: Utc.with_ymd_and_hms(2026, 11, 3, 12, 0, 0).unwrap()
+                + chrono::TimeDelta::seconds(ordem),
             armazenamento: bronze,
             http: Arc::new(HttpInerte),
             progresso: None,
