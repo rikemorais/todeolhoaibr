@@ -9,7 +9,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Corrigido
 
-- Valida respostas JSON gzip após decodificação e preserva os bytes HTTP originais na Raw; rejeita codificações não suportadas ou truncadas (issue #264).
+- Valida respostas JSON gzip após decodificação limitada, preserva os bytes HTTP originais na Raw e decodifica gzip em fluxo antes do Bronze; rejeita codificações não suportadas ou truncadas (issue #264).
 
 ## [0.47.3] - 2026-11-09
 
