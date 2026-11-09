@@ -15,9 +15,11 @@ use crate::escritor::{ErroDeRefino, EscritorParquet};
 /// Quantas linhas acumular antes de gravar um row group.
 const LINHAS_POR_LOTE: usize = 50_000;
 
-/// Leitor que auto-detecta encoding: UTF-8 passa direto, senão transcodifica de Latin-1.
+/// Leitor que auto-detecta encoding: UTF-8 passa direto (sem BOM), senão transcodifica
+/// de Latin-1. Usa `encoding_rs_io` em ambos os caminhos para garantir remoção de BOM e
+/// tratamento correto na fronteira de buffer.
 enum LeitorAutoEncoding<R> {
-    Utf8(BufReader<R>),
+    Utf8(encoding_rs_io::DecodeReaderBytes<BufReader<R>, Vec<u8>>),
     Latin1(encoding_rs_io::DecodeReaderBytes<BufReader<R>, Vec<u8>>),
 }
 
@@ -30,17 +32,28 @@ impl<R: Read> Read for LeitorAutoEncoding<R> {
     }
 }
 
+/// Verifica se a amostra é UTF-8 válido, tolerando uma sequência multi-byte incompleta
+/// na fronteira do buffer. `error_len() == None` indica truncamento, não byte inválido.
+fn amostra_e_utf8(amostra: &[u8]) -> bool {
+    match std::str::from_utf8(amostra) {
+        Ok(_) => true,
+        Err(e) => e.error_len().is_none(),
+    }
+}
+
 /// Envolve um `Read` num leitor que auto-detecta o encoding a partir dos primeiros bytes
-/// buffered. Se o conteúdo disponível no buffer for UTF-8 válido, os bytes passam direto;
-/// senão, são transcodificados de Windows-1252 — o mesmo critério de [`para_utf8`], mas
-/// em fluxo.
+/// buffered. Se o conteúdo disponível no buffer for UTF-8 válido, os bytes passam direto
+/// (BOM removido); senão, são transcodificados de Windows-1252 — o mesmo critério de
+/// [`para_utf8`], mas em fluxo.
 fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
     let mut buf = BufReader::with_capacity(16_384, fonte);
-    let e_utf8 = buf
-        .fill_buf()
-        .map_or(true, |a| std::str::from_utf8(a).is_ok());
+    let e_utf8 = buf.fill_buf().map_or(true, amostra_e_utf8);
     if e_utf8 {
-        LeitorAutoEncoding::Utf8(buf)
+        LeitorAutoEncoding::Utf8(
+            encoding_rs_io::DecodeReaderBytesBuilder::new()
+                .strip_bom(true)
+                .build(buf),
+        )
     } else {
         LeitorAutoEncoding::Latin1(
             encoding_rs_io::DecodeReaderBytesBuilder::new()
@@ -48,6 +61,25 @@ fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
                 .strip_bom(true)
                 .build(buf),
         )
+    }
+}
+
+/// Descarta uma linha do `BufRead` usando apenas o buffer interno (sem alocar a linha
+/// descartada em memória), resistindo a preâmbulos arbitrariamente longos.
+fn descartar_uma_linha(leitor: &mut impl BufRead) -> std::io::Result<()> {
+    loop {
+        let buf = leitor.fill_buf()?;
+        if buf.is_empty() {
+            return Ok(());
+        }
+        let (consumido, achou_nl) = match buf.iter().position(|&b| b == b'\n') {
+            Some(pos) => (pos + 1, true),
+            None => (buf.len(), false),
+        };
+        leitor.consume(consumido);
+        if achou_nl {
+            return Ok(());
+        }
     }
 }
 
@@ -262,8 +294,7 @@ pub fn partes_de_csv_em_fluxo<R: Read>(
     let leitor = leitor_auto_encoding(fonte);
     let mut leitor_buf = BufReader::new(leitor);
     for _ in 0..linhas_a_pular {
-        let mut lixo = String::new();
-        leitor_buf.read_line(&mut lixo)?;
+        descartar_uma_linha(&mut leitor_buf)?;
     }
     Ok(vec![parte_em_arquivo(
         nome,
