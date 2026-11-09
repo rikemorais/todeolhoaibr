@@ -18,7 +18,7 @@
         <link rel="prev" href="../bronze/">
       
       
-        <link rel="next" href="../pesquisa-tse-2014-2022/">
+        <link rel="next" href="../contratos-silver-fase0/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -984,6 +984,8 @@
       
         
       
+        
+      
     
     
       
@@ -1304,6 +1306,27 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contratos-silver-fase0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contratos Silver da fase 0
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -2035,6 +2058,10 @@
 <p>As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em registro_original, a linhagem é mantida pelo publicador e a votação por seção permanece fora de silver --todas por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.</p>
 <h2 id="cobertura-planejada-do-catalogo-bronze">Cobertura planejada do catálogo bronze<a class="headerlink" href="#cobertura-planejada-do-catalogo-bronze" title="Permanent link">&para;</a></h2>
 <p>O <a href="../../crates/refino/src/catalogo.rs">catálogo</a> tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. <code>recurso</code> e <code>versão bronze</code> fazem parte da procedência, mas não substituem a chave de negócio.</p>
+<p>A <a href="../contratos-silver-fase0/">especificação de contratos da fase 0</a> detalha tipos,
+nulos, normalização, deduplicação e tabelas internas para cada família. Esta
+matriz resume o grão e a evidência de chave; “candidata” não autoriza descartar
+linhas nem ativar uma relação sem validação do recorte.</p>
 <table>
 <thead>
 <tr>
@@ -2091,7 +2118,7 @@
 <td><code>senado-votacoes</code></td>
 <td>Legislativo</td>
 <td>uma sessão de votação nominal</td>
-<td><code>codigoSessaoVotacao</code> (3.652/3.652 distintos no recorte local consultado); votos continuam aninhados</td>
+<td><code>codigoSessaoVotacao</code> (3.652/3.652 distintos no recorte local consultado); sessão conserva JSON original, e votos são publicados também em tabela filha com ponteiro próprio</td>
 </tr>
 <tr>
 <td><code>senado-parlamentares</code></td>
@@ -3021,13 +3048,13 @@
         
         
           
-          <a href="../pesquisa-tse-2014-2022/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Prestação de contas TSE 2014–2022: inventário Bronze">
+          <a href="../contratos-silver-fase0/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Contratos Silver da fase 0">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Próximo
               </span>
               <div class="md-ellipsis">
-                Prestação de contas TSE 2014–2022: inventário Bronze
+                Contratos Silver da fase 0
               </div>
             </div>
             <div class="md-footer__button md-icon">
