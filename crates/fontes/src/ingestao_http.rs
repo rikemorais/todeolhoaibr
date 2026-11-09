@@ -451,9 +451,11 @@ impl TarefaDeIngestaoHttp {
             concluida_em: Utc::now(),
             partes,
         };
+        // A resposta de uma gravação remota pode ser perdida depois do commit;
+        // a partir daqui não apagamos partes que um manifesto talvez já referencie.
+        *manifesto_gravado = true;
         self.gravar_json(contexto, local.manifesto(), &manifesto)
             .await?;
-        *manifesto_gravado = true;
 
         // Ponteiro para a próxima rodada localizar este manifesto. Sem validador
         // de recurso: a requisição condicional é por página (ver docs/adr/0012).
@@ -639,7 +641,11 @@ mod testes {
     async fn sem_manifesto_quando_uma_pagina_falha() {
         let (contexto, armazenamento) = contexto(&[("https://api/1", PAGINA_1)]);
 
-        assert!(tarefa_paginada().executar(&contexto).await.is_err());
+        let erro = tarefa_paginada().executar(&contexto).await.unwrap_err();
+        assert!(matches!(
+            erro,
+            ErroDeIngestao::Http { ref url, .. } if url == "https://api/2"
+        ));
 
         let objetos = armazenamento.objetos.lock().unwrap();
         assert!(
@@ -670,6 +676,17 @@ mod testes {
             armazenamento.objetos.lock().unwrap().is_empty(),
             "a resposta parcial não deve publicar parte, manifesto ou ponteiro"
         );
+    }
+
+    #[tokio::test]
+    async fn remove_partes_anteriores_quando_pagina_seguinte_tem_json_invalido() {
+        let (contexto, armazenamento) = contexto(&[
+            ("https://api/1", PAGINA_1),
+            ("https://api/2", r#"{"dados":["#),
+        ]);
+
+        assert!(tarefa_paginada().executar(&contexto).await.is_err());
+        assert!(armazenamento.objetos.lock().unwrap().is_empty());
     }
 
     #[test]
