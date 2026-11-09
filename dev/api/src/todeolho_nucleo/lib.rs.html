@@ -14,30 +14,32 @@
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">pub mod </span>executor;
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">pub mod </span>fonte;
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">pub mod </span>historico;
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub mod </span>portas;
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">pub mod </span>raw;
-<a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub mod </span>selecao;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub mod </span>tarefa;
-<a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub use </span>contexto::{ContextoDeExecucao, ProgressoDaTarefa};
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub use </span>dag::DagDeIngestao;
-<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub use </span>decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
-<a href=#25 id=25 data-nosnippet>25</a><span class="kw">pub use </span>erros::{ErroDeDag, ErroDeIngestao};
-<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub use </span>espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
-<a href=#27 id=27 data-nosnippet>27</a><span class="kw">pub use </span>estado_raw::{estado_na_raw, manifesto_vigente, publicar_ponteiro};
-<a href=#28 id=28 data-nosnippet>28</a><span class="kw">pub use </span>executor::{
-<a href=#29 id=29 data-nosnippet>29</a>    EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
-<a href=#30 id=30 data-nosnippet>30</a>};
-<a href=#31 id=31 data-nosnippet>31</a><span class="kw">pub use </span>fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp};
-<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>historico::{
-<a href=#33 id=33 data-nosnippet>33</a>    Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
-<a href=#34 id=34 data-nosnippet>34</a>    RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
-<a href=#35 id=35 data-nosnippet>35</a>};
-<a href=#36 id=36 data-nosnippet>36</a><span class="kw">pub use </span>portas::{
-<a href=#37 id=37 data-nosnippet>37</a>    ArmazenamentoRaw, ClienteHttp, DownloadHttp, FalhaDeRemocao, FluxoDeBytes,
-<a href=#38 id=38 data-nosnippet>38</a>    InformacoesDoArquivo, ObjetoRaw, RespostaCondicional, RespostaHttp,
-<a href=#39 id=39 data-nosnippet>39</a>};
-<a href=#40 id=40 data-nosnippet>40</a><span class="kw">pub use </span>raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
-<a href=#41 id=41 data-nosnippet>41</a><span class="kw">pub use </span>selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
-<a href=#42 id=42 data-nosnippet>42</a><span class="kw">pub use </span>tarefa::{PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada};
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub mod </span>orfas;
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">pub mod </span>portas;
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub mod </span>raw;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub mod </span>selecao;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">pub mod </span>tarefa;
+<a href=#22 id=22 data-nosnippet>22</a>
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub use </span>contexto::{ContextoDeExecucao, ProgressoDaTarefa};
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub use </span>dag::DagDeIngestao;
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">pub use </span>decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
+<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub use </span>erros::{ErroDeDag, ErroDeIngestao};
+<a href=#27 id=27 data-nosnippet>27</a><span class="kw">pub use </span>espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
+<a href=#28 id=28 data-nosnippet>28</a><span class="kw">pub use </span>estado_raw::{estado_na_raw, manifesto_vigente, publicar_ponteiro};
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">pub use </span>executor::{
+<a href=#30 id=30 data-nosnippet>30</a>    EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
+<a href=#31 id=31 data-nosnippet>31</a>};
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp};
+<a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub use </span>historico::{
+<a href=#34 id=34 data-nosnippet>34</a>    Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
+<a href=#35 id=35 data-nosnippet>35</a>    RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
+<a href=#36 id=36 data-nosnippet>36</a>};
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">pub use </span>orfas::{ResultadoVerificacao, limpar_orfas_do_recurso, verificar_manifesto_ou_limpar};
+<a href=#38 id=38 data-nosnippet>38</a><span class="kw">pub use </span>portas::{
+<a href=#39 id=39 data-nosnippet>39</a>    ArmazenamentoRaw, ClienteHttp, DownloadHttp, FalhaDeRemocao, FluxoDeBytes,
+<a href=#40 id=40 data-nosnippet>40</a>    InformacoesDoArquivo, ObjetoRaw, RespostaCondicional, RespostaHttp,
+<a href=#41 id=41 data-nosnippet>41</a>};
+<a href=#42 id=42 data-nosnippet>42</a><span class="kw">pub use </span>raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
+<a href=#43 id=43 data-nosnippet>43</a><span class="kw">pub use </span>selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
+<a href=#44 id=44 data-nosnippet>44</a><span class="kw">pub use </span>tarefa::{PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada};
 </code></pre></div></section></main></body></html>

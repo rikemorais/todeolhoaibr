@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["contexto","dag","decisao","erros","espaco","estado_raw","executor","fonte","historico","portas","raw","selecao","tarefa"]};
+window.SIDEBAR_ITEMS = {"mod":["contexto","dag","decisao","erros","espaco","estado_raw","executor","fonte","historico","orfas","portas","raw","selecao","tarefa"]};
