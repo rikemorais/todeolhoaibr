@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["partes_de_csv","partes_de_zip_csv","partes_de_zip_csv_em_fluxo"]};
+window.SIDEBAR_ITEMS = {"fn":["partes_de_csv","partes_de_csv_em_fluxo","partes_de_zip_csv","partes_de_zip_csv_em_fluxo"]};
