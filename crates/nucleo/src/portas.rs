@@ -1,6 +1,7 @@
 //! Portas de saída: o que o domínio precisa do mundo externo, sem saber como é feito.
 
 use async_trait::async_trait;
+use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::erros::ErroDeIngestao;
@@ -14,6 +15,15 @@ pub struct ObjetoRaw {
     pub conteudo: Vec<u8>,
     /// Tipo de conteúdo (`Content-Type`) a registrar.
     pub tipo_de_conteudo: String,
+}
+
+/// Falha ao remover uma chave individual durante um `remover_lote`.
+#[derive(Debug, Clone)]
+pub struct FalhaDeRemocao {
+    /// Chave que não pôde ser removida.
+    pub chave: String,
+    /// Motivo da falha.
+    pub detalhe: String,
 }
 
 /// Destino dos dados brutos.
@@ -39,6 +49,64 @@ pub trait ArmazenamentoRaw: Send + Sync {
             chave: chave.to_owned(),
             detalhe: "remoção não implementada pelo adaptador".into(),
         })
+    }
+
+    /// Remove várias chaves com concorrência limitada e deadline global.
+    ///
+    /// Falhas individuais não abortam as demais remoções: são coletadas e devolvidas
+    /// ao chamador para observabilidade e recuperação posterior. Quando o deadline
+    /// expira, as remoções pendentes são canceladas e as chaves restantes aparecem
+    /// como falha.
+    async fn remover_lote(
+        &self,
+        chaves: &[String],
+        concorrencia: usize,
+        deadline: Duration,
+    ) -> Vec<FalhaDeRemocao> {
+        use futures::stream::{self, StreamExt};
+
+        if chaves.is_empty() {
+            return Vec::new();
+        }
+
+        let concorrencia = concorrencia.max(1);
+        let falhas = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new()));
+
+        let trabalho = stream::iter(chaves.iter().cloned())
+            .map(|chave| {
+                let falhas = falhas.clone();
+                async move {
+                    if let Err(erro) = self.remover(&chave).await {
+                        falhas.lock().await.push(FalhaDeRemocao {
+                            chave,
+                            detalhe: erro.to_string(),
+                        });
+                    }
+                }
+            })
+            .buffer_unordered(concorrencia)
+            .collect::<()>();
+
+        let expirou = tokio::time::timeout(deadline, trabalho).await.is_err();
+
+        let mut resultado = std::sync::Arc::try_unwrap(falhas)
+            .expect("único dono do Arc")
+            .into_inner();
+
+        if expirou {
+            let ja_registradas: std::collections::HashSet<String> =
+                resultado.iter().map(|f| f.chave.clone()).collect();
+            for chave in chaves {
+                if !ja_registradas.contains(chave) {
+                    resultado.push(FalhaDeRemocao {
+                        chave: chave.clone(),
+                        detalhe: "deadline de remoção expirado".into(),
+                    });
+                }
+            }
+        }
+
+        resultado
     }
 
     /// Apaga transferências que nunca terminaram, como as de um processo interrompido,
@@ -206,5 +274,199 @@ pub trait ClienteHttp: Send + Sync {
     ) -> Result<DownloadHttp, ErroDeIngestao> {
         let _ = (inicio, versao);
         self.baixar(url).await
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::io::AsyncRead;
+
+    /// Adapter stub que falha sempre no `remover`, simulando S3 indisponível.
+    struct ArmazenamentoQueFalha;
+
+    #[async_trait]
+    impl ArmazenamentoRaw for ArmazenamentoQueFalha {
+        async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar_fluxo(
+            &self,
+            _: &str,
+            _: &str,
+            _: &mut (dyn AsyncRead + Send + Unpin),
+        ) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            Err(ErroDeIngestao::Armazenamento {
+                chave: chave.to_owned(),
+                detalhe: "S3 indisponível".into(),
+            })
+        }
+        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(None)
+        }
+    }
+
+    /// Adapter stub que aceita remoções e conta chamadas.
+    struct ArmazenamentoContador {
+        chamadas: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl ArmazenamentoRaw for ArmazenamentoContador {
+        async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar_fluxo(
+            &self,
+            _: &str,
+            _: &str,
+            _: &mut (dyn AsyncRead + Send + Unpin),
+        ) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn remover(&self, _chave: &str) -> Result<(), ErroDeIngestao> {
+            self.chamadas.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(None)
+        }
+    }
+
+    /// Adapter stub que demora para sempre no `remover`, simulando timeout.
+    struct ArmazenamentoLento;
+
+    #[async_trait]
+    impl ArmazenamentoRaw for ArmazenamentoLento {
+        async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar_fluxo(
+            &self,
+            _: &str,
+            _: &str,
+            _: &mut (dyn AsyncRead + Send + Unpin),
+        ) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn remover(&self, _chave: &str) -> Result<(), ErroDeIngestao> {
+            tokio::time::sleep(Duration::from_secs(3600)).await;
+            Ok(())
+        }
+        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(None)
+        }
+    }
+
+    #[tokio::test]
+    async fn remover_lote_sem_chaves_devolve_vazio() {
+        let arm = ArmazenamentoContador {
+            chamadas: AtomicUsize::new(0),
+        };
+        let falhas = arm
+            .remover_lote(&[], 4, Duration::from_secs(5))
+            .await;
+        assert!(falhas.is_empty());
+        assert_eq!(arm.chamadas.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn remover_lote_com_sucesso_nao_devolve_falhas() {
+        let arm = ArmazenamentoContador {
+            chamadas: AtomicUsize::new(0),
+        };
+        let chaves: Vec<String> = (0..10).map(|i| format!("chave-{i}")).collect();
+        let falhas = arm
+            .remover_lote(&chaves, 4, Duration::from_secs(5))
+            .await;
+        assert!(falhas.is_empty());
+        assert_eq!(arm.chamadas.load(Ordering::Relaxed), 10);
+    }
+
+    #[tokio::test]
+    async fn remover_lote_coleta_falhas_individuais() {
+        let arm = ArmazenamentoQueFalha;
+        let chaves = vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
+        let falhas = arm
+            .remover_lote(&chaves, 4, Duration::from_secs(5))
+            .await;
+        assert_eq!(falhas.len(), 3);
+        for falha in &falhas {
+            assert!(falha.detalhe.contains("S3 indisponível"), "{}", falha.detalhe);
+        }
+    }
+
+    #[tokio::test]
+    async fn remover_lote_respeita_deadline() {
+        let arm = ArmazenamentoLento;
+        let chaves = vec!["x".to_owned(), "y".to_owned()];
+        let inicio = std::time::Instant::now();
+        let falhas = arm
+            .remover_lote(&chaves, 4, Duration::from_millis(100))
+            .await;
+        let decorrido = inicio.elapsed();
+        // Deve ter terminado rápido (timeout), não ficado 3600s.
+        assert!(decorrido < Duration::from_secs(2));
+        // Todas as chaves aparecem como falha por timeout.
+        assert!(!falhas.is_empty());
+        assert!(
+            falhas.iter().any(|f| f.detalhe.contains("deadline")),
+            "deve haver falha por deadline"
+        );
+    }
+
+    #[tokio::test]
+    async fn adapter_sem_suporte_a_remocao_devolve_erro() {
+        // A porta default retorna erro "remoção não implementada pelo adaptador".
+        struct SemRemocao;
+
+        #[async_trait]
+        impl ArmazenamentoRaw for SemRemocao {
+            async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar_fluxo(
+                &self,
+                _: &str,
+                _: &str,
+                _: &mut (dyn AsyncRead + Send + Unpin),
+            ) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            // Não sobrescreve remover() — usa o default que retorna erro.
+            async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+                Ok(None)
+            }
+        }
+
+        let arm = SemRemocao;
+        let chaves = vec!["a".to_owned(), "b".to_owned()];
+        let falhas = arm
+            .remover_lote(&chaves, 4, Duration::from_secs(5))
+            .await;
+        assert_eq!(falhas.len(), 2);
+        for falha in &falhas {
+            assert!(
+                falha.detalhe.contains("remoção não implementada"),
+                "{}",
+                falha.detalhe
+            );
+        }
     }
 }
