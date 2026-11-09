@@ -96,6 +96,14 @@ pub async fn publicar_ponteiro(
     recurso: &str,
     nova: &UltimaVersao,
 ) -> Result<bool, ErroDeIngestao> {
+    // Serializa a leitura e gravação do ponteiro entre tarefas deste processo.
+    // O adaptador S3 ainda precisará de escrita condicional para coordenar
+    // publicadores em processos distintos.
+    static PUBLICACAO: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    let _guarda = PUBLICACAO
+        .get_or_init(|| tokio::sync::Mutex::new(()))
+        .lock()
+        .await;
     let chave = LocalizacaoRaw::ultima_versao(fonte, recurso);
 
     if let Some(bytes) = armazenamento.ler(&chave).await?
