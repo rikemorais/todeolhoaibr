@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use todeolho_nucleo::{
     ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa, estado_na_raw,
 };
@@ -13,6 +12,7 @@ use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 const REGRA: &str = "ipeadata-observacao-v1";
 const SQL: &str = include_str!("../../sql/silver/ipeadata.sql");
 
+/// Publica uma série do Ipeadata a partir de um snapshot Bronze.
 pub struct TarefaDeSilverIpeadata {
     bronze: Arc<dyn ArmazenamentoRaw>,
     snapshot: Arc<SnapshotBronze>,
@@ -20,6 +20,7 @@ pub struct TarefaDeSilverIpeadata {
 }
 
 impl TarefaDeSilverIpeadata {
+    /// Cria a tarefa para o recurso do Ipeadata indicado.
     pub fn nova(
         bronze: Arc<dyn ArmazenamentoRaw>,
         snapshot: Arc<SnapshotBronze>,
@@ -32,6 +33,7 @@ impl TarefaDeSilverIpeadata {
         }
     }
 
+    /// Informa se o snapshot ainda precisa ser publicado na camada Silver.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
         let versao = format!("{}|regra={REGRA}", self.snapshot.manifesto().id_execucao);
         Ok(!matches!(

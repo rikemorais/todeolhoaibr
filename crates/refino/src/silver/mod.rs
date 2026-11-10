@@ -8,9 +8,13 @@ pub mod camara_partidos;
 pub mod camara_tramitacoes;
 pub mod camara_votacoes;
 pub mod ibge_agregados;
+/// Esquema Silver para as unidades federativas do IBGE.
 pub mod ibge_estados;
+/// Esquema Silver para os municípios do IBGE.
 pub mod ibge_municipios;
+/// Esquema Silver para as regiões do IBGE.
 pub mod ibge_regioes;
+/// Esquema Silver para as séries históricas do Ipeadata.
 pub mod ipeadata;
 mod publicacao;
 pub mod senado_despesas;
@@ -29,7 +33,9 @@ pub mod tarefa_camara_legislaturas;
 pub mod tarefa_camara_tramitacoes;
 pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
+/// Tarefas que publicam localidades do IBGE na camada Silver.
 pub mod tarefa_ibge_localidades;
+/// Tarefa que publica séries do Ipeadata na camada Silver.
 pub mod tarefa_ipeadata;
 pub mod tarefa_senado;
 pub mod tarefa_senado_despesas;
@@ -64,6 +70,10 @@ pub use camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
 pub use ibge_agregados::esquema_ibge_agregados;
 #[cfg(test)]
 pub use ibge_agregados::{ErroIbgeSilver, transformar_ibge_agregados};
+pub use ibge_estados::esquema_ibge_estados;
+pub use ibge_municipios::esquema_ibge_municipios;
+pub use ibge_regioes::esquema_ibge_regioes;
+pub use ipeadata::esquema_ipeadata;
 pub use senado_despesas::esquema_senado_despesas;
 #[cfg(test)]
 pub use senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
@@ -92,10 +102,6 @@ pub use tarefa_camara_legislaturas::{
 };
 pub use tarefa_camara_tramitacoes::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
-pub use ibge_estados::esquema_ibge_estados;
-pub use ibge_municipios::esquema_ibge_municipios;
-pub use ibge_regioes::esquema_ibge_regioes;
-pub use ipeadata::esquema_ipeadata;
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_ibge_localidades::{TarefaDeSilverIbgeLocalidades, TipoLocalidadeIbge};
 pub use tarefa_ipeadata::TarefaDeSilverIpeadata;

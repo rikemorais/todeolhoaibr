@@ -34,6 +34,7 @@ pub use fontes::{
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
+pub use silver::TarefaDeSilverIpeadata;
 pub use silver::TarefaDeSilverSql;
 pub use silver::camara_deputados::esquema_camara_deputados;
 #[cfg(test)]
@@ -100,7 +101,6 @@ pub use silver::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
 pub use silver::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
 pub use silver::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use silver::{TarefaDeSilverIbgeLocalidades, TipoLocalidadeIbge};
-pub use silver::TarefaDeSilverIpeadata;
 pub use silver::{TarefaDeSilverSenadoDespesas, publicar_senado_despesas};
 pub use silver::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
 pub use silver::{TarefaDeSilverSenadoProcessos, publicar_senado_processos};
