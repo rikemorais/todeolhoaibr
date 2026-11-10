@@ -74,6 +74,7 @@ services:
     environment:
       <<: *ambiente-s3
       TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-2}
+      PORTAL_TRANSPARENCIA_TOKEN: ${PORTAL_TRANSPARENCIA_TOKEN:-}
       # Onde medir o espaço livre antes de ingerir (docs/adr/0010).
       TODEOLHO_DIR_DADOS: /dados
     volumes:
