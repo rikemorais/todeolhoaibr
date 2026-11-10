@@ -113,6 +113,12 @@ O contrato `camara.deputado.exercicio.v1` trata cada versão Bronze como a fotog
 
 Os sete contratos da fonte `camara-votacoes` são SQL versionado em `crates/refino/sql/silver/`. Validam a chave candidata de cada conjunto por recurso anual e projetam somente as colunas de origem, preservando todas as linhas e o schema Bronze (texto); diferenças de colunas entre recursos são acomodadas pela projeção montada a partir do schema observado. As regras usam v2; `votacoesVotos` usa v3 para reprocessar a publicação anterior. Não fazem deduplicação nem cruzamento entre tabelas. Em `votacoesVotos`, linhas com chave candidata incompleta são preservadas e não participam da verificação de duplicidade. No snapshot local de 2004 havia uma linha sem `deputado_id`; ela foi mantida na publicação. Os Parquets Silver são independentes por conjunto e ano; `--todas` percorre os recursos Bronze presentes, e a pré-checagem inclui snapshot e versão da regra. A CLI oferece `todeolho refinar silver camara-votacoes`. A matriz de unicidade disponível foi medida somente em 2024: os anos anteriores ainda precisam de smoke test contra Bronze vigente antes de serem considerados cobertos por evidência.
 
+Na execução `senado-votacoes`, sessões e votos agora são tarefas distintas no
+mesmo DAG, identificadas por `votacoes/ano=AAAA` e `votos/ano=AAAA`. Cada tabela
+tem status e ponteiro próprios no mesmo registro de execução. Se uma falhar,
+o resultado da outra permanece consultável e a reconciliação retoma apenas a
+que estiver pendente.
+
 O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
 
 ## Evidência disponível no repositório
