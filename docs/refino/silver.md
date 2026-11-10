@@ -1,6 +1,6 @@
 # Camada silver — contrato inicial
 
-**Estado:** implementação em andamento na [issue #188](https://github.com/rikemorais/todeolhoaibr/issues/188); a migração das transformações para SQL/DataFusion está em execução no [épico #236](https://github.com/rikemorais/todeolhoaibr/issues/236). BCB, agregados IBGE, Câmara e Senado já publicam tabelas Silver; consulte a cobertura abaixo. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+**Estado:** migração SQL/DataFusion concluída — todas as 24 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 
 Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket `silver`. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são **candidatas**: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.
 
@@ -13,6 +13,178 @@ O adaptador `TarefaDeSilverSql` associa a consulta embutida, nome/versionamento 
 O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra `tdoa_json_get(json, chave)` para leitura de campos escalares/objetos e `tdoa_json_expand_votos(json)` para normalizar as listas atuais e legadas do Senado em uma lista SQL que `UNNEST` expande. São funções genéricas de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. `UNNEST` descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.
 
 O smoke e benchmark sintético reproduzível do executor está em [`benchmark-datafusion.md`](benchmark-datafusion.md). Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.
+
+### Estrutura de arquivos
+
+```
+crates/refino/
+├── sql/silver/              # 24 consultas SQL versionadas
+│   ├── bcb_sgs.sql
+│   ├── camara_deputados.sql
+│   ├── ...
+│   └── tse_votacao_secao.sql
+└── src/silver/
+    ├── mod.rs               # re-exports e schemas
+    ├── publicacao.rs         # fluxo comum de publicação
+    ├── tarefa_sql.rs         # testes do executor SQL
+    ├── tarefa_bcb.rs         # adaptador BCB: SQL, schema, regra
+    ├── tarefa_camara.rs      # adaptador Câmara partidos
+    ├── ...                   # um tarefa_*.rs por família
+    ├── bcb.rs                # transformação Arrow (#[cfg(test)])
+    ├── camara_deputados.rs   # transformação Arrow (#[cfg(test)])
+    └── ...                   # um <fonte>.rs de paridade por família
+```
+
+Cada contrato tem dois arquivos: a consulta SQL em `sql/silver/` e o adaptador Rust em `src/silver/tarefa_*.rs`. O adaptador declara `const REGRA`, o `include_str!` do SQL, o schema Arrow de saída e chama `publicar_transformacao_sql` do módulo `publicacao`. As transformações Arrow manuais em `src/silver/<fonte>.rs` existem somente sob `#[cfg(test)]` e servem de oráculo para fixtures de paridade.
+
+### Convenções SQL
+
+1. **Comentário inicial**: a primeira linha é `-- Contrato <nome-do-contrato>.` seguido de uma frase descritiva.
+2. **Tabela de entrada**: sempre `FROM bronze`; o executor registra o Parquet Bronze como tabela virtual `bronze`.
+3. **Projeção explícita**: a consulta deve projetar todas as colunas do schema Silver, nunca `SELECT *` na saída final.
+4. **Linhagem obrigatória**: toda consulta projeta `_tdoa_origem_manifesto`, `_tdoa_origem_parte` e `_tdoa_origem_ordinal`; o publicador rejeita a saída sem essas três colunas.
+5. **Validação de chave**: usar CTE com `COUNT(*) OVER (PARTITION BY ...)` ou agregação escalar para verificar unicidade e falhar com `tdoa_assert_true` quando a chave duplica.
+6. **Sem interpolação externa**: valores da entrada do usuário nunca são interpolados no SQL. O `{{ANO_RECURSO}}` é substituído pelo adaptador Rust após validar o ano como número inteiro no caminho do recurso.
+7. **Nomes de coluna**: colunas Silver usam `snake_case`; colunas Bronze herdadas mantêm o nome original entre aspas duplas (`"codigoSessaoVotacao"`).
+8. **Ordenação**: terminar com `ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal` para saída determinística.
+
+### Tipos e sentinelas
+
+| Domínio | Tipo Arrow/Parquet | Convenção |
+| --- | --- | --- |
+| Identificadores, códigos, UFs | `Utf8` (texto) | Nunca converter para inteiro; zeros à esquerda são significativos |
+| Ano | `UInt16` | Validar como inteiro positivo de quatro dígitos |
+| Datas | `Date32` | Converter com `to_date` ou `TRY_CAST`; sentinelas e formatos inválidos viram nulo sem descartar a linha |
+| Valores monetários | `Decimal128(18,2)` ou `(18,6)` | Aritmética decimal exata; BCB usa ponto, Senado e TSE usam vírgula brasileira |
+| Contadores | `UInt32` ou `UInt64` | Sequências e ordens que cabem no tipo |
+| Idade | `UInt8` | Sentinelas (−1, 999) viram nulo |
+| JSON preservado | `Utf8` | `registro_original` ou `_tdoa_json_original` como texto JSON compacto |
+
+Sentinelas textuais da origem (`-1`, `-4`, `#NULO#`, `#NE#`, strings vazias) nunca são interpretadas como valor; o contrato as converte em nulo e preserva o texto original em `registro_original`.
+
+### Placeholders e UDFs do executor
+
+**Placeholders** — expandidos pelo adaptador Rust antes de enviar ao DataFusion:
+
+| Placeholder | Expansão |
+| --- | --- |
+| `{{COLUNAS_BRONZE}}` | Todas as colunas do Parquet Bronze, qualificadas com `origem."nome"` |
+| `{{EXPR_OPCIONAL:NOME}}` | `"NOME"` se a coluna existir no Bronze; `CAST(NULL AS VARCHAR)` caso contrário |
+| `{{OPCIONAL:NOME}}` | Idem, mas acrescenta `AS "NOME"` na projeção |
+| `{{ANO_RECURSO}}` | Literal inteiro do ano extraído do caminho do recurso (validado no Rust) |
+
+**UDFs registradas** — disponíveis em qualquer consulta SQL Silver:
+
+| Função | Assinatura | Uso |
+| --- | --- | --- |
+| `tdoa_assert_true(expr)` | `Boolean → Boolean` | Falha a consulta se `expr` for falso ou nulo; usada para validação de chaves |
+| `tdoa_assert_true_named(expr, nome)` | `(Boolean, Utf8) → Boolean` | Idem, com nome da asserção na mensagem de erro |
+| `tdoa_json_get(json, chave)` | `(Utf8, Utf8) → Utf8` | Extrai campo escalar ou objeto de JSON textual |
+| `tdoa_json_expand_votos(json)` | `Utf8 → List<Utf8>` | Normaliza arrays de votos do Senado para `UNNEST` |
+
+### Versionamento da regra
+
+Cada adaptador declara uma constante `REGRA` com o formato `<fonte>-<descrição>-v<N>`:
+
+- `v1`: primeira versão do contrato (Arrow manual ou SQL inicial).
+- `v2`: reprocessamento SQL que substitui a saída Arrow anterior; a reconciliação republica uma vez.
+- `v3+`: correção de contrato (ex.: `senado-despesa-ceaps-v4` corrigiu vírgula brasileira histórica).
+
+A versão Silver publicada é `<id_execução_bronze>|regra=<REGRA>`. O publicador compara essa string antes de executar; se já existe, reaproveia sem reprocessar (idempotência por versão Bronze + regra).
+
+Incrementar a versão força reprocessamento de todos os recursos da família. Fazer isso somente quando a semântica da saída muda.
+
+### Fixtures e testes
+
+Os 24 contratos são cobertos por testes em `crates/refino/src/silver/tarefa_sql.rs` e nos respectivos `tarefa_*.rs`. Os testes usam fixtures Parquet em memória com `ArmazenamentoEmMemoria`:
+
+1. **Fixtures de paridade**: comparam a saída SQL com a saída da transformação Arrow manual (`#[cfg(test)]`). Garantem que a migração não alterou os dados publicados.
+2. **Fixtures de borda**: testam datas inválidas, decimais fora de escala, sentinelas, JSON nulo, chaves duplicadas, arrays vazios e colunas ausentes.
+3. **Teste de inventário SQL** (PR #307): verifica bidirecionalmente que todo `.sql` em `sql/silver/` tem `include_str!` correspondente e vice-versa — sem arquivos órfãos nem contratos fantasma.
+4. **Testes de linhagem**: confirmam que `_tdoa_origem_manifesto`, `_tdoa_origem_parte` e `_tdoa_origem_ordinal` estão presentes e corretos na saída.
+
+Executar os testes localmente:
+
+```bash
+cd crates/refino
+cargo test --lib silver
+```
+
+### Execução local
+
+```bash
+# Uma família específica
+todeolho refinar silver bcb
+todeolho refinar silver senado-votacoes
+todeolho refinar silver tse-candidaturas
+
+# Todas as famílias (exceto tse-votacao-secao pelo volume)
+todeolho refinar silver --todas
+
+# Reconciliação periódica (intervalo em segundos)
+todeolho refinar silver --todas --intervalo 3600
+
+# Filtros para votação por seção
+todeolho refinar silver tse-votacao-secao --filtro ano=2024 --filtro uf=AC,RO
+```
+
+O executor usa os limites padrão (512 MiB de memória, 2 GiB de spill). Para alterar por tarefa, configurar `ConfiguracaoExecutorSql` no adaptador. A votação por seção usa 256 MiB de pool e 8 GiB de spill pelo volume de dados.
+
+### Processo de revisão de um novo contrato
+
+1. **Validar chave no Bronze**: medir unicidade com DuckDB sobre os Parquets locais; registrar evidência na seção de cobertura deste documento.
+2. **Criar o SQL**: arquivo em `crates/refino/sql/silver/<fonte>.sql` seguindo as convenções acima. Usar um contrato existente como modelo (ex.: `bcb_sgs.sql` para fontes simples, `tse_candidaturas.sql` para fontes com placeholders e chave composta).
+3. **Criar o adaptador**: `tarefa_<fonte>.rs` com `const REGRA`, `include_str!`, schema Arrow e chamada ao publicador comum.
+4. **Registrar no catálogo**: adicionar a família em `mod.rs`, na CLI e em `--todas` (se o volume permitir).
+5. **Testes**: fixture de borda e, se houver transformação Arrow anterior, fixture de paridade.
+6. **Smoke local**: executar contra o Bronze da máquina e conferir contagem, chaves e idempotência na segunda passada.
+7. **Documentar**: atualizar a cobertura neste arquivo e na matriz de chaves.
+
+### Exceções Rust mantidas fora do SQL
+
+As transformações Arrow manuais estão todas sob `#[cfg(test)]` e não compilam no binário de produção. Não há exceções Rust em produção — toda a lógica de negócio Silver executa via SQL/DataFusion pelo publicador comum `publicar_transformacao_sql`.
+
+O código Rust dos adaptadores (`tarefa_*.rs`) contém apenas:
+
+- Declaração do schema Arrow de saída.
+- Constante `REGRA` com a versão.
+- `include_str!` do SQL.
+- Expansão de `{{ANO_RECURSO}}` quando necessário (após validação do ano como inteiro).
+- Chamada ao publicador comum (`publicacao::publicar_transformacao_sql`).
+- Configuração de limites de memória/spill quando diverge do padrão.
+
+As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) são funções genéricas do executor, não transformações por contrato.
+
+### Inventário dos 24 contratos SQL
+
+| # | Arquivo SQL | Adaptador Rust | Regra | Família |
+| --- | --- | --- | --- | --- |
+| 1 | `bcb_sgs.sql` | `tarefa_bcb.rs` | `bcb-sgs-v2` | BCB |
+| 2 | `ibge_agregados.sql` | `tarefa_ibge.rs` | `ibge-agregado-v2` | IBGE |
+| 3 | `senado_parlamentares.sql` | `tarefa_senado.rs` | `senado-parlamentar-v2` | Senado |
+| 4 | `senado_votacoes.sql` | `tarefa_senado_votacoes.rs` | `senado-votacao-v2` | Senado |
+| 5 | `senado_votos.sql` | `tarefa_senado_votacoes.rs` | `senado-voto-nominal-v2` | Senado |
+| 6 | `senado_despesas.sql` | `tarefa_senado_despesas.rs` | `senado-despesa-ceaps-v4` | Senado |
+| 7 | `senado_processos.sql` | `tarefa_senado_processos.rs` | `senado-processo-v2` | Senado |
+| 8 | `senado_processos_detalhes.sql` | `tarefa_senado_processos_detalhes.rs` | `senado-processo-detalhe-v2` | Senado |
+| 9 | `camara_partidos.sql` | `tarefa_camara.rs` | `camara-partido-v2` | Câmara |
+| 10 | `camara_legislaturas.sql` | `tarefa_camara_legislaturas.rs` | `camara-legislatura-periodo-v2` | Câmara |
+| 11 | `camara_deputados.sql` | `tarefa_camara_deputados.rs` | `camara-deputado-exercicio-v2` | Câmara |
+| 12 | `camara_despesas.sql` | `tarefa_camara_despesas.rs` | `camara-despesa-ceap-v3` | Câmara |
+| 13 | `camara_tramitacoes.sql` | `tarefa_camara_tramitacoes.rs` | `camara-tramitacao-evento-v2` | Câmara |
+| 14 | `camara_votacoes_sessoes.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-v2` | Câmara |
+| 15 | `camara_votacoes_votos.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-votos-v3` | Câmara |
+| 16 | `camara_votacoes_proposicoes.sql` | `tarefa_camara_votacoes.rs` | `camara-proposicoes-v2` | Câmara |
+| 17 | `camara_votacoes_proposicoes_autores.sql` | `tarefa_camara_votacoes.rs` | `camara-proposicoes-autores-v2` | Câmara |
+| 18 | `camara_votacoes_proposicoes_relacionadas.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-proposicoes-v2` | Câmara |
+| 19 | `camara_votacoes_objetos.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-objetos-v2` | Câmara |
+| 20 | `camara_votacoes_orientacoes.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-orientacoes-v2` | Câmara |
+| 21 | `tse_candidaturas.sql` | `tarefa_tse_candidaturas.rs` | `tse-candidatura-registro-v2` | TSE |
+| 22 | `tse_bens.sql` | `tarefa_tse_bens.rs` | `tse-bem-candidato-v2` | TSE |
+| 23 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
+| 24 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
+
+O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) garante em CI que esta lista permanece sincronizada com o código.
 
 ## Contratos eleitorais SQL/DataFusion
 
@@ -83,9 +255,10 @@ contratos ativados a projetam e o publicador rejeita referência ausente ou
 nula. O teste de linhas Bronze idênticas confirma ordinais distintos. Votos
 do Senado acrescentam `ordem_voto` para distinguir filhos da mesma linha.
 Sessões e votos têm ponteiros separados; uma falha em votos não apaga a
-publicação anterior de sessões. O CAS distribuído no S3 e a validação da
-versão Bronze no leitor Silver permanecem na
-[issue #300](https://github.com/rikemorais/todeolhoaibr/issues/300).
+publicação anterior de sessões. O CAS distribuído (`gravar_condicional` no `ArmazenamentoRaw`), a validação da
+versão Bronze no leitor Silver (`SnapshotBronze::ainda_vigente`) e os testes de
+condição de corrida foram entregues na
+[issue #300](https://github.com/rikemorais/todeolhoaibr/issues/300) (v0.53.0).
 
 ### Referência técnica da linha bronze
 
