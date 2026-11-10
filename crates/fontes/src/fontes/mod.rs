@@ -2,6 +2,7 @@ pub mod bcb;
 pub mod camara;
 pub mod ibge;
 pub mod ipeadata;
+pub mod remuneracao_estadual_mg;
 pub mod senado;
 pub mod tce_ce;
 pub mod transparencia;
