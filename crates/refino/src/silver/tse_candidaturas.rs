@@ -1,14 +1,19 @@
 //! Contrato Silver das candidaturas eleitorais do TSE.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, Date32Array, RecordBatch, StringArray, UInt8Array, UInt16Array};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::{Datelike, NaiveDate};
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao transformar candidaturas eleitorais.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroTseCandidaturasSilver {
     /// O Parquet Bronze não tem os campos textuais esperados.
@@ -60,6 +65,7 @@ pub fn esquema_tse_candidaturas() -> Arc<Schema> {
 }
 
 /// Normaliza a chave, tipa datas e idade e mantém os atributos publicados na origem.
+#[cfg(test)]
 pub fn transformar_tse_candidaturas(
     lote: &RecordBatch,
     ano: u16,
@@ -147,6 +153,7 @@ pub fn transformar_tse_candidaturas(
         .map_err(|_| ErroTseCandidaturasSilver::Schema)
 }
 
+#[cfg(test)]
 fn coluna_opcional<'a>(
     lote: &'a RecordBatch,
     nomes: &[&str],
@@ -164,6 +171,7 @@ fn coluna_opcional<'a>(
         .ok_or(ErroTseCandidaturasSilver::Schema)
 }
 
+#[cfg(test)]
 fn texto_obrigatorio<'a>(
     coluna: &'a StringArray,
     linha: usize,
@@ -175,6 +183,7 @@ fn texto_obrigatorio<'a>(
     Ok(coluna.value(linha).trim())
 }
 
+#[cfg(test)]
 fn parse_data(coluna: Option<&StringArray>, linha: usize, ano: u16) -> Option<i32> {
     let coluna = coluna?;
     if coluna.is_null(linha) {
@@ -191,6 +200,7 @@ fn parse_data(coluna: Option<&StringArray>, linha: usize, ano: u16) -> Option<i3
     Some(data.signed_duration_since(epoch).num_days() as i32)
 }
 
+#[cfg(test)]
 fn parse_idade(coluna: Option<&StringArray>, linha: usize) -> Option<u8> {
     let coluna = coluna?;
     if coluna.is_null(linha) {
@@ -203,6 +213,7 @@ fn parse_idade(coluna: Option<&StringArray>, linha: usize) -> Option<u8> {
     texto.parse::<u8>().ok()
 }
 
+#[cfg(test)]
 fn registro_original(
     lote: &RecordBatch,
     linha: usize,
