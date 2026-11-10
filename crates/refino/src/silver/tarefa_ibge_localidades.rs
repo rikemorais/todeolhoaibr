@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use todeolho_nucleo::{
     ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa, estado_na_raw,
 };
@@ -14,9 +13,13 @@ use super::ibge_municipios::esquema_ibge_municipios;
 use super::ibge_regioes::esquema_ibge_regioes;
 
 #[derive(Clone, Copy)]
+/// Seleciona qual nível de localidade do IBGE será publicado.
 pub enum TipoLocalidadeIbge {
+    /// Regiões geográficas do Brasil.
     Regioes,
+    /// Unidades federativas.
     Estados,
+    /// Municípios.
     Municipios,
 }
 
@@ -46,6 +49,7 @@ impl TipoLocalidadeIbge {
     }
 }
 
+/// Publica um recurso de localidades do IBGE a partir de um snapshot Bronze.
 pub struct TarefaDeSilverIbgeLocalidades {
     bronze: Arc<dyn ArmazenamentoRaw>,
     snapshot: Arc<SnapshotBronze>,
@@ -54,6 +58,7 @@ pub struct TarefaDeSilverIbgeLocalidades {
 }
 
 impl TarefaDeSilverIbgeLocalidades {
+    /// Cria a tarefa para o recurso e o tipo de localidade indicados.
     pub fn nova(
         bronze: Arc<dyn ArmazenamentoRaw>,
         snapshot: Arc<SnapshotBronze>,
@@ -68,6 +73,7 @@ impl TarefaDeSilverIbgeLocalidades {
         }
     }
 
+    /// Informa se o snapshot ainda precisa ser publicado na camada Silver.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
         let versao = format!(
             "{}|regra={}",

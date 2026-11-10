@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 
+/// Retorna o contrato Arrow dos municípios e das divisões territoriais do IBGE.
 pub fn esquema_ibge_municipios() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("id", DataType::Utf8, false),

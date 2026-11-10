@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 
+/// Retorna o contrato Arrow das observações de séries do Ipeadata.
 pub fn esquema_ipeadata() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("serie", DataType::Utf8, false),

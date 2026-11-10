@@ -30,10 +30,10 @@ use todeolho_refino::{
     TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
     TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
     TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIpeadata,
-    TipoLocalidadeIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
-    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
-    TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
-    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseVotacaoSecao, catalogo_refino,
+    TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
+    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
+    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseVotacaoSecao,
+    TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -500,13 +500,31 @@ async fn refinar(
                 .await;
         }
         if fonte.as_deref() == Some("ibge-estados") {
-            return refinar_ibge_localidade_silver(fonte, todas, intervalo, TipoLocalidadeIbge::Estados).await;
+            return refinar_ibge_localidade_silver(
+                fonte,
+                todas,
+                intervalo,
+                TipoLocalidadeIbge::Estados,
+            )
+            .await;
         }
         if fonte.as_deref() == Some("ibge-regioes") {
-            return refinar_ibge_localidade_silver(fonte, todas, intervalo, TipoLocalidadeIbge::Regioes).await;
+            return refinar_ibge_localidade_silver(
+                fonte,
+                todas,
+                intervalo,
+                TipoLocalidadeIbge::Regioes,
+            )
+            .await;
         }
         if fonte.as_deref() == Some("ibge-municipios") {
-            return refinar_ibge_localidade_silver(fonte, todas, intervalo, TipoLocalidadeIbge::Municipios).await;
+            return refinar_ibge_localidade_silver(
+                fonte,
+                todas,
+                intervalo,
+                TipoLocalidadeIbge::Municipios,
+            )
+            .await;
         }
         if fonte.as_deref() == Some("ipeadata") {
             return refinar_ipeadata_silver(fonte, todas, intervalo).await;
@@ -842,17 +860,27 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             let camara_tramitacoes =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Tramitacoes).await?;
             let ibge_regioes = refinar_ibge_localidade_silver(
-                Some("ibge-regioes".into()), false, None, TipoLocalidadeIbge::Regioes,
-            ).await?;
+                Some("ibge-regioes".into()),
+                false,
+                None,
+                TipoLocalidadeIbge::Regioes,
+            )
+            .await?;
             let ibge_estados = refinar_ibge_localidade_silver(
-                Some("ibge-estados".into()), false, None, TipoLocalidadeIbge::Estados,
-            ).await?;
+                Some("ibge-estados".into()),
+                false,
+                None,
+                TipoLocalidadeIbge::Estados,
+            )
+            .await?;
             let ibge_municipios = refinar_ibge_localidade_silver(
-                Some("ibge-municipios".into()), false, None, TipoLocalidadeIbge::Municipios,
-            ).await?;
-            let ipeadata = refinar_ipeadata_silver(
-                Some("ipeadata".into()), false, None,
-            ).await?;
+                Some("ibge-municipios".into()),
+                false,
+                None,
+                TipoLocalidadeIbge::Municipios,
+            )
+            .await?;
+            let ipeadata = refinar_ipeadata_silver(Some("ipeadata".into()), false, None).await?;
             Ok(bcb
                 && ibge
                 && senado
@@ -957,23 +985,38 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                     );
                 }
                 if let Err(erro) = refinar_ibge_localidade_silver(
-                    Some("ibge-regioes".into()), false, None, TipoLocalidadeIbge::Regioes,
-                ).await {
+                    Some("ibge-regioes".into()),
+                    false,
+                    None,
+                    TipoLocalidadeIbge::Regioes,
+                )
+                .await
+                {
                     eprintln!("Atenção: falha na reconciliação Silver IBGE regiões: {erro:#}");
                 }
                 if let Err(erro) = refinar_ibge_localidade_silver(
-                    Some("ibge-estados".into()), false, None, TipoLocalidadeIbge::Estados,
-                ).await {
+                    Some("ibge-estados".into()),
+                    false,
+                    None,
+                    TipoLocalidadeIbge::Estados,
+                )
+                .await
+                {
                     eprintln!("Atenção: falha na reconciliação Silver IBGE estados: {erro:#}");
                 }
                 if let Err(erro) = refinar_ibge_localidade_silver(
-                    Some("ibge-municipios".into()), false, None, TipoLocalidadeIbge::Municipios,
-                ).await {
+                    Some("ibge-municipios".into()),
+                    false,
+                    None,
+                    TipoLocalidadeIbge::Municipios,
+                )
+                .await
+                {
                     eprintln!("Atenção: falha na reconciliação Silver IBGE municípios: {erro:#}");
                 }
-                if let Err(erro) = refinar_ipeadata_silver(
-                    Some("ipeadata".into()), false, None,
-                ).await {
+                if let Err(erro) =
+                    refinar_ipeadata_silver(Some("ipeadata".into()), false, None).await
+                {
                     eprintln!("Atenção: falha na reconciliação Silver Ipeadata: {erro:#}");
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
@@ -1872,10 +1915,8 @@ async fn refinar_ibge_localidade_silver(
 
     match intervalo.filter(|s| *s > 0) {
         None => {
-            passada_ibge_localidade_silver(
-                nome_fonte, item, &raw_s3, &bronze, &silver, tipo, false,
-            )
-            .await
+            passada_ibge_localidade_silver(nome_fonte, item, &raw_s3, &bronze, &silver, tipo, false)
+                .await
         }
         Some(segundos) => {
             println!(
@@ -2019,11 +2060,7 @@ async fn passada_ipeadata_silver(
         else {
             continue;
         };
-        let tarefa = TarefaDeSilverIpeadata::nova(
-            Arc::clone(bronze),
-            Arc::new(snapshot),
-            &recurso,
-        );
+        let tarefa = TarefaDeSilverIpeadata::nova(Arc::clone(bronze), Arc::new(snapshot), &recurso);
         if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
             continue;
         }
