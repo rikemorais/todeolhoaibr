@@ -749,4 +749,47 @@ mod testes {
             ponteiro_anterior
         );
     }
+
+    #[test]
+    fn nenhum_sql_silver_orfao_nem_contrato_sem_consulta() {
+        let dir_sql = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("sql/silver");
+        let dir_src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/silver");
+
+        let sqls_no_disco: std::collections::BTreeSet<String> = std::fs::read_dir(&dir_sql)
+            .unwrap()
+            .filter_map(|e| {
+                let nome = e.ok()?.file_name().to_str()?.to_owned();
+                nome.ends_with(".sql").then_some(nome)
+            })
+            .collect();
+
+        let mut sqls_referenciados = std::collections::BTreeSet::new();
+        for entrada in std::fs::read_dir(&dir_src).unwrap() {
+            let caminho = entrada.unwrap().path();
+            if caminho.extension().is_some_and(|ext| ext == "rs") {
+                let conteudo = std::fs::read_to_string(&caminho).unwrap();
+                for linha in conteudo.lines() {
+                    let padrao = "include_str!(\"../../sql/silver/";
+                    if let Some(pos) = linha.find(padrao) {
+                        let resto = &linha[pos + padrao.len()..];
+                        if let Some(fim) = resto.find('"') {
+                            sqls_referenciados.insert(resto[..fim].to_owned());
+                        }
+                    }
+                }
+            }
+        }
+
+        let orfaos: Vec<_> = sqls_no_disco.difference(&sqls_referenciados).collect();
+        assert!(
+            orfaos.is_empty(),
+            "SQLs no disco sem include_str! correspondente: {orfaos:?}"
+        );
+
+        let fantasmas: Vec<_> = sqls_referenciados.difference(&sqls_no_disco).collect();
+        assert!(
+            fantasmas.is_empty(),
+            "include_str! referencia SQLs inexistentes: {fantasmas:?}"
+        );
+    }
 }
