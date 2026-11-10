@@ -1296,6 +1296,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prova-de-viabilidade-do-tce-ce" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prova de viabilidade do TCE-CE
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fonte-municipal-fortaleza" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fonte municipal: Fortaleza
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#decisao-proposta" class="md-nav__link">
     <span class="md-ellipsis">
       Decisão proposta
@@ -1305,9 +1323,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proxima-verificacao" class="md-nav__link">
+  <a href="#proximas-verificacoes" class="md-nav__link">
     <span class="md-ellipsis">
-      Próxima verificação
+      Próximas verificações
     </span>
   </a>
   
@@ -1687,6 +1705,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prova-de-viabilidade-do-tce-ce" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prova de viabilidade do TCE-CE
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fonte-municipal-fortaleza" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fonte municipal: Fortaleza
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#decisao-proposta" class="md-nav__link">
     <span class="md-ellipsis">
       Decisão proposta
@@ -1696,9 +1732,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proxima-verificacao" class="md-nav__link">
+  <a href="#proximas-verificacoes" class="md-nav__link">
     <span class="md-ellipsis">
-      Próxima verificação
+      Próximas verificações
     </span>
   </a>
   
@@ -1730,74 +1766,122 @@
 <h1 id="pesquisa-inicial-remuneracao-municipal">Pesquisa inicial: remuneração municipal<a class="headerlink" href="#pesquisa-inicial-remuneracao-municipal" title="Permanent link">&para;</a></h1>
 <p><strong>Issue:</strong> <a href="https://github.com/rikemorais/todeolhoaibr/issues/76">#76</a><br />
 <strong>Data da pesquisa:</strong> 2026-11-10<br />
-<strong>Estado:</strong> triagem de fontes; nenhuma coleta automatizada foi ativada.</p>
+<strong>Estado:</strong> TCE-CE validado como fonte candidata; ingestão ainda não ativada.</p>
 <h2 id="resumo">Resumo<a class="headerlink" href="#resumo" title="Permanent link">&para;</a></h2>
-<p>O primeiro candidato a agregador é o Sistema de Informações Municipais do
-TCE-CE. A documentação oficial da <a href="https://api-dados-abertos.tce.ce.gov.br/sim/">API de Dados Abertos do SIM</a>
-lista recursos específicos de Cadastro de Pessoal e Folha: agentes públicos
-municipais, desligamentos, reingressos, itens remuneratórios, folhas de
-pagamento e agentes por folha. A página descreve paginação por <code>$start_index</code>,
-limite de 1.000 registros por requisição e acesso permitido somente a IPs no
-Brasil. A documentação também informa que alguns endpoints exigem autorização;
-a página de referência não deixa claro, no conteúdo legível, quais rotas de
-folha são públicas e quais exigem token.</p>
+<p>O melhor primeiro agregador é o Sistema de Informações Municipais do TCE-CE:
+na competência 2025-12, retornou ao menos uma folha para todos os 184 municípios
+com código IBGE. Fortaleza também publica arquivos CSV mensais de servidores no
+<a href="https://dados.fortaleza.ce.gov.br/dataset/servidores">catálogo oficial de dados abertos</a>,
+uma fonte municipal independente que permite validar a cobertura e os totais do
+TCE.</p>
+<p>A <a href="https://api-dados-abertos.tce.ce.gov.br/sim/">API de Dados Abertos do SIM</a>
+lista recursos de Cadastro de Pessoal e Folha, incluindo agentes municipais,
+itens remuneratórios, folhas de pagamento e agentes por folha. A API permite até
+1.000 registros por requisição e paginação por <code>$start_index</code>; aceita conexões
+somente de IPs no Brasil.</p>
 <p>O TCE-CE publica o <a href="https://www.tce.ce.gov.br/municipios/sim/documentacao-e-programas">Manual do SIM 2026</a>,
-atualizado em 19/12/2025, e documentação anual do sistema. Isso indica uma
-fonte regulada e com esquema formal, mas ainda não confirma cobertura histórica,
-completude das folhas por município, disponibilidade fora do Brasil nem
-estabilidade dos identificadores. Antes da ingestão, verificar esses pontos
-por chamada de amostra e comparar uma competência com o portal do município.</p>
+atualizado em 19/12/2025. A especificação OpenAPI declara autenticação Basic
+global, mas as consultas GET de validação abaixo responderam sem cabeçalho
+<code>Authorization</code>. Essa diferença entre esquema e comportamento observado deve
+ser confirmada antes de depender de acesso anônimo em produção.</p>
 <h2 id="fontes-candidatas">Fontes candidatas<a class="headerlink" href="#fontes-candidatas" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Fonte</th>
 <th>Evidência oficial</th>
-<th>Avaliação inicial</th>
+<th>Avaliação</th>
 <th>Pendências</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>TCE-CE SIM</td>
-<td><a href="https://api-dados-abertos.tce.ce.gov.br/sim/">API oficial</a> lista <code>folhas_pagamentos</code>, <code>agentes_publicos_folha</code> e dimensões de agentes/itens remuneratórios; <a href="https://www.tce.ce.gov.br/municipios/sim/documentacao-e-programas">manual SIM</a> é publicado por exercício</td>
-<td>Melhor primeiro candidato: estrutura agregada estadual, API e paginação documentadas</td>
-<td>Confirmar autenticação, endpoint e parâmetros exatos, IP brasileiro, intervalo de competências, município/órgão cobertos e campos pessoais retornados</td>
+<td><a href="https://api-dados-abertos.tce.ce.gov.br/sim/">API oficial</a> lista <code>folhas_pagamentos</code> e <code>agentes_publicos_folha</code>; <a href="https://www.tce.ce.gov.br/municipios/sim/documentacao-e-programas">manual SIM</a> publicado por exercício</td>
+<td>Melhor primeiro candidato: API estadual com resposta estruturada; prova de 2025-12 encontrou ao menos uma folha nos 184 municípios com código IBGE</td>
+<td>Completar a comparação municipal, confirmar conectividade do runtime e divergência de autenticação, e definir tratamento dos CPFs no endpoint nominal</td>
+</tr>
+<tr>
+<td>Prefeitura de Fortaleza</td>
+<td><a href="https://dados.fortaleza.ce.gov.br/dataset/servidores">Catálogo oficial de dados abertos</a> publica CSVs mensais da folha; o arquivo 2025-12 tem 73.393 linhas e 20 colunas, incluindo órgão, servidor, vínculo, proventos, descontos e líquido</td>
+<td>Fonte municipal reutilizável e comparador independente; arquivo CSV de 2025-12 tem 26.184.481 bytes</td>
+<td>Alinhar escopo e categorias com o SIM antes de comparar totais; metadado CKAN do conjunto não declara licença; arquivos incluem nome e valores de remuneração</td>
 </tr>
 <tr>
 <td>Prefeitura de Porto Alegre</td>
 <td><a href="https://transparencia.portoalegre.rs.gov.br/perguntas-frequentes">FAQ oficial</a> descreve pesquisa de remuneração por órgão, tipo de folha e competência; afirma atualização mensal até dia 5</td>
-<td>Cobertura funcional útil para comparação independente; parece orientada a consulta web</td>
+<td>Fonte útil para comparação independente, orientada a consulta web</td>
 <td>A página de remuneração usa iframe; não foi localizada nesta triagem uma API ou exportação em lote estável</td>
 </tr>
 <tr>
 <td>Capitais e demais TCEs</td>
 <td>Não avaliados em profundidade nesta etapa</td>
-<td>Expansão por adaptador só após confirmar formatos estruturados e licença/termos</td>
+<td>Expandir por adaptador após confirmar formatos estruturados e termos de uso</td>
 <td>Fazer inventário por região e priorizar API ou arquivo oficial reaproveitável</td>
 </tr>
 </tbody>
 </table>
+<h2 id="prova-de-viabilidade-do-tce-ce">Prova de viabilidade do TCE-CE<a class="headerlink" href="#prova-de-viabilidade-do-tce-ce" title="Permanent link">&para;</a></h2>
+<p>Em 10/11/2026, foram feitas consultas GET somente de leitura a partir de um IP
+brasileiro. <code>GET /municipios</code> retornou 185 códigos; 184 tinham código IBGE
+municipal. Fortaleza foi identificada pelo código SIM <code>057</code> e código IBGE
+<code>2304400</code>.</p>
+<p>O OpenAPI confirma que <code>GET /folhas_pagamentos</code> exige <code>codigo_municipio</code>,
+<code>exercicio_orcamento</code> e <code>data_referencia_doc</code>, aceita <code>$count</code> até 1.000 e
+<code>$start_index</code> para paginação. O exercício usa ano terminado em <code>00</code> (por
+exemplo, <code>202500</code>); a competência e a referência documental usam <code>YYYYMM</code> (por
+exemplo, <code>202512</code>). Com esses parâmetros, Fortaleza retornou folhas para a
+competência de dezembro de 2025.</p>
+<p>Foi feita uma varredura de presença da competência <code>2025-12</code>, com <code>$count=1</code>
+para cada um dos 184 códigos municipais com IBGE. Todos retornaram ao menos uma
+linha e nenhuma chamada falhou. Isso comprova presença de dados na competência,
+mas não a entrega de todas as folhas ou de todos os agentes. O endpoint
+<code>GET /agentes_publicos_folha</code> também respondeu; seu esquema inclui CPF do agente
+e valor por item remuneratório. Nenhuma linha nominal foi guardada na pesquisa.</p>
+<h2 id="fonte-municipal-fortaleza">Fonte municipal: Fortaleza<a class="headerlink" href="#fonte-municipal-fortaleza" title="Permanent link">&para;</a></h2>
+<p>O <a href="https://dados.fortaleza.ce.gov.br/dataset/servidores">catálogo de dados abertos da Prefeitura de Fortaleza</a>
+publica um CSV por mês. O recurso <a href="https://dados.fortaleza.ce.gov.br/dataset/servidores/resource/3527c08d-abea-454d-8968-ace527fba91b">relacao_202512.csv</a>
+foi atualizado em 22/12/2025, tem 26.184.481 bytes e contém 73.393 linhas em 20 colunas. Os campos
+incluem órgão/entidade, nome do servidor, tipo de vínculo, cargo, proventos,
+descontos e líquido; não há coluna de CPF nesse arquivo. O conjunto mais recente
+no catálogo foi atualizado em 31/07/2026 e inclui recursos até julho de 2026.</p>
+<p>O metadado CKAN não declara uma licença para o conjunto. A <a href="https://transparencia.fortaleza.ce.gov.br/index.php/dadosAbertos">página municipal de
+Dados Abertos</a>
+descreve os dados publicados como não sigilosos e sem restrições de uso; a
+ingestão deve preservar essa procedência e registrar a data de coleta.</p>
+<p>Uma soma inicial dos proventos no CSV de dezembro foi comparada com a soma do
+campo <code>valor_total_item_orc</code> das folhas do SIM para Fortaleza. Os totais não
+coincidiram. Ainda não foi comprovada equivalência entre os escopos por
+órgão/unidade, nem entre as categorias remuneratórias; portanto, essa comparação
+não é validação de completude. O CSV contém nomes e remuneração, enquanto o
+endpoint nominal do SIM inclui CPF, então a política de minimização deve ser
+definida antes de persistir essas respostas na Raw.</p>
 <h2 id="decisao-proposta">Decisão proposta<a class="headerlink" href="#decisao-proposta" title="Permanent link">&para;</a></h2>
-<p>Fazer uma prova de viabilidade com o TCE-CE antes de implementar um crawler de
-portais. A prova deve consultar um município, listar competências disponíveis,
-baixar todas as páginas de uma competência e comparar contagens e totais com a
-fonte pública municipal. Se a API exigir acesso não disponível ao runtime ou
-não tiver cobertura suficiente, avaliar portais de capitais como fontes
-independentes, sem presumir que compartilham um esquema.</p>
-<p>Não tratar valores exibidos por nome de servidor como chave. A futura ingestão
-deve armazenar a resposta original sem mudar identificadores, publicar manifesto
-com município, endpoint, competência e instante de coleta, e separar reingestão
-de retificações mensais.</p>
-<h2 id="proxima-verificacao">Próxima verificação<a class="headerlink" href="#proxima-verificacao" title="Permanent link">&para;</a></h2>
+<p>Prosseguir com o adaptador TCE-CE como primeira fonte agregada e o CSV de
+Fortaleza como primeiro adaptador municipal independente. Antes de publicar a
+ingestão, paginar integralmente uma competência do SIM, alinhar órgão/unidade e
+categorias entre as fontes, comparar contagens e totais e confirmar acesso a
+partir do runtime de produção. Se esses controles falharem, avaliar outros
+portais de capitais como fontes independentes, sem presumir que compartilham um
+esquema.</p>
+<p>As fontes contêm dados pessoais em contexto de remuneração pública; o endpoint
+nominal do TCE retorna CPF e o CSV municipal retorna nome. Antes de persistir
+respostas brutas, a ingestão precisa definir minimização, proteção e retenção
+desses identificadores. O manifesto deve registrar município, endpoint ou URL
+do arquivo, competência, parâmetros de paginação quando aplicáveis, instante de
+coleta, quantidade recebida e resultado da validação, sem incluir nomes nem
+CPFs.</p>
+<h2 id="proximas-verificacoes">Próximas verificações<a class="headerlink" href="#proximas-verificacoes" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Inspecionar o OpenAPI do SIM para parâmetros, esquemas, códigos de resposta e
-   requisitos de autorização de cada endpoint CPF.</li>
-<li>Fazer uma chamada pequena de leitura para listar municípios e uma folha
-   pública, observando resposta, paginação e bloqueio por localização.</li>
-<li>Comparar uma competência e seus totais com um portal municipal.</li>
-<li>Registrar cobertura e limitações antes de escolher o recorte inicial da
-   ingestão.</li>
+<li>Confirmar a autenticação declarada no OpenAPI versus as respostas sem
+   credenciais observadas.</li>
+<li>Paginar integralmente a competência <code>2025-12</code> e alinhar unidades e categorias
+   com o arquivo municipal antes de comparar totais.</li>
+<li>Verificar conectividade do runtime de produção, pois a API limita o acesso
+   a IPs no Brasil.</li>
+<li>Confirmar a licença específica do CSV municipal e definir minimização,
+   proteção e retenção dos dados nominais antes de armazená-los.</li>
+<li>Implementar as duas ingestões e seus manifestos após esses controles.</li>
 </ol>
 
 
