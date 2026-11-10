@@ -76,7 +76,7 @@ impl TarefaDeSilverSql {
 #[async_trait]
 impl Tarefa for TarefaDeSilverSql {
     fn nome(&self) -> &str {
-        &self.recurso
+        self.recurso_destino.as_deref().unwrap_or(&self.recurso)
     }
 
     async fn executar(
@@ -514,6 +514,54 @@ mod testes {
             silver.ler(&chave_ponteiro).await.unwrap().unwrap(),
             ponteiro_anterior
         );
+    }
+
+    #[tokio::test]
+    async fn destino_distingue_tarefas_irmas_no_dag() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let origem = nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot), REGRA, SQL);
+        let destino = TarefaDeSilverSql::nova(
+            bronze,
+            snapshot,
+            FONTE,
+            RECURSO,
+            Some("outra-tabela".into()),
+            REGRA,
+            SQL,
+            esquema_saida(),
+        );
+        assert_eq!(origem.nome(), RECURSO);
+        assert_eq!(destino.nome(), "outra-tabela");
+    }
+
+    #[tokio::test]
+    async fn ponteiro_mais_novo_recusado_nao_informa_publicacao() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let ponteiro = UltimaVersao {
+            versao: Some("versao-mais-nova".into()),
+            manifesto: "manifesto-mais-novo".into(),
+            iniciada_em: Some(Utc.with_ymd_and_hms(2026, 11, 6, 13, 0, 0).unwrap()),
+        };
+        let chave = LocalizacaoRaw::ultima_versao(FONTE, RECURSO);
+        let bytes = serde_json::to_vec(&ponteiro).unwrap();
+        silver
+            .gravar(ObjetoRaw {
+                chave: chave.clone(),
+                conteudo: bytes.clone(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let tarefa = nova_tarefa(bronze, snapshot, REGRA, SQL);
+        let erro = tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-antiga"))
+            .await
+            .unwrap_err();
+        assert!(erro.to_string().contains("não foi publicada"));
+        assert_eq!(silver.ler(&chave).await.unwrap().unwrap(), bytes);
     }
 
     #[tokio::test]

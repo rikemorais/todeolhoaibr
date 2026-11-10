@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use todeolho_nucleo::{
     ArmazenamentoRaw, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw,
-    ResumoDaTarefa, UltimaVersao, estado_na_raw, publicar_ponteiro,
+    ResumoDaTarefa, UltimaVersao, bloquear_publicacao, estado_na_raw, publicar_ponteiro_sob_guarda,
 };
 
 use crate::{
@@ -251,6 +251,7 @@ async fn publicar_transformacao_sql_interno(
         .gravar_fluxo(&chave, TIPO_PARQUET, &mut fluxo_upload)
         .await?;
 
+    let guarda = bloquear_publicacao(fonte, recurso).await;
     if !snapshot
         .ainda_vigente(bronze, fonte, recurso)
         .await
@@ -289,7 +290,7 @@ async fn publicar_transformacao_sql_interno(
             tipo_de_conteudo: "application/json".into(),
         })
         .await?;
-    publicar_ponteiro(
+    let publicou = publicar_ponteiro_sob_guarda(
         silver,
         fonte,
         recurso_destino,
@@ -298,8 +299,15 @@ async fn publicar_transformacao_sql_interno(
             manifesto: local.manifesto(),
             iniciada_em: Some(iniciada_em),
         },
+        &guarda,
     )
     .await?;
+    if !publicou {
+        return Err(erro_manifesto(
+            recurso,
+            "ponteiro Silver mais recente preservado; esta execução não foi publicada",
+        ));
+    }
     Ok(ResumoDaTarefa {
         partes: 1,
         bytes,

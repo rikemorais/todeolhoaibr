@@ -346,10 +346,11 @@ impl Tarefa for TarefaDeArquivo {
         )
         .await?;
         if !publicou {
-            warn!(
-                tarefa = %self.nome,
-                "outra rodada já publicou um ponteiro mais novo; este manifesto não é o vigente"
-            );
+            return Err(ErroDeIngestao::Manifesto {
+                recurso: self.recurso.clone(),
+                detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada"
+                    .into(),
+            });
         }
 
         Ok(resumo)
