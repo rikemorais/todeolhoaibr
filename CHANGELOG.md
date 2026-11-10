@@ -7,6 +7,20 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.53.2] - 2026-11-10
+
+### Refatoração
+
+- Move as 8 transformações Arrow manuais restantes para `#[cfg(test)]`; o binário de produção executa somente SQL/DataFusion (issue #244, PR #306).
+
+### Testes
+
+- Teste de inventário SQL bidirecional: todo `.sql` em `sql/silver/` tem `include_str!` correspondente e vice-versa (issue #244, PR #307).
+
+### Documentação
+
+- Documenta convenções SQL, tipos/sentinelas, placeholders, UDFs, versionamento da regra, fixtures, execução local, processo de revisão e inventário dos 24 contratos (issue #244, PR #308).
+
 ## [0.53.1] - 2026-11-10
 
 ### Corrigido
