@@ -1889,7 +1889,10 @@
 <h2 id="resumo">Resumo<a class="headerlink" href="#resumo" title="Permanent link">&para;</a></h2>
 <p>Há fontes oficiais com exportação estruturada confirmada em diversos estados, mas as evidências públicas variam: algumas páginas documentam CSV/API e atualização; outras apenas comprovam que existe consulta de remuneração. “Não verificado” significa que não encontrei confirmação oficial suficiente nesta pesquisa, e não que o portal não tenha exportação.</p>
 <p><strong>Minas Gerais (MG)</strong> e <strong>Goiás (GO)</strong> já têm ingestão sob demanda implementada, respectivamente nas PRs #324 e #326. Em 10/11/2026, a listagem CKAN de GO mostrava CSVs mensais até agosto/2026; a fonte escolhe o recurso mais recente realmente listado, sem presumir atualização no mês corrente. Consultei apenas metadados, sem baixar CSVs ou ZIPs. O Rio Grande do Sul (RS) documenta cobertura do governador, do Executivo e atualização mensal, mas não expõe URLs estáveis de arquivos no catálogo textual. Alagoas (AL) documenta APIs paginadas e arquivos em lote sob CC BY-SA, mas sem método documentado para descobrir a última competência. Veja as <a href="../pesquisa-remuneracao-estadual-rs/">pesquisas de RS</a> e <a href="../pesquisa-remuneracao-estadual-al/">AL</a>. O Paraná (PR) confirma CSV mensal e uso livre em FAQ oficial, mas não documenta contrato reproduzível para automatizar o download nem licença específica para derivados; veja a <a href="../pesquisa-remuneracao-estadual-pr/">pesquisa do Paraná</a>.</p>
-<p>Mato Grosso do Sul (MS) tem recursos CSV mensais no catálogo oficial até setembro/2026, com tamanho e licença nos metadados; há também uma lei separada que fixa o subsídio legal do governador. O conjunto não confirma a inclusão do governador nem o acesso por API aos metadados sem baixar conteúdo. Consulte a <a href="../pesquisa-remuneracao-estadual-ms/">pesquisa de MS</a>.</p>
+<ul>
+<li><strong>SP:</strong> a página principal lista a série histórica até agosto/2026, mas isso não prova integridade nem acesso aos arquivos. Não há URL direta estável, metadados por competência ou licença específica do conjunto; consulte a <a href="../pesquisa-remuneracao-estadual-sp/">pesquisa de SP</a>.</li>
+<li><strong>MS:</strong> o catálogo lista recursos mensais até setembro/2026 e metadados do CSV, mas não confirma o governador nem o acesso aos URLs dos arquivos pela API; consulte a <a href="../pesquisa-remuneracao-estadual-ms/">pesquisa de MS</a>.</li>
+</ul>
 <h2 id="matriz-por-uf">Matriz por UF<a class="headerlink" href="#matriz-por-uf" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2047,9 +2050,9 @@
 </tr>
 <tr>
 <td>SP</td>
-<td><a href="https://www.transparencia.sp.gov.br/Remuneracaomensal/Index">Remuneração Mensal — Portal da Transparência SP</a> e <a href="https://www.transparencia.sp.gov.br/Home/Servidor">área Servidor</a> oferecem consulta e arquivos em CSV/TXT, inclusive históricos.</td>
-<td>CSV/TXT confirmado.</td>
-<td><strong>Formato confirmado; validar competência/URL de arquivo vigente.</strong></td>
+<td>O <a href="https://www.transparencia.sp.gov.br/Remuneracaomensal/Index">Portal da Transparência — Relação nominal e remuneração mensal</a> anuncia arquivos TXT/CSV e série histórica mensal, listada até agosto/2026 em 10/11/2026. O catálogo <a href="https://dadosabertos.sp.gov.br/dataset/informacoes-sobre-os-servidores">Dados Abertos SP — Informações Sobre os Servidores</a> apresenta um recurso CSV, mas ele aponta para a página do portal; o conjunto foi atualizado em 17/04/2025 e não declara licença.</td>
+<td>TXT/CSV e histórico compactado anunciados; URLs diretas, tamanho e metadados por competência não confirmados.</td>
+<td><strong>Sem contrato automatizável e licença aplicável aos arquivos/derivados não esclarecida.</strong> Não inferir URLs da interface; confirmar oficialmente com a CGE-SP. Veja a <a href="../pesquisa-remuneracao-estadual-sp/">pesquisa de SP</a>.</td>
 </tr>
 <tr>
 <td>SE</td>
@@ -2074,6 +2077,8 @@
 <li><strong>AL — candidata à integração após resolver a competência.</strong> A API documenta endpoints paginados de ativos/inativos e exportação, e a página de download lista TXT sob CC BY-SA. Falta descobrir a competência mais recente e avaliar volume/limites sem inspecionar registros; veja a <a href="../pesquisa-remuneracao-estadual-al/">nota de AL</a>.</li>
 <li><strong>PB — candidata a ingestão depois de resolver a competência.</strong> Endpoint e paginação estão documentados, mas ano/mês precisam ser conhecidos antes da consulta, sem metadado de última competência; a presença do governador também não está comprovada. Consulte a <a href="../pesquisa-remuneracao-estadual-pb/">nota de PB</a>.</li>
 <li><strong>PR — candidato estruturado, sem contrato automatizável confirmado.</strong> O portal oferece CSV mensal e a FAQ permite uso livre em termos gerais, mas faltam URL/API documentada, competência mais recente comprovada e licença específica para derivados. Não inferir endpoint a partir de tráfego do navegador; pedir esclarecimento à CGE-PR antes de implementar. Consulte a <a href="../pesquisa-remuneracao-estadual-pr/">nota de pesquisa do Paraná</a>.</li>
+<li><strong>SP — manter pendente de confirmação oficial.</strong> O portal anuncia arquivos e histórico, mas não publica URLs diretas estáveis nem metadados por competência; o catálogo está desatualizado e sem licença declarada. A licença genérica do portal não esclarece a reutilização dos arquivos e derivados. Consultar a CGE-SP antes de automatizar ou republicar. Consulte a <a href="../pesquisa-remuneracao-estadual-sp/">nota de SP</a>.</li>
+<li><strong>SE — manter pendente.</strong> A API é oficial e estruturada, mas o contrato atual exige pesquisa por nome, sem endpoint documentado de exportação integral.</li>
 <li><strong>SE — manter pendente.</strong> A API é oficial e estruturada, mas o contrato atual exige pesquisa por nome, sem endpoint documentado de exportação integral.</li>
 </ol>
 <h2 id="limites-privacidade-e-licenca">Limites, privacidade e licença<a class="headerlink" href="#limites-privacidade-e-licenca" title="Permanent link">&para;</a></h2>
@@ -2092,13 +2097,13 @@
 <li><strong>PI:</strong> exportação Excel consta em manual cuja versão/validade atual não foi confirmada.</li>
 <li><strong>AM e PA:</strong> API é citada por fonte oficial, mas endpoint/esquema da remuneração não foram integralmente conferidos.</li>
 <li><strong>PB:</strong> endpoint e paginação da API estão documentados; faltam método seguro para descobrir competência, tamanho da resposta e escopo do governador, além de esclarecer divergência de licença.</li>
-<li><strong>SE:</strong> o OpenAPI define endpoint e paginação, mas exige filtro de nome; a data da última competência disponível não ficou estabelecida e não há listagem integral documentada.</li>
-<li><strong>SP:</strong> formato estruturado é documentado, porém esta pesquisa não aferiu atualização da folha/arquivo na competência corrente.</li>
-<li><strong>MS:</strong> o catálogo lista recursos mensais até setembro/2026 e metadados do CSV, mas não confirma o governador nem o acesso aos URLs dos arquivos pela API; consulte a <a href="../pesquisa-remuneracao-estadual-ms/">nota de MS</a>.</li>
-<li><strong>AL e RS:</strong> têm notas específicas nesta pasta. AL ainda carece de descoberta da competência/volumes; RS tem escopo amplo incluindo o governador, mas falta localizar a listagem de arquivos CSV sem baixar os dados.</li>
-<li><strong>PR:</strong> exportação CSV mensal e uso livre geral foram confirmados, mas faltam contrato automatizável, competência atual e condições formais de derivados; ver <a href="../pesquisa-remuneracao-estadual-pr/">nota específica</a>.</li>
-<li><strong>AC, AP, BA, CE, DF, ES, MA, MT, MS, PE, RJ, RN, RR e TO:</strong> a confirmação de consulta de pessoal, quando indicada, não confirma ausência de API/exportação; os formatos precisam de investigação adicional.</li>
+<li><strong>SE:</strong> o OpenAPI define endpoint e paginação, mas exige filtro de nome; a data da última competência disponível não ficou estabelecida e não há listagem integral documentada.
+Mato Grosso do Sul (MS) tem recursos CSV mensais no catálogo oficial até setembro/2026, com tamanho e licença nos metadados; há também uma lei separada que fixa o subsídio legal do governador. O conjunto não confirma a inclusão do governador nem o acesso por API aos metadados sem baixar conteúdo. Consulte a <a href="../pesquisa-remuneracao-estadual-ms/">pesquisa de MS</a>.</li>
 </ul>
+<p>São Paulo (SP) anuncia arquivos TXT/CSV e série histórica mensal, listada até agosto/2026 na verificação de 10/11/2026, mas a página não revela URLs diretas estáveis. O catálogo de dados aponta de volta ao portal, está desatualizado e não fornece licença para o conjunto; a licença genérica do portal não esclarece a cobertura dos arquivos e derivados. Veja a <a href="../pesquisa-remuneracao-estadual-sp/">pesquisa de SP</a>.
+- <strong>AL e RS:</strong> têm notas específicas nesta pasta. AL ainda carece de descoberta da competência/volumes; RS tem escopo amplo incluindo o governador, mas falta localizar a listagem de arquivos CSV sem baixar os dados.
+- <strong>PR:</strong> exportação CSV mensal e uso livre geral foram confirmados, mas faltam contrato automatizável, competência atual e condições formais de derivados; ver <a href="../pesquisa-remuneracao-estadual-pr/">nota específica</a>.
+- <strong>AC, AP, BA, CE, DF, ES, MA, MT, MS, PE, RJ, RN, RR e TO:</strong> a confirmação de consulta de pessoal, quando indicada, não confirma ausência de API/exportação; os formatos precisam de investigação adicional.</p>
 
 
 
