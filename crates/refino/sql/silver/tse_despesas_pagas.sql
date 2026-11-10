@@ -41,7 +41,10 @@ WITH origem AS (
         MIN(prestador_original) AS sequencia_prestador,
         MIN(data_pagamento_tipada) AS data_pagamento,
         MIN(valor_pago_tipada) AS valor_pago,
-        MIN(original) AS registro_original
+        MIN(original) AS registro_original,
+        MIN(_tdoa_origem_manifesto) AS _tdoa_origem_manifesto,
+        MIN(_tdoa_origem_parte) AS _tdoa_origem_parte,
+        MIN(_tdoa_origem_ordinal) AS _tdoa_origem_ordinal
     FROM tipadas
     GROUP BY ano_texto, codigo_eleicao_chave, prestador_chave, despesa_chave, pagamento_chave
 ), validadas AS (
@@ -63,5 +66,8 @@ SELECT
     pagamento_chave AS sequencia_pagamento,
     data_pagamento,
     valor_pago,
-    registro_original
+    registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM validadas

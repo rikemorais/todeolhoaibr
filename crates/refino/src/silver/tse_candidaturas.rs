@@ -53,6 +53,9 @@ pub fn esquema_tse_candidaturas() -> Arc<Schema> {
         Field::new("data_nascimento", DataType::Date32, true),
         Field::new("idade_data_posse", DataType::UInt8, true),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -126,23 +129,22 @@ pub fn transformar_tse_candidaturas(
     }
 
     let texto = |indice: usize| Arc::new(colunas[indice].clone()) as Arc<dyn Array>;
-    RecordBatch::try_new(
-        esquema_tse_candidaturas(),
-        vec![
-            Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
-            texto(1),
-            texto(2),
-            texto(3),
-            texto(4),
-            texto(5),
-            texto(6),
-            Arc::new(Date32Array::from(datas_eleicao)),
-            Arc::new(Date32Array::from(datas_nascimento)),
-            Arc::new(UInt8Array::from(idades)),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroTseCandidaturasSilver::Schema)
+    let mut cols: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
+        texto(1),
+        texto(2),
+        texto(3),
+        texto(4),
+        texto(5),
+        texto(6),
+        Arc::new(Date32Array::from(datas_eleicao)),
+        Arc::new(Date32Array::from(datas_nascimento)),
+        Arc::new(UInt8Array::from(idades)),
+        Arc::new(StringArray::from(originais)),
+    ];
+    cols.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_tse_candidaturas(), cols)
+        .map_err(|_| ErroTseCandidaturasSilver::Schema)
 }
 
 fn coluna_opcional<'a>(

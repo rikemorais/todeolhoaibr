@@ -286,7 +286,10 @@ mod testes {
         let esperado =
             super::super::camara_tramitacoes::transformar_camara_tramitacoes(&lote_bronze, 2024)
                 .unwrap();
-        assert_eq!(lote_silver(&silver, "tramitacoes/ano=2024"), esperado);
+        assert_eq!(
+            crate::executor_sql::sem_linhagem(&lote_silver(&silver, "tramitacoes/ano=2024")),
+            crate::executor_sql::sem_linhagem(&esperado),
+        );
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_camara_tramitacoes(

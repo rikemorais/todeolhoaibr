@@ -96,6 +96,25 @@ impl SnapshotBronze {
         &self.manifesto
     }
 
+    /// Confere se o ponteiro Bronze vigente ainda aponta para o manifesto deste
+    /// snapshot. Devolve `false` se o ponteiro mudou ou desapareceu — o que
+    /// indica que a Silver seria construída sobre um Bronze desatualizado.
+    pub async fn ainda_vigente(
+        &self,
+        armazenamento: &dyn ArmazenamentoRaw,
+        fonte: &str,
+        recurso: &str,
+    ) -> Result<bool, ErroDeSnapshotBronze> {
+        let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
+        let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+            return Ok(false);
+        };
+        let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes) else {
+            return Ok(false);
+        };
+        Ok(ponteiro.manifesto == self.chave_manifesto)
+    }
+
     /// Cria uma visão do mesmo snapshot contendo somente as partes selecionadas.
     ///
     /// A chave do manifesto original permanece para revalidar a versão Bronze antes
@@ -418,6 +437,63 @@ mod testes {
             .unwrap();
 
         assert!(snapshot.is_none());
+    }
+
+    #[tokio::test]
+    async fn ainda_vigente_positivo_quando_ponteiro_nao_mudou() {
+        let (armazenamento, _) = fixture();
+        let snapshot = SnapshotBronze::vigente(&armazenamento, "tse", "prestacao-contas")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            snapshot
+                .ainda_vigente(&armazenamento, "tse", "prestacao-contas")
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn ainda_vigente_negativo_quando_ponteiro_mudou() {
+        let (mut armazenamento, _) = fixture();
+        let snapshot = SnapshotBronze::vigente(&armazenamento, "tse", "prestacao-contas")
+            .await
+            .unwrap()
+            .unwrap();
+        let novo_ponteiro = UltimaVersao {
+            versao: None,
+            manifesto: "tse/prestacao-contas/ano=2024/execucao=xyz/_manifesto.json".into(),
+            iniciada_em: Some(Utc::now()),
+        };
+        armazenamento.objetos.insert(
+            LocalizacaoRaw::ultima_versao("tse", "prestacao-contas"),
+            serde_json::to_vec(&novo_ponteiro).unwrap(),
+        );
+        assert!(
+            !snapshot
+                .ainda_vigente(&armazenamento, "tse", "prestacao-contas")
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn ainda_vigente_negativo_quando_ponteiro_desaparece() {
+        let (mut armazenamento, _) = fixture();
+        let snapshot = SnapshotBronze::vigente(&armazenamento, "tse", "prestacao-contas")
+            .await
+            .unwrap()
+            .unwrap();
+        armazenamento
+            .objetos
+            .remove(&LocalizacaoRaw::ultima_versao("tse", "prestacao-contas"));
+        assert!(
+            !snapshot
+                .ainda_vigente(&armazenamento, "tse", "prestacao-contas")
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]

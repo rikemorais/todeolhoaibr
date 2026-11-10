@@ -76,7 +76,10 @@ SELECT
         THEN sigla_partido END AS sigla_partido,
     CASE WHEN uf IS NOT NULL AND TRIM(uf) <> '' THEN uf END AS uf,
     CASE WHEN voto IS NOT NULL AND TRIM(voto) <> '' THEN voto END AS voto,
-    voto_original
+    voto_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM campos
 ORDER BY
     _tdoa_origem_manifesto,

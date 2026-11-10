@@ -565,6 +565,156 @@ mod testes {
     }
 
     #[tokio::test]
+    async fn linhas_duplicadas_no_bronze_passam_para_silver_com_linhagem_distinta() {
+        let bronze = Arc::new(Memoria::default());
+        let instante = Utc.with_ymd_and_hms(2026, 11, 6, 12, 0, 0).unwrap();
+        let local = LocalizacaoRaw::nova(FONTE, RECURSO, instante, "bronze-dup");
+        let conteudo = parquet(&[("5", "50"), ("5", "50"), ("6", "60")]);
+        let parte = ParteRaw {
+            chave: local.parte(1, "parquet"),
+            url: "parte-dup".into(),
+            bytes: conteudo.len() as u64,
+            sha256: hex::encode(Sha256::digest(&conteudo)),
+            tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+            versao: Some("bronze-dup".into()),
+        };
+        bronze
+            .gravar(ObjetoRaw {
+                chave: parte.chave.clone(),
+                conteudo,
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+            })
+            .await
+            .unwrap();
+        let manifesto = ManifestoRaw {
+            fonte: FONTE.into(),
+            recurso: RECURSO.into(),
+            id_execucao: "bronze-dup".into(),
+            url_inicial: "fixture-dup".into(),
+            iniciada_em: instante,
+            concluida_em: instante,
+            partes: vec![parte],
+        };
+        let chave_manifesto = local.manifesto();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: chave_manifesto.clone(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some("bronze-dup".into()),
+                    manifesto: chave_manifesto,
+                    iniciada_em: Some(instante),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let snapshot = Arc::new(
+            SnapshotBronze::vigente(bronze.as_ref(), FONTE, RECURSO)
+                .await
+                .unwrap()
+                .unwrap(),
+        );
+        let sql_dup = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto AS _tdoa_origem_manifesto, a._tdoa_origem_parte AS _tdoa_origem_parte, a._tdoa_origem_ordinal AS _tdoa_origem_ordinal FROM bronze AS a";
+        let silver = Arc::new(Memoria::default());
+        let tarefa = nova_tarefa(Arc::clone(&bronze), snapshot, "dup-v1", sql_dup);
+        tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-dup"))
+            .await
+            .unwrap();
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto_silver: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            silver
+                .ler(&manifesto_silver.partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap();
+        let mut ordinais = Vec::new();
+        for lote in leitor {
+            let lote = lote.unwrap();
+            ordinais.extend(
+                lote.column(4)
+                    .as_any()
+                    .downcast_ref::<UInt64Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .copied(),
+            );
+        }
+        assert_eq!(
+            ordinais,
+            [1, 2, 3],
+            "duplicatas Bronze preservam ordinais distintos"
+        );
+    }
+
+    #[tokio::test]
+    async fn race_bronze_silver_rejeita_publicacao_quando_ponteiro_bronze_muda() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+
+        let controle = Arc::new(ControleUpload::default());
+        *silver.bloqueio_upload.lock().unwrap() = Some(Arc::clone(&controle));
+
+        let tarefa = nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot), REGRA, SQL);
+        let bronze_clone = Arc::clone(&bronze);
+        let execucao =
+            tokio::spawn(async move { tarefa.executar(&contexto(silver, "silver-race")).await });
+
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            controle.iniciou.notified(),
+        )
+        .await
+        .expect("a tarefa deveria chegar ao upload do Parquet");
+
+        let instante_novo = Utc.with_ymd_and_hms(2026, 11, 7, 0, 0, 0).unwrap();
+        let novo_ponteiro = UltimaVersao {
+            versao: Some("bronze-2".into()),
+            manifesto: "manifesto-novo".into(),
+            iniciada_em: Some(instante_novo),
+        };
+        bronze_clone
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                conteudo: serde_json::to_vec(&novo_ponteiro).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+
+        controle.continuar.notify_one();
+        let resultado = execucao.await.unwrap();
+        assert!(
+            resultado.is_err(),
+            "Silver deve falhar quando o ponteiro Bronze mudou durante a transformação"
+        );
+    }
+
+    #[tokio::test]
     async fn cancelamento_durante_upload_preserva_o_ponteiro_silver_vigente() {
         let bronze = Arc::new(Memoria::default());
         let snapshot = Arc::new(preparar_snapshot(&bronze).await);

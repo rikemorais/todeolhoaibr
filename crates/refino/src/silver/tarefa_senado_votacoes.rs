@@ -525,7 +525,10 @@ mod testes {
         .next()
         .unwrap()
         .unwrap();
-        assert_eq!(saida, esperado);
+        assert_eq!(
+            crate::executor_sql::sem_linhagem(&saida),
+            crate::executor_sql::sem_linhagem(&esperado),
+        );
         assert_eq!(saida.num_rows(), 3);
 
         let ponteiro_sessoes: UltimaVersao = serde_json::from_slice(

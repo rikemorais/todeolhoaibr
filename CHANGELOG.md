@@ -7,6 +7,20 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.53.0] - 2026-11-10
+
+### Adicionado
+
+- Escrita condicional (CAS) no trait `ArmazenamentoRaw` via `gravar_condicional`, fechando a janela TOCTOU na publicação de ponteiros (issue #300, PR #304).
+- Validação de vigência do Bronze antes de publicar Silver via `SnapshotBronze::ainda_vigente()` (issue #300, PR #304).
+- Testes de duplicatas Bronze, race condition Bronze/Silver e linhagem na tarefa SQL (issue #300, PR #304).
+
+## [0.52.0] - 2026-11-09
+
+### Adicionado
+
+- Projeta colunas de linhagem Bronze (`_tdoa_origem_manifesto`, `_tdoa_origem_parte`, `_tdoa_origem_ordinal`) em toda saída Silver — 24 contratos SQL, 17 schemas e validação no publisher (issue #300, PR #303).
+
 ## [0.51.4] - 2026-11-09
 
 ### Documentação
