@@ -23,6 +23,7 @@ pub use fontes::senado::{
     FonteSenadoDespesas, FonteSenadoParlamentares, FonteSenadoProcessos,
     FonteSenadoProcessosDetalhes, FonteSenadoVotacoes,
 };
+pub use fontes::tce_ce::FonteRemuneracaoMunicipalTceCe;
 pub use fontes::tse::{FonteTse, FonteTseCandidaturas, FonteTsePrestacaoContas};
 
 /// Todas as fontes disponíveis. Único ponto a alterar ao adicionar uma nova.
@@ -48,6 +49,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteSenadoProcessos),
         Box::new(FonteSenadoProcessosDetalhes),
         Box::new(FonteSenadoParlamentares),
+        Box::new(FonteRemuneracaoMunicipalTceCe),
         Box::new(FonteTse),
         Box::new(FonteTsePrestacaoContas),
         Box::new(FonteTseCandidaturas),
