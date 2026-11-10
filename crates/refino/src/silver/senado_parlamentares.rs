@@ -29,6 +29,9 @@ pub fn esquema_senado_parlamentares() -> Arc<Schema> {
         Field::new("legislatura", DataType::UInt16, false),
         Field::new("identificacao_original", DataType::Utf8, false),
         Field::new("mandato_original", DataType::Utf8, true),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -82,16 +85,15 @@ pub fn transformar_senado_parlamentares(
         mandatos_originais
             .push(mandatos.and_then(|array| (!array.is_null(linha)).then(|| array.value(linha))));
     }
-    RecordBatch::try_new(
-        esquema_senado_parlamentares(),
-        vec![
-            Arc::new(StringArray::from(codigos)),
-            Arc::new(UInt16Array::from(legislaturas)),
-            Arc::new(StringArray::from(identificacoes_originais)),
-            Arc::new(StringArray::from(mandatos_originais)),
-        ],
-    )
-    .map_err(|_| ErroSenadoParlamentaresSilver::Schema)
+    let mut saida: Vec<Arc<dyn arrow::array::Array>> = vec![
+        Arc::new(StringArray::from(codigos)),
+        Arc::new(UInt16Array::from(legislaturas)),
+        Arc::new(StringArray::from(identificacoes_originais)),
+        Arc::new(StringArray::from(mandatos_originais)),
+    ];
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_senado_parlamentares(), saida)
+        .map_err(|_| ErroSenadoParlamentaresSilver::Schema)
 }
 
 fn texto_de_codigo(valor: &Value) -> Option<String> {

@@ -70,5 +70,8 @@ SELECT
     {{EXPR_OPCIONAL:DS_TIPO_BEM_CANDIDATO}} AS tipo_bem,
     {{EXPR_OPCIONAL:DS_BEM_CANDIDATO}} AS descricao_bem,
     arrow_try_cast(valor_normalizado, 'Decimal128(18,2)') AS valor_bem,
-    _tdoa_json_original AS registro_original
+    _tdoa_json_original AS registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM validados

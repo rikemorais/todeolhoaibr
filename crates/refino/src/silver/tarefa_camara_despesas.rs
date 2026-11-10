@@ -315,7 +315,10 @@ mod testes {
             .unwrap();
         let esperado =
             super::super::camara_despesas::transformar_camara_despesas(&lote_bronze, 2024).unwrap();
-        assert_eq!(lote_silver(&silver, recurso), esperado);
+        assert_eq!(
+            crate::executor_sql::sem_linhagem(&lote_silver(&silver, recurso)),
+            crate::executor_sql::sem_linhagem(&esperado),
+        );
         assert!(!tarefa.pendente(&silver).await.unwrap());
     }
 

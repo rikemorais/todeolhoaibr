@@ -56,6 +56,9 @@ pub fn esquema_senado_despesas() -> Arc<Schema> {
         Field::new("valor_reembolsado", DataType::Decimal128(18, 2), true),
         Field::new("cod_documento", DataType::Utf8, true),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -157,24 +160,23 @@ pub fn transformar_senado_despesas(
     }
 
     let texto = |indice: usize| Arc::new(colunas[indice].clone()) as Arc<dyn Array>;
-    RecordBatch::try_new(
-        esquema_senado_despesas(),
-        vec![
-            Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
-            Arc::new(UInt8Array::from(meses)),
-            texto(2),
-            texto(3),
-            texto(4),
-            texto(5),
-            texto(6),
-            Arc::new(Date32Array::from(datas)),
-            texto(8),
-            Arc::new(decimal_array(valores)?),
-            texto(10),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroSenadoDespesasSilver::Schema)
+    let mut saida: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
+        Arc::new(UInt8Array::from(meses)),
+        texto(2),
+        texto(3),
+        texto(4),
+        texto(5),
+        texto(6),
+        Arc::new(Date32Array::from(datas)),
+        texto(8),
+        Arc::new(decimal_array(valores)?),
+        texto(10),
+        Arc::new(StringArray::from(originais)),
+    ];
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_senado_despesas(), saida)
+        .map_err(|_| ErroSenadoDespesasSilver::Schema)
 }
 
 fn texto_opcional(coluna: &StringArray, linha: usize) -> Option<&str> {

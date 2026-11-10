@@ -80,6 +80,9 @@ pub fn esquema_tse_votacao_secao() -> Arc<Schema> {
         Field::new("nome_local_votacao", DataType::Utf8, true),
         Field::new("endereco_local_votacao", DataType::Utf8, true),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -186,36 +189,35 @@ pub fn transformar_tse_votacao_secao(
             |coluna| Arc::new(coluna.clone()),
         )
     };
-    RecordBatch::try_new(
-        esquema_tse_votacao_secao(),
-        vec![
-            Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
-            Arc::new(colunas[1].clone()),
-            Arc::new(UInt8Array::from(turnos)),
-            Arc::new(colunas[3].clone()),
-            Arc::new(colunas[4].clone()),
-            Arc::new(colunas[5].clone()),
-            Arc::new(colunas[6].clone()),
-            Arc::new(colunas[7].clone()),
-            Arc::new(colunas[8].clone()),
-            Arc::new(colunas[9].clone()),
-            Arc::new(UInt32Array::from(votos)),
-            Arc::new(Date32Array::from(datas)),
-            texto_preenchido(tipo_eleicao),
-            texto_preenchido(nome_eleicao),
-            texto_preenchido(abrangencia),
-            texto_preenchido(nome_unidade),
-            texto_preenchido(nome_municipio),
-            texto_preenchido(descricao_cargo),
-            texto_preenchido(nome_votavel),
-            texto_preenchido(numero_local),
-            texto_preenchido(sequencia_candidato),
-            texto_preenchido(nome_local),
-            texto_preenchido(endereco_local),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroTseVotacaoSecaoSilver::Schema)
+    let mut cols: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
+        Arc::new(colunas[1].clone()),
+        Arc::new(UInt8Array::from(turnos)),
+        Arc::new(colunas[3].clone()),
+        Arc::new(colunas[4].clone()),
+        Arc::new(colunas[5].clone()),
+        Arc::new(colunas[6].clone()),
+        Arc::new(colunas[7].clone()),
+        Arc::new(colunas[8].clone()),
+        Arc::new(colunas[9].clone()),
+        Arc::new(UInt32Array::from(votos)),
+        Arc::new(Date32Array::from(datas)),
+        texto_preenchido(tipo_eleicao),
+        texto_preenchido(nome_eleicao),
+        texto_preenchido(abrangencia),
+        texto_preenchido(nome_unidade),
+        texto_preenchido(nome_municipio),
+        texto_preenchido(descricao_cargo),
+        texto_preenchido(nome_votavel),
+        texto_preenchido(numero_local),
+        texto_preenchido(sequencia_candidato),
+        texto_preenchido(nome_local),
+        texto_preenchido(endereco_local),
+        Arc::new(StringArray::from(originais)),
+    ];
+    cols.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_tse_votacao_secao(), cols)
+        .map_err(|_| ErroTseVotacaoSecaoSilver::Schema)
 }
 
 fn coluna_obrigatoria<'a>(

@@ -398,7 +398,10 @@ mod testes {
         let esperado =
             super::super::ibge_agregados::transformar_ibge_agregados(&entrada_legada).unwrap();
         let publicado = lote_silver(&silver, "ibge", "ipca/1737").await;
-        assert_eq!(publicado, esperado);
+        assert_eq!(
+            crate::executor_sql::sem_linhagem(&publicado),
+            crate::executor_sql::sem_linhagem(&esperado),
+        );
         let chaves = (0..publicado.num_rows())
             .map(|linha| {
                 [0, 3, 4, 6, 8]
@@ -471,7 +474,10 @@ mod testes {
         .unwrap();
 
         let publicado = lote_silver(&silver, "bcb", recurso).await;
-        assert_eq!(publicado, esperado);
+        assert_eq!(
+            crate::executor_sql::sem_linhagem(&publicado),
+            crate::executor_sql::sem_linhagem(&esperado),
+        );
         let datas = publicado
             .column(0)
             .as_any()

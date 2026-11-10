@@ -8,5 +8,8 @@ SELECT
             ELSE '__valor_bcb_invalido__'
         END
         AS DECIMAL(18, 6)
-    ) AS valor
+    ) AS valor,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM bronze

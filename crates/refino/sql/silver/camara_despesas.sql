@@ -40,5 +40,8 @@ SELECT
     TRY_CAST(NULLIF(TRIM("vlrGlosa"), '') AS DECIMAL(18, 6)) AS valor_glosa,
     TRY_CAST(NULLIF(TRIM("vlrLiquido"), '') AS DECIMAL(18, 6)) AS valor_liquido,
     TRY_CAST(NULLIF(TRIM("vlrRestituicao"), '') AS DECIMAL(18, 6)) AS valor_restituicao,
-    _tdoa_json_original AS registro_original
+    _tdoa_json_original AS registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM validas
