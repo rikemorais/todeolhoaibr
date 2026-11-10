@@ -135,6 +135,7 @@ nav:
       - refino/pesquisa-tse-2014-sup.md
       - refino/pesquisa-tse-2016-2022.md
   - Fontes de dados:
+      - fontes/pesquisa-remuneracao-municipal.md
       - fontes/ibge.md
       - fontes/ibge-pib-municipios.md
       - fontes/bcb.md
