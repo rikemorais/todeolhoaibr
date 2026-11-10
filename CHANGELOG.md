@@ -7,6 +7,15 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.54.0] - 2026-11-10
+
+### Adicionado
+
+- Contratos SQL Silver para IBGE localidades: `ibge_regioes` (5 regiões), `ibge_estados` (27 UFs com região aninhada), `ibge_municipios` (5.571 municípios com hierarquia completa) (issue #187, PR #311).
+- Contrato SQL Silver para Ipeadata: parsing de data ISO/BR, valor decimal(38,9) com original preservado, chave (serie, territorio, data_texto) (issue #187, PR #311).
+- Esquemas Arrow tipados e adaptadores `TarefaDeSilverIbgeLocalidades` e `TarefaDeSilverIpeadata` com testes de publicação e idempotência (issue #187, PR #311).
+- Subcomandos CLI `ibge-regioes`, `ibge-estados`, `ibge-municipios` e `ipeadata` integrados ao `--todas` (issue #187, PR #311).
+
 ## [0.53.2] - 2026-11-10
 
 ### Refatoração
