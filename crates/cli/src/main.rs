@@ -29,7 +29,8 @@ use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
     TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
     TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
-    TarefaDeSilverIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
+    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIpeadata,
+    TipoLocalidadeIbge, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
     TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
     TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
     TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseVotacaoSecao, catalogo_refino,
@@ -498,6 +499,18 @@ async fn refinar(
             return refinar_camara_silver(fonte, todas, intervalo, TipoSilverCamara::Tramitacoes)
                 .await;
         }
+        if fonte.as_deref() == Some("ibge-estados") {
+            return refinar_ibge_localidade_silver(fonte, todas, intervalo, TipoLocalidadeIbge::Estados).await;
+        }
+        if fonte.as_deref() == Some("ibge-regioes") {
+            return refinar_ibge_localidade_silver(fonte, todas, intervalo, TipoLocalidadeIbge::Regioes).await;
+        }
+        if fonte.as_deref() == Some("ibge-municipios") {
+            return refinar_ibge_localidade_silver(fonte, todas, intervalo, TipoLocalidadeIbge::Municipios).await;
+        }
+        if fonte.as_deref() == Some("ipeadata") {
+            return refinar_ipeadata_silver(fonte, todas, intervalo).await;
+        }
         if fonte
             .as_deref()
             .is_some_and(|nome| nome.starts_with("ibge-"))
@@ -828,6 +841,18 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Despesas).await?;
             let camara_tramitacoes =
                 refinar_camara_silver(None, true, None, TipoSilverCamara::Tramitacoes).await?;
+            let ibge_regioes = refinar_ibge_localidade_silver(
+                Some("ibge-regioes".into()), false, None, TipoLocalidadeIbge::Regioes,
+            ).await?;
+            let ibge_estados = refinar_ibge_localidade_silver(
+                Some("ibge-estados".into()), false, None, TipoLocalidadeIbge::Estados,
+            ).await?;
+            let ibge_municipios = refinar_ibge_localidade_silver(
+                Some("ibge-municipios".into()), false, None, TipoLocalidadeIbge::Municipios,
+            ).await?;
+            let ipeadata = refinar_ipeadata_silver(
+                Some("ipeadata".into()), false, None,
+            ).await?;
             Ok(bcb
                 && ibge
                 && senado
@@ -842,7 +867,11 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && camara_deputados
                 && camara_votacoes
                 && camara_despesas
-                && camara_tramitacoes)
+                && camara_tramitacoes
+                && ibge_regioes
+                && ibge_estados
+                && ibge_municipios
+                && ipeadata)
         }
         Some(segundos) => {
             println!(
@@ -926,6 +955,26 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                     eprintln!(
                         "Atenção: falha na reconciliação Silver tramitações da Câmara: {erro:#}"
                     );
+                }
+                if let Err(erro) = refinar_ibge_localidade_silver(
+                    Some("ibge-regioes".into()), false, None, TipoLocalidadeIbge::Regioes,
+                ).await {
+                    eprintln!("Atenção: falha na reconciliação Silver IBGE regiões: {erro:#}");
+                }
+                if let Err(erro) = refinar_ibge_localidade_silver(
+                    Some("ibge-estados".into()), false, None, TipoLocalidadeIbge::Estados,
+                ).await {
+                    eprintln!("Atenção: falha na reconciliação Silver IBGE estados: {erro:#}");
+                }
+                if let Err(erro) = refinar_ibge_localidade_silver(
+                    Some("ibge-municipios".into()), false, None, TipoLocalidadeIbge::Municipios,
+                ).await {
+                    eprintln!("Atenção: falha na reconciliação Silver IBGE municípios: {erro:#}");
+                }
+                if let Err(erro) = refinar_ipeadata_silver(
+                    Some("ipeadata".into()), false, None,
+                ).await {
+                    eprintln!("Atenção: falha na reconciliação Silver Ipeadata: {erro:#}");
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
@@ -1799,6 +1848,230 @@ async fn passada_ibge_silver(
     registrador.concluir().await;
     println!("\nexecução Silver: {}", contexto.id_execucao);
     Ok(sucesso)
+}
+
+async fn refinar_ibge_localidade_silver(
+    fonte: Option<String>,
+    _todas: bool,
+    intervalo: Option<u64>,
+    tipo: TipoLocalidadeIbge,
+) -> Result<bool> {
+    let nome_fonte = fonte.as_deref().unwrap_or("ibge-localidade");
+    let catalogo = catalogo_refino();
+    let item = catalogo
+        .iter()
+        .find(|f| f.nome == nome_fonte)
+        .context("fonte de refino IBGE localidade não encontrada no catálogo")?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    match intervalo.filter(|s| *s > 0) {
+        None => {
+            passada_ibge_localidade_silver(
+                nome_fonte, item, &raw_s3, &bronze, &silver, tipo, false,
+            )
+            .await
+        }
+        Some(segundos) => {
+            println!(
+                "Agendador Silver {nome_fonte}: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) = passada_ibge_localidade_silver(
+                    nome_fonte, item, &raw_s3, &bronze, &silver, tipo, true,
+                )
+                .await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver {nome_fonte}: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn passada_ibge_localidade_silver(
+    nome_fonte: &str,
+    item: &FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    tipo: TipoLocalidadeIbge,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let mut tarefas = Vec::new();
+    for recurso in recursos_no_raw(raw_s3, item).await? {
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "ibge", &recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze IBGE localidade")?
+        else {
+            continue;
+        };
+        let tarefa = TarefaDeSilverIbgeLocalidades::nova(
+            Arc::clone(bronze),
+            Arc::new(snapshot),
+            &recurso,
+            tipo,
+        );
+        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+            continue;
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa));
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver {nome_fonte} (em dia ou não ingerido).");
+        return Ok(true);
+    }
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            Uuid::new_v4().simple()
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let dag = DagDeIngestao::construir(nome_fonte, tarefas)?;
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(
+            &contexto.id_execucao,
+            Camada::Silver,
+            iniciada_em,
+            std::slice::from_ref(&dag),
+        )?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let executor = ExecutorDeDag::novo(concorrencia()?);
+    let relatorio = executor
+        .executar(&dag, &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
+}
+
+async fn refinar_ipeadata_silver(
+    _fonte: Option<String>,
+    _todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    let catalogo = catalogo_refino();
+    let item = catalogo
+        .iter()
+        .find(|f| f.nome == "ipeadata")
+        .context("fonte ipeadata não encontrada no catálogo")?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    match intervalo.filter(|s| *s > 0) {
+        None => passada_ipeadata_silver(item, &raw_s3, &bronze, &silver, false).await,
+        Some(segundos) => {
+            println!(
+                "Agendador Silver Ipeadata: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) =
+                    passada_ipeadata_silver(item, &raw_s3, &bronze, &silver, true).await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver Ipeadata: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn passada_ipeadata_silver(
+    item: &FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let mut tarefas = Vec::new();
+    for recurso in recursos_no_raw(raw_s3, item).await? {
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "ipeadata", &recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze Ipeadata")?
+        else {
+            continue;
+        };
+        let tarefa = TarefaDeSilverIpeadata::nova(
+            Arc::clone(bronze),
+            Arc::new(snapshot),
+            &recurso,
+        );
+        if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+            continue;
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa));
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver Ipeadata (em dia ou não ingerido).");
+        return Ok(true);
+    }
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            Uuid::new_v4().simple()
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let dag = DagDeIngestao::construir("ipeadata", tarefas)?;
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(
+            &contexto.id_execucao,
+            Camada::Silver,
+            iniciada_em,
+            std::slice::from_ref(&dag),
+        )?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let executor = ExecutorDeDag::novo(concorrencia()?);
+    let relatorio = executor
+        .executar(&dag, &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 /// Resolve quais fontes do catálogo de refino serão processadas.
