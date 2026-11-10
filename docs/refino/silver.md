@@ -16,7 +16,7 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ## Contratos eleitorais SQL/DataFusion
 
-As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em registro_original, a linhagem é mantida pelo publicador e a votação por seção permanece fora de silver --todas por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.
+As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em `registro_original`; as três referências Bronze são projetadas na saída e exigidas pelo publicador. A votação por seção permanece fora de `silver --todas` por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.
 
 ## Cobertura planejada do catálogo bronze
 
@@ -63,6 +63,29 @@ linhas nem ativar uma relação sem validação do recorte.
 3. Regra de deduplicação determinística e tratamento de correções da origem.
 4. Política para inválidos: motivo, contagem, referência à linha de origem e limiar de falha.
 5. Versão do contrato/regra e linhagem até manifesto, recurso e tabela bronze.
+
+### Qualidade e publicação
+
+O [ADR 0020](../adr/0020-contrato-da-camada-silver.md#politica-de-qualidade-e-falha-parcial)
+fixa limiar zero por padrão para falha de campo obrigatório, conversão
+obrigatória, conflito de chave e perda de linhagem. Conversão opcional para
+nulo exige valor original preservado e contagem por motivo. Duplicata integral
+é removida apenas por regra específica comprovada; famílias sem identidade
+validada preservam todas as ocorrências com manifesto, parte e ordinal Bronze.
+Uma falha mantém o ponteiro Silver anterior. Diagnóstico recuperável por linha
+e métricas de rejeição são parte do contrato alvo; o publicador atual ainda não
+os emite de forma estruturada, então não ativar um contrato que dependa dessa
+quarentena antes de implementá-la.
+
+A referência `(manifesto, parte, ordinal)` consta da linha Silver publicada,
+além do manifesto da execução. O leitor Bronze a fornece ao executor SQL; os
+contratos ativados a projetam e o publicador rejeita referência ausente ou
+nula. O teste de linhas Bronze idênticas confirma ordinais distintos. Votos
+do Senado acrescentam `ordem_voto` para distinguir filhos da mesma linha.
+Sessões e votos têm ponteiros separados; uma falha em votos não apaga a
+publicação anterior de sessões. O CAS distribuído no S3 e a validação da
+versão Bronze no leitor Silver permanecem na
+[issue #300](https://github.com/rikemorais/todeolhoaibr/issues/300).
 
 ### Referência técnica da linha bronze
 
