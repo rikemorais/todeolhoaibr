@@ -1314,6 +1314,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mapa-de-cobertura-e-execucao-validada" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mapa de cobertura e execução validada
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dados-e-privacidade" class="md-nav__link">
     <span class="md-ellipsis">
       Dados e privacidade
@@ -1747,6 +1756,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mapa-de-cobertura-e-execucao-validada" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mapa de cobertura e execução validada
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dados-e-privacidade" class="md-nav__link">
     <span class="md-ellipsis">
       Dados e privacidade
@@ -1812,14 +1830,48 @@ e <a href="https://www.tce.ce.gov.br/municipios/sim/documentacao-e-programas">Ma
 <p>A pesquisa encontrou presença de ao menos uma folha para os 184 municípios na
 competência. Isso não garante que cada página ou folha esteja completa; o manifesto
 de cada município registra as respostas e URLs recebidas para auditoria.</p>
+<h2 id="mapa-de-cobertura-e-execucao-validada">Mapa de cobertura e execução validada<a class="headerlink" href="#mapa-de-cobertura-e-execucao-validada" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Fonte</th>
+<th>UF</th>
+<th style="text-align: right;">Municípios com resposta</th>
+<th>Competência</th>
+<th>Resultado da execução</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TCE-CE SIM (<code>folhas_pagamentos</code>)</td>
+<td>CE</td>
+<td style="text-align: right;">184/184 (códigos SIM 002–185)</td>
+<td>2025-12</td>
+<td>184 tarefas concluídas; 184 manifestos e 184 partes</td>
+</tr>
+</tbody>
+</table>
+<p>Em 10/11/2026, a execução completa foi validada no bucket local <code>sandbox</code> por
+<code>docker compose run --rm -e TODEOLHO_S3_BUCKET_RAW=sandbox -e TODEOLHO_CONCORRENCIA=2 ingestao executar remuneracao-municipal-tce-ce --sim</code>.
+As 184 tarefas terminaram sem falhas, cada uma com uma página gravada. A
+verificação do armazenamento encontrou 184 manifestos e 552 objetos (parte,
+manifesto e ponteiro por município). O smoke inicial de Fortaleza também
+confirmou que a API respondeu sem credenciais nessa execução.</p>
+<p>Essa cobertura significa que a API entregou ao menos uma página para cada
+município e que a ingestão conseguiu publicar as partes e manifestos no
+armazenamento local. Ela não prova equivalência ou completude das categorias e
+unidades orçamentárias, não reconcilia os totais com o CSV de Fortaleza e não
+representa cobertura nacional. O destino usado foi <code>sandbox</code>; a execução não
+gravou no bucket Raw padrão.</p>
 <h2 id="dados-e-privacidade">Dados e privacidade<a class="headerlink" href="#dados-e-privacidade" title="Permanent link">&para;</a></h2>
 <p>O endpoint de totais não declara CPF nem nome de servidor no seu schema. A tarefa não
 consulta <code>/agentes_publicos_folha</code>, que contém dados nominais. Assim, esta integração
 armazena apenas o payload agregado fornecido pelo TCE. O refino poderá decidir depois
 como apresentar totais por órgão/unidade e competência.</p>
-<p>O OpenAPI declara autenticação Basic, embora as consultas GET de leitura da pesquisa
-tenham respondido sem credenciais. O runtime deve confirmar acesso; o host também
-restringe conexões a IPs no Brasil.</p>
+<p>O OpenAPI declara autenticação Basic, embora a pesquisa e a execução local de
+10/11/2026 tenham respondido sem credenciais. O acesso foi confirmado a partir do
+ambiente local, não do runtime de produção; o host também restringe conexões a
+IPs no Brasil.</p>
 <h2 id="layout-na-raw">Layout na Raw<a class="headerlink" href="#layout-na-raw" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>raw/remuneracao-municipal-tce-ce/folhas-pagamentos/municipio=057/competencia=2025-12/...
 </code></pre></div>

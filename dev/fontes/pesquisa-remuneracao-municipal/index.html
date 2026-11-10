@@ -1835,7 +1835,7 @@
 <h1 id="pesquisa-inicial-remuneracao-municipal">Pesquisa inicial: remuneração municipal<a class="headerlink" href="#pesquisa-inicial-remuneracao-municipal" title="Permanent link">&para;</a></h1>
 <p><strong>Issue:</strong> <a href="https://github.com/rikemorais/todeolhoaibr/issues/76">#76</a><br />
 <strong>Data da pesquisa:</strong> 2026-11-10<br />
-<strong>Estado:</strong> cobertura do TCE-CE validada e ingestão agregada da competência 2025-12 implementada para 184 municípios; comparação com fontes municipais ainda pendente.</p>
+<strong>Estado:</strong> cobertura do TCE-CE validada e ingestão agregada da competência 2025-12 executada para 184 municípios no bucket local <code>sandbox</code>; comparação com fontes municipais ainda pendente.</p>
 <h2 id="resumo">Resumo<a class="headerlink" href="#resumo" title="Permanent link">&para;</a></h2>
 <p>O melhor primeiro agregador é o Sistema de Informações Municipais do TCE-CE:
 na competência 2025-12, retornou ao menos uma folha para todos os 184 municípios
@@ -1928,8 +1928,10 @@ definida antes de persistir essas respostas na Raw.</p>
 <h2 id="decisao-e-proximos-passos">Decisão e próximos passos<a class="headerlink" href="#decisao-e-proximos-passos" title="Permanent link">&para;</a></h2>
 <p>O adaptador de folhas agregadas do TCE-CE foi implementado para a competência
 2025-12, particionado por município e com manifesto próprio; consulte a
-<a href="../remuneracao-municipal-tce-ce/">documentação da fonte</a>. A execução em produção
-precisa confirmar conectividade e completude das páginas. O CSV de Fortaleza
+<a href="../remuneracao-municipal-tce-ce/">documentação da fonte</a>. A execução local no
+bucket <code>sandbox</code> concluiu 184/184 municípios, com uma página e um manifesto por
+município. A conectividade do runtime de produção ainda precisa ser confirmada.
+O CSV de Fortaleza
 continua sendo uma fonte independente para comparação, mas os totais não devem
 ser reconciliados até alinhar órgão/unidade e categorias. Depois desses controles,
 avaliar outras capitais sem presumir que compartilham um esquema.</p>
