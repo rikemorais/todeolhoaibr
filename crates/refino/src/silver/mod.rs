@@ -8,9 +8,13 @@ pub mod camara_partidos;
 pub mod camara_tramitacoes;
 pub mod camara_votacoes;
 pub mod ibge_agregados;
+/// Esquema Silver para as unidades federativas do IBGE.
 pub mod ibge_estados;
+/// Esquema Silver para os municípios do IBGE.
 pub mod ibge_municipios;
+/// Esquema Silver para as regiões do IBGE.
 pub mod ibge_regioes;
+/// Esquema Silver para as séries históricas do Ipeadata.
 pub mod ipeadata;
 mod publicacao;
 pub mod senado_despesas;
@@ -29,7 +33,9 @@ pub mod tarefa_camara_legislaturas;
 pub mod tarefa_camara_tramitacoes;
 pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
+/// Tarefas que publicam localidades do IBGE na camada Silver.
 pub mod tarefa_ibge_localidades;
+/// Tarefa que publica séries do Ipeadata na camada Silver.
 pub mod tarefa_ipeadata;
 pub mod tarefa_senado;
 pub mod tarefa_senado_despesas;
