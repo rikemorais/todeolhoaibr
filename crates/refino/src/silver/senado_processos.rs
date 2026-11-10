@@ -43,6 +43,9 @@ pub fn esquema_senado_processos() -> Arc<Schema> {
         Field::new("id", DataType::Utf8, false),
         Field::new("ano", DataType::UInt16, false),
         Field::new("processo_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -103,15 +106,14 @@ pub fn transformar_senado_processos(
         ));
     }
 
-    RecordBatch::try_new(
-        esquema_senado_processos(),
-        vec![
-            Arc::new(StringArray::from(ids_silver)),
-            Arc::new(UInt16Array::from(anos_silver)),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroSenadoProcessosSilver::Schema)
+    let mut saida: Vec<Arc<dyn arrow::array::Array>> = vec![
+        Arc::new(StringArray::from(ids_silver)),
+        Arc::new(UInt16Array::from(anos_silver)),
+        Arc::new(StringArray::from(originais)),
+    ];
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_senado_processos(), saida)
+        .map_err(|_| ErroSenadoProcessosSilver::Schema)
 }
 
 #[cfg(test)]

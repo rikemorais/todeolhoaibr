@@ -75,5 +75,8 @@ SELECT
     CASE WHEN NULLIF(TRIM(idade_texto), '') NOT IN ('-1', '#NULO', '#NE')
         AND regexp_like(NULLIF(TRIM(idade_texto), ''), '^[0-9]{1,3}$')
         THEN arrow_try_cast(NULLIF(TRIM(idade_texto), ''), 'UInt8') END AS idade_data_posse,
-    _tdoa_json_original AS registro_original
+    _tdoa_json_original AS registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM validas

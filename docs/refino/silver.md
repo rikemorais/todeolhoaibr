@@ -22,6 +22,11 @@ As quatro famílias Silver já existentes do TSE usam SQL versionado executado p
 
 O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
 
+A [especificação de contratos da fase 0](contratos-silver-fase0.md) detalha tipos,
+nulos, normalização, deduplicação e tabelas internas para cada família. Esta
+matriz resume o grão e a evidência de chave; “candidata” não autoriza descartar
+linhas nem ativar uma relação sem validação do recorte.
+
 | Entrada bronze | Família | Grão candidato da silver | Chave candidata / validação necessária |
 | --- | --- | --- | --- |
 | `camara-despesas` | Legislativo | lançamento CEAP | `ideDocumento` é candidato, mas não único; preservar todas as linhas até definir chave |
@@ -31,7 +36,7 @@ O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada 
 | `camara-partidos` | Legislativo | partido no cadastro observado | `id` oficial (21/21 distintos na amostra local; não prova unicidade histórica) |
 | `camara-legislaturas` | Legislativo | período de atividade parlamentar | `id` sequencial (57/57 distintos na amostra local) |
 | `senado-despesas` | Legislativo | lançamento CEAPS | `COD_DOCUMENTO` candidato, único quando presente na amostra; preservar linhas sem código |
-| `senado-votacoes` | Legislativo | uma sessão de votação nominal | `codigoSessaoVotacao` (3.652/3.652 distintos no recorte local consultado); votos continuam aninhados |
+| `senado-votacoes` | Legislativo | uma sessão de votação nominal | `codigoSessaoVotacao` (3.652/3.652 distintos no recorte local consultado); sessão conserva JSON original, e votos são publicados também em tabela filha com ponteiro próprio |
 | `senado-parlamentares` | Legislativo | parlamentar em legislatura | `IdentificacaoParlamentar.CodigoParlamentar` e `legislatura` no bronze local |
 | `senado-processos` | Legislativo | um processo na listagem anual | `id` textual único no recurso; `ano` UInt16 do caminho |
 | `senado-processos-detalhes` | Legislativo | um detalhe por processo em cada recurso anual | `id` textual; `ano` UInt16; demais campos preservados em `processo_original` |

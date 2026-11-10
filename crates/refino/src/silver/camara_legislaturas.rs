@@ -41,6 +41,9 @@ pub fn esquema_camara_legislaturas() -> Arc<Schema> {
         Field::new("data_fim", DataType::Date32, false),
         Field::new("ano_eleicao", DataType::UInt16, false),
         Field::new("uri", DataType::Utf8, true),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -109,21 +112,20 @@ pub fn transformar_camara_legislaturas(
         data.signed_duration_since(NaiveDate::from_ymd_opt(1970, 1, 1).expect("epoch válida"))
             .num_days() as i32
     };
-    RecordBatch::try_new(
-        esquema_camara_legislaturas(),
-        vec![
-            Arc::new(UInt16Array::from(legislaturas)),
-            Arc::new(Date32Array::from(
-                inicios.into_iter().map(para_dias).collect::<Vec<_>>(),
-            )),
-            Arc::new(Date32Array::from(
-                fins.into_iter().map(para_dias).collect::<Vec<_>>(),
-            )),
-            Arc::new(UInt16Array::from(anos)),
-            Arc::new(uri.clone()),
-        ],
-    )
-    .map_err(|_| ErroCamaraLegislaturasSilver::Schema)
+    let mut colunas: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from(legislaturas)),
+        Arc::new(Date32Array::from(
+            inicios.into_iter().map(para_dias).collect::<Vec<_>>(),
+        )),
+        Arc::new(Date32Array::from(
+            fins.into_iter().map(para_dias).collect::<Vec<_>>(),
+        )),
+        Arc::new(UInt16Array::from(anos)),
+        Arc::new(uri.clone()),
+    ];
+    colunas.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_camara_legislaturas(), colunas)
+        .map_err(|_| ErroCamaraLegislaturasSilver::Schema)
 }
 
 #[cfg(test)]

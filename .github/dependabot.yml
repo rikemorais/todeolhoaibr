@@ -11,6 +11,12 @@ updates:
     # conjunto em português.
     labels:
       - "dependências"
+    groups:
+      datafusion-arrow-parquet:
+        patterns:
+          - "datafusion*"
+          - "arrow*"
+          - "parquet*"
 
   # As ações do workflow são código de terceiro que roda com acesso ao
   # repositório. Uma tag pode ser movida; por isso ficam fixadas por SHA, e o

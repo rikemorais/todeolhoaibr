@@ -5,7 +5,10 @@ WITH origem AS (
         COUNT(*) OVER (PARTITION BY "codigoSessaoVotacao") AS ocorrencias_sessao
     FROM bronze AS origem
 )
-SELECT {{COLUNAS_BRONZE}}
+SELECT {{COLUNAS_BRONZE}},
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM origem
 WHERE tdoa_assert_true(
     "codigoSessaoVotacao" IS NOT NULL

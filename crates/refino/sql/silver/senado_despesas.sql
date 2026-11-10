@@ -59,6 +59,9 @@ SELECT
     CASE WHEN linha_desalinhada THEN NULL
         ELSE TRY_CAST(valor_normalizado AS DECIMAL(18, 2)) END AS valor_reembolsado,
     "COD_DOCUMENTO" AS cod_documento,
-    _tdoa_json_original AS registro_original
+    _tdoa_json_original AS registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM validadas
 ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal

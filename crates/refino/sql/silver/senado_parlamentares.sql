@@ -13,6 +13,9 @@ SELECT
         THEN codigo_parlamentar END AS codigo_parlamentar,
     legislatura,
     identificacao_original,
-    "Mandato" AS mandato_original
+    "Mandato" AS mandato_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM campos
 ORDER BY _tdoa_origem_manifesto, _tdoa_origem_parte, _tdoa_origem_ordinal

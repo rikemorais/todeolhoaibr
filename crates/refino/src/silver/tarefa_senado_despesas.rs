@@ -367,7 +367,10 @@ mod testes {
         .next()
         .unwrap()
         .unwrap();
-        assert_eq!(saida, esperado);
+        assert_eq!(
+            crate::executor_sql::sem_linhagem(&saida),
+            crate::executor_sql::sem_linhagem(&esperado),
+        );
         assert!(!tarefa.pendente(&silver).await.unwrap());
         assert!(
             publicar_senado_despesas(
