@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["estado_na_raw","manifesto_vigente","publicar_ponteiro"]};
+window.SIDEBAR_ITEMS = {"fn":["bloquear_publicacao","estado_na_raw","manifesto_vigente","publicar_ponteiro","publicar_ponteiro_sob_guarda"],"struct":["GuardaPublicacao"]};

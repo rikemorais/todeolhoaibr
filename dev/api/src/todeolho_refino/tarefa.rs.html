@@ -267,291 +267,297 @@
 <a href=#267 id=267 data-nosnippet>267</a>            manifesto: local.manifesto(),
 <a href=#268 id=268 data-nosnippet>268</a>            iniciada_em: <span class="prelude-val">Some</span>(contexto.iniciada_em),
 <a href=#269 id=269 data-nosnippet>269</a>        };
-<a href=#270 id=270 data-nosnippet>270</a>        publicar_ponteiro(bronze, <span class="kw-2">&amp;</span><span class="self">self</span>.fonte, <span class="kw-2">&amp;</span><span class="self">self</span>.recurso, <span class="kw-2">&amp;</span>ponteiro).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#271 id=271 data-nosnippet>271</a>
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="prelude-val">Ok</span>(ResumoDaTarefa {
-<a href=#273 id=273 data-nosnippet>273</a>            partes: partes.len(),
-<a href=#274 id=274 data-nosnippet>274</a>            bytes: total_bytes,
-<a href=#275 id=275 data-nosnippet>275</a>            reaproveitada: <span class="bool-val">false</span>,
-<a href=#276 id=276 data-nosnippet>276</a>            motivo: <span class="prelude-val">None</span>,
-<a href=#277 id=277 data-nosnippet>277</a>        })
-<a href=#278 id=278 data-nosnippet>278</a>    }
-<a href=#279 id=279 data-nosnippet>279</a>}
-<a href=#280 id=280 data-nosnippet>280</a>
-<a href=#281 id=281 data-nosnippet>281</a><span class="attr">#[cfg(test)]
-<a href=#282 id=282 data-nosnippet>282</a></span><span class="kw">mod </span>testes {
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="kw">use </span>std::collections::HashMap;
-<a href=#284 id=284 data-nosnippet>284</a>    <span class="kw">use </span>std::io::Write;
-<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">use </span>std::sync::Mutex;
-<a href=#286 id=286 data-nosnippet>286</a>
-<a href=#287 id=287 data-nosnippet>287</a>    <span class="kw">use </span>chrono::{TimeZone, Utc};
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="kw">use </span>todeolho_nucleo::{ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp};
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">use </span><span class="kw">crate</span>::decodificador::ParteBronze;
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">use </span><span class="kw">crate</span>::escritor::{ErroDeRefino, Tabela};
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="kw">if </span>!publicar_ponteiro(bronze, <span class="kw-2">&amp;</span><span class="self">self</span>.fonte, <span class="kw-2">&amp;</span><span class="self">self</span>.recurso, <span class="kw-2">&amp;</span>ponteiro).<span class="kw">await</span><span class="question-mark">? </span>{
+<a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.erro_manifesto(
+<a href=#272 id=272 data-nosnippet>272</a>                <span class="string">"ponteiro Bronze mais recente preservado; esta execução não foi publicada"</span>.into(),
+<a href=#273 id=273 data-nosnippet>273</a>            ));
+<a href=#274 id=274 data-nosnippet>274</a>        }
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="prelude-val">Ok</span>(ResumoDaTarefa {
+<a href=#277 id=277 data-nosnippet>277</a>            partes: partes.len(),
+<a href=#278 id=278 data-nosnippet>278</a>            bytes: total_bytes,
+<a href=#279 id=279 data-nosnippet>279</a>            reaproveitada: <span class="bool-val">false</span>,
+<a href=#280 id=280 data-nosnippet>280</a>            motivo: <span class="prelude-val">None</span>,
+<a href=#281 id=281 data-nosnippet>281</a>        })
+<a href=#282 id=282 data-nosnippet>282</a>    }
+<a href=#283 id=283 data-nosnippet>283</a>}
+<a href=#284 id=284 data-nosnippet>284</a>
+<a href=#285 id=285 data-nosnippet>285</a><span class="attr">#[cfg(test)]
+<a href=#286 id=286 data-nosnippet>286</a></span><span class="kw">mod </span>testes {
+<a href=#287 id=287 data-nosnippet>287</a>    <span class="kw">use </span>std::collections::HashMap;
+<a href=#288 id=288 data-nosnippet>288</a>    <span class="kw">use </span>std::io::Write;
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">use </span>std::sync::Mutex;
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">use </span>chrono::{TimeZone, Utc};
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">use </span>todeolho_nucleo::{ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp};
 <a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>    <span class="attr">#[test]
-<a href=#295 id=295 data-nosnippet>295</a>    </span><span class="kw">fn </span>prepara_json_gzip_para_o_bronze_sem_alterar_arquivo_raw() {
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="kw">let </span>original = <span class="string">br#"[{"id":1}]"#</span>;
-<a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-<a href=#298 id=298 data-nosnippet>298</a>        encoder.write_all(original).unwrap();
-<a href=#299 id=299 data-nosnippet>299</a>        <span class="kw">let </span>comprimido = encoder.finish().unwrap();
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span><span class="kw-2">mut </span>arquivo = tempfile::NamedTempFile::new().unwrap();
-<a href=#301 id=301 data-nosnippet>301</a>        arquivo.write_all(<span class="kw-2">&amp;</span>comprimido).unwrap();
-<a href=#302 id=302 data-nosnippet>302</a>
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>decodificado = json_gzip_decodificado(arquivo.path()).unwrap().unwrap();
-<a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>        <span class="macro">assert_eq!</span>(std::fs::read(decodificado.path()).unwrap(), original);
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="macro">assert_eq!</span>(std::fs::read(arquivo.path()).unwrap(), comprimido);
-<a href=#307 id=307 data-nosnippet>307</a>    }
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="kw">use </span><span class="kw">crate</span>::decodificador::ParteBronze;
+<a href=#296 id=296 data-nosnippet>296</a>    <span class="kw">use </span><span class="kw">crate</span>::escritor::{ErroDeRefino, Tabela};
+<a href=#297 id=297 data-nosnippet>297</a>
+<a href=#298 id=298 data-nosnippet>298</a>    <span class="attr">#[test]
+<a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">fn </span>prepara_json_gzip_para_o_bronze_sem_alterar_arquivo_raw() {
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span>original = <span class="string">br#"[{"id":1}]"#</span>;
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+<a href=#302 id=302 data-nosnippet>302</a>        encoder.write_all(original).unwrap();
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>comprimido = encoder.finish().unwrap();
+<a href=#304 id=304 data-nosnippet>304</a>        <span class="kw">let </span><span class="kw-2">mut </span>arquivo = tempfile::NamedTempFile::new().unwrap();
+<a href=#305 id=305 data-nosnippet>305</a>        arquivo.write_all(<span class="kw-2">&amp;</span>comprimido).unwrap();
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>decodificado = json_gzip_decodificado(arquivo.path()).unwrap().unwrap();
 <a href=#308 id=308 data-nosnippet>308</a>
-<a href=#309 id=309 data-nosnippet>309</a>    <span class="attr">#[derive(Default)]
-<a href=#310 id=310 data-nosnippet>310</a>    </span><span class="kw">struct </span>RawEmMemoria {
-<a href=#311 id=311 data-nosnippet>311</a>        objetos: Mutex&lt;HashMap&lt;String, Vec&lt;u8&gt;&gt;&gt;,
-<a href=#312 id=312 data-nosnippet>312</a>    }
-<a href=#313 id=313 data-nosnippet>313</a>
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="attr">#[async_trait]
-<a href=#315 id=315 data-nosnippet>315</a>    </span><span class="kw">impl </span>ArmazenamentoRaw <span class="kw">for </span>RawEmMemoria {
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">async fn </span>preparar(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), ErroDeIngestao&gt; {
-<a href=#317 id=317 data-nosnippet>317</a>            <span class="prelude-val">Ok</span>(())
-<a href=#318 id=318 data-nosnippet>318</a>        }
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">async fn </span>gravar(<span class="kw-2">&amp;</span><span class="self">self</span>, objeto: ObjetoRaw) -&gt; <span class="prelude-ty">Result</span>&lt;(), ErroDeIngestao&gt; {
-<a href=#320 id=320 data-nosnippet>320</a>            <span class="self">self</span>.objetos
-<a href=#321 id=321 data-nosnippet>321</a>                .lock()
-<a href=#322 id=322 data-nosnippet>322</a>                .unwrap()
-<a href=#323 id=323 data-nosnippet>323</a>                .insert(objeto.chave, objeto.conteudo);
-<a href=#324 id=324 data-nosnippet>324</a>            <span class="prelude-val">Ok</span>(())
-<a href=#325 id=325 data-nosnippet>325</a>        }
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">async fn </span>gravar_fluxo(
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">_</span>: <span class="kw-2">&amp;</span>str,
-<a href=#329 id=329 data-nosnippet>329</a>            <span class="kw">_</span>: <span class="kw-2">&amp;</span>str,
-<a href=#330 id=330 data-nosnippet>330</a>            <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>(<span class="kw">dyn </span>tokio::io::AsyncRead + Send + Unpin),
-<a href=#331 id=331 data-nosnippet>331</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ErroDeIngestao&gt; {
-<a href=#332 id=332 data-nosnippet>332</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não grava por fluxo"</span>)
-<a href=#333 id=333 data-nosnippet>333</a>        }
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">async fn </span>ler(<span class="kw-2">&amp;</span><span class="self">self</span>, chave: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;u8&gt;&gt;, ErroDeIngestao&gt; {
-<a href=#335 id=335 data-nosnippet>335</a>            <span class="prelude-val">Ok</span>(<span class="self">self</span>.objetos.lock().unwrap().get(chave).cloned())
-<a href=#336 id=336 data-nosnippet>336</a>        }
-<a href=#337 id=337 data-nosnippet>337</a>    }
-<a href=#338 id=338 data-nosnippet>338</a>
-<a href=#339 id=339 data-nosnippet>339</a>    <span class="kw">struct </span>HttpInerte;
-<a href=#340 id=340 data-nosnippet>340</a>
-<a href=#341 id=341 data-nosnippet>341</a>    <span class="attr">#[async_trait]
-<a href=#342 id=342 data-nosnippet>342</a>    </span><span class="kw">impl </span>ClienteHttp <span class="kw">for </span>HttpInerte {
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">async fn </span>obter(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;RespostaHttp, ErroDeIngestao&gt; {
-<a href=#344 id=344 data-nosnippet>344</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não usa HTTP"</span>)
-<a href=#345 id=345 data-nosnippet>345</a>        }
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">async fn </span>informacoes(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;InformacoesDoArquivo, ErroDeIngestao&gt; {
-<a href=#347 id=347 data-nosnippet>347</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não usa HTTP"</span>)
-<a href=#348 id=348 data-nosnippet>348</a>        }
-<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">async fn </span>baixar(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;DownloadHttp, ErroDeIngestao&gt; {
-<a href=#350 id=350 data-nosnippet>350</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não usa HTTP"</span>)
-<a href=#351 id=351 data-nosnippet>351</a>        }
-<a href=#352 id=352 data-nosnippet>352</a>    }
-<a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="doccomment">/// Decodificador de teste: ignora os bytes e devolve uma tabela fixa.
-<a href=#355 id=355 data-nosnippet>355</a>    </span><span class="kw">struct </span>DecodificadorFixo;
-<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">impl </span>Decodificador <span class="kw">for </span>DecodificadorFixo {
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">fn </span>decodificar(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[u8], <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ParteBronze&gt;, ErroDeRefino&gt; {
-<a href=#358 id=358 data-nosnippet>358</a>            <span class="kw">let </span>tabela = Tabela::nova([<span class="string">"id"</span>, <span class="string">"valor"</span>])
-<a href=#359 id=359 data-nosnippet>359</a>                .com_linha([<span class="prelude-val">Some</span>(<span class="string">"1"</span>.into()), <span class="prelude-val">Some</span>(<span class="string">"10,00"</span>.into())])
-<a href=#360 id=360 data-nosnippet>360</a>                .com_linha([<span class="prelude-val">Some</span>(<span class="string">"2"</span>.into()), <span class="prelude-val">None</span>]);
-<a href=#361 id=361 data-nosnippet>361</a>            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[ParteBronze::de_tabela(<span class="string">"despesas"</span>, <span class="kw-2">&amp;</span>tabela)<span class="question-mark">?</span>])
-<a href=#362 id=362 data-nosnippet>362</a>        }
-<a href=#363 id=363 data-nosnippet>363</a>    }
-<a href=#364 id=364 data-nosnippet>364</a>
-<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">struct </span>DecodificadorComRegraNova;
-<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">impl </span>Decodificador <span class="kw">for </span>DecodificadorComRegraNova {
-<a href=#367 id=367 data-nosnippet>367</a>        <span class="kw">fn </span>versao_regra(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>            <span class="prelude-val">Some</span>(<span class="string">"v2"</span>)
-<a href=#369 id=369 data-nosnippet>369</a>        }
-<a href=#370 id=370 data-nosnippet>370</a>
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">fn </span>decodificar(<span class="kw-2">&amp;</span><span class="self">self</span>, bytes: <span class="kw-2">&amp;</span>[u8], tipo: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ParteBronze&gt;, ErroDeRefino&gt; {
-<a href=#372 id=372 data-nosnippet>372</a>            DecodificadorFixo.decodificar(bytes, tipo)
+<a href=#309 id=309 data-nosnippet>309</a>        <span class="macro">assert_eq!</span>(std::fs::read(decodificado.path()).unwrap(), original);
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="macro">assert_eq!</span>(std::fs::read(arquivo.path()).unwrap(), comprimido);
+<a href=#311 id=311 data-nosnippet>311</a>    }
+<a href=#312 id=312 data-nosnippet>312</a>
+<a href=#313 id=313 data-nosnippet>313</a>    <span class="attr">#[derive(Default)]
+<a href=#314 id=314 data-nosnippet>314</a>    </span><span class="kw">struct </span>RawEmMemoria {
+<a href=#315 id=315 data-nosnippet>315</a>        objetos: Mutex&lt;HashMap&lt;String, Vec&lt;u8&gt;&gt;&gt;,
+<a href=#316 id=316 data-nosnippet>316</a>    }
+<a href=#317 id=317 data-nosnippet>317</a>
+<a href=#318 id=318 data-nosnippet>318</a>    <span class="attr">#[async_trait]
+<a href=#319 id=319 data-nosnippet>319</a>    </span><span class="kw">impl </span>ArmazenamentoRaw <span class="kw">for </span>RawEmMemoria {
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">async fn </span>preparar(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), ErroDeIngestao&gt; {
+<a href=#321 id=321 data-nosnippet>321</a>            <span class="prelude-val">Ok</span>(())
+<a href=#322 id=322 data-nosnippet>322</a>        }
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">async fn </span>gravar(<span class="kw-2">&amp;</span><span class="self">self</span>, objeto: ObjetoRaw) -&gt; <span class="prelude-ty">Result</span>&lt;(), ErroDeIngestao&gt; {
+<a href=#324 id=324 data-nosnippet>324</a>            <span class="self">self</span>.objetos
+<a href=#325 id=325 data-nosnippet>325</a>                .lock()
+<a href=#326 id=326 data-nosnippet>326</a>                .unwrap()
+<a href=#327 id=327 data-nosnippet>327</a>                .insert(objeto.chave, objeto.conteudo);
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="prelude-val">Ok</span>(())
+<a href=#329 id=329 data-nosnippet>329</a>        }
+<a href=#330 id=330 data-nosnippet>330</a>        <span class="kw">async fn </span>gravar_fluxo(
+<a href=#331 id=331 data-nosnippet>331</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#332 id=332 data-nosnippet>332</a>            <span class="kw">_</span>: <span class="kw-2">&amp;</span>str,
+<a href=#333 id=333 data-nosnippet>333</a>            <span class="kw">_</span>: <span class="kw-2">&amp;</span>str,
+<a href=#334 id=334 data-nosnippet>334</a>            <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>(<span class="kw">dyn </span>tokio::io::AsyncRead + Send + Unpin),
+<a href=#335 id=335 data-nosnippet>335</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ErroDeIngestao&gt; {
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não grava por fluxo"</span>)
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">async fn </span>ler(<span class="kw-2">&amp;</span><span class="self">self</span>, chave: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;u8&gt;&gt;, ErroDeIngestao&gt; {
+<a href=#339 id=339 data-nosnippet>339</a>            <span class="prelude-val">Ok</span>(<span class="self">self</span>.objetos.lock().unwrap().get(chave).cloned())
+<a href=#340 id=340 data-nosnippet>340</a>        }
+<a href=#341 id=341 data-nosnippet>341</a>    }
+<a href=#342 id=342 data-nosnippet>342</a>
+<a href=#343 id=343 data-nosnippet>343</a>    <span class="kw">struct </span>HttpInerte;
+<a href=#344 id=344 data-nosnippet>344</a>
+<a href=#345 id=345 data-nosnippet>345</a>    <span class="attr">#[async_trait]
+<a href=#346 id=346 data-nosnippet>346</a>    </span><span class="kw">impl </span>ClienteHttp <span class="kw">for </span>HttpInerte {
+<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">async fn </span>obter(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;RespostaHttp, ErroDeIngestao&gt; {
+<a href=#348 id=348 data-nosnippet>348</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não usa HTTP"</span>)
+<a href=#349 id=349 data-nosnippet>349</a>        }
+<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">async fn </span>informacoes(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;InformacoesDoArquivo, ErroDeIngestao&gt; {
+<a href=#351 id=351 data-nosnippet>351</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não usa HTTP"</span>)
+<a href=#352 id=352 data-nosnippet>352</a>        }
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">async fn </span>baixar(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;DownloadHttp, ErroDeIngestao&gt; {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="macro">unimplemented!</span>(<span class="string">"o bronze não usa HTTP"</span>)
+<a href=#355 id=355 data-nosnippet>355</a>        }
+<a href=#356 id=356 data-nosnippet>356</a>    }
+<a href=#357 id=357 data-nosnippet>357</a>
+<a href=#358 id=358 data-nosnippet>358</a>    <span class="doccomment">/// Decodificador de teste: ignora os bytes e devolve uma tabela fixa.
+<a href=#359 id=359 data-nosnippet>359</a>    </span><span class="kw">struct </span>DecodificadorFixo;
+<a href=#360 id=360 data-nosnippet>360</a>    <span class="kw">impl </span>Decodificador <span class="kw">for </span>DecodificadorFixo {
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">fn </span>decodificar(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[u8], <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ParteBronze&gt;, ErroDeRefino&gt; {
+<a href=#362 id=362 data-nosnippet>362</a>            <span class="kw">let </span>tabela = Tabela::nova([<span class="string">"id"</span>, <span class="string">"valor"</span>])
+<a href=#363 id=363 data-nosnippet>363</a>                .com_linha([<span class="prelude-val">Some</span>(<span class="string">"1"</span>.into()), <span class="prelude-val">Some</span>(<span class="string">"10,00"</span>.into())])
+<a href=#364 id=364 data-nosnippet>364</a>                .com_linha([<span class="prelude-val">Some</span>(<span class="string">"2"</span>.into()), <span class="prelude-val">None</span>]);
+<a href=#365 id=365 data-nosnippet>365</a>            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[ParteBronze::de_tabela(<span class="string">"despesas"</span>, <span class="kw-2">&amp;</span>tabela)<span class="question-mark">?</span>])
+<a href=#366 id=366 data-nosnippet>366</a>        }
+<a href=#367 id=367 data-nosnippet>367</a>    }
+<a href=#368 id=368 data-nosnippet>368</a>
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">struct </span>DecodificadorComRegraNova;
+<a href=#370 id=370 data-nosnippet>370</a>    <span class="kw">impl </span>Decodificador <span class="kw">for </span>DecodificadorComRegraNova {
+<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">fn </span>versao_regra(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+<a href=#372 id=372 data-nosnippet>372</a>            <span class="prelude-val">Some</span>(<span class="string">"v2"</span>)
 <a href=#373 id=373 data-nosnippet>373</a>        }
-<a href=#374 id=374 data-nosnippet>374</a>    }
-<a href=#375 id=375 data-nosnippet>375</a>
-<a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">const </span>FONTE: <span class="kw-2">&amp;</span>str = <span class="string">"camara"</span>;
-<a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">const </span>RECURSO: <span class="kw-2">&amp;</span>str = <span class="string">"despesas/ano=2024"</span>;
-<a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Semeia o raw com ponteiro + manifesto + uma parte, como se já tivesse sido ingerido.
-<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">fn </span>semear_raw(raw: <span class="kw-2">&amp;</span>RawEmMemoria, versao: <span class="kw-2">&amp;</span>str) {
-<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>dt = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">11</span>, <span class="number">3</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>).unwrap();
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, <span class="string">"RAWEXEC"</span>);
-<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">let </span>chave_parte = local.parte(<span class="number">1</span>, <span class="string">"zip"</span>);
-<a href=#384 id=384 data-nosnippet>384</a>        {
-<a href=#385 id=385 data-nosnippet>385</a>            <span class="kw">let </span><span class="kw-2">mut </span>o = raw.objetos.lock().unwrap();
-<a href=#386 id=386 data-nosnippet>386</a>            o.insert(chave_parte.clone(), <span class="string">b"zip-bytes"</span>.to_vec());
-<a href=#387 id=387 data-nosnippet>387</a>        }
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>manifesto = ManifestoRaw {
-<a href=#389 id=389 data-nosnippet>389</a>            fonte: FONTE.into(),
-<a href=#390 id=390 data-nosnippet>390</a>            recurso: RECURSO.into(),
-<a href=#391 id=391 data-nosnippet>391</a>            id_execucao: <span class="string">"RAWEXEC"</span>.into(),
-<a href=#392 id=392 data-nosnippet>392</a>            url_inicial: <span class="string">"https://origem/despesas"</span>.into(),
-<a href=#393 id=393 data-nosnippet>393</a>            iniciada_em: dt,
-<a href=#394 id=394 data-nosnippet>394</a>            concluida_em: dt,
-<a href=#395 id=395 data-nosnippet>395</a>            partes: <span class="macro">vec!</span>[ParteRaw {
-<a href=#396 id=396 data-nosnippet>396</a>                chave: chave_parte,
-<a href=#397 id=397 data-nosnippet>397</a>                url: <span class="string">"https://origem/despesas"</span>.into(),
-<a href=#398 id=398 data-nosnippet>398</a>                bytes: <span class="number">9</span>,
-<a href=#399 id=399 data-nosnippet>399</a>                sha256: <span class="string">"x"</span>.into(),
-<a href=#400 id=400 data-nosnippet>400</a>                tipo_de_conteudo: <span class="string">"application/zip"</span>.into(),
-<a href=#401 id=401 data-nosnippet>401</a>                versao: <span class="prelude-val">Some</span>(versao.into()),
-<a href=#402 id=402 data-nosnippet>402</a>            }],
-<a href=#403 id=403 data-nosnippet>403</a>        };
-<a href=#404 id=404 data-nosnippet>404</a>        <span class="kw">let </span>ponteiro = UltimaVersao {
-<a href=#405 id=405 data-nosnippet>405</a>            versao: <span class="prelude-val">Some</span>(versao.into()),
-<a href=#406 id=406 data-nosnippet>406</a>            manifesto: local.manifesto(),
-<a href=#407 id=407 data-nosnippet>407</a>            iniciada_em: <span class="prelude-val">Some</span>(dt),
-<a href=#408 id=408 data-nosnippet>408</a>        };
-<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">let </span><span class="kw-2">mut </span>o = raw.objetos.lock().unwrap();
-<a href=#410 id=410 data-nosnippet>410</a>        o.insert(local.manifesto(), serde_json::to_vec(<span class="kw-2">&amp;</span>manifesto).unwrap());
-<a href=#411 id=411 data-nosnippet>411</a>        o.insert(
-<a href=#412 id=412 data-nosnippet>412</a>            LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
-<a href=#413 id=413 data-nosnippet>413</a>            serde_json::to_vec(<span class="kw-2">&amp;</span>ponteiro).unwrap(),
-<a href=#414 id=414 data-nosnippet>414</a>        );
-<a href=#415 id=415 data-nosnippet>415</a>    }
-<a href=#416 id=416 data-nosnippet>416</a>
-<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">fn </span>contexto(bronze: Arc&lt;<span class="kw">dyn </span>ArmazenamentoRaw&gt;, id: <span class="kw-2">&amp;</span>str) -&gt; ContextoDeExecucao {
-<a href=#418 id=418 data-nosnippet>418</a>        ContextoDeExecucao {
-<a href=#419 id=419 data-nosnippet>419</a>            id_execucao: id.into(),
-<a href=#420 id=420 data-nosnippet>420</a>            iniciada_em: Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">11</span>, <span class="number">3</span>, <span class="number">12</span>, <span class="number">0</span>, <span class="number">0</span>).unwrap(),
-<a href=#421 id=421 data-nosnippet>421</a>            armazenamento: bronze,
-<a href=#422 id=422 data-nosnippet>422</a>            http: Arc::new(HttpInerte),
-<a href=#423 id=423 data-nosnippet>423</a>            progresso: <span class="prelude-val">None</span>,
-<a href=#424 id=424 data-nosnippet>424</a>        }
-<a href=#425 id=425 data-nosnippet>425</a>    }
-<a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a>    <span class="kw">fn </span>tarefa(raw: Arc&lt;<span class="kw">dyn </span>ArmazenamentoRaw&gt;) -&gt; TarefaDeBronze {
-<a href=#428 id=428 data-nosnippet>428</a>        TarefaDeBronze::nova(raw, FONTE, RECURSO, Arc::new(DecodificadorFixo))
-<a href=#429 id=429 data-nosnippet>429</a>    }
-<a href=#430 id=430 data-nosnippet>430</a>
-<a href=#431 id=431 data-nosnippet>431</a>    <span class="attr">#[tokio::test]
-<a href=#432 id=432 data-nosnippet>432</a>    </span><span class="kw">async fn </span>decodifica_o_raw_e_grava_parquet_no_bronze() {
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#434 id=434 data-nosnippet>434</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
-<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#374 id=374 data-nosnippet>374</a>
+<a href=#375 id=375 data-nosnippet>375</a>        <span class="kw">fn </span>decodificar(<span class="kw-2">&amp;</span><span class="self">self</span>, bytes: <span class="kw-2">&amp;</span>[u8], tipo: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ParteBronze&gt;, ErroDeRefino&gt; {
+<a href=#376 id=376 data-nosnippet>376</a>            DecodificadorFixo.decodificar(bytes, tipo)
+<a href=#377 id=377 data-nosnippet>377</a>        }
+<a href=#378 id=378 data-nosnippet>378</a>    }
+<a href=#379 id=379 data-nosnippet>379</a>
+<a href=#380 id=380 data-nosnippet>380</a>    <span class="kw">const </span>FONTE: <span class="kw-2">&amp;</span>str = <span class="string">"camara"</span>;
+<a href=#381 id=381 data-nosnippet>381</a>    <span class="kw">const </span>RECURSO: <span class="kw-2">&amp;</span>str = <span class="string">"despesas/ano=2024"</span>;
+<a href=#382 id=382 data-nosnippet>382</a>
+<a href=#383 id=383 data-nosnippet>383</a>    <span class="doccomment">/// Semeia o raw com ponteiro + manifesto + uma parte, como se já tivesse sido ingerido.
+<a href=#384 id=384 data-nosnippet>384</a>    </span><span class="kw">fn </span>semear_raw(raw: <span class="kw-2">&amp;</span>RawEmMemoria, versao: <span class="kw-2">&amp;</span>str) {
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>dt = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">11</span>, <span class="number">3</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>).unwrap();
+<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, <span class="string">"RAWEXEC"</span>);
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>chave_parte = local.parte(<span class="number">1</span>, <span class="string">"zip"</span>);
+<a href=#388 id=388 data-nosnippet>388</a>        {
+<a href=#389 id=389 data-nosnippet>389</a>            <span class="kw">let </span><span class="kw-2">mut </span>o = raw.objetos.lock().unwrap();
+<a href=#390 id=390 data-nosnippet>390</a>            o.insert(chave_parte.clone(), <span class="string">b"zip-bytes"</span>.to_vec());
+<a href=#391 id=391 data-nosnippet>391</a>        }
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>manifesto = ManifestoRaw {
+<a href=#393 id=393 data-nosnippet>393</a>            fonte: FONTE.into(),
+<a href=#394 id=394 data-nosnippet>394</a>            recurso: RECURSO.into(),
+<a href=#395 id=395 data-nosnippet>395</a>            id_execucao: <span class="string">"RAWEXEC"</span>.into(),
+<a href=#396 id=396 data-nosnippet>396</a>            url_inicial: <span class="string">"https://origem/despesas"</span>.into(),
+<a href=#397 id=397 data-nosnippet>397</a>            iniciada_em: dt,
+<a href=#398 id=398 data-nosnippet>398</a>            concluida_em: dt,
+<a href=#399 id=399 data-nosnippet>399</a>            partes: <span class="macro">vec!</span>[ParteRaw {
+<a href=#400 id=400 data-nosnippet>400</a>                chave: chave_parte,
+<a href=#401 id=401 data-nosnippet>401</a>                url: <span class="string">"https://origem/despesas"</span>.into(),
+<a href=#402 id=402 data-nosnippet>402</a>                bytes: <span class="number">9</span>,
+<a href=#403 id=403 data-nosnippet>403</a>                sha256: <span class="string">"x"</span>.into(),
+<a href=#404 id=404 data-nosnippet>404</a>                tipo_de_conteudo: <span class="string">"application/zip"</span>.into(),
+<a href=#405 id=405 data-nosnippet>405</a>                versao: <span class="prelude-val">Some</span>(versao.into()),
+<a href=#406 id=406 data-nosnippet>406</a>            }],
+<a href=#407 id=407 data-nosnippet>407</a>        };
+<a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">let </span>ponteiro = UltimaVersao {
+<a href=#409 id=409 data-nosnippet>409</a>            versao: <span class="prelude-val">Some</span>(versao.into()),
+<a href=#410 id=410 data-nosnippet>410</a>            manifesto: local.manifesto(),
+<a href=#411 id=411 data-nosnippet>411</a>            iniciada_em: <span class="prelude-val">Some</span>(dt),
+<a href=#412 id=412 data-nosnippet>412</a>        };
+<a href=#413 id=413 data-nosnippet>413</a>        <span class="kw">let </span><span class="kw-2">mut </span>o = raw.objetos.lock().unwrap();
+<a href=#414 id=414 data-nosnippet>414</a>        o.insert(local.manifesto(), serde_json::to_vec(<span class="kw-2">&amp;</span>manifesto).unwrap());
+<a href=#415 id=415 data-nosnippet>415</a>        o.insert(
+<a href=#416 id=416 data-nosnippet>416</a>            LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+<a href=#417 id=417 data-nosnippet>417</a>            serde_json::to_vec(<span class="kw-2">&amp;</span>ponteiro).unwrap(),
+<a href=#418 id=418 data-nosnippet>418</a>        );
+<a href=#419 id=419 data-nosnippet>419</a>    }
+<a href=#420 id=420 data-nosnippet>420</a>
+<a href=#421 id=421 data-nosnippet>421</a>    <span class="kw">fn </span>contexto(bronze: Arc&lt;<span class="kw">dyn </span>ArmazenamentoRaw&gt;, id: <span class="kw-2">&amp;</span>str) -&gt; ContextoDeExecucao {
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="kw">let </span>ordem = id.trim_start_matches(<span class="string">"BR"</span>).parse::&lt;i64&gt;().unwrap_or(<span class="number">0</span>);
+<a href=#423 id=423 data-nosnippet>423</a>        ContextoDeExecucao {
+<a href=#424 id=424 data-nosnippet>424</a>            id_execucao: id.into(),
+<a href=#425 id=425 data-nosnippet>425</a>            iniciada_em: Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">11</span>, <span class="number">3</span>, <span class="number">12</span>, <span class="number">0</span>, <span class="number">0</span>).unwrap()
+<a href=#426 id=426 data-nosnippet>426</a>                + chrono::TimeDelta::seconds(ordem),
+<a href=#427 id=427 data-nosnippet>427</a>            armazenamento: bronze,
+<a href=#428 id=428 data-nosnippet>428</a>            http: Arc::new(HttpInerte),
+<a href=#429 id=429 data-nosnippet>429</a>            progresso: <span class="prelude-val">None</span>,
+<a href=#430 id=430 data-nosnippet>430</a>        }
+<a href=#431 id=431 data-nosnippet>431</a>    }
+<a href=#432 id=432 data-nosnippet>432</a>
+<a href=#433 id=433 data-nosnippet>433</a>    <span class="kw">fn </span>tarefa(raw: Arc&lt;<span class="kw">dyn </span>ArmazenamentoRaw&gt;) -&gt; TarefaDeBronze {
+<a href=#434 id=434 data-nosnippet>434</a>        TarefaDeBronze::nova(raw, FONTE, RECURSO, Arc::new(DecodificadorFixo))
+<a href=#435 id=435 data-nosnippet>435</a>    }
 <a href=#436 id=436 data-nosnippet>436</a>
-<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">let </span>resumo = tarefa(raw.clone())
-<a href=#438 id=438 data-nosnippet>438</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
-<a href=#439 id=439 data-nosnippet>439</a>            .<span class="kw">await
-<a href=#440 id=440 data-nosnippet>440</a>            </span>.unwrap();
-<a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="macro">assert!</span>(!resumo.reaproveitada);
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="macro">assert_eq!</span>(resumo.partes, <span class="number">1</span>);
-<a href=#444 id=444 data-nosnippet>444</a>        <span class="macro">assert!</span>(resumo.bytes &gt; <span class="number">0</span>);
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="kw">let </span>objetos = bronze.objetos.lock().unwrap();
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="macro">assert!</span>(
-<a href=#448 id=448 data-nosnippet>448</a>            objetos.keys().any(|c| c.ends_with(<span class="string">"parte-00001.parquet"</span>)),
-<a href=#449 id=449 data-nosnippet>449</a>            <span class="string">"faltou a parte parquet: {:?}"</span>,
-<a href=#450 id=450 data-nosnippet>450</a>            objetos.keys().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-<a href=#451 id=451 data-nosnippet>451</a>        );
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="macro">assert!</span>(objetos.contains_key(<span class="kw-2">&amp;</span>LocalizacaoRaw::ultima_versao(FONTE, RECURSO)));
-<a href=#453 id=453 data-nosnippet>453</a>    }
-<a href=#454 id=454 data-nosnippet>454</a>
-<a href=#455 id=455 data-nosnippet>455</a>    <span class="attr">#[tokio::test]
-<a href=#456 id=456 data-nosnippet>456</a>    </span><span class="kw">async fn </span>reaproveita_quando_o_bronze_ja_esta_na_versao_do_raw() {
-<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#458 id=458 data-nosnippet>458</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="attr">#[tokio::test]
+<a href=#438 id=438 data-nosnippet>438</a>    </span><span class="kw">async fn </span>decodifica_o_raw_e_grava_parquet_no_bronze() {
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#440 id=440 data-nosnippet>440</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
+<a href=#441 id=441 data-nosnippet>441</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#442 id=442 data-nosnippet>442</a>
+<a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">let </span>resumo = tarefa(raw.clone())
+<a href=#444 id=444 data-nosnippet>444</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
+<a href=#445 id=445 data-nosnippet>445</a>            .<span class="kw">await
+<a href=#446 id=446 data-nosnippet>446</a>            </span>.unwrap();
+<a href=#447 id=447 data-nosnippet>447</a>
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="macro">assert!</span>(!resumo.reaproveitada);
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="macro">assert_eq!</span>(resumo.partes, <span class="number">1</span>);
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="macro">assert!</span>(resumo.bytes &gt; <span class="number">0</span>);
+<a href=#451 id=451 data-nosnippet>451</a>
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>objetos = bronze.objetos.lock().unwrap();
+<a href=#453 id=453 data-nosnippet>453</a>        <span class="macro">assert!</span>(
+<a href=#454 id=454 data-nosnippet>454</a>            objetos.keys().any(|c| c.ends_with(<span class="string">"parte-00001.parquet"</span>)),
+<a href=#455 id=455 data-nosnippet>455</a>            <span class="string">"faltou a parte parquet: {:?}"</span>,
+<a href=#456 id=456 data-nosnippet>456</a>            objetos.keys().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#457 id=457 data-nosnippet>457</a>        );
+<a href=#458 id=458 data-nosnippet>458</a>        <span class="macro">assert!</span>(objetos.contains_key(<span class="kw-2">&amp;</span>LocalizacaoRaw::ultima_versao(FONTE, RECURSO)));
+<a href=#459 id=459 data-nosnippet>459</a>    }
 <a href=#460 id=460 data-nosnippet>460</a>
-<a href=#461 id=461 data-nosnippet>461</a>        tarefa(raw.clone())
-<a href=#462 id=462 data-nosnippet>462</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
-<a href=#463 id=463 data-nosnippet>463</a>            .<span class="kw">await
-<a href=#464 id=464 data-nosnippet>464</a>            </span>.unwrap();
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>segunda = tarefa(raw.clone())
-<a href=#466 id=466 data-nosnippet>466</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR2"</span>))
-<a href=#467 id=467 data-nosnippet>467</a>            .<span class="kw">await
-<a href=#468 id=468 data-nosnippet>468</a>            </span>.unwrap();
-<a href=#469 id=469 data-nosnippet>469</a>
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="macro">assert!</span>(
-<a href=#471 id=471 data-nosnippet>471</a>            segunda.reaproveitada,
-<a href=#472 id=472 data-nosnippet>472</a>            <span class="string">"deveria reaproveitar o bronze íntegro"
-<a href=#473 id=473 data-nosnippet>473</a>        </span>);
-<a href=#474 id=474 data-nosnippet>474</a>        <span class="macro">assert_eq!</span>(segunda.partes, <span class="number">0</span>);
-<a href=#475 id=475 data-nosnippet>475</a>    }
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>    <span class="attr">#[tokio::test]
-<a href=#478 id=478 data-nosnippet>478</a>    </span><span class="kw">async fn </span>reprocessa_quando_o_raw_muda_de_versao() {
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#480 id=480 data-nosnippet>480</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
-<a href=#481 id=481 data-nosnippet>481</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
-<a href=#482 id=482 data-nosnippet>482</a>        tarefa(raw.clone())
-<a href=#483 id=483 data-nosnippet>483</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
-<a href=#484 id=484 data-nosnippet>484</a>            .<span class="kw">await
-<a href=#485 id=485 data-nosnippet>485</a>            </span>.unwrap();
-<a href=#486 id=486 data-nosnippet>486</a>
-<a href=#487 id=487 data-nosnippet>487</a>        <span class="comment">// O raw é reingerido com um validador novo.
-<a href=#488 id=488 data-nosnippet>488</a>        </span>semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-2"</span>);
-<a href=#489 id=489 data-nosnippet>489</a>        <span class="kw">let </span>depois = tarefa(raw.clone())
-<a href=#490 id=490 data-nosnippet>490</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR3"</span>))
-<a href=#491 id=491 data-nosnippet>491</a>            .<span class="kw">await
-<a href=#492 id=492 data-nosnippet>492</a>            </span>.unwrap();
-<a href=#493 id=493 data-nosnippet>493</a>
-<a href=#494 id=494 data-nosnippet>494</a>        <span class="macro">assert!</span>(!depois.reaproveitada, <span class="string">"raw mudou: deveria reprocessar"</span>);
-<a href=#495 id=495 data-nosnippet>495</a>        <span class="macro">assert_eq!</span>(depois.partes, <span class="number">1</span>);
-<a href=#496 id=496 data-nosnippet>496</a>    }
-<a href=#497 id=497 data-nosnippet>497</a>
-<a href=#498 id=498 data-nosnippet>498</a>    <span class="attr">#[tokio::test]
-<a href=#499 id=499 data-nosnippet>499</a>    </span><span class="kw">async fn </span>reprocessa_uma_vez_quando_a_regra_muda_sem_mudar_o_raw() {
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#501 id=501 data-nosnippet>501</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
-<a href=#502 id=502 data-nosnippet>502</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
-<a href=#503 id=503 data-nosnippet>503</a>        tarefa(raw.clone())
-<a href=#504 id=504 data-nosnippet>504</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
-<a href=#505 id=505 data-nosnippet>505</a>            .<span class="kw">await
-<a href=#506 id=506 data-nosnippet>506</a>            </span>.unwrap();
-<a href=#507 id=507 data-nosnippet>507</a>
-<a href=#508 id=508 data-nosnippet>508</a>        <span class="kw">let </span>nova = TarefaDeBronze::nova(raw, FONTE, RECURSO, Arc::new(DecodificadorComRegraNova));
-<a href=#509 id=509 data-nosnippet>509</a>        <span class="macro">assert!</span>(nova.pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
-<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">let </span>resultado = nova
-<a href=#511 id=511 data-nosnippet>511</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR2"</span>))
-<a href=#512 id=512 data-nosnippet>512</a>            .<span class="kw">await
-<a href=#513 id=513 data-nosnippet>513</a>            </span>.unwrap();
-<a href=#514 id=514 data-nosnippet>514</a>        <span class="macro">assert!</span>(!resultado.reaproveitada);
-<a href=#515 id=515 data-nosnippet>515</a>        <span class="macro">assert!</span>(!nova.pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
-<a href=#516 id=516 data-nosnippet>516</a>    }
-<a href=#517 id=517 data-nosnippet>517</a>
-<a href=#518 id=518 data-nosnippet>518</a>    <span class="attr">#[tokio::test]
-<a href=#519 id=519 data-nosnippet>519</a>    </span><span class="kw">async fn </span>pendente_reflete_se_ha_trabalho() {
-<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#521 id=521 data-nosnippet>521</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
-<a href=#522 id=522 data-nosnippet>522</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#461 id=461 data-nosnippet>461</a>    <span class="attr">#[tokio::test]
+<a href=#462 id=462 data-nosnippet>462</a>    </span><span class="kw">async fn </span>reaproveita_quando_o_bronze_ja_esta_na_versao_do_raw() {
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#464 id=464 data-nosnippet>464</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
+<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#466 id=466 data-nosnippet>466</a>
+<a href=#467 id=467 data-nosnippet>467</a>        tarefa(raw.clone())
+<a href=#468 id=468 data-nosnippet>468</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
+<a href=#469 id=469 data-nosnippet>469</a>            .<span class="kw">await
+<a href=#470 id=470 data-nosnippet>470</a>            </span>.unwrap();
+<a href=#471 id=471 data-nosnippet>471</a>        <span class="kw">let </span>segunda = tarefa(raw.clone())
+<a href=#472 id=472 data-nosnippet>472</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR2"</span>))
+<a href=#473 id=473 data-nosnippet>473</a>            .<span class="kw">await
+<a href=#474 id=474 data-nosnippet>474</a>            </span>.unwrap();
+<a href=#475 id=475 data-nosnippet>475</a>
+<a href=#476 id=476 data-nosnippet>476</a>        <span class="macro">assert!</span>(
+<a href=#477 id=477 data-nosnippet>477</a>            segunda.reaproveitada,
+<a href=#478 id=478 data-nosnippet>478</a>            <span class="string">"deveria reaproveitar o bronze íntegro"
+<a href=#479 id=479 data-nosnippet>479</a>        </span>);
+<a href=#480 id=480 data-nosnippet>480</a>        <span class="macro">assert_eq!</span>(segunda.partes, <span class="number">0</span>);
+<a href=#481 id=481 data-nosnippet>481</a>    }
+<a href=#482 id=482 data-nosnippet>482</a>
+<a href=#483 id=483 data-nosnippet>483</a>    <span class="attr">#[tokio::test]
+<a href=#484 id=484 data-nosnippet>484</a>    </span><span class="kw">async fn </span>reprocessa_quando_o_raw_muda_de_versao() {
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#486 id=486 data-nosnippet>486</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
+<a href=#487 id=487 data-nosnippet>487</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#488 id=488 data-nosnippet>488</a>        tarefa(raw.clone())
+<a href=#489 id=489 data-nosnippet>489</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
+<a href=#490 id=490 data-nosnippet>490</a>            .<span class="kw">await
+<a href=#491 id=491 data-nosnippet>491</a>            </span>.unwrap();
+<a href=#492 id=492 data-nosnippet>492</a>
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="comment">// O raw é reingerido com um validador novo.
+<a href=#494 id=494 data-nosnippet>494</a>        </span>semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-2"</span>);
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">let </span>depois = tarefa(raw.clone())
+<a href=#496 id=496 data-nosnippet>496</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR3"</span>))
+<a href=#497 id=497 data-nosnippet>497</a>            .<span class="kw">await
+<a href=#498 id=498 data-nosnippet>498</a>            </span>.unwrap();
+<a href=#499 id=499 data-nosnippet>499</a>
+<a href=#500 id=500 data-nosnippet>500</a>        <span class="macro">assert!</span>(!depois.reaproveitada, <span class="string">"raw mudou: deveria reprocessar"</span>);
+<a href=#501 id=501 data-nosnippet>501</a>        <span class="macro">assert_eq!</span>(depois.partes, <span class="number">1</span>);
+<a href=#502 id=502 data-nosnippet>502</a>    }
+<a href=#503 id=503 data-nosnippet>503</a>
+<a href=#504 id=504 data-nosnippet>504</a>    <span class="attr">#[tokio::test]
+<a href=#505 id=505 data-nosnippet>505</a>    </span><span class="kw">async fn </span>reprocessa_uma_vez_quando_a_regra_muda_sem_mudar_o_raw() {
+<a href=#506 id=506 data-nosnippet>506</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#507 id=507 data-nosnippet>507</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
+<a href=#508 id=508 data-nosnippet>508</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#509 id=509 data-nosnippet>509</a>        tarefa(raw.clone())
+<a href=#510 id=510 data-nosnippet>510</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
+<a href=#511 id=511 data-nosnippet>511</a>            .<span class="kw">await
+<a href=#512 id=512 data-nosnippet>512</a>            </span>.unwrap();
+<a href=#513 id=513 data-nosnippet>513</a>
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="kw">let </span>nova = TarefaDeBronze::nova(raw, FONTE, RECURSO, Arc::new(DecodificadorComRegraNova));
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="macro">assert!</span>(nova.pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
+<a href=#516 id=516 data-nosnippet>516</a>        <span class="kw">let </span>resultado = nova
+<a href=#517 id=517 data-nosnippet>517</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR2"</span>))
+<a href=#518 id=518 data-nosnippet>518</a>            .<span class="kw">await
+<a href=#519 id=519 data-nosnippet>519</a>            </span>.unwrap();
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="macro">assert!</span>(!resultado.reaproveitada);
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="macro">assert!</span>(!nova.pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
+<a href=#522 id=522 data-nosnippet>522</a>    }
 <a href=#523 id=523 data-nosnippet>523</a>
-<a href=#524 id=524 data-nosnippet>524</a>        <span class="comment">// Antes de refinar há trabalho; depois fica em dia; se o raw muda, volta a pender.
-<a href=#525 id=525 data-nosnippet>525</a>        </span><span class="macro">assert!</span>(tarefa(raw.clone()).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
-<a href=#526 id=526 data-nosnippet>526</a>        tarefa(raw.clone())
-<a href=#527 id=527 data-nosnippet>527</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
-<a href=#528 id=528 data-nosnippet>528</a>            .<span class="kw">await
-<a href=#529 id=529 data-nosnippet>529</a>            </span>.unwrap();
-<a href=#530 id=530 data-nosnippet>530</a>        <span class="macro">assert!</span>(!tarefa(raw.clone()).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
-<a href=#531 id=531 data-nosnippet>531</a>
-<a href=#532 id=532 data-nosnippet>532</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-2"</span>);
-<a href=#533 id=533 data-nosnippet>533</a>        <span class="macro">assert!</span>(tarefa(raw.clone()).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
-<a href=#534 id=534 data-nosnippet>534</a>    }
-<a href=#535 id=535 data-nosnippet>535</a>
-<a href=#536 id=536 data-nosnippet>536</a>    <span class="attr">#[tokio::test]
-<a href=#537 id=537 data-nosnippet>537</a>    </span><span class="kw">async fn </span>nao_pende_sem_recurso_no_raw() {
-<a href=#538 id=538 data-nosnippet>538</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#539 id=539 data-nosnippet>539</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
-<a href=#540 id=540 data-nosnippet>540</a>        <span class="macro">assert!</span>(!tarefa(raw).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
-<a href=#541 id=541 data-nosnippet>541</a>    }
-<a href=#542 id=542 data-nosnippet>542</a>
-<a href=#543 id=543 data-nosnippet>543</a>    <span class="attr">#[tokio::test]
-<a href=#544 id=544 data-nosnippet>544</a>    </span><span class="kw">async fn </span>falha_quando_nao_ha_recurso_no_raw() {
-<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
-<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
-<a href=#547 id=547 data-nosnippet>547</a>        <span class="kw">let </span>erro = tarefa(raw)
-<a href=#548 id=548 data-nosnippet>548</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze, <span class="string">"BR1"</span>))
-<a href=#549 id=549 data-nosnippet>549</a>            .<span class="kw">await
-<a href=#550 id=550 data-nosnippet>550</a>            </span>.unwrap_err();
-<a href=#551 id=551 data-nosnippet>551</a>        <span class="macro">assert!</span>(
-<a href=#552 id=552 data-nosnippet>552</a>            <span class="macro">matches!</span>(erro, ErroDeIngestao::NaoEncontrado { .. }),
-<a href=#553 id=553 data-nosnippet>553</a>            <span class="string">"{erro:?}"
-<a href=#554 id=554 data-nosnippet>554</a>        </span>);
-<a href=#555 id=555 data-nosnippet>555</a>    }
-<a href=#556 id=556 data-nosnippet>556</a>}
+<a href=#524 id=524 data-nosnippet>524</a>    <span class="attr">#[tokio::test]
+<a href=#525 id=525 data-nosnippet>525</a>    </span><span class="kw">async fn </span>pendente_reflete_se_ha_trabalho() {
+<a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#527 id=527 data-nosnippet>527</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-1"</span>);
+<a href=#528 id=528 data-nosnippet>528</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#529 id=529 data-nosnippet>529</a>
+<a href=#530 id=530 data-nosnippet>530</a>        <span class="comment">// Antes de refinar há trabalho; depois fica em dia; se o raw muda, volta a pender.
+<a href=#531 id=531 data-nosnippet>531</a>        </span><span class="macro">assert!</span>(tarefa(raw.clone()).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
+<a href=#532 id=532 data-nosnippet>532</a>        tarefa(raw.clone())
+<a href=#533 id=533 data-nosnippet>533</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze.clone(), <span class="string">"BR1"</span>))
+<a href=#534 id=534 data-nosnippet>534</a>            .<span class="kw">await
+<a href=#535 id=535 data-nosnippet>535</a>            </span>.unwrap();
+<a href=#536 id=536 data-nosnippet>536</a>        <span class="macro">assert!</span>(!tarefa(raw.clone()).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
+<a href=#537 id=537 data-nosnippet>537</a>
+<a href=#538 id=538 data-nosnippet>538</a>        semear_raw(<span class="kw-2">&amp;</span>raw, <span class="string">"etag-2"</span>);
+<a href=#539 id=539 data-nosnippet>539</a>        <span class="macro">assert!</span>(tarefa(raw.clone()).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
+<a href=#540 id=540 data-nosnippet>540</a>    }
+<a href=#541 id=541 data-nosnippet>541</a>
+<a href=#542 id=542 data-nosnippet>542</a>    <span class="attr">#[tokio::test]
+<a href=#543 id=543 data-nosnippet>543</a>    </span><span class="kw">async fn </span>nao_pende_sem_recurso_no_raw() {
+<a href=#544 id=544 data-nosnippet>544</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="macro">assert!</span>(!tarefa(raw).pendente(bronze.as_ref()).<span class="kw">await</span>.unwrap());
+<a href=#547 id=547 data-nosnippet>547</a>    }
+<a href=#548 id=548 data-nosnippet>548</a>
+<a href=#549 id=549 data-nosnippet>549</a>    <span class="attr">#[tokio::test]
+<a href=#550 id=550 data-nosnippet>550</a>    </span><span class="kw">async fn </span>falha_quando_nao_ha_recurso_no_raw() {
+<a href=#551 id=551 data-nosnippet>551</a>        <span class="kw">let </span>raw = Arc::new(RawEmMemoria::default());
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="kw">let </span>bronze = Arc::new(RawEmMemoria::default());
+<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw">let </span>erro = tarefa(raw)
+<a href=#554 id=554 data-nosnippet>554</a>            .executar(<span class="kw-2">&amp;</span>contexto(bronze, <span class="string">"BR1"</span>))
+<a href=#555 id=555 data-nosnippet>555</a>            .<span class="kw">await
+<a href=#556 id=556 data-nosnippet>556</a>            </span>.unwrap_err();
+<a href=#557 id=557 data-nosnippet>557</a>        <span class="macro">assert!</span>(
+<a href=#558 id=558 data-nosnippet>558</a>            <span class="macro">matches!</span>(erro, ErroDeIngestao::NaoEncontrado { .. }),
+<a href=#559 id=559 data-nosnippet>559</a>            <span class="string">"{erro:?}"
+<a href=#560 id=560 data-nosnippet>560</a>        </span>);
+<a href=#561 id=561 data-nosnippet>561</a>    }
+<a href=#562 id=562 data-nosnippet>562</a>}
 </code></pre></div></section></main></body></html>
