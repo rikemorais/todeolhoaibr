@@ -4,4 +4,5 @@ pub mod ibge;
 pub mod ipeadata;
 pub mod senado;
 pub mod tce_ce;
+pub mod transparencia;
 pub mod tse;
