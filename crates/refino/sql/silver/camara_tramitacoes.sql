@@ -12,7 +12,10 @@ WITH tipadas AS (
         {{OPCIONAL:regime}},
         {{OPCIONAL:descricaoTramitacao}},
         {{OPCIONAL:despacho}},
-        _tdoa_json_original AS registro_original
+        _tdoa_json_original AS registro_original,
+        _tdoa_origem_manifesto,
+        _tdoa_origem_parte,
+        _tdoa_origem_ordinal
     FROM bronze
     WHERE tdoa_assert_true("uriProposicao" IS NOT NULL AND TRIM("uriProposicao") <> '')
       AND tdoa_assert_true(
@@ -37,5 +40,8 @@ SELECT
     regime,
     "descricaoTramitacao" AS descricao_tramitacao,
     despacho,
-    registro_original
+    registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM tipadas

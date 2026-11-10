@@ -36,6 +36,9 @@ pub fn esquema_bcb_sgs() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         Field::new("data", DataType::Date32, false),
         Field::new("valor", DataType::Decimal128(18, 6), false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -87,18 +90,16 @@ pub fn transformar_bcb_sgs(lote: &RecordBatch) -> Result<RecordBatch, ErroBcbSil
         decimais
             .push(decimal_escalado(valores.value(linha)).ok_or(ErroBcbSilver::Valor { linha })?);
     }
-    RecordBatch::try_new(
-        esquema_bcb_sgs(),
-        vec![
-            Arc::new(Date32Array::from(dias)),
-            Arc::new(
-                Decimal128Array::from(decimais)
-                    .with_precision_and_scale(18, 6)
-                    .map_err(|_| ErroBcbSilver::Schema)?,
-            ),
-        ],
-    )
-    .map_err(|_| ErroBcbSilver::Schema)
+    let mut colunas: Vec<Arc<dyn arrow::array::Array>> = vec![
+        Arc::new(Date32Array::from(dias)),
+        Arc::new(
+            Decimal128Array::from(decimais)
+                .with_precision_and_scale(18, 6)
+                .map_err(|_| ErroBcbSilver::Schema)?,
+        ),
+    ];
+    colunas.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_bcb_sgs(), colunas).map_err(|_| ErroBcbSilver::Schema)
 }
 
 #[cfg(test)]
