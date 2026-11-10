@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Contrato Silver de receitas de candidatos do TSE em 2024, preservando variantes e tipando sequência, data e valor com linhagem da origem (issue #189).
+
 ## [0.59.0] - 2026-11-10
 
 ### Adicionado

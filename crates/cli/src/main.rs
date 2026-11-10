@@ -32,8 +32,9 @@ use todeolho_refino::{
     TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIpeadata,
     TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
-    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseVotacaoSecao,
-    TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasPagas,
+    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -430,7 +431,7 @@ async fn refinar(
             if !filtros.is_empty() {
                 bail!("--filtro não está disponível para `silver tse-prestacao-contas`");
             }
-            return refinar_tse_despesas_pagas_silver(fonte, todas, intervalo).await;
+            return refinar_tse_prestacao_contas_silver(fonte, todas, intervalo).await;
         }
         if fonte.as_deref() == Some("tse-votacao-secao") {
             return refinar_tse_votacao_secao_silver(fonte, todas, intervalo, filtros).await;
@@ -575,9 +576,8 @@ async fn refinar(
     }
 }
 
-/// Publica a tabela de despesas pagas de 2024, única família de prestação de contas com
-/// política de chave e duplicatas validada para materialização canônica.
-async fn refinar_tse_despesas_pagas_silver(
+/// Publica as tabelas de prestação de contas do TSE que têm contrato Silver validado.
+async fn refinar_tse_prestacao_contas_silver(
     fonte: Option<String>,
     todas: bool,
     intervalo: Option<u64>,
@@ -594,14 +594,17 @@ async fn refinar_tse_despesas_pagas_silver(
     bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     match intervalo.filter(|segundos| *segundos > 0) {
-        None => passada_tse_despesas_pagas_silver(&bronze, &silver, false).await,
+        None => passada_tse_prestacao_contas_silver(&bronze, &silver, false).await,
         Some(segundos) => {
             println!(
-                "Agendador Silver despesas pagas TSE: reconciliando a cada {segundos}s. Ctrl+C para sair."
+                "Agendador Silver prestação de contas TSE: reconciliando a cada {segundos}s. Ctrl+C para sair."
             );
             loop {
-                if let Err(erro) = passada_tse_despesas_pagas_silver(&bronze, &silver, true).await {
-                    eprintln!("Atenção: falha na reconciliação Silver de despesas pagas: {erro:#}");
+                if let Err(erro) = passada_tse_prestacao_contas_silver(&bronze, &silver, true).await
+                {
+                    eprintln!(
+                        "Atenção: falha na reconciliação Silver da prestação de contas: {erro:#}"
+                    );
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
@@ -609,7 +612,7 @@ async fn refinar_tse_despesas_pagas_silver(
     }
 }
 
-async fn passada_tse_despesas_pagas_silver(
+async fn passada_tse_prestacao_contas_silver(
     bronze: &Arc<dyn ArmazenamentoRaw>,
     silver: &Arc<dyn ArmazenamentoRaw>,
     somente_pendentes: bool,
@@ -619,18 +622,31 @@ async fn passada_tse_despesas_pagas_silver(
         .await
         .context("não foi possível ler snapshot Bronze da prestação de contas")?
     else {
-        println!("Nada a refinar na Silver de despesas pagas do TSE (Bronze 2024 ausente).");
+        println!("Nada a refinar na Silver da prestação de contas TSE (Bronze 2024 ausente).");
         return Ok(true);
     };
-    let tarefa =
-        TarefaDeSilverTseDespesasPagas::nova(Arc::clone(bronze), Arc::new(snapshot), RECURSO)
+    let snapshot = Arc::new(snapshot);
+    let tarefa_despesas =
+        TarefaDeSilverTseDespesasPagas::nova(Arc::clone(bronze), Arc::clone(&snapshot), RECURSO)
             .expect("o contrato aceita somente a prestação de contas de 2024");
-    if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
-        println!("Nada a refinar na Silver de despesas pagas do TSE (recurso em dia).");
+    let tarefa_receitas = TarefaDeSilverTseReceitasCandidatos::nova(
+        Arc::clone(bronze),
+        Arc::clone(&snapshot),
+        RECURSO,
+    )
+    .expect("o contrato aceita somente a prestação de contas de 2024");
+    let mut tarefas = Vec::new();
+    if !somente_pendentes || tarefa_despesas.pendente(silver.as_ref()).await? {
+        tarefas.push(TarefaPlanejada::nova(tarefa_despesas));
+    }
+    if !somente_pendentes || tarefa_receitas.pendente(silver.as_ref()).await? {
+        tarefas.push(TarefaPlanejada::nova(tarefa_receitas));
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver da prestação de contas TSE (recursos em dia).");
         return Ok(true);
     }
-    let dag =
-        DagDeIngestao::construir("tse-prestacao-contas", vec![TarefaPlanejada::nova(tarefa)])?;
+    let dag = DagDeIngestao::construir("tse-prestacao-contas", tarefas)?;
     let iniciada_em = Utc::now();
     let contexto = ContextoDeExecucao {
         id_execucao: format!(
