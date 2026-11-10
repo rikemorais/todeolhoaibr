@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.59.0] - 2026-11-10
+
+### Adicionado
+
+- Fonte `remuneracao-estadual-go` para ingestão sob demanda do CSV mensal mais recente listado no catálogo de Goiás, preservado em fluxo na Raw (issue #75, PR #326). A cobertura de outras UFs e do subsídio do governador permanece pendente.
+
 ## [0.58.0] - 2026-11-10
 
 ### Adicionado
