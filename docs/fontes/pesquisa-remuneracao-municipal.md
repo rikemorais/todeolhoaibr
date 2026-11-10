@@ -2,7 +2,7 @@
 
 **Issue:** [#76](https://github.com/rikemorais/todeolhoaibr/issues/76)  
 **Data da pesquisa:** 2026-11-10  
-**Estado:** TCE-CE validado como fonte candidata; ingestão ainda não ativada.
+**Estado:** cobertura do TCE-CE validada e ingestão agregada da competência 2025-12 implementada para 184 municípios; comparação com fontes municipais ainda pendente.
 
 ## Resumo
 
@@ -77,15 +77,15 @@ não é validação de completude. O CSV contém nomes e remuneração, enquanto
 endpoint nominal do SIM inclui CPF, então a política de minimização deve ser
 definida antes de persistir essas respostas na Raw.
 
-## Decisão proposta
+## Decisão e próximos passos
 
-Prosseguir com o adaptador TCE-CE como primeira fonte agregada e o CSV de
-Fortaleza como primeiro adaptador municipal independente. Antes de publicar a
-ingestão, paginar integralmente uma competência do SIM, alinhar órgão/unidade e
-categorias entre as fontes, comparar contagens e totais e confirmar acesso a
-partir do runtime de produção. Se esses controles falharem, avaliar outros
-portais de capitais como fontes independentes, sem presumir que compartilham um
-esquema.
+O adaptador de folhas agregadas do TCE-CE foi implementado para a competência
+2025-12, particionado por município e com manifesto próprio; consulte a
+[documentação da fonte](remuneracao-municipal-tce-ce.md). A execução em produção
+precisa confirmar conectividade e completude das páginas. O CSV de Fortaleza
+continua sendo uma fonte independente para comparação, mas os totais não devem
+ser reconciliados até alinhar órgão/unidade e categorias. Depois desses controles,
+avaliar outras capitais sem presumir que compartilham um esquema.
 
 As fontes contêm dados pessoais em contexto de remuneração pública; o endpoint
 nominal do TCE retorna CPF e o CSV municipal retorna nome. Antes de persistir
@@ -99,10 +99,11 @@ CPFs.
 
 1. Confirmar a autenticação declarada no OpenAPI versus as respostas sem
    credenciais observadas.
-2. Paginar integralmente a competência `2025-12` e alinhar unidades e categorias
-   com o arquivo municipal antes de comparar totais.
+2. Executar e auditar os manifestos da competência `2025-12`; alinhar unidades e
+   categorias com o arquivo municipal antes de comparar totais.
 3. Verificar conectividade do runtime de produção, pois a API limita o acesso
    a IPs no Brasil.
 4. Confirmar a licença específica do CSV municipal e definir minimização,
    proteção e retenção dos dados nominais antes de armazená-los.
-5. Implementar as duas ingestões e seus manifestos após esses controles.
+5. Validar a primeira execução da Raw antes de ampliar para outras competências;
+   definir minimização, proteção e retenção antes de ingerir dados nominais.
