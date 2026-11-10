@@ -1986,9 +1986,9 @@
 </tr>
 <tr>
 <td>PB</td>
-<td><a href="https://transparencia.pb.gov.br/remuneracao-servidores">Remuneração de Servidores — Portal da Transparência PB</a> identifica a SEAD como fonte/API e apresentava competência agosto de 2026 e atualização em 20/09/2026. <a href="https://transparencia.pb.gov.br/perguntas-frequentes">FAQ oficial</a> aborda API/dados abertos.</td>
-<td>API indicada, porém endpoint e esquema não documentados nesta pesquisa.</td>
-<td><strong>API/fonte e atualidade confirmadas; contrato técnico pendente.</strong></td>
+<td>O conjunto <a href="https://dados.pb.gov.br/dataset/remuneracao-servidores">Remuneração Servidores — SEAD</a> declara CC BY-SA. A <a href="https://api.dadosabertos.codata.pb.gov.br/api/v1/swagger.json">API CODATA</a> documenta <code>GET /remuneracao/servidor</code>, ano/mês obrigatórios, paginação (<code>page</code>, <code>per_page</code>) e máximo de 1.000 itens. O <a href="https://transparencia.pb.gov.br/remuneracao-servidores">portal de transparência</a> mostrava ago/2026, atualizado em 20/09/2026.</td>
+<td>JSON paginado; CKAN de metadados lista recurso sem URL nem tamanho.</td>
+<td><strong>Promissora, ainda pendente:</strong> não há seleção por metadados da competência mais recente nem confirmação de cobertura do governador. Há divergência CC BY-SA no conjunto vs CC BY 4.0 no rodapé do portal. Detalhes em <a href="../pesquisa-remuneracao-estadual-pb/">pesquisa de PB</a>.</td>
 </tr>
 <tr>
 <td>PR</td>
@@ -2070,8 +2070,8 @@
 <li><strong>RO — alternativa condicionada.</strong> Confirma CSV/XLS, SEGEP-RO e competência de 10/2026, mas o endpoint dos botões não foi identificado e a licença do portal aparece como CC BY-ND 3.0, sem esclarecer se as planilhas de remuneração estão cobertas. Confirmar endpoint e licença com a CGE-RO antes de transformar/republicar.</li>
 <li><strong>RS — prioridade de pesquisa para cobrir governador e servidores.</strong> O painel do Executivo cobre explicitamente o governador e é atualizado mensalmente; falta identificar no catálogo oficial URLs/metadados estáveis dos CSVs e layouts antes de automatizar. Consulte a <a href="../pesquisa-remuneracao-estadual-rs/">nota de RS</a>.</li>
 <li><strong>AL — candidata à integração após resolver a competência.</strong> A API documenta endpoints paginados de ativos/inativos e exportação, e a página de download lista TXT sob CC BY-SA. Falta descobrir a competência mais recente e avaliar volume/limites sem inspecionar registros; veja a <a href="../pesquisa-remuneracao-estadual-al/">nota de AL</a>.</li>
+<li><strong>PB — candidata a ingestão depois de resolver a competência.</strong> Endpoint e paginação estão documentados, mas ano/mês precisam ser conhecidos antes da consulta, sem metadado de última competência; a presença do governador também não está comprovada. Consulte a <a href="../pesquisa-remuneracao-estadual-pb/">nota de PB</a>.</li>
 <li><strong>PR — candidato estruturado, sem contrato automatizável confirmado.</strong> O portal oferece CSV mensal e a FAQ permite uso livre em termos gerais, mas faltam URL/API documentada, competência mais recente comprovada e licença específica para derivados. Não inferir endpoint a partir de tráfego do navegador; pedir esclarecimento à CGE-PR antes de implementar. Consulte a <a href="../pesquisa-remuneracao-estadual-pr/">nota de pesquisa do Paraná</a>.</li>
-<li><strong>PB — candidato futuro.</strong> O portal identifica uma API e competência recente, mas endpoint e esquema ainda precisam de confirmação.</li>
 <li><strong>SE — manter pendente.</strong> A API é oficial e estruturada, mas o contrato atual exige pesquisa por nome, sem endpoint documentado de exportação integral.</li>
 </ol>
 <h2 id="limites-privacidade-e-licenca">Limites, privacidade e licença<a class="headerlink" href="#limites-privacidade-e-licenca" title="Permanent link">&para;</a></h2>
@@ -2088,7 +2088,8 @@
 <li><strong>MG:</strong> esquema atual é descrito na página de metadados, incluindo mudanças em out/2026 e leiaute distinto para arquivos até dez/2020; o esquema real/codificação/delimitador do CSV não foi verificado. O recurso corrente listado é grande (217,4 MiB). Não materializar linhas nominais durante essa checagem.</li>
 <li><strong>SC:</strong> manual oficial de CSV não teve atualidade confirmada.</li>
 <li><strong>PI:</strong> exportação Excel consta em manual cuja versão/validade atual não foi confirmada.</li>
-<li><strong>AM, PA e PB:</strong> API é citada por fonte oficial, mas endpoint/esquema da remuneração não foram integralmente conferidos.</li>
+<li><strong>AM e PA:</strong> API é citada por fonte oficial, mas endpoint/esquema da remuneração não foram integralmente conferidos.</li>
+<li><strong>PB:</strong> endpoint e paginação da API estão documentados; faltam método seguro para descobrir competência, tamanho da resposta e escopo do governador, além de esclarecer divergência de licença.</li>
 <li><strong>SE:</strong> o OpenAPI define endpoint e paginação, mas exige filtro de nome; a data da última competência disponível não ficou estabelecida e não há listagem integral documentada.</li>
 <li><strong>SP:</strong> formato estruturado é documentado, porém esta pesquisa não aferiu atualização da folha/arquivo na competência corrente.</li>
 <li><strong>AL e RS:</strong> têm notas específicas nesta pasta. AL ainda carece de descoberta da competência/volumes; RS tem escopo amplo incluindo o governador, mas falta localizar a listagem de arquivos CSV sem baixar os dados.</li>
