@@ -1,13 +1,19 @@
 //! Contrato de chave para as votações nominais do Senado.
 
+#[cfg(test)]
 use std::collections::HashSet;
 
+#[cfg(test)]
 use arrow::array::{Array, StringArray};
+#[cfg(test)]
 use arrow::datatypes::DataType;
+#[cfg(test)]
 use arrow::record_batch::RecordBatch;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao validar a chave de uma votação do Senado.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroSenadoVotacoesSilver {
     /// O Bronze não contém a coluna identificadora textual esperada.
@@ -28,6 +34,7 @@ pub enum ErroSenadoVotacoesSilver {
 }
 
 /// Valida `codigoSessaoVotacao` e mantém o registro integral, incluindo `votos` aninhados.
+#[cfg(test)]
 pub fn transformar_senado_votacoes(
     lote: &RecordBatch,
     codigos_vistos: &mut HashSet<String>,

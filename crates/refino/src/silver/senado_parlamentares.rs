@@ -2,13 +2,18 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, StringArray, UInt16Array};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use arrow::record_batch::RecordBatch;
+#[cfg(test)]
 use serde_json::Value;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao interpretar a identificação parlamentar do Bronze do Senado.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroSenadoParlamentaresSilver {
     /// O Bronze não contém as colunas de identificação esperadas.
@@ -36,6 +41,7 @@ pub fn esquema_senado_parlamentares() -> Arc<Schema> {
 }
 
 /// Extrai o código e tipa o escopo temporal, preservando os objetos JSON originais.
+#[cfg(test)]
 pub fn transformar_senado_parlamentares(
     lote: &RecordBatch,
     legislatura: u16,
@@ -96,6 +102,7 @@ pub fn transformar_senado_parlamentares(
         .map_err(|_| ErroSenadoParlamentaresSilver::Schema)
 }
 
+#[cfg(test)]
 fn texto_de_codigo(valor: &Value) -> Option<String> {
     match valor {
         Value::String(texto) if !texto.is_empty() => Some(texto.clone()),

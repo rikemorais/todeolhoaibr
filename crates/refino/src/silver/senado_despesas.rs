@@ -1,16 +1,21 @@
 //! Contrato Silver das despesas da Cota para o Exercício da Atividade Parlamentar dos Senadores.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{
     Array, Date32Array, Decimal128Array, RecordBatch, StringArray, UInt8Array, UInt16Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::{Datelike, NaiveDate};
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao transformar um lote Bronze das despesas CEAPS.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroSenadoDespesasSilver {
     /// Faltam colunas esperadas ou há coluna de origem que não é textual.
@@ -63,6 +68,7 @@ pub fn esquema_senado_despesas() -> Arc<Schema> {
 }
 
 /// Tipifica mês, data e valor; preserva linhas sem código de documento e os campos de origem.
+#[cfg(test)]
 pub fn transformar_senado_despesas(
     lote: &RecordBatch,
     ano: u16,
@@ -179,6 +185,7 @@ pub fn transformar_senado_despesas(
         .map_err(|_| ErroSenadoDespesasSilver::Schema)
 }
 
+#[cfg(test)]
 fn texto_opcional(coluna: &StringArray, linha: usize) -> Option<&str> {
     if coluna.is_null(linha) || coluna.value(linha).trim().is_empty() {
         None
@@ -187,6 +194,7 @@ fn texto_opcional(coluna: &StringArray, linha: usize) -> Option<&str> {
     }
 }
 
+#[cfg(test)]
 fn obrigatorio(
     coluna: &StringArray,
     linha: usize,
@@ -197,6 +205,7 @@ fn obrigatorio(
         .ok_or(ErroSenadoDespesasSilver::Obrigatorio { campo, linha })
 }
 
+#[cfg(test)]
 fn parse_u16(
     coluna: &StringArray,
     linha: usize,
@@ -207,6 +216,7 @@ fn parse_u16(
         .ok_or(ErroSenadoDespesasSilver::Obrigatorio { campo, linha })
 }
 
+#[cfg(test)]
 fn parse_mes(coluna: &StringArray, linha: usize) -> Result<Option<u8>, ErroSenadoDespesasSilver> {
     let Some(texto) = texto_opcional(coluna, linha) else {
         return Ok(None);
@@ -222,6 +232,7 @@ fn parse_mes(coluna: &StringArray, linha: usize) -> Result<Option<u8>, ErroSenad
     Ok(Some(mes))
 }
 
+#[cfg(test)]
 fn parse_data(texto: Option<&str>, ano: u16) -> Option<i32> {
     let texto = texto?;
     let data = NaiveDate::parse_from_str(texto, "%d/%m/%Y").ok()?;
@@ -232,6 +243,7 @@ fn parse_data(texto: Option<&str>, ano: u16) -> Option<i32> {
     Some(data.signed_duration_since(epoch).num_days() as i32)
 }
 
+#[cfg(test)]
 fn parse_decimal(
     coluna: &StringArray,
     linha: usize,
@@ -244,6 +256,7 @@ fn parse_decimal(
         .ok_or(ErroSenadoDespesasSilver::Valor { linha })
 }
 
+#[cfg(test)]
 fn decimal_escalado(texto: &str) -> Option<i128> {
     let sem_quebra = texto.replace(['\r', '\n'], "");
     let texto = sem_quebra.trim();
@@ -278,6 +291,7 @@ fn decimal_escalado(texto: &str) -> Option<i128> {
     }
 }
 
+#[cfg(test)]
 fn decimal_array(valores: Vec<Option<i128>>) -> Result<Decimal128Array, ErroSenadoDespesasSilver> {
     Decimal128Array::from(valores)
         .with_precision_and_scale(18, 2)

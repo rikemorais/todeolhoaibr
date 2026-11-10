@@ -1,16 +1,22 @@
 //! Contrato Silver das despesas pagas por candidatos do TSE em 2024.
 
+#[cfg(test)]
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{
     Array, Date32Array, Decimal128Array, RecordBatch, StringArray, UInt16Array, UInt32Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::NaiveDate;
+#[cfg(test)]
 use sha2::{Digest, Sha256};
+#[cfg(test)]
 use thiserror::Error;
 
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 /// Erros no contrato de despesas pagas do TSE.
 pub enum ErroTseDespesasPagasSilver {
@@ -44,12 +50,14 @@ pub enum ErroTseDespesasPagasSilver {
 }
 
 /// Estado de unicidade mantido entre os lotes do consolidado nacional.
+#[cfg(test)]
 #[derive(Default)]
 pub struct EstadoDeChavesDeDespesasPagas {
     vistos: HashMap<String, [u8; 32]>,
     copias_exatas: u64,
 }
 
+#[cfg(test)]
 impl EstadoDeChavesDeDespesasPagas {
     /// Quantas linhas repetidas e integralmente iguais foram removidas até agora.
     pub fn copias_exatas_removidas(&self) -> u64 {
@@ -78,6 +86,7 @@ pub fn esquema_tse_despesas_pagas_2024() -> Arc<Schema> {
 ///
 /// O estado deve ser mantido entre lotes de um mesmo consolidado `BRASIL`. Ele guarda a
 /// chave e o SHA-256 do registro integral, usando memória proporcional às chaves distintas.
+#[cfg(test)]
 pub fn transformar_tse_despesas_pagas_2024(
     lote: &RecordBatch,
     estado: &mut EstadoDeChavesDeDespesasPagas,
@@ -181,16 +190,19 @@ pub fn transformar_tse_despesas_pagas_2024(
         .map_err(|_| ErroTseDespesasPagasSilver::Schema)
 }
 
+#[cfg(test)]
 fn texto(coluna: &StringArray, linha: usize) -> Option<&str> {
     (!coluna.is_null(linha))
         .then(|| coluna.value(linha).trim())
         .filter(|s| !s.is_empty() && *s != "-1" && *s != "-3")
 }
 
+#[cfg(test)]
 fn numero(coluna: &StringArray, linha: usize) -> Option<u32> {
     texto(coluna, linha)?.parse().ok()
 }
 
+#[cfg(test)]
 fn decimal(texto: &str) -> Option<i128> {
     let (inteiro, centavos) = texto.trim().split_once(',')?;
     if inteiro.is_empty()
@@ -207,6 +219,7 @@ fn decimal(texto: &str) -> Option<i128> {
         .checked_add(centavos.parse().ok()?)
 }
 
+#[cfg(test)]
 fn registro_original(
     lote: &RecordBatch,
     linha: usize,

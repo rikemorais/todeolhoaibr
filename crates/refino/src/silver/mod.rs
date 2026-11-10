@@ -58,12 +58,12 @@ pub use camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
 pub use ibge_agregados::esquema_ibge_agregados;
 #[cfg(test)]
 pub use ibge_agregados::{ErroIbgeSilver, transformar_ibge_agregados};
-pub use senado_despesas::{
-    ErroSenadoDespesasSilver, esquema_senado_despesas, transformar_senado_despesas,
-};
-pub use senado_parlamentares::{
-    ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
-};
+pub use senado_despesas::esquema_senado_despesas;
+#[cfg(test)]
+pub use senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
+pub use senado_parlamentares::esquema_senado_parlamentares;
+#[cfg(test)]
+pub use senado_parlamentares::{ErroSenadoParlamentaresSilver, transformar_senado_parlamentares};
 pub use senado_processos::esquema_senado_processos;
 #[cfg(test)]
 pub use senado_processos::{ErroSenadoProcessosSilver, transformar_senado_processos};
@@ -72,8 +72,11 @@ pub use senado_processos_detalhes::esquema_senado_processos_detalhes;
 pub use senado_processos_detalhes::{
     ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
 };
+#[cfg(test)]
 pub use senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
-pub use senado_votos::{ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos};
+pub use senado_votos::esquema_senado_votos;
+#[cfg(test)]
+pub use senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
 pub use tarefa_bcb::publicar_bcb_sgs;
 pub use tarefa_camara::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
 pub use tarefa_camara_deputados::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
@@ -98,14 +101,17 @@ pub use tarefa_tse_despesas_pagas::{
     TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024,
 };
 pub use tarefa_tse_votacao_secao::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
-pub use tse_bens::{ErroTseBensSilver, esquema_tse_bens, transformar_tse_bens};
-pub use tse_candidaturas::{
-    ErroTseCandidaturasSilver, esquema_tse_candidaturas, transformar_tse_candidaturas,
-};
+pub use tse_bens::esquema_tse_bens;
+#[cfg(test)]
+pub use tse_bens::{ErroTseBensSilver, transformar_tse_bens};
+pub use tse_candidaturas::esquema_tse_candidaturas;
+#[cfg(test)]
+pub use tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
+pub use tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
+#[cfg(test)]
 pub use tse_despesas_pagas::{
-    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, esquema_tse_despesas_pagas_2024,
-    transformar_tse_despesas_pagas_2024,
+    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, transformar_tse_despesas_pagas_2024,
 };
-pub use tse_votacao_secao::{
-    ErroTseVotacaoSecaoSilver, esquema_tse_votacao_secao, transformar_tse_votacao_secao,
-};
+pub use tse_votacao_secao::esquema_tse_votacao_secao;
+#[cfg(test)]
+pub use tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};

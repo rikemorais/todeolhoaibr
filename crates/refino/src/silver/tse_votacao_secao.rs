@@ -1,16 +1,21 @@
 //! Contrato Silver dos votos apurados por seção eleitoral do TSE.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{
     Array, Date32Array, RecordBatch, StringArray, UInt8Array, UInt16Array, UInt32Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::NaiveDate;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao transformar os votos do TSE por seção.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroTseVotacaoSecaoSilver {
     /// O Parquet Bronze não contém os campos textuais esperados.
@@ -87,6 +92,7 @@ pub fn esquema_tse_votacao_secao() -> Arc<Schema> {
 }
 
 /// Tipa a chave da apuração, turno e quantidade de votos sem alterar códigos textuais.
+#[cfg(test)]
 pub fn transformar_tse_votacao_secao(
     lote: &RecordBatch,
     ano: u16,
@@ -220,6 +226,7 @@ pub fn transformar_tse_votacao_secao(
         .map_err(|_| ErroTseVotacaoSecaoSilver::Schema)
 }
 
+#[cfg(test)]
 fn coluna_obrigatoria<'a>(
     lote: &'a RecordBatch,
     nome: &'static str,
@@ -227,6 +234,7 @@ fn coluna_obrigatoria<'a>(
     coluna_opcional(lote, nome)?.ok_or(ErroTseVotacaoSecaoSilver::Schema)
 }
 
+#[cfg(test)]
 fn coluna_opcional<'a>(
     lote: &'a RecordBatch,
     nome: &str,
@@ -241,6 +249,7 @@ fn coluna_opcional<'a>(
         .ok_or(ErroTseVotacaoSecaoSilver::Schema)
 }
 
+#[cfg(test)]
 fn texto_obrigatorio<'a>(
     coluna: &'a StringArray,
     linha: usize,
@@ -252,6 +261,7 @@ fn texto_obrigatorio<'a>(
     Ok(coluna.value(linha).trim())
 }
 
+#[cfg(test)]
 fn parse_data(
     coluna: Option<&StringArray>,
     linha: usize,
@@ -271,6 +281,7 @@ fn parse_data(
     Ok(Some(data.signed_duration_since(epoch).num_days() as i32))
 }
 
+#[cfg(test)]
 fn registro_original(
     lote: &RecordBatch,
     linha: usize,
