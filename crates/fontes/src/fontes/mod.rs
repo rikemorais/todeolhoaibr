@@ -5,4 +5,5 @@ pub mod ipeadata;
 pub mod senado;
 pub mod tce_ce;
 pub mod transparencia;
+pub mod transparencia_servidores;
 pub mod tse;
