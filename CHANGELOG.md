@@ -7,13 +7,26 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.53.1] - 2026-11-10
+
+### Corrigido
+
+- Serializa por recurso a conferência final do Bronze e a publicação Silver no processo; preserva o primeiro ponteiro datado quando os instantes empatam (issue #185, PR #298).
+- Reporta recusa de ponteiro como falha em Raw, Bronze e Silver; distingue tarefas Silver irmãs pelo destino e registra sessões e votos do Senado separadamente na CLI (issue #185, PR #298).
+- Alinha o `Cargo.lock` à versão 0.53.0 dos crates locais, restaurando os checks com `--locked` após a release anterior (PR #298).
+
+### Documentação
+
+- Especifica tipos, nulos, normalização, duplicatas e tabelas internas das 26 entradas Bronze; define limiares de qualidade e falha parcial no ADR Silver (issue #185, PRs #297 e #299).
+- Registra o limite atual de concorrência entre processos e da consulta Silver diante de uma nova versão Bronze na issue #300 (PR #297).
+
 ## [0.53.0] - 2026-11-10
 
 ### Adicionado
 
-- Escrita condicional (CAS) no trait `ArmazenamentoRaw` via `gravar_condicional`, fechando a janela TOCTOU na publicação de ponteiros (issue #300, PR #304).
+- Contrato de escrita condicional no trait `ArmazenamentoRaw` via `gravar_condicional`; o adaptador S3 ainda usa a implementação padrão sem atomicidade entre processos (issue #300, PR #304).
 - Validação de vigência do Bronze antes de publicar Silver via `SnapshotBronze::ainda_vigente()` (issue #300, PR #304).
-- Testes de duplicatas Bronze, race condition Bronze/Silver e linhagem na tarefa SQL (issue #300, PR #304).
+- Testes de duplicatas Bronze, mudança do ponteiro durante a transformação e linhagem na tarefa SQL (issue #300, PR #304).
 
 ## [0.52.0] - 2026-11-09
 
