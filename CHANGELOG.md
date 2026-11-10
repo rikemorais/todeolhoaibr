@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.55.0] - 2026-11-10
+
+### Adicionado
+
+- Fonte `remuneracao-municipal-tce-ce` para ingestão sob demanda dos totais agregados das folhas do TCE-CE, particionados por município na competência 2025-12 (issue #76, PR #314).
+
 ## [0.54.0] - 2026-11-10
 
 ### Adicionado
