@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.56.0] - 2026-11-10
+
+### Adicionado
+
+- Fonte `transparencia-beneficios` para ingestão sob demanda de Bolsa Família, Auxílio Brasil, Novo Bolsa Família e BPC/LOAS por município e competência, preservada na Raw (issue #52, PR #316).
+
 ## [0.55.0] - 2026-11-10
 
 ### Adicionado
