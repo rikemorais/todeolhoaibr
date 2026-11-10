@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErroExecutorSql"],"fn":["executar_sql","preparar_snapshot","preparar_snapshot_com_json_original","preparar_snapshot_com_json_string_original"],"struct":["ConfiguracaoExecutorSql","EntradaSqlPreparada"]};
+window.SIDEBAR_ITEMS = {"enum":["ErroExecutorSql"],"fn":["campos_linhagem","executar_sql","preparar_snapshot","preparar_snapshot_com_json_original","preparar_snapshot_com_json_string_original"],"struct":["ConfiguracaoExecutorSql","EntradaSqlPreparada"]};
