@@ -27,6 +27,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | Fonte | Recursos ingeridos | Documentação |
 | --- | --- | --- |
 | `ibge` | regiões, estados, municípios | [API de Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) |
+| `transparencia-beneficios` | Bolsa Família, Auxílio Brasil e BPC/LOAS por município e competência (sob demanda; requer token) | [doc da fonte](docs/fontes/beneficios-sociais.md) |
 | `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
 | `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
 | `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
@@ -39,7 +40,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 
 ## Como rodar
 
-Só é preciso ter o [Docker](https://docs.docker.com/get-docker/) com Compose. Nenhuma conta ou token é necessário.
+Só é preciso ter o [Docker](https://docs.docker.com/get-docker/) com Compose. As fontes anônimas não precisam de conta; `transparencia-beneficios` requer um token gratuito do Portal da Transparência.
 
 ```bash
 git clone https://github.com/rikemorais/todeolhoaibr.git
@@ -135,7 +136,7 @@ pesada na sua máquina, use `TODEOLHO_BUILD_JOBS=1`.
 
 ### Fontes com autenticação ou limite de taxa
 
-As fontes atuais são anônimas. Para uma fonte que exija token, o código declara em `perfil_http()`
+Para cada fonte que exija token, o código declara em `perfil_http()`
 o nome da variável de ambiente, o cabeçalho, o prefixo e o host autorizado. A CLI lê o valor
 da variável antes de executar a fonte e falha com o nome da variável se ela estiver ausente.
 O token deve ser obtido no portal da respectiva fonte, conforme a documentação dessa fonte,
