@@ -137,6 +137,7 @@ nav:
   - Fontes de dados:
       - fontes/pesquisa-remuneracao-estadual.md
       - fontes/remuneracao-estadual-mg.md
+      - fontes/remuneracao-estadual-go.md
       - fontes/pesquisa-remuneracao-municipal.md
       - fontes/remuneracao-municipal-tce-ce.md
       - fontes/ibge.md
