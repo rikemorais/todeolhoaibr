@@ -48,10 +48,11 @@ A unidade de publicação é a tabela Silver de um recurso. Partes e manifesto
 são gravados antes de seu ponteiro; falha ou cancelamento antes dessa troca
 mantém a versão vigente anterior. Tabelas irmãs oriundas do mesmo ZIP têm
 ponteiros independentes: se uma falhar, as já publicadas continuam válidas.
-O contrato alvo exige resultado observável por tabela, mesmo quando elas
-compartilhem uma invocação; atualmente há tarefas com um único status para
-duas saídas e invocações separadas sem registro pai comum. Até esse registro
-existir, o operador deve conferir o ponteiro de cada tabela e as execuções
+O contrato alvo exige resultado observável por tabela. A CLI de votações do
+Senado registra sessões e votos como tarefas separadas na mesma rodada. O
+construtor público legado ainda pode publicar ambas como uma tarefa; outros
+contratos irmãos podem rodar em invocações separadas, sem registro pai comum.
+Nesses casos, o operador deve conferir o ponteiro de cada tabela e as execuções
 individuais. Um consumidor que exija um snapshot conjunto deve esperar todas
 apontarem para a mesma versão Bronze; não se presume transação entre tabelas.
 Reprocessamento por nova versão Bronze ou nova regra conserva versões antigas
