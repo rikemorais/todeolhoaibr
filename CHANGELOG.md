@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.52.0] - 2026-11-09
+
+### Adicionado
+
+- Projeta colunas de linhagem Bronze (`_tdoa_origem_manifesto`, `_tdoa_origem_parte`, `_tdoa_origem_ordinal`) em toda saída Silver — 24 contratos SQL, 17 schemas e validação no publisher (issue #300, PR #303).
+
 ## [0.51.4] - 2026-11-09
 
 ### Documentação
