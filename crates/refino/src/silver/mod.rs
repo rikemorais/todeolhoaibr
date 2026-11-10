@@ -64,6 +64,10 @@ pub use camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
 pub use ibge_agregados::esquema_ibge_agregados;
 #[cfg(test)]
 pub use ibge_agregados::{ErroIbgeSilver, transformar_ibge_agregados};
+pub use ibge_estados::esquema_ibge_estados;
+pub use ibge_municipios::esquema_ibge_municipios;
+pub use ibge_regioes::esquema_ibge_regioes;
+pub use ipeadata::esquema_ipeadata;
 pub use senado_despesas::esquema_senado_despesas;
 #[cfg(test)]
 pub use senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
@@ -92,10 +96,6 @@ pub use tarefa_camara_legislaturas::{
 };
 pub use tarefa_camara_tramitacoes::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
-pub use ibge_estados::esquema_ibge_estados;
-pub use ibge_municipios::esquema_ibge_municipios;
-pub use ibge_regioes::esquema_ibge_regioes;
-pub use ipeadata::esquema_ipeadata;
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_ibge_localidades::{TarefaDeSilverIbgeLocalidades, TipoLocalidadeIbge};
 pub use tarefa_ipeadata::TarefaDeSilverIpeadata;
