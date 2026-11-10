@@ -352,6 +352,15 @@ mod testes {
             Some("16/11/2024".into()),
             Some("275,50".into()),
             Some("doação estimável retificada".into()),
+        ])
+        .com_linha([
+            Some("2024".into()),
+            Some("547".into()),
+            Some("123456789012345".into()),
+            Some("-1".into()),
+            Some("-1".into()),
+            Some("15,50".into()),
+            Some("data não informada".into()),
         ]);
         let conteudo = tabela.para_parquet().unwrap();
         let local = LocalizacaoRaw::nova(
@@ -593,9 +602,9 @@ mod testes {
             .build()
             .unwrap();
         let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
-        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 3);
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 4);
         let lote = &lotes[0];
-        assert_eq!(lote.num_rows(), 3);
+        assert_eq!(lote.num_rows(), 4);
         assert!(
             lote.column(0)
                 .as_any()
@@ -610,8 +619,11 @@ mod testes {
             .as_any()
             .downcast_ref::<UInt32Array>()
             .unwrap();
-        assert!(sequencias.is_null(0));
-        let mut sequencias_validas = [sequencias.value(1), sequencias.value(2)];
+        assert_eq!(sequencias.null_count(), 2);
+        let mut sequencias_validas = (0..sequencias.len())
+            .filter(|indice| !sequencias.is_null(*indice))
+            .map(|indice| sequencias.value(indice))
+            .collect::<Vec<_>>();
         sequencias_validas.sort_unstable();
         assert_eq!(sequencias_validas, [500, 500]);
         let datas = lote
@@ -619,8 +631,11 @@ mod testes {
             .as_any()
             .downcast_ref::<Date32Array>()
             .unwrap();
-        assert_eq!(datas.null_count(), 0);
-        let mut datas_desde_epoch = datas.values().to_vec();
+        assert_eq!(datas.null_count(), 1);
+        let mut datas_desde_epoch = (0..datas.len())
+            .filter(|indice| !datas.is_null(*indice))
+            .map(|indice| datas.value(indice))
+            .collect::<Vec<_>>();
         datas_desde_epoch.sort_unstable();
         let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
         let dia_15 = chrono::NaiveDate::from_ymd_opt(2024, 11, 15)
@@ -641,7 +656,7 @@ mod testes {
             .map(|indice| valores.value(indice))
             .collect::<Vec<_>>();
         valores_centavos.sort_unstable();
-        assert_eq!(valores_centavos, [12_345, 25_000, 27_550]);
+        assert_eq!(valores_centavos, [1_550, 12_345, 25_000, 27_550]);
         let ordinais = lote
             .column(9)
             .as_any()
@@ -649,7 +664,7 @@ mod testes {
             .unwrap();
         let mut ordinais_publicados = ordinais.values().to_vec();
         ordinais_publicados.sort_unstable();
-        assert_eq!(ordinais_publicados, [1, 2, 3]);
+        assert_eq!(ordinais_publicados, [1, 2, 3, 4]);
         let originais = lote
             .column(6)
             .as_any()
