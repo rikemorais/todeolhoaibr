@@ -11,7 +11,7 @@ pub fn esquema_tse_receitas_candidatos_2024() -> Arc<Schema> {
         Field::new("codigo_eleicao", DataType::Utf8, false),
         Field::new("sequencia_prestador", DataType::Utf8, false),
         Field::new("sequencia_receita", DataType::UInt32, true),
-        Field::new("data_receita", DataType::Date32, false),
+        Field::new("data_receita", DataType::Date32, true),
         Field::new("valor_receita", DataType::Decimal128(18, 2), false),
         Field::new("registro_original", DataType::Utf8, false),
         Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),

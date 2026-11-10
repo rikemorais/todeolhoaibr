@@ -15,7 +15,10 @@ WITH origem AS (
         END AS data_iso,
         regexp_replace(TRIM("VR_PAGTO_DESPESA"), ',', '.', 'g') AS valor_normalizado,
         _tdoa_json_original AS original,
-        sha256(_tdoa_json_original) AS original_sha256
+        sha256(_tdoa_json_original) AS original_sha256,
+        _tdoa_origem_manifesto,
+        _tdoa_origem_parte,
+        _tdoa_origem_ordinal
     FROM bronze
     WHERE regexp_like(upper(_tdoa_origem_url), 'DESPESAS_PAGAS_CANDIDATOS_2024_BRASIL([.]CSV|[.]TXT)?$')
 ), tipadas AS (
