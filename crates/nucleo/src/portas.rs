@@ -170,6 +170,31 @@ pub trait ArmazenamentoRaw: Send + Sync {
     async fn tamanho(&self, chave: &str) -> Result<Option<u64>, ErroDeIngestao> {
         Ok(self.ler(chave).await?.map(|conteudo| conteudo.len() as u64))
     }
+
+    /// Grava o objeto somente se o conteúdo vigente da chave corresponder ao
+    /// `conteudo_vigente` informado (compare-and-swap).
+    ///
+    /// - `conteudo_vigente = None`: grava somente se a chave **não** existe.
+    /// - `conteudo_vigente = Some(bytes)`: grava somente se o conteúdo lido é `bytes`.
+    ///
+    /// Devolve `true` se gravou, `false` se a pré-condição falhou (conflito).
+    ///
+    /// A implementação padrão lê, compara e grava sem atomicidade entre processos;
+    /// adaptadores devem sobrescrever quando o backend suportar escrita condicional
+    /// (e.g. S3 `If-Match`).
+    async fn gravar_condicional(
+        &self,
+        objeto: ObjetoRaw,
+        conteudo_vigente: Option<&[u8]>,
+    ) -> Result<bool, ErroDeIngestao> {
+        let atual = self.ler(&objeto.chave).await?;
+        if atual.as_deref() == conteudo_vigente {
+            self.gravar(objeto).await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 /// Resposta bem-sucedida de uma API.

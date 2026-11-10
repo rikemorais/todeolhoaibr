@@ -43,6 +43,9 @@ pub fn esquema_camara_deputados() -> Arc<Schema> {
         Field::new("id_legislatura", DataType::Utf8, false),
         Field::new("url_foto", DataType::Utf8, true),
         Field::new("email", DataType::Utf8, true),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -104,10 +107,11 @@ pub fn transformar_camara_deputados(
             return Err(ErroCamaraDeputadosSilver::IdDuplicado { linha });
         }
     }
-    let saida: Vec<Arc<dyn Array>> = arrays
+    let mut saida: Vec<Arc<dyn Array>> = arrays
         .iter()
         .map(|array| Arc::new((*array).clone()) as Arc<dyn Array>)
         .collect();
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
     RecordBatch::try_new(esquema_camara_deputados(), saida)
         .map_err(|_| ErroCamaraDeputadosSilver::Schema)
 }

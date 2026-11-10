@@ -4,7 +4,10 @@ WITH contadas AS (
     SELECT *, COUNT(*) OVER (PARTITION BY "idVotacao", deputado_id) AS __tdoa_contagem_chave
     FROM bronze
 )
-SELECT {{COLUNAS_BRONZE}}
+SELECT {{COLUNAS_BRONZE}},
+    origem._tdoa_origem_manifesto,
+    origem._tdoa_origem_parte,
+    origem._tdoa_origem_ordinal
 FROM contadas AS origem
 WHERE tdoa_assert_true(
     origem."idVotacao" IS NULL

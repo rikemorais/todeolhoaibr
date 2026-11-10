@@ -52,6 +52,9 @@ pub fn esquema_camara_tramitacoes() -> Arc<Schema> {
         Field::new("descricao_tramitacao", DataType::Utf8, true),
         Field::new("despacho", DataType::Utf8, true),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -153,25 +156,24 @@ pub fn transformar_camara_tramitacoes(
             None => Arc::new(StringArray::new_null(lote.num_rows())),
         }
     };
-    RecordBatch::try_new(
-        esquema_camara_tramitacoes(),
-        vec![
-            Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
-            Arc::new(StringArray::from(uri_proposicao)),
-            Arc::new(UInt32Array::from(sequencias)),
-            Arc::new(TimestampMicrosecondArray::from(datas_horas)),
-            texto(3),
-            texto(4),
-            texto(5),
-            texto(6),
-            texto(7),
-            texto(8),
-            texto(9),
-            texto(10),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroCamaraTramitacoesSilver::Schema)
+    let mut saida: Vec<Arc<dyn Array>> = vec![
+        Arc::new(UInt16Array::from_value(ano, lote.num_rows())),
+        Arc::new(StringArray::from(uri_proposicao)),
+        Arc::new(UInt32Array::from(sequencias)),
+        Arc::new(TimestampMicrosecondArray::from(datas_horas)),
+        texto(3),
+        texto(4),
+        texto(5),
+        texto(6),
+        texto(7),
+        texto(8),
+        texto(9),
+        texto(10),
+        Arc::new(StringArray::from(originais)),
+    ];
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
+    RecordBatch::try_new(esquema_camara_tramitacoes(), saida)
+        .map_err(|_| ErroCamaraTramitacoesSilver::Schema)
 }
 
 #[cfg(test)]

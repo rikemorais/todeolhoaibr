@@ -16,5 +16,8 @@ SELECT
     NULLIF(TRIM("siglaUf"), '') AS sigla_uf,
     NULLIF(TRIM("idLegislatura"), '') AS id_legislatura,
     "urlFoto" AS url_foto,
-    email
+    email,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM classificados
