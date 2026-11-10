@@ -267,7 +267,11 @@ impl Tarefa for TarefaDeBronze {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        publicar_ponteiro(bronze, &self.fonte, &self.recurso, &ponteiro).await?;
+        if !publicar_ponteiro(bronze, &self.fonte, &self.recurso, &ponteiro).await? {
+            return Err(self.erro_manifesto(
+                "ponteiro Bronze mais recente preservado; esta execução não foi publicada".into(),
+            ));
+        }
 
         Ok(ResumoDaTarefa {
             partes: partes.len(),
@@ -415,9 +419,11 @@ mod testes {
     }
 
     fn contexto(bronze: Arc<dyn ArmazenamentoRaw>, id: &str) -> ContextoDeExecucao {
+        let ordem = id.trim_start_matches("BR").parse::<i64>().unwrap_or(0);
         ContextoDeExecucao {
             id_execucao: id.into(),
-            iniciada_em: Utc.with_ymd_and_hms(2026, 11, 3, 12, 0, 0).unwrap(),
+            iniciada_em: Utc.with_ymd_and_hms(2026, 11, 3, 12, 0, 0).unwrap()
+                + chrono::TimeDelta::seconds(ordem),
             armazenamento: bronze,
             http: Arc::new(HttpInerte),
             progresso: None,
