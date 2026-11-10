@@ -1888,8 +1888,7 @@
 <strong>Escopo:</strong> portais estaduais oficiais e seus próprios catálogos de dados. Esta é uma triagem documental, não uma validação de integração ou de cobertura de todos os poderes e entidades.</p>
 <h2 id="resumo">Resumo<a class="headerlink" href="#resumo" title="Permanent link">&para;</a></h2>
 <p>Há fontes oficiais com exportação estruturada confirmada em diversos estados, mas as evidências públicas variam: algumas páginas documentam CSV/API e atualização; outras apenas comprovam que existe consulta de remuneração. “Não verificado” significa que não encontrei confirmação oficial suficiente nesta pesquisa, e não que o portal não tenha exportação.</p>
-<p><strong>Minas Gerais (MG)</strong> foi a primeira fonte implementada. <strong>Goiás (GO)</strong> é a próxima: o CKAN confirma <code>CC-BY</code>, arquivos CSV mensais de aproximadamente 35,5–36,1 MiB e ZIPs anuais. A consulta de metadados em 10/11/2026 mostra o conjunto modificado em 26/09/2026 e recursos mensais somente até agosto/2026; portanto a seleção deve seguir a competência realmente listada, sem presumir atualização no mês corrente. Consultei apenas os metadados, sem baixar CSVs ou ZIPs. Rondônia permanece alternativa, mas sua licença de portal BY-ND 3.0 e o endpoint dos botões ainda precisam de confirmação específica para os dados.</p>
-<p>Goiás é uma alternativa promissora, com CSV mensal, histórico em ZIP e licença Creative Commons Atribuição. Porém, a página oficial do conjunto indica “frequência mensal” e “última atualização” em 05/09/2025, enquanto resultados atuais do portal exibiam recursos de 2026. Como os metadados e os recursos observados não concordam, a atualidade do catálogo precisa ser revalidada antes de adotá-lo como primeiro adaptador.</p>
+<p><strong>Minas Gerais (MG)</strong> e <strong>Goiás (GO)</strong> já têm ingestão sob demanda implementada, respectivamente nas PRs #324 e #326. Em 10/11/2026, a listagem CKAN de GO mostrava CSVs mensais até agosto/2026; a fonte escolhe o recurso mais recente realmente listado, sem presumir atualização no mês corrente. Consultei apenas metadados, sem baixar CSVs ou ZIPs. O Paraná (PR) confirma CSV mensal e uso livre em FAQ oficial, mas ainda não documenta um contrato reproduzível para automatizar o download nem licença específica para derivados; veja a <a href="../pesquisa-remuneracao-estadual-pr/">pesquisa do Paraná</a>. Rondônia continua condicionada à confirmação do endpoint e da licença dos arquivos.</p>
 <h2 id="matriz-por-uf">Matriz por UF<a class="headerlink" href="#matriz-por-uf" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1953,7 +1952,7 @@
 <td>GO</td>
 <td>O <a href="https://dadosabertos.go.gov.br/dataset/folha-de-pagamento">conjunto Folha de Pagamento — SEAD</a> declara licença Creative Commons Atribuição. O <a href="https://dadosabertos.go.gov.br/api/3/action/package_show?id=folha-de-pagamento">CKAN <code>package_show</code></a>, consultado em 10/11/2026, lista CSVs mensais de janeiro a agosto/2026 (35,5–36,1 MiB) e ZIPs anuais de 2018 a 2025. <code>metadata_modified</code> é 26/09/2026 e o recurso mais recente listado é agosto/2026.</td>
 <td>CSV mensal e ZIP histórico; CKAN; licença <code>CC-BY</code>. Metadados consultados sem baixar arquivos.</td>
-<td><strong>Pronta para integração inicial.</strong> A atualização é mensal, mas o catálogo estava sem setembro/outubro na verificação. A fonte contém nomes e remunerações individualizadas; preservar opaca na Raw.</td>
+<td><strong>Implementada na PR #326.</strong> Sob demanda, escolhe o CSV mais recente listado e preserva o arquivo opaco na Raw. Setembro e outubro não constavam na verificação.</td>
 </tr>
 <tr>
 <td>MA</td>
@@ -1993,9 +1992,9 @@
 </tr>
 <tr>
 <td>PR</td>
-<td><a href="https://www.transparencia.pr.gov.br/pte/pessoal/servidores/poderexecutivo/remuneracao">Remuneração do Poder Executivo — Portal da Transparência do Paraná</a> documenta consulta mensal e download aberto em CSV.</td>
-<td>CSV mensal confirmado.</td>
-<td><strong>Confirmado; atualidade da competência não verificada nesta pesquisa.</strong> Escopo indicado: Executivo estadual.</td>
+<td><a href="https://www.transparencia.pr.gov.br/pte/pessoal/servidores/poderexecutivo/remuneracao">Remuneração do Poder Executivo — Portal da Transparência do Paraná</a> documenta consulta mensal e download aberto em CSV; a <a href="https://www.cge.pr.gov.br/Pagina/Perguntas-Frequentes">FAQ da CGE-PR</a> informa uso livre e recomenda UTF-8.</td>
+<td>CSV mensal selecionado por mês/ano na interface.</td>
+<td><strong>Candidato, ainda não pronto para automatizar.</strong> URL/contrato técnico, competência atual, esquema e licença formal para derivados não confirmados. Detalhes em <a href="../pesquisa-remuneracao-estadual-pr/">pesquisa do Paraná</a>.</td>
 </tr>
 <tr>
 <td>PE</td>
@@ -2067,11 +2066,11 @@
 </table>
 <h2 id="recomendacao-de-prioridade">Recomendação de prioridade<a class="headerlink" href="#recomendacao-de-prioridade" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>MG — primeira fonte a implementar.</strong> O catálogo publica CSV mensal com endpoint de download identificável, licença CC-BY-4.0 e recurso de 09/2026 atualizado em 28/10/2026. A documentação oficial fornece informação de esquema e evolução, mas não substitui checagem segura do cabeçalho atual. Antes da integração, mapear somente cabeçalho/tipos sem salvar linhas, tratar nome/MASP como identificadores pessoais, e fazer leitura incremental/streaming: o recurso indicado tem 217,4 MiB. Os arquivos anteriores a 2021 usam leiaute legado.</li>
-<li><strong>GO — segunda fonte a implementar.</strong> O CKAN oficial declara CC-BY e lista CSV mensais de até cerca de 36 MiB, além de ZIPs anuais. Em 10/11/2026, o recurso mais recente era agosto/2026, apesar de a consulta ocorrer em novembro. Usar somente o CSV mensal mais recente listado e ingestão streaming; não presumir que o catálogo já contém a competência corrente.</li>
+<li><strong>MG e GO — implementadas.</strong> Os adaptadores ficam fora de <code>--todas</code>, usam execução sob demanda e preservam o arquivo fonte opaco na Raw. MG está na PR #324; GO, na #326.</li>
 <li><strong>RO — alternativa condicionada.</strong> Confirma CSV/XLS, SEGEP-RO e competência de 10/2026, mas o endpoint dos botões não foi identificado e a licença do portal aparece como CC BY-ND 3.0, sem esclarecer se as planilhas de remuneração estão cobertas. Confirmar endpoint e licença com a CGE-RO antes de transformar/republicar.</li>
+<li><strong>PR — candidato estruturado, sem contrato automatizável confirmado.</strong> O portal oferece CSV mensal e a FAQ permite uso livre em termos gerais, mas faltam URL/API documentada, competência mais recente comprovada e licença específica para derivados. Não inferir endpoint a partir de tráfego do navegador; pedir esclarecimento à CGE-PR antes de implementar. Consulte a <a href="../pesquisa-remuneracao-estadual-pr/">nota de pesquisa do Paraná</a>.</li>
 <li><strong>AL — candidato futuro.</strong> Documenta API JSON e exportação CSV, mas atualidade e estabilidade específica dos endpoints de pessoal ainda precisam ser aferidas.</li>
-<li><strong>PB ou PR — próximos candidatos.</strong> PB mostra fonte API e competência recente, mas requer descoberta do esquema/endpoint. PR declara CSV aberto para remuneração do Executivo.</li>
+<li><strong>PB — candidato futuro.</strong> O portal identifica uma API e competência recente, mas endpoint e esquema ainda precisam de confirmação.</li>
 <li><strong>SE — manter pendente.</strong> A API é oficial e estruturada, mas o contrato atual exige pesquisa por nome, sem endpoint documentado de exportação integral.</li>
 </ol>
 <h2 id="limites-privacidade-e-licenca">Limites, privacidade e licença<a class="headerlink" href="#limites-privacidade-e-licenca" title="Permanent link">&para;</a></h2>
@@ -2090,8 +2089,9 @@
 <li><strong>PI:</strong> exportação Excel consta em manual cuja versão/validade atual não foi confirmada.</li>
 <li><strong>AM, PA e PB:</strong> API é citada por fonte oficial, mas endpoint/esquema da remuneração não foram integralmente conferidos.</li>
 <li><strong>SE:</strong> o OpenAPI define endpoint e paginação, mas exige filtro de nome; a data da última competência disponível não ficou estabelecida e não há listagem integral documentada.</li>
-<li><strong>AL, PR, RS, SP:</strong> formato estruturado é documentado, porém esta pesquisa não aferiu atualização da folha/arquivo de cada um na competência corrente.</li>
-<li><strong>AC, AP, BA, CE, DF, ES, MA, MT, MS, MG, PE, RJ, RN, RR e TO:</strong> a confirmação de consulta de pessoal, quando indicada, não confirma ausência de API/exportação; os formatos precisam de investigação adicional.</li>
+<li><strong>AL, RS e SP:</strong> formato estruturado é documentado, porém esta pesquisa não aferiu atualização da folha/arquivo de cada um na competência corrente.</li>
+<li><strong>PR:</strong> exportação CSV mensal e uso livre geral foram confirmados, mas faltam contrato automatizável, competência atual e condições formais de derivados; ver <a href="../pesquisa-remuneracao-estadual-pr/">nota específica</a>.</li>
+<li><strong>AC, AP, BA, CE, DF, ES, MA, MT, MS, PE, RJ, RN, RR e TO:</strong> a confirmação de consulta de pessoal, quando indicada, não confirma ausência de API/exportação; os formatos precisam de investigação adicional.</li>
 </ul>
 
 
