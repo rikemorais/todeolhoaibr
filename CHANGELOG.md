@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.58.0] - 2026-11-10
+
+### Adicionado
+
+- Fonte `remuneracao-estadual-mg` para ingestão sob demanda do CSV mensal mais recente de remuneração do Executivo de Minas Gerais, preservado em fluxo na Raw (issue #75, PR #324). A cobertura do subsídio do governador e das demais UFs continua pendente.
+
 ## [0.57.0] - 2026-11-10
 
 ### Adicionado
