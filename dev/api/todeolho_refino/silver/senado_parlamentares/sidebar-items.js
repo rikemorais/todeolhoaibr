@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErroSenadoParlamentaresSilver"],"fn":["esquema_senado_parlamentares","transformar_senado_parlamentares"]};
+window.SIDEBAR_ITEMS = {"fn":["esquema_senado_parlamentares"]};

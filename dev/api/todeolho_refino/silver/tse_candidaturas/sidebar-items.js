@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErroTseCandidaturasSilver"],"fn":["esquema_tse_candidaturas","transformar_tse_candidaturas"]};
+window.SIDEBAR_ITEMS = {"fn":["esquema_tse_candidaturas"]};

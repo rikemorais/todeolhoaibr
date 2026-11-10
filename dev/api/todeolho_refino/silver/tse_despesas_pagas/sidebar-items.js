@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErroTseDespesasPagasSilver"],"fn":["esquema_tse_despesas_pagas_2024","transformar_tse_despesas_pagas_2024"],"struct":["EstadoDeChavesDeDespesasPagas"]};
+window.SIDEBAR_ITEMS = {"fn":["esquema_tse_despesas_pagas_2024"]};
