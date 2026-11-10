@@ -2,13 +2,18 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{Array, StringArray, UInt32Array};
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use arrow::record_batch::RecordBatch;
+#[cfg(test)]
 use serde_json::Value;
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao expandir a lista aninhada de votos do Senado.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroSenadoVotosSilver {
     /// O Bronze não contém as colunas esperadas ou não as armazena como texto.
@@ -61,6 +66,7 @@ pub fn esquema_senado_votos() -> Arc<Schema> {
 }
 
 /// Expande cada elemento do array `votos` para uma linha, sem filtrar nem agregar votos.
+#[cfg(test)]
 pub fn transformar_senado_votos(lote: &RecordBatch) -> Result<RecordBatch, ErroSenadoVotosSilver> {
     let schema = lote.schema();
     let indice_sessao = indice_coluna(
@@ -164,6 +170,7 @@ pub fn transformar_senado_votos(lote: &RecordBatch) -> Result<RecordBatch, ErroS
     RecordBatch::try_new(esquema_senado_votos(), colunas).map_err(|_| ErroSenadoVotosSilver::Schema)
 }
 
+#[cfg(test)]
 fn registros_de_votos(json: &Value) -> Option<Vec<&Value>> {
     let envelope = json
         .get("Votos")
@@ -185,6 +192,7 @@ fn registros_de_votos(json: &Value) -> Option<Vec<&Value>> {
     }
 }
 
+#[cfg(test)]
 fn indice_coluna(schema: &Schema, nomes: &[&str]) -> Result<usize, ErroSenadoVotosSilver> {
     nomes
         .iter()
@@ -192,6 +200,7 @@ fn indice_coluna(schema: &Schema, nomes: &[&str]) -> Result<usize, ErroSenadoVot
         .ok_or(ErroSenadoVotosSilver::Schema)
 }
 
+#[cfg(test)]
 fn campo(objeto: &Value, nomes: &[&str]) -> Option<String> {
     nomes.iter().find_map(|nome| {
         objeto.get(*nome).and_then(|valor| match valor {

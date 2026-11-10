@@ -1,16 +1,21 @@
 //! Contrato Silver dos bens declarados pelos candidatos do TSE.
 
+#[cfg(test)]
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[cfg(test)]
 use arrow::array::{
     Array, Date32Array, Decimal128Array, RecordBatch, StringArray, UInt16Array, UInt32Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(test)]
 use chrono::{Datelike, NaiveDate};
+#[cfg(test)]
 use thiserror::Error;
 
 /// Erros ao transformar bens declarados.
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ErroTseBensSilver {
     /// O Parquet Bronze não tem os campos textuais esperados.
@@ -70,6 +75,7 @@ pub fn esquema_tse_bens() -> Arc<Schema> {
 }
 
 /// Normaliza a chave do bem, tipa ordem, datas e valor e preserva os campos de origem.
+#[cfg(test)]
 pub fn transformar_tse_bens(
     lote: &RecordBatch,
     ano: u16,
@@ -176,6 +182,7 @@ pub fn transformar_tse_bens(
     RecordBatch::try_new(esquema_tse_bens(), cols).map_err(|_| ErroTseBensSilver::Schema)
 }
 
+#[cfg(test)]
 fn coluna_obrigatoria<'a>(
     lote: &'a RecordBatch,
     nomes: &[&str],
@@ -183,6 +190,7 @@ fn coluna_obrigatoria<'a>(
     coluna_opcional(lote, nomes)?.ok_or(ErroTseBensSilver::Schema)
 }
 
+#[cfg(test)]
 fn coluna_opcional<'a>(
     lote: &'a RecordBatch,
     nomes: &[&str],
@@ -200,6 +208,7 @@ fn coluna_opcional<'a>(
         .ok_or(ErroTseBensSilver::Schema)
 }
 
+#[cfg(test)]
 fn texto_obrigatorio<'a>(
     coluna: &'a StringArray,
     linha: usize,
@@ -211,6 +220,7 @@ fn texto_obrigatorio<'a>(
     Ok(coluna.value(linha).trim())
 }
 
+#[cfg(test)]
 fn parse_data(coluna: Option<&StringArray>, linha: usize, ano: u16) -> Option<i32> {
     let coluna = coluna?;
     if coluna.is_null(linha) {
@@ -227,6 +237,7 @@ fn parse_data(coluna: Option<&StringArray>, linha: usize, ano: u16) -> Option<i3
     Some(data.signed_duration_since(epoch).num_days() as i32)
 }
 
+#[cfg(test)]
 fn parse_decimal(
     coluna: Option<&StringArray>,
     linha: usize,
@@ -242,6 +253,7 @@ fn parse_decimal(
         .ok_or(ErroTseBensSilver::Valor { linha })
 }
 
+#[cfg(test)]
 fn decimal_escalado(texto: &str) -> Option<i128> {
     let (negativo, numero) = texto
         .strip_prefix('-')
@@ -274,12 +286,14 @@ fn decimal_escalado(texto: &str) -> Option<i128> {
     }
 }
 
+#[cfg(test)]
 fn decimal_array(valores: Vec<Option<i128>>) -> Result<Decimal128Array, ErroTseBensSilver> {
     Decimal128Array::from(valores)
         .with_precision_and_scale(18, 2)
         .map_err(|_| ErroTseBensSilver::Schema)
 }
 
+#[cfg(test)]
 fn registro_original(lote: &RecordBatch, linha: usize) -> Result<String, ErroTseBensSilver> {
     let mut original = serde_json::Map::new();
     for (indice, campo) in lote.schema().fields().iter().enumerate() {

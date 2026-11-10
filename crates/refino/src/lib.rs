@@ -56,11 +56,13 @@ pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
 #[cfg(test)]
 pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
 pub use silver::publicar_bcb_sgs;
-pub use silver::senado_despesas::{
-    ErroSenadoDespesasSilver, esquema_senado_despesas, transformar_senado_despesas,
-};
+pub use silver::senado_despesas::esquema_senado_despesas;
+#[cfg(test)]
+pub use silver::senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
+pub use silver::senado_parlamentares::esquema_senado_parlamentares;
+#[cfg(test)]
 pub use silver::senado_parlamentares::{
-    ErroSenadoParlamentaresSilver, esquema_senado_parlamentares, transformar_senado_parlamentares,
+    ErroSenadoParlamentaresSilver, transformar_senado_parlamentares,
 };
 pub use silver::senado_processos::esquema_senado_processos;
 #[cfg(test)]
@@ -70,22 +72,26 @@ pub use silver::senado_processos_detalhes::esquema_senado_processos_detalhes;
 pub use silver::senado_processos_detalhes::{
     ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
 };
+#[cfg(test)]
 pub use silver::senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
-pub use silver::senado_votos::{
-    ErroSenadoVotosSilver, esquema_senado_votos, transformar_senado_votos,
-};
+pub use silver::senado_votos::esquema_senado_votos;
+#[cfg(test)]
+pub use silver::senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
-pub use silver::tse_bens::{ErroTseBensSilver, esquema_tse_bens, transformar_tse_bens};
-pub use silver::tse_candidaturas::{
-    ErroTseCandidaturasSilver, esquema_tse_candidaturas, transformar_tse_candidaturas,
-};
+pub use silver::tse_bens::esquema_tse_bens;
+#[cfg(test)]
+pub use silver::tse_bens::{ErroTseBensSilver, transformar_tse_bens};
+pub use silver::tse_candidaturas::esquema_tse_candidaturas;
+#[cfg(test)]
+pub use silver::tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
+pub use silver::tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
+#[cfg(test)]
 pub use silver::tse_despesas_pagas::{
-    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, esquema_tse_despesas_pagas_2024,
-    transformar_tse_despesas_pagas_2024,
+    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, transformar_tse_despesas_pagas_2024,
 };
-pub use silver::tse_votacao_secao::{
-    ErroTseVotacaoSecaoSilver, esquema_tse_votacao_secao, transformar_tse_votacao_secao,
-};
+pub use silver::tse_votacao_secao::esquema_tse_votacao_secao;
+#[cfg(test)]
+pub use silver::tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
 pub use silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
 pub use silver::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
 pub use silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
