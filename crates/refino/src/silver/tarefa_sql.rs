@@ -109,7 +109,10 @@ mod testes {
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use arrow::array::{Int64Array, StringArray, UInt64Array};
+    use arrow::array::{
+        Array, Date32Array, Decimal128Array, Int64Array, StringArray, UInt16Array, UInt32Array,
+        UInt64Array,
+    };
     use arrow::datatypes::{DataType, Field, Schema};
     use async_trait::async_trait;
     use bytes::Bytes;
@@ -128,6 +131,7 @@ mod testes {
     use crate::{
         SnapshotBronze, Tabela,
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
+        silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
     };
 
     const FONTE: &str = "teste-sql";
@@ -311,6 +315,113 @@ mod testes {
             .unwrap()
     }
 
+    async fn preparar_snapshot_receitas(bronze: &Memoria) -> SnapshotBronze {
+        let instante = Utc.with_ymd_and_hms(2026, 11, 10, 12, 0, 0).unwrap();
+        let tabela = Tabela::nova([
+            "AA_ELEICAO",
+            "CD_ELEICAO",
+            "SQ_PRESTADOR_CONTAS",
+            "SQ_RECEITA",
+            "DT_RECEITA",
+            "VR_RECEITA",
+            "DS_RECEITA",
+        ])
+        .com_linha([
+            Some("2024".into()),
+            Some("547".into()),
+            Some("123456789012345".into()),
+            Some("-1".into()),
+            Some("15/11/2024".into()),
+            Some("123,45".into()),
+            Some("recurso sem sequência".into()),
+        ])
+        .com_linha([
+            Some("2024".into()),
+            Some("547".into()),
+            Some("123456789012345".into()),
+            Some("500".into()),
+            Some("16/11/2024".into()),
+            Some("250,00".into()),
+            Some("doação estimável".into()),
+        ])
+        .com_linha([
+            Some("2024".into()),
+            Some("547".into()),
+            Some("123456789012345".into()),
+            Some("500".into()),
+            Some("16/11/2024".into()),
+            Some("275,50".into()),
+            Some("doação estimável retificada".into()),
+        ])
+        .com_linha([
+            Some("2024".into()),
+            Some("547".into()),
+            Some("123456789012345".into()),
+            Some("-1".into()),
+            Some("-1".into()),
+            Some("15,50".into()),
+            Some("data não informada".into()),
+        ]);
+        let conteudo = tabela.para_parquet().unwrap();
+        let local = LocalizacaoRaw::nova(
+            "tse",
+            "prestacao-contas/ano=2024",
+            instante,
+            "bronze-receitas",
+        );
+        let parte = ParteRaw {
+            chave: local.parte(1, "parquet"),
+            url: "https://dados.tse.jus.br/receitas_candidatos_2024_BRASIL.csv".into(),
+            bytes: conteudo.len() as u64,
+            sha256: hex::encode(Sha256::digest(&conteudo)),
+            tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+            versao: Some("bronze-receitas".into()),
+        };
+        bronze
+            .gravar(ObjetoRaw {
+                chave: parte.chave.clone(),
+                conteudo,
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+            })
+            .await
+            .unwrap();
+        let manifesto = ManifestoRaw {
+            fonte: "tse".into(),
+            recurso: "prestacao-contas/ano=2024".into(),
+            id_execucao: "bronze-receitas".into(),
+            url_inicial: "fixture".into(),
+            iniciada_em: instante,
+            concluida_em: instante,
+            partes: vec![parte],
+        };
+        let chave_manifesto = local.manifesto();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: chave_manifesto.clone(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao("tse", "prestacao-contas/ano=2024"),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some("bronze-receitas".into()),
+                    manifesto: chave_manifesto,
+                    iniciada_em: Some(instante),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        SnapshotBronze::vigente(bronze, "tse", "prestacao-contas/ano=2024")
+            .await
+            .unwrap()
+            .unwrap()
+    }
+
     fn esquema_saida() -> SchemaRef {
         Arc::new(Schema::new(vec![
             Field::new("id", DataType::Int64, true),
@@ -449,6 +560,123 @@ mod testes {
         assert_eq!(
             bronze.leituras_de_partes.load(Ordering::Relaxed),
             leituras_antes
+        );
+    }
+
+    #[tokio::test]
+    async fn receitas_tse_preserva_variantes_e_tipa_sentinelas_e_valores() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas(&bronze).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_candidatos_2024(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-receitas",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2024/receitas-candidatos",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 4);
+        let lote = &lotes[0];
+        assert_eq!(lote.num_rows(), 4);
+        assert!(
+            lote.column(0)
+                .as_any()
+                .downcast_ref::<UInt16Array>()
+                .unwrap()
+                .values()
+                .iter()
+                .all(|ano| *ano == 2024)
+        );
+        let sequencias = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 2);
+        let mut sequencias_validas = (0..sequencias.len())
+            .filter(|indice| !sequencias.is_null(*indice))
+            .map(|indice| sequencias.value(indice))
+            .collect::<Vec<_>>();
+        sequencias_validas.sort_unstable();
+        assert_eq!(sequencias_validas, [500, 500]);
+        let datas = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 1);
+        let mut datas_desde_epoch = (0..datas.len())
+            .filter(|indice| !datas.is_null(*indice))
+            .map(|indice| datas.value(indice))
+            .collect::<Vec<_>>();
+        datas_desde_epoch.sort_unstable();
+        let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let dia_15 = chrono::NaiveDate::from_ymd_opt(2024, 11, 15)
+            .unwrap()
+            .signed_duration_since(epoch)
+            .num_days() as i32;
+        let dia_16 = chrono::NaiveDate::from_ymd_opt(2024, 11, 16)
+            .unwrap()
+            .signed_duration_since(epoch)
+            .num_days() as i32;
+        assert_eq!(datas_desde_epoch, [dia_15, dia_16, dia_16]);
+        let valores = lote
+            .column(5)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        let mut valores_centavos = (0..valores.len())
+            .map(|indice| valores.value(indice))
+            .collect::<Vec<_>>();
+        valores_centavos.sort_unstable();
+        assert_eq!(valores_centavos, [1_550, 12_345, 25_000, 27_550]);
+        let ordinais = lote
+            .column(9)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3, 4]);
+        let originais = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        let conteudo_original = (0..originais.len())
+            .map(|indice| originais.value(indice))
+            .collect::<Vec<_>>();
+        assert!(
+            conteudo_original
+                .iter()
+                .any(|linha| linha.contains("doação estimável retificada"))
         );
     }
 

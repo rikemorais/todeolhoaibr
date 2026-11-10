@@ -79,6 +79,9 @@ pub use silver::senado_votos::esquema_senado_votos;
 #[cfg(test)]
 pub use silver::senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
+pub use silver::tarefa_tse_receitas_candidatos::{
+    TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
+};
 pub use silver::tse_bens::esquema_tse_bens;
 #[cfg(test)]
 pub use silver::tse_bens::{ErroTseBensSilver, transformar_tse_bens};
@@ -90,6 +93,7 @@ pub use silver::tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
 pub use silver::tse_despesas_pagas::{
     ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, transformar_tse_despesas_pagas_2024,
 };
+pub use silver::tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
 pub use silver::tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
 pub use silver::tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
