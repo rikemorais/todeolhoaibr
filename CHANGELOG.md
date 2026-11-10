@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.57.0] - 2026-11-10
+
+### Adicionado
+
+- Fonte `transparencia-servidores-ativos` para ingestão mensal sob demanda de arquivos SIAPE e BACEN de remuneração de servidores civis ativos do Executivo Federal, preservados na Raw (issue #74, PR #320).
+
 ## [0.56.0] - 2026-11-10
 
 ### Adicionado
