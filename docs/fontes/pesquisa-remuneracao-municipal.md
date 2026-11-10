@@ -2,7 +2,7 @@
 
 **Issue:** [#76](https://github.com/rikemorais/todeolhoaibr/issues/76)  
 **Data da pesquisa:** 2026-11-10  
-**Estado:** cobertura do TCE-CE validada e ingestão agregada da competência 2025-12 implementada para 184 municípios; comparação com fontes municipais ainda pendente.
+**Estado:** cobertura do TCE-CE validada e ingestão agregada da competência 2025-12 executada para 184 municípios no bucket local `sandbox`; comparação com fontes municipais ainda pendente.
 
 ## Resumo
 
@@ -81,8 +81,10 @@ definida antes de persistir essas respostas na Raw.
 
 O adaptador de folhas agregadas do TCE-CE foi implementado para a competência
 2025-12, particionado por município e com manifesto próprio; consulte a
-[documentação da fonte](remuneracao-municipal-tce-ce.md). A execução em produção
-precisa confirmar conectividade e completude das páginas. O CSV de Fortaleza
+[documentação da fonte](remuneracao-municipal-tce-ce.md). A execução local no
+bucket `sandbox` concluiu 184/184 municípios, com uma página e um manifesto por
+município. A conectividade do runtime de produção ainda precisa ser confirmada.
+O CSV de Fortaleza
 continua sendo uma fonte independente para comparação, mas os totais não devem
 ser reconciliados até alinhar órgão/unidade e categorias. Depois desses controles,
 avaliar outras capitais sem presumir que compartilham um esquema.
