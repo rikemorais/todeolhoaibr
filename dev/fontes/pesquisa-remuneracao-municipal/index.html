@@ -18,7 +18,7 @@
         <link rel="prev" href="../../refino/pesquisa-tse-2016-2022/">
       
       
-        <link rel="next" href="../ibge/">
+        <link rel="next" href="../remuneracao-municipal-tce-ce/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1189,6 +1189,8 @@
       
         
       
+        
+      
     
     
       
@@ -1314,9 +1316,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decisao-proposta" class="md-nav__link">
+  <a href="#decisao-e-proximos-passos" class="md-nav__link">
     <span class="md-ellipsis">
-      Decisão proposta
+      Decisão e próximos passos
     </span>
   </a>
   
@@ -1335,6 +1337,27 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remuneracao-municipal-tce-ce/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte remuneracao-municipal-tce-ce — folhas municipais agregadas
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1723,9 +1746,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decisao-proposta" class="md-nav__link">
+  <a href="#decisao-e-proximos-passos" class="md-nav__link">
     <span class="md-ellipsis">
-      Decisão proposta
+      Decisão e próximos passos
     </span>
   </a>
   
@@ -1766,7 +1789,7 @@
 <h1 id="pesquisa-inicial-remuneracao-municipal">Pesquisa inicial: remuneração municipal<a class="headerlink" href="#pesquisa-inicial-remuneracao-municipal" title="Permanent link">&para;</a></h1>
 <p><strong>Issue:</strong> <a href="https://github.com/rikemorais/todeolhoaibr/issues/76">#76</a><br />
 <strong>Data da pesquisa:</strong> 2026-11-10<br />
-<strong>Estado:</strong> TCE-CE validado como fonte candidata; ingestão ainda não ativada.</p>
+<strong>Estado:</strong> cobertura do TCE-CE validada e ingestão agregada da competência 2025-12 implementada para 184 municípios; comparação com fontes municipais ainda pendente.</p>
 <h2 id="resumo">Resumo<a class="headerlink" href="#resumo" title="Permanent link">&para;</a></h2>
 <p>O melhor primeiro agregador é o Sistema de Informações Municipais do TCE-CE:
 na competência 2025-12, retornou ao menos uma folha para todos os 184 municípios
@@ -1856,14 +1879,14 @@ coincidiram. Ainda não foi comprovada equivalência entre os escopos por
 não é validação de completude. O CSV contém nomes e remuneração, enquanto o
 endpoint nominal do SIM inclui CPF, então a política de minimização deve ser
 definida antes de persistir essas respostas na Raw.</p>
-<h2 id="decisao-proposta">Decisão proposta<a class="headerlink" href="#decisao-proposta" title="Permanent link">&para;</a></h2>
-<p>Prosseguir com o adaptador TCE-CE como primeira fonte agregada e o CSV de
-Fortaleza como primeiro adaptador municipal independente. Antes de publicar a
-ingestão, paginar integralmente uma competência do SIM, alinhar órgão/unidade e
-categorias entre as fontes, comparar contagens e totais e confirmar acesso a
-partir do runtime de produção. Se esses controles falharem, avaliar outros
-portais de capitais como fontes independentes, sem presumir que compartilham um
-esquema.</p>
+<h2 id="decisao-e-proximos-passos">Decisão e próximos passos<a class="headerlink" href="#decisao-e-proximos-passos" title="Permanent link">&para;</a></h2>
+<p>O adaptador de folhas agregadas do TCE-CE foi implementado para a competência
+2025-12, particionado por município e com manifesto próprio; consulte a
+<a href="../remuneracao-municipal-tce-ce/">documentação da fonte</a>. A execução em produção
+precisa confirmar conectividade e completude das páginas. O CSV de Fortaleza
+continua sendo uma fonte independente para comparação, mas os totais não devem
+ser reconciliados até alinhar órgão/unidade e categorias. Depois desses controles,
+avaliar outras capitais sem presumir que compartilham um esquema.</p>
 <p>As fontes contêm dados pessoais em contexto de remuneração pública; o endpoint
 nominal do TCE retorna CPF e o CSV municipal retorna nome. Antes de persistir
 respostas brutas, a ingestão precisa definir minimização, proteção e retenção
@@ -1875,13 +1898,14 @@ CPFs.</p>
 <ol>
 <li>Confirmar a autenticação declarada no OpenAPI versus as respostas sem
    credenciais observadas.</li>
-<li>Paginar integralmente a competência <code>2025-12</code> e alinhar unidades e categorias
-   com o arquivo municipal antes de comparar totais.</li>
+<li>Executar e auditar os manifestos da competência <code>2025-12</code>; alinhar unidades e
+   categorias com o arquivo municipal antes de comparar totais.</li>
 <li>Verificar conectividade do runtime de produção, pois a API limita o acesso
    a IPs no Brasil.</li>
 <li>Confirmar a licença específica do CSV municipal e definir minimização,
    proteção e retenção dos dados nominais antes de armazená-los.</li>
-<li>Implementar as duas ingestões e seus manifestos após esses controles.</li>
+<li>Validar a primeira execução da Raw antes de ampliar para outras competências;
+   definir minimização, proteção e retenção antes de ingerir dados nominais.</li>
 </ol>
 
 
@@ -1935,13 +1959,13 @@ CPFs.</p>
         
         
           
-          <a href="../ibge/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Fonte ibge — malha territorial (Localidades) e indicadores macro">
+          <a href="../remuneracao-municipal-tce-ce/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Fonte remuneracao-municipal-tce-ce — folhas municipais agregadas">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Próximo
               </span>
               <div class="md-ellipsis">
-                Fonte ibge — malha territorial (Localidades) e indicadores macro
+                Fonte remuneracao-municipal-tce-ce — folhas municipais agregadas
               </div>
             </div>
             <div class="md-footer__button md-icon">
