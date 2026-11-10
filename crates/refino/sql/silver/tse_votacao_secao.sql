@@ -95,5 +95,8 @@ SELECT
     {{EXPR_OPCIONAL:SQ_CANDIDATO}} AS sequencia_candidato,
     {{EXPR_OPCIONAL:NM_LOCAL_VOTACAO}} AS nome_local_votacao,
     {{EXPR_OPCIONAL:DS_LOCAL_VOTACAO_ENDERECO}} AS endereco_local_votacao,
-    _tdoa_json_original AS registro_original
+    _tdoa_json_original AS registro_original,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM validados

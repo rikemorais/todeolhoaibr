@@ -17,5 +17,8 @@ SELECT
             ELSE NULL
         END
         AS DECIMAL(38, 9)
-    ) AS valor_decimal
+    ) AS valor_decimal,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
 FROM bronze

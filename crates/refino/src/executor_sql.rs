@@ -22,11 +22,42 @@ use todeolho_nucleo::ArmazenamentoRaw;
 
 use crate::{ErroDeRefino, EscritorParquetTipado, SnapshotBronze};
 
-const COL_MANIFESTO: &str = "_tdoa_origem_manifesto";
-const COL_PARTE: &str = "_tdoa_origem_parte";
+pub(crate) const COL_MANIFESTO: &str = "_tdoa_origem_manifesto";
+pub(crate) const COL_PARTE: &str = "_tdoa_origem_parte";
 const COL_URL: &str = "_tdoa_origem_url";
-const COL_ORDINAL: &str = "_tdoa_origem_ordinal";
+pub(crate) const COL_ORDINAL: &str = "_tdoa_origem_ordinal";
 const COL_JSON_ORIGINAL: &str = "_tdoa_json_original";
+
+/// Campos de linhagem Bronze que todo contrato Silver ativado deve projetar.
+pub fn campos_linhagem() -> Vec<Arc<Field>> {
+    vec![
+        Arc::new(Field::new(COL_MANIFESTO, DataType::Utf8, false)),
+        Arc::new(Field::new(COL_PARTE, DataType::Utf8, false)),
+        Arc::new(Field::new(COL_ORDINAL, DataType::UInt64, false)),
+    ]
+}
+
+#[allow(dead_code)]
+pub(crate) fn colunas_linhagem_teste(n: usize) -> [Arc<dyn Array>; 3] {
+    [
+        Arc::new(StringArray::from(vec!["manifesto-teste"; n])) as Arc<dyn Array>,
+        Arc::new(StringArray::from(vec!["parte-teste"; n])) as Arc<dyn Array>,
+        Arc::new(UInt64Array::from(vec![0u64; n])) as Arc<dyn Array>,
+    ]
+}
+
+#[cfg(test)]
+pub(crate) fn sem_linhagem(lote: &RecordBatch) -> RecordBatch {
+    let indices: Vec<usize> = lote
+        .schema()
+        .fields()
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| !f.name().starts_with("_tdoa_origem_"))
+        .map(|(i, _)| i)
+        .collect();
+    lote.project(&indices).unwrap()
+}
 
 /// Limites operacionais aplicados a uma execução SQL Silver.
 #[derive(Debug, Clone)]

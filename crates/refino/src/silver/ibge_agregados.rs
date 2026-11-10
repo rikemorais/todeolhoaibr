@@ -48,6 +48,9 @@ pub fn esquema_ibge_agregados() -> Arc<Schema> {
         DataType::Decimal128(38, 9),
         true,
     ));
+    campos.push(Field::new("_tdoa_origem_manifesto", DataType::Utf8, false));
+    campos.push(Field::new("_tdoa_origem_parte", DataType::Utf8, false));
+    campos.push(Field::new("_tdoa_origem_ordinal", DataType::UInt64, false));
     Arc::new(Schema::new(campos))
 }
 
@@ -98,6 +101,7 @@ pub fn transformar_ibge_agregados(lote: &RecordBatch) -> Result<RecordBatch, Err
             .with_precision_and_scale(38, 9)
             .map_err(|_| ErroIbgeSilver::Schema)?,
     ));
+    saida.extend(crate::executor_sql::colunas_linhagem_teste(lote.num_rows()));
     RecordBatch::try_new(esquema_ibge_agregados(), saida).map_err(|_| ErroIbgeSilver::Schema)
 }
 

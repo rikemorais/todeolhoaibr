@@ -68,6 +68,9 @@ pub fn esquema_tse_despesas_pagas_2024() -> Arc<Schema> {
         Field::new("data_pagamento", DataType::Date32, false),
         Field::new("valor_pago", DataType::Decimal128(18, 2), false),
         Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
     ]))
 }
 
@@ -162,20 +165,20 @@ pub fn transformar_tse_despesas_pagas_2024(
     let valores = Decimal128Array::from(valores)
         .with_precision_and_scale(18, 2)
         .map_err(|_| ErroTseDespesasPagasSilver::Schema)?;
-    RecordBatch::try_new(
-        esquema_tse_despesas_pagas_2024(),
-        vec![
-            Arc::new(UInt16Array::from_value(2024, prestadores.len())),
-            Arc::new(StringArray::from(codigos_eleicao)),
-            Arc::new(StringArray::from(prestadores)),
-            Arc::new(UInt32Array::from(despesas)),
-            Arc::new(UInt32Array::from(pagamentos)),
-            Arc::new(Date32Array::from(datas)),
-            Arc::new(valores),
-            Arc::new(StringArray::from(originais)),
-        ],
-    )
-    .map_err(|_| ErroTseDespesasPagasSilver::Schema)
+    let n_linhas = prestadores.len();
+    let mut cols: Vec<Arc<dyn arrow::array::Array>> = vec![
+        Arc::new(UInt16Array::from_value(2024, n_linhas)),
+        Arc::new(StringArray::from(codigos_eleicao)),
+        Arc::new(StringArray::from(prestadores)),
+        Arc::new(UInt32Array::from(despesas)),
+        Arc::new(UInt32Array::from(pagamentos)),
+        Arc::new(Date32Array::from(datas)),
+        Arc::new(valores),
+        Arc::new(StringArray::from(originais)),
+    ];
+    cols.extend(crate::executor_sql::colunas_linhagem_teste(n_linhas));
+    RecordBatch::try_new(esquema_tse_despesas_pagas_2024(), cols)
+        .map_err(|_| ErroTseDespesasPagasSilver::Schema)
 }
 
 fn texto(coluna: &StringArray, linha: usize) -> Option<&str> {
