@@ -16,7 +16,7 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ## Contratos eleitorais SQL/DataFusion
 
-As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em `registro_original`; a referência por linha ao Bronze ainda precisa ser projetada e exigida pelo publicador, conforme a seção de qualidade. A votação por seção permanece fora de `silver --todas` por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.
+As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em `registro_original`; as três referências Bronze são projetadas na saída e exigidas pelo publicador. A votação por seção permanece fora de `silver --todas` por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.
 
 ## Cobertura planejada do catálogo bronze
 
@@ -77,16 +77,14 @@ e métricas de rejeição são parte do contrato alvo; o publicador atual ainda 
 os emite de forma estruturada, então não ativar um contrato que dependa dessa
 quarentena antes de implementá-la.
 
-A referência `(manifesto, parte, ordinal)` precisa constar da linha Silver
-publicada, além do manifesto da execução. O leitor Bronze já a fornece ao
-executor SQL, mas consultas atuais, inclusive `camara_tramitacoes.sql`, não a
-projetam na saída; o publicador também não verifica essas colunas. Portanto,
-as tabelas atuais não oferecem linhagem por linha garantida. Cada contrato só
-pode ser marcado como conforme depois de projetar as três colunas, exigir que
-sejam não nulas no schema e testar que duas linhas iguais mantêm ordinais
-distintos. Sessões e votos do Senado têm tarefas e ponteiros separados; uma
-falha em votos não apaga a publicação anterior de sessões. A imposição dessa
-linhagem nas consultas e no publicador está rastreada na
+A referência `(manifesto, parte, ordinal)` consta da linha Silver publicada,
+além do manifesto da execução. O leitor Bronze a fornece ao executor SQL; os
+contratos ativados a projetam e o publicador rejeita referência ausente ou
+nula. O teste de linhas Bronze idênticas confirma ordinais distintos. Votos
+do Senado acrescentam `ordem_voto` para distinguir filhos da mesma linha.
+Sessões e votos têm ponteiros separados; uma falha em votos não apaga a
+publicação anterior de sessões. O CAS distribuído no S3 e a validação da
+versão Bronze no leitor Silver permanecem na
 [issue #300](https://github.com/rikemorais/todeolhoaibr/issues/300).
 
 ### Referência técnica da linha bronze
