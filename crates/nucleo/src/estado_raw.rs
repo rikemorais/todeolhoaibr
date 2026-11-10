@@ -84,12 +84,13 @@ pub async fn manifesto_vigente(
 ///
 /// Só grava quando não há ponteiro vigente, quando o vigente é ilegível, ou
 /// quando o snapshot atual (`nova.iniciada_em`) é mais recente que o guardado.
-/// Devolve `true` se gravou, `false` se preservou um ponteiro mais novo.
+/// Devolve `true` se gravou, `false` se preservou um ponteiro mais novo ou se
+/// houve conflito de escrita condicional (CAS).
 ///
-/// Isto resolve, de forma determinística, o caso em que uma rodada mais antiga
-/// termina por último (ver issue #16). A atomicidade sob escritas estritamente
-/// simultâneas dependeria de escrita condicional (CAS) no porto, ainda não
-/// disponível no cliente S3 atual; o guard por recência não introduz regressão.
+/// Usa [`ArmazenamentoRaw::gravar_condicional`] para que a gravação só ocorra
+/// se o ponteiro não mudou entre a leitura e a escrita. Quando o backend
+/// suporta CAS real (e.g. S3 `If-Match`), a operação é atômica; com o
+/// fallback padrão, o guard por recência persiste sem regressão.
 pub async fn publicar_ponteiro(
     armazenamento: &dyn ArmazenamentoRaw,
     fonte: &str,
@@ -97,15 +98,12 @@ pub async fn publicar_ponteiro(
     nova: &UltimaVersao,
 ) -> Result<bool, ErroDeIngestao> {
     let chave = LocalizacaoRaw::ultima_versao(fonte, recurso);
+    let bytes_vigente = armazenamento.ler(&chave).await?;
 
-    if let Some(bytes) = armazenamento.ler(&chave).await?
-        && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(&bytes)
+    if let Some(ref bytes) = bytes_vigente
+        && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
         && vigente.iniciada_em > nova.iniciada_em
     {
-        // Já há um ponteiro estritamente mais novo que o nosso: não sobrescreve.
-        // (`None` ordena antes de qualquer data, então um ponteiro legado nunca
-        // bloqueia uma rodada datada, e uma rodada sem data não derruba uma datada;
-        // com datas iguais, ou ambos sem data, a gravação atual prevalece.)
         return Ok(false);
     }
 
@@ -114,13 +112,15 @@ pub async fn publicar_ponteiro(
         detalhe: erro.to_string(),
     })?;
     armazenamento
-        .gravar(ObjetoRaw {
-            chave,
-            conteudo,
-            tipo_de_conteudo: "application/json".to_owned(),
-        })
-        .await?;
-    Ok(true)
+        .gravar_condicional(
+            ObjetoRaw {
+                chave,
+                conteudo,
+                tipo_de_conteudo: "application/json".to_owned(),
+            },
+            bytes_vigente.as_deref(),
+        )
+        .await
 }
 
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
@@ -480,6 +480,79 @@ mod testes {
 
         assert!(gravou);
         assert_eq!(manifesto_do_ponteiro(&armazenamento).await, "nova");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_cas_rejeita_escrita_quando_ponteiro_muda_entre_leitura_e_gravacao() {
+        use std::sync::atomic::{AtomicBool, Ordering as AtOrd};
+
+        struct CasComIntrusao {
+            inner: ArmazenamentoEmMemoria,
+            intruso: AtomicBool,
+        }
+
+        #[async_trait]
+        impl ArmazenamentoRaw for CasComIntrusao {
+            async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+                self.inner.gravar(objeto).await
+            }
+            async fn gravar_fluxo(
+                &self,
+                _: &str,
+                _: &str,
+                _: &mut (dyn AsyncRead + Send + Unpin),
+            ) -> Result<(), ErroDeIngestao> {
+                unreachable!()
+            }
+            async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+                self.inner.ler(chave).await
+            }
+            async fn gravar_condicional(
+                &self,
+                objeto: ObjetoRaw,
+                conteudo_vigente: Option<&[u8]>,
+            ) -> Result<bool, ErroDeIngestao> {
+                if self.intruso.swap(false, AtOrd::Relaxed) {
+                    let intruso = UltimaVersao {
+                        versao: None,
+                        manifesto: "intruso".to_owned(),
+                        iniciada_em: Some(Utc::now() + chrono::TimeDelta::seconds(600)),
+                    };
+                    self.inner
+                        .gravar(ObjetoRaw {
+                            chave: objeto.chave.clone(),
+                            conteudo: serde_json::to_vec_pretty(&intruso).unwrap(),
+                            tipo_de_conteudo: "application/json".into(),
+                        })
+                        .await?;
+                }
+                let atual = self.inner.ler(&objeto.chave).await?;
+                if atual.as_deref() == conteudo_vigente {
+                    self.inner.gravar(objeto).await?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+        }
+
+        let armazenamento = CasComIntrusao {
+            inner: ArmazenamentoEmMemoria::default(),
+            intruso: AtomicBool::new(true),
+        };
+        let gravou = publicar_ponteiro(
+            &armazenamento,
+            FONTE,
+            RECURSO,
+            &ponteiro("vitima", Utc::now()),
+        )
+        .await
+        .unwrap();
+        assert!(!gravou, "CAS deve rejeitar quando o ponteiro mudou");
+        assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "intruso");
     }
 
     #[tokio::test]

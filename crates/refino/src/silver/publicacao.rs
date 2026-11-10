@@ -251,12 +251,10 @@ async fn publicar_transformacao_sql_interno(
         .gravar_fluxo(&chave, TIPO_PARQUET, &mut fluxo_upload)
         .await?;
 
-    let snapshot_atual = SnapshotBronze::vigente(bronze, fonte, recurso)
+    if !snapshot
+        .ainda_vigente(bronze, fonte, recurso)
         .await
-        .map_err(|erro| erro_manifesto(recurso, erro))?;
-    if snapshot_atual
-        .as_ref()
-        .is_none_or(|atual| atual.chave_manifesto() != snapshot.chave_manifesto())
+        .map_err(|erro| erro_manifesto(recurso, erro))?
     {
         return Err(erro_manifesto(
             recurso,
