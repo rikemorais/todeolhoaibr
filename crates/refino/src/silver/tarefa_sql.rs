@@ -134,6 +134,7 @@ mod testes {
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
         silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
+        silver::tarefa_tse_receitas_doador_originario_2022::publicar_tse_receitas_doador_originario_2022,
     };
 
     const FONTE: &str = "teste-sql";
@@ -551,8 +552,14 @@ mod testes {
             .unwrap()
     }
 
-    async fn preparar_snapshot_receitas_doador_originario(bronze: &Memoria) -> SnapshotBronze {
+    async fn preparar_snapshot_receitas_doador_originario(
+        bronze: &Memoria,
+        ano: u16,
+    ) -> SnapshotBronze {
         let instante = Utc.with_ymd_and_hms(2026, 11, 10, 12, 0, 0).unwrap();
+        let ano_texto = ano.to_string();
+        let recurso = format!("prestacao-contas/ano={ano}");
+        let id_bronze = format!("bronze-receitas-doador-originario-{ano}");
         let colunas = [
             "AA_ELEICAO",
             "CD_ELEICAO",
@@ -570,7 +577,7 @@ mod testes {
         ];
         let nacional = Tabela::nova(colunas)
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("00123456789".into()),
@@ -580,12 +587,12 @@ mod testes {
                 Some("1234567".into()),
                 Some("Atividade de teste".into()),
                 Some("700".into()),
-                Some("10/10/2024".into()),
+                Some(format!("10/10/{ano}")),
                 Some("doação declarada".into()),
                 Some("100,00".into()),
             ])
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("00123456789".into()),
@@ -595,12 +602,12 @@ mod testes {
                 Some("1234567".into()),
                 Some("Atividade de teste".into()),
                 Some("700".into()),
-                Some("10/10/2024".into()),
+                Some(format!("10/10/{ano}")),
                 Some("doação retificada".into()),
                 Some("125,50".into()),
             ])
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("-1".into()),
@@ -615,7 +622,7 @@ mod testes {
                 Some("25,00".into()),
             ]);
         let estadual = Tabela::nova(colunas).com_linha([
-            Some("2024".into()),
+            Some(ano_texto),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("00987654321".into()),
@@ -625,24 +632,19 @@ mod testes {
             Some("7654321".into()),
             Some("Outra atividade".into()),
             Some("701".into()),
-            Some("11/10/2024".into()),
+            Some(format!("11/10/{ano}")),
             Some("parte estadual".into()),
             Some("10,00".into()),
         ]);
-        let local = LocalizacaoRaw::nova(
-            "tse",
-            "prestacao-contas/ano=2024",
-            instante,
-            "bronze-receitas-doador-originario",
-        );
+        let local = LocalizacaoRaw::nova("tse", &recurso, instante, &id_bronze);
         let mut partes = Vec::new();
         for (indice, (nome, tabela)) in [
             (
-                "receitas_candidatos_doador_originario_2024_BRASIL.csv",
+                format!("receitas_candidatos_doador_originario_{ano}_BRASIL.csv"),
                 nacional,
             ),
             (
-                "receitas_candidatos_doador_originario_2024_AC.csv",
+                format!("receitas_candidatos_doador_originario_{ano}_AC.csv"),
                 estadual,
             ),
         ]
@@ -656,7 +658,7 @@ mod testes {
                 bytes: conteudo.len() as u64,
                 sha256: hex::encode(Sha256::digest(&conteudo)),
                 tipo_de_conteudo: "application/vnd.apache.parquet".into(),
-                versao: Some("bronze-receitas-doador-originario".into()),
+                versao: Some(id_bronze.clone()),
             };
             bronze
                 .gravar(ObjetoRaw {
@@ -670,8 +672,8 @@ mod testes {
         }
         let manifesto = ManifestoRaw {
             fonte: "tse".into(),
-            recurso: "prestacao-contas/ano=2024".into(),
-            id_execucao: "bronze-receitas-doador-originario".into(),
+            recurso: recurso.clone(),
+            id_execucao: id_bronze.clone(),
             url_inicial: "fixture".into(),
             iniciada_em: instante,
             concluida_em: instante,
@@ -688,9 +690,9 @@ mod testes {
             .unwrap();
         bronze
             .gravar(ObjetoRaw {
-                chave: LocalizacaoRaw::ultima_versao("tse", "prestacao-contas/ano=2024"),
+                chave: LocalizacaoRaw::ultima_versao("tse", &recurso),
                 conteudo: serde_json::to_vec(&UltimaVersao {
-                    versao: Some("bronze-receitas-doador-originario".into()),
+                    versao: Some(id_bronze),
                     manifesto: chave_manifesto,
                     iniciada_em: Some(instante),
                 })
@@ -699,7 +701,7 @@ mod testes {
             })
             .await
             .unwrap();
-        SnapshotBronze::vigente(bronze, "tse", "prestacao-contas/ano=2024")
+        SnapshotBronze::vigente(bronze, "tse", &recurso)
             .await
             .unwrap()
             .unwrap()
@@ -954,7 +956,7 @@ mod testes {
     #[tokio::test]
     async fn receitas_doador_originario_tse_preserva_variantes_e_dados_ausentes() {
         let bronze = Arc::new(Memoria::default());
-        let snapshot = preparar_snapshot_receitas_doador_originario(&bronze).await;
+        let snapshot = preparar_snapshot_receitas_doador_originario(&bronze, 2024).await;
         let silver = Arc::new(Memoria::default());
         let resumo = publicar_tse_receitas_doador_originario_2024(
             bronze.as_ref(),
@@ -1066,6 +1068,71 @@ mod testes {
             (0..originais.len())
                 .any(|i| originais.value(i).contains("Doadora de teste retificado"))
         );
+    }
+
+    #[tokio::test]
+    async fn receitas_doador_originario_tse_2022_seleciona_brasil_e_preserva_ocorrencias() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas_doador_originario(&bronze, 2022).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_doador_originario_2022(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-receitas-doador-originario-2022",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2022/receitas-doador-originario",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 3);
+        let lote = &lotes[0];
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2022));
+        let sequencias = lote
+            .column(9)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 1);
+        assert_eq!(sequencias.value(0), 700);
+        assert_eq!(sequencias.value(1), 700);
+        let ordinais = lote
+            .column(16)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut publicados = ordinais.values().to_vec();
+        publicados.sort_unstable();
+        assert_eq!(publicados, [1, 2, 3]);
     }
 
     #[tokio::test]

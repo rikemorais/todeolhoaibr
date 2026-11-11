@@ -34,8 +34,8 @@ use todeolho_refino::{
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
     TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
     TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
-    catalogo_refino,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2022,
+    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -618,52 +618,77 @@ async fn passada_tse_prestacao_contas_silver(
     silver: &Arc<dyn ArmazenamentoRaw>,
     somente_pendentes: bool,
 ) -> Result<bool> {
-    const RECURSO: &str = "prestacao-contas/ano=2024";
-    let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", RECURSO)
-        .await
-        .context("não foi possível ler snapshot Bronze da prestação de contas")?
-    else {
-        println!("Nada a refinar na Silver da prestação de contas TSE (Bronze 2024 ausente).");
-        return Ok(true);
-    };
-    let snapshot = Arc::new(snapshot);
-    let tarefa_despesas =
-        TarefaDeSilverTseDespesasPagas::nova(Arc::clone(bronze), Arc::clone(&snapshot), RECURSO)
-            .expect("o contrato aceita somente a prestação de contas de 2024");
-    let tarefa_despesas_contratadas = TarefaDeSilverTseDespesasContratadas::nova(
-        Arc::clone(bronze),
-        Arc::clone(&snapshot),
-        RECURSO,
-    )
-    .expect("o contrato aceita somente a prestação de contas de 2024");
-    let tarefa_receitas = TarefaDeSilverTseReceitasCandidatos::nova(
-        Arc::clone(bronze),
-        Arc::clone(&snapshot),
-        RECURSO,
-    )
-    .expect("o contrato aceita somente a prestação de contas de 2024");
-    let tarefa_doador_originario = TarefaDeSilverTseReceitasDoadorOriginario::nova(
-        Arc::clone(bronze),
-        Arc::clone(&snapshot),
-        RECURSO,
-    )
-    .expect("o contrato aceita somente a prestação de contas de 2024");
     let mut tarefas = Vec::new();
-    if !somente_pendentes || tarefa_despesas.pendente(silver.as_ref()).await? {
-        tarefas.push(TarefaPlanejada::nova(tarefa_despesas));
-    }
-    if !somente_pendentes
-        || tarefa_despesas_contratadas
-            .pendente(silver.as_ref())
-            .await?
+
+    const RECURSO_2022: &str = "prestacao-contas/ano=2022";
+    if let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", RECURSO_2022)
+        .await
+        .context("não foi possível ler snapshot Bronze da prestação de contas de 2022")?
     {
-        tarefas.push(TarefaPlanejada::nova(tarefa_despesas_contratadas));
+        let snapshot = Arc::new(snapshot);
+        let tarefa = TarefaDeSilverTseReceitasDoadorOriginario2022::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2022,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2022");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+    } else {
+        println!("Bronze 2022 ausente; receitas de doador originário de 2022 não serão refinadas.");
     }
-    if !somente_pendentes || tarefa_receitas.pendente(silver.as_ref()).await? {
-        tarefas.push(TarefaPlanejada::nova(tarefa_receitas));
-    }
-    if !somente_pendentes || tarefa_doador_originario.pendente(silver.as_ref()).await? {
-        tarefas.push(TarefaPlanejada::nova(tarefa_doador_originario));
+
+    const RECURSO_2024: &str = "prestacao-contas/ano=2024";
+    if let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", RECURSO_2024)
+        .await
+        .context("não foi possível ler snapshot Bronze da prestação de contas de 2024")?
+    {
+        let snapshot = Arc::new(snapshot);
+        let tarefa_despesas = TarefaDeSilverTseDespesasPagas::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2024,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2024");
+        let tarefa_despesas_contratadas = TarefaDeSilverTseDespesasContratadas::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2024,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2024");
+        let tarefa_receitas = TarefaDeSilverTseReceitasCandidatos::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2024,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2024");
+        let tarefa_doador_originario = TarefaDeSilverTseReceitasDoadorOriginario::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2024,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2024");
+        if !somente_pendentes || tarefa_despesas.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_despesas));
+        }
+        if !somente_pendentes
+            || tarefa_despesas_contratadas
+                .pendente(silver.as_ref())
+                .await?
+        {
+            tarefas.push(TarefaPlanejada::nova(tarefa_despesas_contratadas));
+        }
+        if !somente_pendentes || tarefa_receitas.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_receitas));
+        }
+        if !somente_pendentes || tarefa_doador_originario.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_doador_originario));
+        }
+    } else {
+        println!(
+            "Bronze 2024 ausente; tabelas de prestação de contas de 2024 não serão refinadas."
+        );
     }
     if tarefas.is_empty() {
         println!("Nada a refinar na Silver da prestação de contas TSE (recursos em dia).");
