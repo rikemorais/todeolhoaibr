@@ -88,6 +88,9 @@ pub use silver::tarefa_tse_receitas_candidatos::{
 pub use silver::tarefa_tse_receitas_doador_originario::{
     TarefaDeSilverTseReceitasDoadorOriginario, publicar_tse_receitas_doador_originario_2024,
 };
+pub use silver::tarefa_tse_receitas_doador_originario_2022::{
+    TarefaDeSilverTseReceitasDoadorOriginario2022, publicar_tse_receitas_doador_originario_2022,
+};
 pub use silver::tse_bens::esquema_tse_bens;
 #[cfg(test)]
 pub use silver::tse_bens::{ErroTseBensSilver, transformar_tse_bens};
@@ -102,6 +105,7 @@ pub use silver::tse_despesas_pagas::{
 };
 pub use silver::tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
 pub use silver::tse_receitas_doador_originario::esquema_tse_receitas_doador_originario_2024;
+pub use silver::tse_receitas_doador_originario_2022::esquema_tse_receitas_doador_originario_2022;
 pub use silver::tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
 pub use silver::tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
