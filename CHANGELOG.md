@@ -12,9 +12,6 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 ### Adicionado
 
 - Contrato Silver para receitas de doador originário do TSE em 2018, preservando ocorrências e linhagem Bronze (issue #189); smoke integral publicou 151.448 linhas.
-
-### Adicionado
-
 - Contrato Silver para receitas de candidatos do TSE em 2018, preservando ocorrências e linhagem Bronze (issue #189); smoke integral publicou 329.683 linhas.
 
 ## [0.72.0] - 2026-11-11
