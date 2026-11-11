@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["esquema_ibge_agregados"]};
