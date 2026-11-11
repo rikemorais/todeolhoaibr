@@ -52,6 +52,7 @@ pub mod tarefa_tse_despesas_pagas;
 pub mod tarefa_tse_despesas_pagas_2020;
 pub mod tarefa_tse_despesas_pagas_2022;
 pub mod tarefa_tse_receitas_candidatos;
+pub mod tarefa_tse_receitas_candidatos_2020;
 pub mod tarefa_tse_receitas_candidatos_2022;
 pub mod tarefa_tse_receitas_doador_originario;
 pub mod tarefa_tse_receitas_doador_originario_2022;
@@ -65,6 +66,7 @@ pub mod tse_despesas_pagas;
 pub mod tse_despesas_pagas_2020;
 pub mod tse_despesas_pagas_2022;
 pub mod tse_receitas_candidatos;
+pub mod tse_receitas_candidatos_2020;
 pub mod tse_receitas_candidatos_2022;
 pub mod tse_receitas_doador_originario;
 pub mod tse_receitas_doador_originario_2022;
@@ -153,6 +155,9 @@ pub use tarefa_tse_despesas_pagas_2022::{
 };
 pub use tarefa_tse_receitas_candidatos::{
     TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
+};
+pub use tarefa_tse_receitas_candidatos_2020::{
+    TarefaDeSilverTseReceitasCandidatos2020, publicar_tse_receitas_candidatos_2020,
 };
 pub use tarefa_tse_receitas_candidatos_2022::{
     TarefaDeSilverTseReceitasCandidatos2022, publicar_tse_receitas_candidatos_2022,
