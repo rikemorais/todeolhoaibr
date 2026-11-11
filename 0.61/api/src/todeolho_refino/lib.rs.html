@@ -1,0 +1,123 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/refino/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="todeolho_refino" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">todeolho_refino/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Refino do Tô De Olho Aí: decodifica a Raw opaca para o medalhão (ver ADR 0014/0015).
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! A camada **bronze** pega os bytes fiéis da Raw e só os **decodifica e estrutura** em
+<a href=#4 id=4 data-nosnippet>4</a>//! Parquet, mantendo correspondência 1:1 com a origem, sem regra de negócio (isso é
+<a href=#5 id=5 data-nosnippet>5</a>//! silver). Este crate guarda o conhecimento de formato que o [ADR 0014] mantém fora da
+<a href=#6 id=6 data-nosnippet>6</a>//! ingestão.
+<a href=#7 id=7 data-nosnippet>7</a>//!
+<a href=#8 id=8 data-nosnippet>8</a>//! Os decodificadores e a [`tarefa::TarefaDeBronze`] publicam o bronze. O módulo
+<a href=#9 id=9 data-nosnippet>9</a>//! [`snapshot_bronze`] seleciona e verifica partes do manifesto vigente; o módulo
+<a href=#10 id=10 data-nosnippet>10</a>//! [`linhagem`] lê essas partes em lotes e fornece referências de linha para os
+<a href=#11 id=11 data-nosnippet>11</a>//! futuros contratos silver, sem alterar o conteúdo armazenado no bronze. O
+<a href=#12 id=12 data-nosnippet>12</a>//! [`EscritorParquetTipado`] grava os lotes Arrow produzidos por esses contratos.
+<a href=#13 id=13 data-nosnippet>13</a>//!
+<a href=#14 id=14 data-nosnippet>14</a>//! [ADR 0014]: ../../docs/adr/0014-raw-opaca-e-refino-em-estagio-separado.md
+<a href=#15 id=15 data-nosnippet>15</a>
+<a href=#16 id=16 data-nosnippet>16</a></span><span class="attr">#![warn(missing_docs)]
+<a href=#17 id=17 data-nosnippet>17</a>
+<a href=#18 id=18 data-nosnippet>18</a></span><span class="kw">pub mod </span>catalogo;
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub mod </span>csv_zip;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub mod </span>decodificador;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">pub mod </span>escritor;
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub mod </span>executor_sql;
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub mod </span>fontes;
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub mod </span>linhagem;
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">pub mod </span>silver;
+<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub mod </span>snapshot_bronze;
+<a href=#27 id=27 data-nosnippet>27</a><span class="kw">pub mod </span>tarefa;
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">pub use </span>catalogo::{FonteDeRefino, catalogo_refino};
+<a href=#30 id=30 data-nosnippet>30</a><span class="kw">pub use </span>decodificador::{Decodificador, ParteBronze};
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">pub use </span>escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>fontes::{
+<a href=#33 id=33 data-nosnippet>33</a>    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
+<a href=#34 id=34 data-nosnippet>34</a>    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
+<a href=#35 id=35 data-nosnippet>35</a>};
+<a href=#36 id=36 data-nosnippet>36</a><span class="kw">pub use </span>linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">pub use </span>silver::TarefaDeSilverIpeadata;
+<a href=#38 id=38 data-nosnippet>38</a><span class="kw">pub use </span>silver::TarefaDeSilverSql;
+<a href=#39 id=39 data-nosnippet>39</a><span class="kw">pub use </span>silver::camara_deputados::esquema_camara_deputados;
+<a href=#40 id=40 data-nosnippet>40</a><span class="attr">#[cfg(test)]
+<a href=#41 id=41 data-nosnippet>41</a></span><span class="kw">pub use </span>silver::camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
+<a href=#42 id=42 data-nosnippet>42</a><span class="kw">pub use </span>silver::camara_despesas::esquema_camara_despesas;
+<a href=#43 id=43 data-nosnippet>43</a><span class="attr">#[cfg(test)]
+<a href=#44 id=44 data-nosnippet>44</a></span><span class="kw">pub use </span>silver::camara_despesas::{ErroCamaraDespesasSilver, transformar_camara_despesas};
+<a href=#45 id=45 data-nosnippet>45</a><span class="kw">pub use </span>silver::camara_legislaturas::esquema_camara_legislaturas;
+<a href=#46 id=46 data-nosnippet>46</a><span class="attr">#[cfg(test)]
+<a href=#47 id=47 data-nosnippet>47</a></span><span class="kw">pub use </span>silver::camara_legislaturas::{
+<a href=#48 id=48 data-nosnippet>48</a>    ErroCamaraLegislaturasSilver, transformar_camara_legislaturas,
+<a href=#49 id=49 data-nosnippet>49</a>};
+<a href=#50 id=50 data-nosnippet>50</a><span class="kw">pub use </span>silver::camara_partidos::esquema_camara_partidos;
+<a href=#51 id=51 data-nosnippet>51</a><span class="attr">#[cfg(test)]
+<a href=#52 id=52 data-nosnippet>52</a></span><span class="kw">pub use </span>silver::camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos};
+<a href=#53 id=53 data-nosnippet>53</a><span class="attr">#[cfg(test)]
+<a href=#54 id=54 data-nosnippet>54</a></span><span class="kw">pub use </span>silver::camara_tramitacoes::{ErroCamaraTramitacoesSilver, transformar_camara_tramitacoes};
+<a href=#55 id=55 data-nosnippet>55</a><span class="kw">pub use </span>silver::camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
+<a href=#56 id=56 data-nosnippet>56</a><span class="kw">pub use </span>silver::camara_votacoes::ConjuntoCamaraVotacoes;
+<a href=#57 id=57 data-nosnippet>57</a><span class="attr">#[cfg(test)]
+<a href=#58 id=58 data-nosnippet>58</a></span><span class="kw">pub use </span>silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
+<a href=#59 id=59 data-nosnippet>59</a><span class="kw">pub use </span>silver::publicar_bcb_sgs;
+<a href=#60 id=60 data-nosnippet>60</a><span class="kw">pub use </span>silver::senado_despesas::esquema_senado_despesas;
+<a href=#61 id=61 data-nosnippet>61</a><span class="attr">#[cfg(test)]
+<a href=#62 id=62 data-nosnippet>62</a></span><span class="kw">pub use </span>silver::senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
+<a href=#63 id=63 data-nosnippet>63</a><span class="kw">pub use </span>silver::senado_parlamentares::esquema_senado_parlamentares;
+<a href=#64 id=64 data-nosnippet>64</a><span class="attr">#[cfg(test)]
+<a href=#65 id=65 data-nosnippet>65</a></span><span class="kw">pub use </span>silver::senado_parlamentares::{
+<a href=#66 id=66 data-nosnippet>66</a>    ErroSenadoParlamentaresSilver, transformar_senado_parlamentares,
+<a href=#67 id=67 data-nosnippet>67</a>};
+<a href=#68 id=68 data-nosnippet>68</a><span class="kw">pub use </span>silver::senado_processos::esquema_senado_processos;
+<a href=#69 id=69 data-nosnippet>69</a><span class="attr">#[cfg(test)]
+<a href=#70 id=70 data-nosnippet>70</a></span><span class="kw">pub use </span>silver::senado_processos::{ErroSenadoProcessosSilver, transformar_senado_processos};
+<a href=#71 id=71 data-nosnippet>71</a><span class="kw">pub use </span>silver::senado_processos_detalhes::esquema_senado_processos_detalhes;
+<a href=#72 id=72 data-nosnippet>72</a><span class="attr">#[cfg(test)]
+<a href=#73 id=73 data-nosnippet>73</a></span><span class="kw">pub use </span>silver::senado_processos_detalhes::{
+<a href=#74 id=74 data-nosnippet>74</a>    ErroSenadoProcessosDetalhesSilver, transformar_senado_processos_detalhes,
+<a href=#75 id=75 data-nosnippet>75</a>};
+<a href=#76 id=76 data-nosnippet>76</a><span class="attr">#[cfg(test)]
+<a href=#77 id=77 data-nosnippet>77</a></span><span class="kw">pub use </span>silver::senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes};
+<a href=#78 id=78 data-nosnippet>78</a><span class="kw">pub use </span>silver::senado_votos::esquema_senado_votos;
+<a href=#79 id=79 data-nosnippet>79</a><span class="attr">#[cfg(test)]
+<a href=#80 id=80 data-nosnippet>80</a></span><span class="kw">pub use </span>silver::senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
+<a href=#81 id=81 data-nosnippet>81</a><span class="kw">pub use </span>silver::tarefa_bcb::TarefaDeSilverBcb;
+<a href=#82 id=82 data-nosnippet>82</a><span class="kw">pub use </span>silver::tarefa_tse_despesas_contratadas::{
+<a href=#83 id=83 data-nosnippet>83</a>    TarefaDeSilverTseDespesasContratadas, publicar_tse_despesas_contratadas_2024,
+<a href=#84 id=84 data-nosnippet>84</a>};
+<a href=#85 id=85 data-nosnippet>85</a><span class="kw">pub use </span>silver::tarefa_tse_receitas_candidatos::{
+<a href=#86 id=86 data-nosnippet>86</a>    TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
+<a href=#87 id=87 data-nosnippet>87</a>};
+<a href=#88 id=88 data-nosnippet>88</a><span class="kw">pub use </span>silver::tse_bens::esquema_tse_bens;
+<a href=#89 id=89 data-nosnippet>89</a><span class="attr">#[cfg(test)]
+<a href=#90 id=90 data-nosnippet>90</a></span><span class="kw">pub use </span>silver::tse_bens::{ErroTseBensSilver, transformar_tse_bens};
+<a href=#91 id=91 data-nosnippet>91</a><span class="kw">pub use </span>silver::tse_candidaturas::esquema_tse_candidaturas;
+<a href=#92 id=92 data-nosnippet>92</a><span class="attr">#[cfg(test)]
+<a href=#93 id=93 data-nosnippet>93</a></span><span class="kw">pub use </span>silver::tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
+<a href=#94 id=94 data-nosnippet>94</a><span class="kw">pub use </span>silver::tse_despesas_contratadas::esquema_tse_despesas_contratadas_2024;
+<a href=#95 id=95 data-nosnippet>95</a><span class="kw">pub use </span>silver::tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
+<a href=#96 id=96 data-nosnippet>96</a><span class="attr">#[cfg(test)]
+<a href=#97 id=97 data-nosnippet>97</a></span><span class="kw">pub use </span>silver::tse_despesas_pagas::{
+<a href=#98 id=98 data-nosnippet>98</a>    ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, transformar_tse_despesas_pagas_2024,
+<a href=#99 id=99 data-nosnippet>99</a>};
+<a href=#100 id=100 data-nosnippet>100</a><span class="kw">pub use </span>silver::tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
+<a href=#101 id=101 data-nosnippet>101</a><span class="kw">pub use </span>silver::tse_votacao_secao::esquema_tse_votacao_secao;
+<a href=#102 id=102 data-nosnippet>102</a><span class="attr">#[cfg(test)]
+<a href=#103 id=103 data-nosnippet>103</a></span><span class="kw">pub use </span>silver::tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
+<a href=#104 id=104 data-nosnippet>104</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
+<a href=#105 id=105 data-nosnippet>105</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
+<a href=#106 id=106 data-nosnippet>106</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
+<a href=#107 id=107 data-nosnippet>107</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
+<a href=#108 id=108 data-nosnippet>108</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
+<a href=#109 id=109 data-nosnippet>109</a><span class="kw">pub use </span>silver::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
+<a href=#110 id=110 data-nosnippet>110</a><span class="kw">pub use </span>silver::{TarefaDeSilverIbge, publicar_ibge_agregados};
+<a href=#111 id=111 data-nosnippet>111</a><span class="kw">pub use </span>silver::{TarefaDeSilverIbgeLocalidades, TipoLocalidadeIbge};
+<a href=#112 id=112 data-nosnippet>112</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoDespesas, publicar_senado_despesas};
+<a href=#113 id=113 data-nosnippet>113</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
+<a href=#114 id=114 data-nosnippet>114</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoProcessos, publicar_senado_processos};
+<a href=#115 id=115 data-nosnippet>115</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processos_detalhes};
+<a href=#116 id=116 data-nosnippet>116</a><span class="kw">pub use </span>silver::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
+<a href=#117 id=117 data-nosnippet>117</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseBens, publicar_tse_bens};
+<a href=#118 id=118 data-nosnippet>118</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
+<a href=#119 id=119 data-nosnippet>119</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024};
+<a href=#120 id=120 data-nosnippet>120</a><span class="kw">pub use </span>silver::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
+<a href=#121 id=121 data-nosnippet>121</a><span class="kw">pub use </span>snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
+<a href=#122 id=122 data-nosnippet>122</a><span class="kw">pub use </span>tarefa::TarefaDeBronze;
+</code></pre></div></section></main></body></html>
