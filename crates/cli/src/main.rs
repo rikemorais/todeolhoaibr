@@ -33,10 +33,10 @@ use todeolho_refino::{
     TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
     TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
-    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
-    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseVotacaoSecao,
-    TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseDespesasContratadas2022, TarefaDeSilverTseDespesasPagas,
+    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseReceitasCandidatos2022,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2022,
+    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -627,6 +627,19 @@ async fn passada_tse_prestacao_contas_silver(
         .context("não foi possível ler snapshot Bronze da prestação de contas de 2022")?
     {
         let snapshot = Arc::new(snapshot);
+        let tarefa_despesas_contratadas = TarefaDeSilverTseDespesasContratadas2022::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2022,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2022");
+        if !somente_pendentes
+            || tarefa_despesas_contratadas
+                .pendente(silver.as_ref())
+                .await?
+        {
+            tarefas.push(TarefaPlanejada::nova(tarefa_despesas_contratadas));
+        }
         let tarefa_receitas_candidatos = TarefaDeSilverTseReceitasCandidatos2022::nova(
             Arc::clone(bronze),
             Arc::clone(&snapshot),
@@ -647,7 +660,7 @@ async fn passada_tse_prestacao_contas_silver(
         }
     } else {
         println!(
-            "Bronze 2022 ausente; receitas de candidatos e de doador originário não serão refinadas."
+            "Bronze 2022 ausente; contratos de prestação de contas de 2022 não serão refinados."
         );
     }
 
