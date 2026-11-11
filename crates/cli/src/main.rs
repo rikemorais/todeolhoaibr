@@ -34,9 +34,10 @@ use todeolho_refino::{
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
     TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
     TarefaDeSilverTseDespesasContratadas2022, TarefaDeSilverTseDespesasPagas,
-    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseReceitasCandidatos2022,
-    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2022,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseReceitasCandidatos,
+    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
+    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseVotacaoSecao,
+    TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -639,6 +640,15 @@ async fn passada_tse_prestacao_contas_silver(
                 .await?
         {
             tarefas.push(TarefaPlanejada::nova(tarefa_despesas_contratadas));
+        }
+        let tarefa_despesas_pagas = TarefaDeSilverTseDespesasPagas2022::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2022,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2022");
+        if !somente_pendentes || tarefa_despesas_pagas.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_despesas_pagas));
         }
         let tarefa_receitas_candidatos = TarefaDeSilverTseReceitasCandidatos2022::nova(
             Arc::clone(bronze),
