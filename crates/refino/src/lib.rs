@@ -79,6 +79,9 @@ pub use silver::senado_votos::esquema_senado_votos;
 #[cfg(test)]
 pub use silver::senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
+pub use silver::tarefa_tse_despesas_candidatos_2016::{
+    TarefaDeSilverTseDespesasCandidatos2016, publicar_tse_despesas_candidatos_2016,
+};
 pub use silver::tarefa_tse_despesas_contratadas::{
     TarefaDeSilverTseDespesasContratadas, publicar_tse_despesas_contratadas_2024,
 };
