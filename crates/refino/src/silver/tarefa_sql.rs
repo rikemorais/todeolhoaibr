@@ -135,6 +135,7 @@ mod testes {
         silver::tarefa_tse_despesas_contratadas_2018::publicar_tse_despesas_contratadas_2018,
         silver::tarefa_tse_despesas_contratadas_2020::publicar_tse_despesas_contratadas_2020,
         silver::tarefa_tse_despesas_contratadas_2022::publicar_tse_despesas_contratadas_2022,
+        silver::tarefa_tse_despesas_pagas_2018::publicar_tse_despesas_pagas_2018,
         silver::tarefa_tse_despesas_pagas_2020::publicar_tse_despesas_pagas_2020,
         silver::tarefa_tse_despesas_pagas_2022::publicar_tse_despesas_pagas_2022,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
@@ -1526,6 +1527,90 @@ mod testes {
             .downcast_ref::<UInt16Array>()
             .unwrap();
         assert!(anos.values().iter().all(|ano| *ano == 2022));
+        let despesas = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert!(despesas.values().iter().all(|sequencia| *sequencia == 200));
+        let pagamentos = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(pagamentos.values(), &[1, 1, 2]);
+        let datas = lote
+            .column(5)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 0);
+        let valores = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        let mut valores_centavos = valores.values().to_vec();
+        valores_centavos.sort_unstable();
+        assert_eq!(valores_centavos, [5_000, 12_550, 12_550]);
+        let ordinais = lote
+            .column(10)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn despesas_pagas_tse_2018_preserva_ocorrencias_e_tipa_campos() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_despesas_pagas(&bronze, 2018).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_despesas_pagas_2018(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 11, 12, 30, 0).unwrap(),
+            "silver-despesas-pagas-2018",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2018/despesas-pagas",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 3);
+        let lote = &lotes[0];
+
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2018));
         let despesas = lote
             .column(3)
             .as_any()
