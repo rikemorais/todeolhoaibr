@@ -134,6 +134,7 @@ mod testes {
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
         silver::tarefa_tse_despesas_contratadas_2020::publicar_tse_despesas_contratadas_2020,
         silver::tarefa_tse_despesas_contratadas_2022::publicar_tse_despesas_contratadas_2022,
+        silver::tarefa_tse_despesas_pagas_2020::publicar_tse_despesas_pagas_2020,
         silver::tarefa_tse_despesas_pagas_2022::publicar_tse_despesas_pagas_2022,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
         silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
@@ -571,10 +572,11 @@ mod testes {
             .unwrap()
     }
 
-    async fn preparar_snapshot_despesas_pagas_2022(bronze: &Memoria) -> SnapshotBronze {
+    async fn preparar_snapshot_despesas_pagas(bronze: &Memoria, ano: u16) -> SnapshotBronze {
         let instante = Utc.with_ymd_and_hms(2026, 11, 10, 12, 0, 0).unwrap();
-        let recurso = "prestacao-contas/ano=2022";
-        let id_bronze = "bronze-despesas-pagas-2022";
+        let ano_texto = ano.to_string();
+        let recurso = format!("prestacao-contas/ano={ano}");
+        let id_bronze = format!("bronze-despesas-pagas-{ano}");
         let colunas = [
             "AA_ELEICAO",
             "CD_ELEICAO",
@@ -586,12 +588,12 @@ mod testes {
         ];
         let linha = |pagamento: &str, valor: &str| {
             [
-                Some("2022".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("200".into()),
                 Some(pagamento.into()),
-                Some("16/08/2022".into()),
+                Some(format!("16/08/{ano}")),
                 Some(valor.into()),
             ]
         };
@@ -600,19 +602,22 @@ mod testes {
             .com_linha(linha("1", "125,50"))
             .com_linha(linha("2", "50,00"));
         let estadual = Tabela::nova(colunas).com_linha([
-            Some("2022".into()),
+            Some(ano_texto.clone()),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("201".into()),
             Some("1".into()),
-            Some("17/08/2022".into()),
+            Some(format!("17/08/{ano}")),
             Some("10,00".into()),
         ]);
-        let local = LocalizacaoRaw::nova("tse", recurso, instante, id_bronze);
+        let local = LocalizacaoRaw::nova("tse", &recurso, instante, &id_bronze);
         let mut partes = Vec::new();
         for (indice, (nome, tabela)) in [
-            ("despesas_pagas_candidatos_2022_BRASIL.csv", nacional),
-            ("despesas_pagas_candidatos_2022_AC.csv", estadual),
+            (
+                format!("despesas_pagas_candidatos_{ano}_BRASIL.csv"),
+                nacional,
+            ),
+            (format!("despesas_pagas_candidatos_{ano}_AC.csv"), estadual),
         ]
         .into_iter()
         .enumerate()
@@ -624,7 +629,7 @@ mod testes {
                 bytes: conteudo.len() as u64,
                 sha256: hex::encode(Sha256::digest(&conteudo)),
                 tipo_de_conteudo: "application/vnd.apache.parquet".into(),
-                versao: Some(id_bronze.into()),
+                versao: Some(id_bronze.clone()),
             };
             bronze
                 .gravar(ObjetoRaw {
@@ -638,8 +643,8 @@ mod testes {
         }
         let manifesto = ManifestoRaw {
             fonte: "tse".into(),
-            recurso: recurso.into(),
-            id_execucao: id_bronze.into(),
+            recurso: recurso.clone(),
+            id_execucao: id_bronze.clone(),
             url_inicial: "fixture".into(),
             iniciada_em: instante,
             concluida_em: instante,
@@ -656,9 +661,9 @@ mod testes {
             .unwrap();
         bronze
             .gravar(ObjetoRaw {
-                chave: LocalizacaoRaw::ultima_versao("tse", recurso),
+                chave: LocalizacaoRaw::ultima_versao("tse", &recurso),
                 conteudo: serde_json::to_vec(&UltimaVersao {
-                    versao: Some(id_bronze.into()),
+                    versao: Some(id_bronze.clone()),
                     manifesto: chave_manifesto,
                     iniciada_em: Some(instante),
                 })
@@ -667,7 +672,7 @@ mod testes {
             })
             .await
             .unwrap();
-        SnapshotBronze::vigente(bronze, "tse", recurso)
+        SnapshotBronze::vigente(bronze, "tse", &recurso)
             .await
             .unwrap()
             .unwrap()
@@ -1353,7 +1358,7 @@ mod testes {
     #[tokio::test]
     async fn despesas_pagas_tse_2022_preserva_ocorrencias_e_tipa_campos() {
         let bronze = Arc::new(Memoria::default());
-        let snapshot = preparar_snapshot_despesas_pagas_2022(&bronze).await;
+        let snapshot = preparar_snapshot_despesas_pagas(&bronze, 2022).await;
         let silver = Arc::new(Memoria::default());
         let resumo = publicar_tse_despesas_pagas_2022(
             bronze.as_ref(),
@@ -1398,6 +1403,90 @@ mod testes {
             .downcast_ref::<UInt16Array>()
             .unwrap();
         assert!(anos.values().iter().all(|ano| *ano == 2022));
+        let despesas = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert!(despesas.values().iter().all(|sequencia| *sequencia == 200));
+        let pagamentos = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(pagamentos.values(), &[1, 1, 2]);
+        let datas = lote
+            .column(5)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 0);
+        let valores = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        let mut valores_centavos = valores.values().to_vec();
+        valores_centavos.sort_unstable();
+        assert_eq!(valores_centavos, [5_000, 12_550, 12_550]);
+        let ordinais = lote
+            .column(10)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn despesas_pagas_tse_2020_preserva_ocorrencias_e_tipa_campos() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_despesas_pagas(&bronze, 2020).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_despesas_pagas_2020(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 11, 12, 30, 0).unwrap(),
+            "silver-despesas-pagas-2020",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2020/despesas-pagas",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 3);
+        let lote = &lotes[0];
+
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2020));
         let despesas = lote
             .column(3)
             .as_any()

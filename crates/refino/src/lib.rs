@@ -111,6 +111,7 @@ pub use silver::tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
 pub use silver::tse_despesas_pagas::{
     ErroTseDespesasPagasSilver, EstadoDeChavesDeDespesasPagas, transformar_tse_despesas_pagas_2024,
 };
+pub use silver::tse_despesas_pagas_2020::esquema_tse_despesas_pagas_2020;
 pub use silver::tse_despesas_pagas_2022::esquema_tse_despesas_pagas_2022;
 pub use silver::tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
 pub use silver::tse_receitas_candidatos_2022::esquema_tse_receitas_candidatos_2022;
@@ -138,6 +139,7 @@ pub use silver::{
     TarefaDeSilverTseDespesasContratadas2020, publicar_tse_despesas_contratadas_2020,
 };
 pub use silver::{TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024};
+pub use silver::{TarefaDeSilverTseDespesasPagas2020, publicar_tse_despesas_pagas_2020};
 pub use silver::{TarefaDeSilverTseDespesasPagas2022, publicar_tse_despesas_pagas_2022};
 pub use silver::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
 pub use snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
