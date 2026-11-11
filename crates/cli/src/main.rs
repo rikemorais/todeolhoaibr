@@ -34,8 +34,9 @@ use todeolho_refino::{
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
     TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
     TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2022,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
+    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseVotacaoSecao,
+    TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -626,6 +627,15 @@ async fn passada_tse_prestacao_contas_silver(
         .context("não foi possível ler snapshot Bronze da prestação de contas de 2022")?
     {
         let snapshot = Arc::new(snapshot);
+        let tarefa_receitas_candidatos = TarefaDeSilverTseReceitasCandidatos2022::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2022,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2022");
+        if !somente_pendentes || tarefa_receitas_candidatos.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_receitas_candidatos));
+        }
         let tarefa = TarefaDeSilverTseReceitasDoadorOriginario2022::nova(
             Arc::clone(bronze),
             Arc::clone(&snapshot),
@@ -636,7 +646,9 @@ async fn passada_tse_prestacao_contas_silver(
             tarefas.push(TarefaPlanejada::nova(tarefa));
         }
     } else {
-        println!("Bronze 2022 ausente; receitas de doador originário de 2022 não serão refinadas.");
+        println!(
+            "Bronze 2022 ausente; receitas de candidatos e de doador originário não serão refinadas."
+        );
     }
 
     const RECURSO_2024: &str = "prestacao-contas/ano=2024";

@@ -133,6 +133,7 @@ mod testes {
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
+        silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
         silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
         silver::tarefa_tse_receitas_doador_originario_2022::publicar_tse_receitas_doador_originario_2022,
     };
@@ -318,8 +319,11 @@ mod testes {
             .unwrap()
     }
 
-    async fn preparar_snapshot_receitas(bronze: &Memoria) -> SnapshotBronze {
+    async fn preparar_snapshot_receitas(bronze: &Memoria, ano: u16) -> SnapshotBronze {
         let instante = Utc.with_ymd_and_hms(2026, 11, 10, 12, 0, 0).unwrap();
+        let ano_texto = ano.to_string();
+        let recurso = format!("prestacao-contas/ano={ano}");
+        let id_bronze = format!("bronze-receitas-{ano}");
         let tabela = Tabela::nova([
             "AA_ELEICAO",
             "CD_ELEICAO",
@@ -330,34 +334,34 @@ mod testes {
             "DS_RECEITA",
         ])
         .com_linha([
-            Some("2024".into()),
+            Some(ano_texto.clone()),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("-1".into()),
-            Some("15/11/2024".into()),
+            Some(format!("15/11/{ano}")),
             Some("123,45".into()),
             Some("recurso sem sequência".into()),
         ])
         .com_linha([
-            Some("2024".into()),
+            Some(ano_texto.clone()),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("500".into()),
-            Some("16/11/2024".into()),
+            Some(format!("16/11/{ano}")),
             Some("250,00".into()),
             Some("doação estimável".into()),
         ])
         .com_linha([
-            Some("2024".into()),
+            Some(ano_texto.clone()),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("500".into()),
-            Some("16/11/2024".into()),
+            Some(format!("16/11/{ano}")),
             Some("275,50".into()),
             Some("doação estimável retificada".into()),
         ])
         .com_linha([
-            Some("2024".into()),
+            Some(ano_texto.clone()),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("-1".into()),
@@ -366,19 +370,14 @@ mod testes {
             Some("data não informada".into()),
         ]);
         let conteudo = tabela.para_parquet().unwrap();
-        let local = LocalizacaoRaw::nova(
-            "tse",
-            "prestacao-contas/ano=2024",
-            instante,
-            "bronze-receitas",
-        );
+        let local = LocalizacaoRaw::nova("tse", &recurso, instante, &id_bronze);
         let parte = ParteRaw {
             chave: local.parte(1, "parquet"),
-            url: "https://dados.tse.jus.br/receitas_candidatos_2024_BRASIL.csv".into(),
+            url: format!("https://dados.tse.jus.br/receitas_candidatos_{ano}_BRASIL.csv"),
             bytes: conteudo.len() as u64,
             sha256: hex::encode(Sha256::digest(&conteudo)),
             tipo_de_conteudo: "application/vnd.apache.parquet".into(),
-            versao: Some("bronze-receitas".into()),
+            versao: Some(id_bronze.clone()),
         };
         bronze
             .gravar(ObjetoRaw {
@@ -390,8 +389,8 @@ mod testes {
             .unwrap();
         let manifesto = ManifestoRaw {
             fonte: "tse".into(),
-            recurso: "prestacao-contas/ano=2024".into(),
-            id_execucao: "bronze-receitas".into(),
+            recurso: recurso.clone(),
+            id_execucao: id_bronze.clone(),
             url_inicial: "fixture".into(),
             iniciada_em: instante,
             concluida_em: instante,
@@ -408,9 +407,9 @@ mod testes {
             .unwrap();
         bronze
             .gravar(ObjetoRaw {
-                chave: LocalizacaoRaw::ultima_versao("tse", "prestacao-contas/ano=2024"),
+                chave: LocalizacaoRaw::ultima_versao("tse", &recurso),
                 conteudo: serde_json::to_vec(&UltimaVersao {
-                    versao: Some("bronze-receitas".into()),
+                    versao: Some(id_bronze.clone()),
                     manifesto: chave_manifesto,
                     iniciada_em: Some(instante),
                 })
@@ -419,7 +418,7 @@ mod testes {
             })
             .await
             .unwrap();
-        SnapshotBronze::vigente(bronze, "tse", "prestacao-contas/ano=2024")
+        SnapshotBronze::vigente(bronze, "tse", &recurso)
             .await
             .unwrap()
             .unwrap()
@@ -1138,7 +1137,7 @@ mod testes {
     #[tokio::test]
     async fn receitas_tse_preserva_variantes_e_tipa_sentinelas_e_valores() {
         let bronze = Arc::new(Memoria::default());
-        let snapshot = preparar_snapshot_receitas(&bronze).await;
+        let snapshot = preparar_snapshot_receitas(&bronze, 2024).await;
         let silver = Arc::new(Memoria::default());
         let resumo = publicar_tse_receitas_candidatos_2024(
             bronze.as_ref(),
@@ -1250,6 +1249,78 @@ mod testes {
                 .iter()
                 .any(|linha| linha.contains("doação estimável retificada"))
         );
+    }
+
+    #[tokio::test]
+    async fn receitas_candidatos_tse_2022_preserva_repeticoes_e_tipa_sentinelas() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas(&bronze, 2022).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_candidatos_2022(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-receitas-2022",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2022/receitas-candidatos",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 4);
+        let lote = &lotes[0];
+        assert_eq!(lote.num_rows(), 4);
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2022));
+        let sequencias = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 2);
+        assert_eq!(sequencias.value(1), 500);
+        assert_eq!(sequencias.value(2), 500);
+        let datas = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 1);
+        let ordinais = lote
+            .column(9)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3, 4]);
     }
 
     #[tokio::test]
