@@ -133,6 +133,7 @@ mod testes {
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
+        silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
     };
 
     const FONTE: &str = "teste-sql";
@@ -550,6 +551,160 @@ mod testes {
             .unwrap()
     }
 
+    async fn preparar_snapshot_receitas_doador_originario(bronze: &Memoria) -> SnapshotBronze {
+        let instante = Utc.with_ymd_and_hms(2026, 11, 10, 12, 0, 0).unwrap();
+        let colunas = [
+            "AA_ELEICAO",
+            "CD_ELEICAO",
+            "SQ_PRESTADOR_CONTAS",
+            "NR_CPF_CNPJ_DOADOR_ORIGINARIO",
+            "NM_DOADOR_ORIGINARIO",
+            "NM_DOADOR_ORIGINARIO_RFB",
+            "TP_DOADOR_ORIGINARIO",
+            "CD_CNAE_DOADOR_ORIGINARIO",
+            "DS_CNAE_DOADOR_ORIGINARIO",
+            "SQ_RECEITA",
+            "DT_RECEITA",
+            "DS_RECEITA",
+            "VR_RECEITA",
+        ];
+        let nacional = Tabela::nova(colunas)
+            .com_linha([
+                Some("2024".into()),
+                Some("547".into()),
+                Some("123456789012345".into()),
+                Some("00123456789".into()),
+                Some("Doadora de teste".into()),
+                Some("Doadora de teste RFB".into()),
+                Some("FISICA".into()),
+                Some("1234567".into()),
+                Some("Atividade de teste".into()),
+                Some("700".into()),
+                Some("10/10/2024".into()),
+                Some("doação declarada".into()),
+                Some("100,00".into()),
+            ])
+            .com_linha([
+                Some("2024".into()),
+                Some("547".into()),
+                Some("123456789012345".into()),
+                Some("00123456789".into()),
+                Some("Doadora de teste retificado".into()),
+                Some("Doadora de teste RFB".into()),
+                Some("FISICA".into()),
+                Some("1234567".into()),
+                Some("Atividade de teste".into()),
+                Some("700".into()),
+                Some("10/10/2024".into()),
+                Some("doação retificada".into()),
+                Some("125,50".into()),
+            ])
+            .com_linha([
+                Some("2024".into()),
+                Some("547".into()),
+                Some("123456789012345".into()),
+                Some("-1".into()),
+                Some("Doador sem identificação".into()),
+                Some("#NULO".into()),
+                Some("#NE".into()),
+                Some("#NULO".into()),
+                Some("#NE".into()),
+                Some("-1".into()),
+                Some("-1".into()),
+                Some("".into()),
+                Some("25,00".into()),
+            ]);
+        let estadual = Tabela::nova(colunas).com_linha([
+            Some("2024".into()),
+            Some("547".into()),
+            Some("123456789012345".into()),
+            Some("00987654321".into()),
+            Some("Doador estadual de teste".into()),
+            Some("Doador estadual de teste RFB".into()),
+            Some("FISICA".into()),
+            Some("7654321".into()),
+            Some("Outra atividade".into()),
+            Some("701".into()),
+            Some("11/10/2024".into()),
+            Some("parte estadual".into()),
+            Some("10,00".into()),
+        ]);
+        let local = LocalizacaoRaw::nova(
+            "tse",
+            "prestacao-contas/ano=2024",
+            instante,
+            "bronze-receitas-doador-originario",
+        );
+        let mut partes = Vec::new();
+        for (indice, (nome, tabela)) in [
+            (
+                "receitas_candidatos_doador_originario_2024_BRASIL.csv",
+                nacional,
+            ),
+            (
+                "receitas_candidatos_doador_originario_2024_AC.csv",
+                estadual,
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let conteudo = tabela.para_parquet().unwrap();
+            let parte = ParteRaw {
+                chave: local.parte(indice + 1, "parquet"),
+                url: format!("https://dados.tse.jus.br/{nome}"),
+                bytes: conteudo.len() as u64,
+                sha256: hex::encode(Sha256::digest(&conteudo)),
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                versao: Some("bronze-receitas-doador-originario".into()),
+            };
+            bronze
+                .gravar(ObjetoRaw {
+                    chave: parte.chave.clone(),
+                    conteudo,
+                    tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                })
+                .await
+                .unwrap();
+            partes.push(parte);
+        }
+        let manifesto = ManifestoRaw {
+            fonte: "tse".into(),
+            recurso: "prestacao-contas/ano=2024".into(),
+            id_execucao: "bronze-receitas-doador-originario".into(),
+            url_inicial: "fixture".into(),
+            iniciada_em: instante,
+            concluida_em: instante,
+            partes,
+        };
+        let chave_manifesto = local.manifesto();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: chave_manifesto.clone(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao("tse", "prestacao-contas/ano=2024"),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some("bronze-receitas-doador-originario".into()),
+                    manifesto: chave_manifesto,
+                    iniciada_em: Some(instante),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        SnapshotBronze::vigente(bronze, "tse", "prestacao-contas/ano=2024")
+            .await
+            .unwrap()
+            .unwrap()
+    }
+
     fn esquema_saida() -> SchemaRef {
         Arc::new(Schema::new(vec![
             Field::new("id", DataType::Int64, true),
@@ -793,6 +948,123 @@ mod testes {
         assert!(
             (0..originais.len())
                 .any(|i| originais.value(i).contains("serviço contratado retificado"))
+        );
+    }
+
+    #[tokio::test]
+    async fn receitas_doador_originario_tse_preserva_variantes_e_dados_ausentes() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas_doador_originario(&bronze).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_doador_originario_2024(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-receitas-doador-originario",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2024/receitas-doador-originario",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 3);
+        let lote = &lotes[0];
+
+        let documentos = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(documentos.null_count(), 1);
+        assert_eq!(documentos.value(0), "00123456789");
+        assert_eq!(documentos.value(1), "00123456789");
+        let nomes = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(nomes.value(0), "Doadora de teste");
+        assert_eq!(nomes.value(1), "Doadora de teste retificado");
+        for indice in [5, 6, 7, 8, 11] {
+            assert_eq!(
+                lote.column(indice)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .null_count(),
+                1
+            );
+        }
+        let sequencias = lote
+            .column(9)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 1);
+        assert_eq!(sequencias.value(0), 700);
+        assert_eq!(sequencias.value(1), 700);
+        let datas = lote
+            .column(10)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 1);
+        let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let dia_10 = chrono::NaiveDate::from_ymd_opt(2024, 10, 10)
+            .unwrap()
+            .signed_duration_since(epoch)
+            .num_days() as i32;
+        assert_eq!(datas.value(0), dia_10);
+        assert_eq!(datas.value(1), dia_10);
+        let valores = lote
+            .column(12)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        let mut centavos = (0..valores.len())
+            .map(|i| valores.value(i))
+            .collect::<Vec<_>>();
+        centavos.sort_unstable();
+        assert_eq!(centavos, [2_500, 10_000, 12_550]);
+        let ordinais = lote
+            .column(16)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut publicados = ordinais.values().to_vec();
+        publicados.sort_unstable();
+        assert_eq!(publicados, [1, 2, 3]);
+        let originais = lote
+            .column(13)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert!(
+            (0..originais.len())
+                .any(|i| originais.value(i).contains("Doadora de teste retificado"))
         );
     }
 

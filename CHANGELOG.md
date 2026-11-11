@@ -14,6 +14,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 ### Adicionado
 
 - Contrato Silver para despesas contratadas do TSE em 2024, preservando variantes com linhagem Bronze (issue #189); smoke integral publicou 4.452.310 linhas.
+- Contrato Silver para receitas de doador originário do TSE em 2024, preservando variantes, documento como texto e linhagem Bronze (issue #189); smoke integral publicou 534.344 linhas.
 
 ## [0.60.0] - 2026-11-10
 
