@@ -132,6 +132,7 @@ mod testes {
         SnapshotBronze, Tabela,
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
+        silver::tarefa_tse_despesas_contratadas_2022::publicar_tse_despesas_contratadas_2022,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
         silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
         silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
@@ -424,8 +425,11 @@ mod testes {
             .unwrap()
     }
 
-    async fn preparar_snapshot_despesas_contratadas(bronze: &Memoria) -> SnapshotBronze {
+    async fn preparar_snapshot_despesas_contratadas(bronze: &Memoria, ano: u16) -> SnapshotBronze {
         let instante = Utc.with_ymd_and_hms(2026, 11, 10, 12, 0, 0).unwrap();
+        let ano_texto = ano.to_string();
+        let recurso = format!("prestacao-contas/ano={ano}");
+        let id_bronze = format!("bronze-despesas-contratadas-{ano}");
         let colunas = [
             "AA_ELEICAO",
             "CD_ELEICAO",
@@ -437,25 +441,25 @@ mod testes {
         ];
         let nacional = Tabela::nova(colunas)
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("7".into()),
-                Some("10/10/2024".into()),
+                Some(format!("10/10/{ano}")),
                 Some("serviço contratado".into()),
                 Some("100,00".into()),
             ])
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("7".into()),
-                Some("10/10/2024".into()),
+                Some(format!("10/10/{ano}")),
                 Some("serviço contratado retificado".into()),
                 Some("120,00".into()),
             ])
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("-1".into()),
@@ -464,7 +468,7 @@ mod testes {
                 Some("50,25".into()),
             ])
             .com_linha([
-                Some("2024".into()),
+                Some(ano_texto.clone()),
                 Some("547".into()),
                 Some("123456789012345".into()),
                 Some("-3".into()),
@@ -473,24 +477,25 @@ mod testes {
                 Some("25,00".into()),
             ]);
         let estadual = Tabela::nova(colunas).com_linha([
-            Some("2024".into()),
+            Some(ano_texto.clone()),
             Some("547".into()),
             Some("123456789012345".into()),
             Some("8".into()),
-            Some("11/10/2024".into()),
+            Some(format!("11/10/{ano}")),
             Some("parte estadual".into()),
             Some("10,00".into()),
         ]);
-        let local = LocalizacaoRaw::nova(
-            "tse",
-            "prestacao-contas/ano=2024",
-            instante,
-            "bronze-despesas-contratadas",
-        );
+        let local = LocalizacaoRaw::nova("tse", &recurso, instante, &id_bronze);
         let mut partes = Vec::new();
         for (indice, (nome, tabela)) in [
-            ("despesas_contratadas_candidatos_2024_BRASIL.csv", nacional),
-            ("despesas_contratadas_candidatos_2024_AC.csv", estadual),
+            (
+                format!("despesas_contratadas_candidatos_{ano}_BRASIL.csv"),
+                nacional,
+            ),
+            (
+                format!("despesas_contratadas_candidatos_{ano}_AC.csv"),
+                estadual,
+            ),
         ]
         .into_iter()
         .enumerate()
@@ -502,7 +507,7 @@ mod testes {
                 bytes: conteudo.len() as u64,
                 sha256: hex::encode(Sha256::digest(&conteudo)),
                 tipo_de_conteudo: "application/vnd.apache.parquet".into(),
-                versao: Some("bronze-despesas-contratadas".into()),
+                versao: Some(id_bronze.clone()),
             };
             bronze
                 .gravar(ObjetoRaw {
@@ -516,8 +521,8 @@ mod testes {
         }
         let manifesto = ManifestoRaw {
             fonte: "tse".into(),
-            recurso: "prestacao-contas/ano=2024".into(),
-            id_execucao: "bronze-despesas-contratadas".into(),
+            recurso: recurso.clone(),
+            id_execucao: id_bronze.clone(),
             url_inicial: "fixture".into(),
             iniciada_em: instante,
             concluida_em: instante,
@@ -534,9 +539,9 @@ mod testes {
             .unwrap();
         bronze
             .gravar(ObjetoRaw {
-                chave: LocalizacaoRaw::ultima_versao("tse", "prestacao-contas/ano=2024"),
+                chave: LocalizacaoRaw::ultima_versao("tse", &recurso),
                 conteudo: serde_json::to_vec(&UltimaVersao {
-                    versao: Some("bronze-despesas-contratadas".into()),
+                    versao: Some(id_bronze.clone()),
                     manifesto: chave_manifesto,
                     iniciada_em: Some(instante),
                 })
@@ -545,7 +550,7 @@ mod testes {
             })
             .await
             .unwrap();
-        SnapshotBronze::vigente(bronze, "tse", "prestacao-contas/ano=2024")
+        SnapshotBronze::vigente(bronze, "tse", &recurso)
             .await
             .unwrap()
             .unwrap()
@@ -850,7 +855,7 @@ mod testes {
     #[tokio::test]
     async fn despesas_contratadas_tse_preserva_variantes_e_sentinelas() {
         let bronze = Arc::new(Memoria::default());
-        let snapshot = preparar_snapshot_despesas_contratadas(&bronze).await;
+        let snapshot = preparar_snapshot_despesas_contratadas(&bronze, 2024).await;
         let silver = Arc::new(Memoria::default());
         let resumo = publicar_tse_despesas_contratadas_2024(
             bronze.as_ref(),
@@ -950,6 +955,83 @@ mod testes {
             (0..originais.len())
                 .any(|i| originais.value(i).contains("serviço contratado retificado"))
         );
+    }
+
+    #[tokio::test]
+    async fn despesas_contratadas_tse_2022_preserva_repeticoes_e_trata_sentinelas() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_despesas_contratadas(&bronze, 2022).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_despesas_contratadas_2022(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-despesas-contratadas-2022",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2022/despesas-contratadas",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 4);
+        let lote = &lotes[0];
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2022));
+        let sequencias = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 2);
+        assert_eq!(sequencias.value(0), 7);
+        assert_eq!(sequencias.value(1), 7);
+        let datas = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 2);
+        let valores = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        assert_eq!(valores.null_count(), 0);
+        let ordinais = lote
+            .column(10)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3, 4]);
     }
 
     #[tokio::test]
