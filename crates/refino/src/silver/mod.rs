@@ -45,11 +45,13 @@ pub mod tarefa_senado_votacoes;
 pub mod tarefa_sql;
 pub mod tarefa_tse_bens;
 pub mod tarefa_tse_candidaturas;
+pub mod tarefa_tse_despesas_contratadas;
 pub mod tarefa_tse_despesas_pagas;
 pub mod tarefa_tse_receitas_candidatos;
 pub mod tarefa_tse_votacao_secao;
 pub mod tse_bens;
 pub mod tse_candidaturas;
+pub mod tse_despesas_contratadas;
 pub mod tse_despesas_pagas;
 pub mod tse_receitas_candidatos;
 pub mod tse_votacao_secao;
@@ -117,6 +119,9 @@ pub use tarefa_senado_votacoes::{TarefaDeSilverSenadoVotacoes, publicar_senado_v
 pub use tarefa_sql::TarefaDeSilverSql;
 pub use tarefa_tse_bens::{TarefaDeSilverTseBens, publicar_tse_bens};
 pub use tarefa_tse_candidaturas::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
+pub use tarefa_tse_despesas_contratadas::{
+    TarefaDeSilverTseDespesasContratadas, publicar_tse_despesas_contratadas_2024,
+};
 pub use tarefa_tse_despesas_pagas::{
     TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024,
 };
@@ -130,6 +135,7 @@ pub use tse_bens::{ErroTseBensSilver, transformar_tse_bens};
 pub use tse_candidaturas::esquema_tse_candidaturas;
 #[cfg(test)]
 pub use tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
+pub use tse_despesas_contratadas::esquema_tse_despesas_contratadas_2024;
 pub use tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
 #[cfg(test)]
 pub use tse_despesas_pagas::{
