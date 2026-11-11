@@ -34,7 +34,8 @@ use todeolho_refino::{
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
     TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
     TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -641,6 +642,12 @@ async fn passada_tse_prestacao_contas_silver(
         RECURSO,
     )
     .expect("o contrato aceita somente a prestação de contas de 2024");
+    let tarefa_doador_originario = TarefaDeSilverTseReceitasDoadorOriginario::nova(
+        Arc::clone(bronze),
+        Arc::clone(&snapshot),
+        RECURSO,
+    )
+    .expect("o contrato aceita somente a prestação de contas de 2024");
     let mut tarefas = Vec::new();
     if !somente_pendentes || tarefa_despesas.pendente(silver.as_ref()).await? {
         tarefas.push(TarefaPlanejada::nova(tarefa_despesas));
@@ -654,6 +661,9 @@ async fn passada_tse_prestacao_contas_silver(
     }
     if !somente_pendentes || tarefa_receitas.pendente(silver.as_ref()).await? {
         tarefas.push(TarefaPlanejada::nova(tarefa_receitas));
+    }
+    if !somente_pendentes || tarefa_doador_originario.pendente(silver.as_ref()).await? {
+        tarefas.push(TarefaPlanejada::nova(tarefa_doador_originario));
     }
     if tarefas.is_empty() {
         println!("Nada a refinar na Silver da prestação de contas TSE (recursos em dia).");
