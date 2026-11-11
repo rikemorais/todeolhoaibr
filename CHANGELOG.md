@@ -9,6 +9,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+## [0.64.0] - 2026-11-10
+
+### Adicionado
+
 - Contrato Silver para receitas de candidatos do TSE em 2022, preservando ocorrências repetidas, tipando valores e datas e registrando linhagem Bronze (issue #189); smoke integral publicou 674.944 linhas.
 
 ## [0.63.0] - 2026-11-10
