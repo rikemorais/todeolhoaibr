@@ -9,7 +9,11 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
-- Contrato Silver para receitas de doador originário do TSE em 2022, preservando variantes, documento como texto e linhagem Bronze (issue #189).
+## [0.63.0] - 2026-11-10
+
+### Adicionado
+
+- Contrato Silver para receitas de doador originário do TSE em 2022, preservando variantes, documento como texto e linhagem Bronze (issue #189); smoke integral publicou 199.241 linhas.
 
 ## [0.62.0] - 2026-11-10
 
