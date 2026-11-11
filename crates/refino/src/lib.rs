@@ -104,6 +104,7 @@ pub use silver::tse_candidaturas::esquema_tse_candidaturas;
 #[cfg(test)]
 pub use silver::tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
 pub use silver::tse_despesas_contratadas::esquema_tse_despesas_contratadas_2024;
+pub use silver::tse_despesas_contratadas_2020::esquema_tse_despesas_contratadas_2020;
 pub use silver::tse_despesas_contratadas_2022::esquema_tse_despesas_contratadas_2022;
 pub use silver::tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
 #[cfg(test)]
@@ -133,6 +134,9 @@ pub use silver::{TarefaDeSilverSenadoProcessosDetalhes, publicar_senado_processo
 pub use silver::{TarefaDeSilverSenadoVotacoes, publicar_senado_votacoes};
 pub use silver::{TarefaDeSilverTseBens, publicar_tse_bens};
 pub use silver::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
+pub use silver::{
+    TarefaDeSilverTseDespesasContratadas2020, publicar_tse_despesas_contratadas_2020,
+};
 pub use silver::{TarefaDeSilverTseDespesasPagas, publicar_tse_despesas_pagas_2024};
 pub use silver::{TarefaDeSilverTseDespesasPagas2022, publicar_tse_despesas_pagas_2022};
 pub use silver::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};

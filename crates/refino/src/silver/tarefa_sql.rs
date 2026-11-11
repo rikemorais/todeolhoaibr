@@ -132,6 +132,7 @@ mod testes {
         SnapshotBronze, Tabela,
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
+        silver::tarefa_tse_despesas_contratadas_2020::publicar_tse_despesas_contratadas_2020,
         silver::tarefa_tse_despesas_contratadas_2022::publicar_tse_despesas_contratadas_2022,
         silver::tarefa_tse_despesas_pagas_2022::publicar_tse_despesas_pagas_2022,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
@@ -477,6 +478,19 @@ mod testes {
                 Some("".into()),
                 Some("25,00".into()),
             ]);
+        let nacional = if ano == 2020 {
+            nacional.com_linha([
+                Some(ano_texto.clone()),
+                Some("547".into()),
+                Some("123456789012345".into()),
+                Some("7".into()),
+                Some(format!("10/10/{ano}")),
+                Some("serviço contratado".into()),
+                Some("100,00".into()),
+            ])
+        } else {
+            nacional
+        };
         let estadual = Tabela::nova(colunas).com_linha([
             Some(ano_texto.clone()),
             Some("547".into()),
@@ -1058,6 +1072,88 @@ mod testes {
             (0..originais.len())
                 .any(|i| originais.value(i).contains("serviço contratado retificado"))
         );
+    }
+
+    #[tokio::test]
+    async fn despesas_contratadas_tse_2020_preserva_copias_exatas_e_sentinelas() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_despesas_contratadas(&bronze, 2020).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_despesas_contratadas_2020(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-despesas-contratadas-2020",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2020/despesas-contratadas",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 5);
+        let lote = &lotes[0];
+
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2020));
+        let sequencias = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 2);
+        assert_eq!(
+            (0..sequencias.len())
+                .filter(|indice| !sequencias.is_null(*indice) && sequencias.value(*indice) == 7)
+                .count(),
+            3
+        );
+        let datas = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 2);
+        let valores = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        assert_eq!(valores.null_count(), 0);
+        let ordinais = lote
+            .column(10)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3, 4, 5]);
     }
 
     #[tokio::test]
