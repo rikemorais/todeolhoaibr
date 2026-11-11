@@ -36,9 +36,9 @@ use todeolho_refino::{
     TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
     TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseDespesasPagas2020,
     TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
-    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseVotacaoSecao,
-    TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseReceitasCandidatos2020, TarefaDeSilverTseReceitasCandidatos2022,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2022,
+    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -651,8 +651,17 @@ async fn passada_tse_prestacao_contas_silver(
         if !somente_pendentes || tarefa_despesas_pagas.pendente(silver.as_ref()).await? {
             tarefas.push(TarefaPlanejada::nova(tarefa_despesas_pagas));
         }
+        let tarefa_receitas_candidatos = TarefaDeSilverTseReceitasCandidatos2020::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2020,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2020");
+        if !somente_pendentes || tarefa_receitas_candidatos.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_receitas_candidatos));
+        }
     } else {
-        println!("Bronze 2020 ausente; despesas contratadas e pagas de 2020 não serão refinadas.");
+        println!("Bronze 2020 ausente; prestação de contas de 2020 não será refinada.");
     }
 
     const RECURSO_2022: &str = "prestacao-contas/ano=2022";
