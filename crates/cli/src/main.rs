@@ -32,9 +32,9 @@ use todeolho_refino::{
     TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIpeadata,
     TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
     TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
-    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasPagas,
-    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
-    catalogo_refino,
+    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
+    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseReceitasCandidatos,
+    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -629,6 +629,12 @@ async fn passada_tse_prestacao_contas_silver(
     let tarefa_despesas =
         TarefaDeSilverTseDespesasPagas::nova(Arc::clone(bronze), Arc::clone(&snapshot), RECURSO)
             .expect("o contrato aceita somente a prestação de contas de 2024");
+    let tarefa_despesas_contratadas = TarefaDeSilverTseDespesasContratadas::nova(
+        Arc::clone(bronze),
+        Arc::clone(&snapshot),
+        RECURSO,
+    )
+    .expect("o contrato aceita somente a prestação de contas de 2024");
     let tarefa_receitas = TarefaDeSilverTseReceitasCandidatos::nova(
         Arc::clone(bronze),
         Arc::clone(&snapshot),
@@ -638,6 +644,13 @@ async fn passada_tse_prestacao_contas_silver(
     let mut tarefas = Vec::new();
     if !somente_pendentes || tarefa_despesas.pendente(silver.as_ref()).await? {
         tarefas.push(TarefaPlanejada::nova(tarefa_despesas));
+    }
+    if !somente_pendentes
+        || tarefa_despesas_contratadas
+            .pendente(silver.as_ref())
+            .await?
+    {
+        tarefas.push(TarefaPlanejada::nova(tarefa_despesas_contratadas));
     }
     if !somente_pendentes || tarefa_receitas.pendente(silver.as_ref()).await? {
         tarefas.push(TarefaPlanejada::nova(tarefa_receitas));
