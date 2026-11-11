@@ -140,6 +140,7 @@ mod testes {
         silver::tarefa_tse_receitas_candidatos_2020::publicar_tse_receitas_candidatos_2020,
         silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
         silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
+        silver::tarefa_tse_receitas_doador_originario_2020::publicar_tse_receitas_doador_originario_2020,
         silver::tarefa_tse_receitas_doador_originario_2022::publicar_tse_receitas_doador_originario_2022,
     };
 
@@ -723,7 +724,7 @@ mod testes {
             "DS_RECEITA",
             "VR_RECEITA",
         ];
-        let nacional = Tabela::nova(colunas)
+        let mut nacional = Tabela::nova(colunas)
             .com_linha([
                 Some(ano_texto.clone()),
                 Some("547".into()),
@@ -769,6 +770,23 @@ mod testes {
                 Some("".into()),
                 Some("25,00".into()),
             ]);
+        if ano == 2020 {
+            nacional = nacional.com_linha([
+                Some(ano_texto.clone()),
+                Some("547".into()),
+                Some("123456789012345".into()),
+                Some("00123456789".into()),
+                Some("Doadora de teste".into()),
+                Some("Doadora de teste RFB".into()),
+                Some("FISICA".into()),
+                Some("1234567".into()),
+                Some("Atividade de teste".into()),
+                Some("700".into()),
+                Some(format!("10/10/{ano}")),
+                Some("doação declarada".into()),
+                Some("100,00".into()),
+            ]);
+        }
         let estadual = Tabela::nova(colunas).com_linha([
             Some(ano_texto),
             Some("547".into()),
@@ -1608,6 +1626,77 @@ mod testes {
         let mut publicados = ordinais.values().to_vec();
         publicados.sort_unstable();
         assert_eq!(publicados, [1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn receitas_doador_originario_tse_2020_seleciona_brasil_e_preserva_ocorrencias() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas_doador_originario(&bronze, 2020).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_doador_originario_2020(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-receitas-doador-originario-2020",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2020/receitas-doador-originario",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 4);
+        let lote = &lotes[0];
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2020));
+        let sequencias = lote
+            .column(9)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 1);
+        assert_eq!(sequencias.value(0), 700);
+        assert_eq!(sequencias.value(1), 700);
+        let ordinais = lote
+            .column(16)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut publicados = ordinais.values().to_vec();
+        publicados.sort_unstable();
+        assert_eq!(publicados, [1, 2, 3, 4]);
+        let originais = lote
+            .column(13)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(originais.value(0), originais.value(3));
     }
 
     #[tokio::test]
