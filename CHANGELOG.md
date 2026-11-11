@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.74.0] - 2026-11-11
+
+### Adicionado
+
+- Contrato Silver para despesas de candidatos do TSE em 2016, primeiro contrato com layout histórico pré-2018: cabeçalhos acentuados, data colada ao horário e valores inteiros ou com vírgula (issue #189).
+
 ## [0.73.0] - 2026-11-11
 
 ### Adicionado
