@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["ano_uf_do_recurso","publicar_tse_votacao_secao"],"struct":["TarefaDeSilverTseVotacaoSecao"]};
