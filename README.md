@@ -60,7 +60,7 @@ Para gerar Silver manualmente, rode `docker compose run --rm refino refinar silv
 
 Votos por seção do TSE são processados explicitamente com `docker compose run --rm refino refinar silver tse-votacao-secao`; para limitar a passada, use `--filtro ano=2024 --filtro uf=AC,RO`. Essa fonte, que ocupa mais de 16 GB localmente, não participa de `silver --todas` nem da reconciliação automática.
 
-Para prestação de contas do TSE, `docker compose run --rm refino refinar silver tse-prestacao-contas` publica despesas contratadas e pagas de 2018 e as quatro famílias (despesas contratadas, despesas pagas, receitas de candidatos e receitas de doador originário) de 2020, 2022 e 2024. As outras tabelas e eleições permanecem em Bronze.
+Para prestação de contas do TSE, `docker compose run --rm refino refinar silver tse-prestacao-contas` publica despesas contratadas e pagas e receitas de candidatos de 2018, além das quatro famílias (despesas contratadas, despesas pagas, receitas de candidatos e receitas de doador originário) de 2020, 2022 e 2024. As outras tabelas e eleições permanecem em Bronze.
 
 > **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
 
