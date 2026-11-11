@@ -139,6 +139,7 @@ mod testes {
         silver::tarefa_tse_despesas_pagas_2020::publicar_tse_despesas_pagas_2020,
         silver::tarefa_tse_despesas_pagas_2022::publicar_tse_despesas_pagas_2022,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
+        silver::tarefa_tse_receitas_candidatos_2018::publicar_tse_receitas_candidatos_2018,
         silver::tarefa_tse_receitas_candidatos_2020::publicar_tse_receitas_candidatos_2020,
         silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
         silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
@@ -377,6 +378,17 @@ mod testes {
             Some("15,50".into()),
             Some("data não informada".into()),
         ]);
+        if ano == 2018 {
+            tabela = tabela.com_linha([
+                Some(ano_texto.clone()),
+                Some("547".into()),
+                Some("123456789012345".into()),
+                Some("500".into()),
+                Some(format!("16/11/{ano}")),
+                Some("250,00".into()),
+                Some("doação estimável".into()),
+            ]);
+        }
         if ano == 2020 {
             tabela = tabela
                 .com_linha([
@@ -2054,6 +2066,78 @@ mod testes {
         let mut ordinais_publicados = ordinais.values().to_vec();
         ordinais_publicados.sort_unstable();
         assert_eq!(ordinais_publicados, [1, 2, 3, 4]);
+    }
+
+    #[tokio::test]
+    async fn receitas_candidatos_tse_2018_preserva_repeticoes_e_tipa_sentinelas() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas(&bronze, 2018).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_candidatos_2018(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 10, 12, 30, 0).unwrap(),
+            "silver-receitas-2018",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(
+                "tse",
+                "prestacao-contas/ano=2018/receitas-candidatos",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .with_batch_size(10)
+            .build()
+            .unwrap();
+        let lotes = leitor.map(Result::unwrap).collect::<Vec<_>>();
+        assert_eq!(lotes.iter().map(|lote| lote.num_rows()).sum::<usize>(), 5);
+        let lote = &lotes[0];
+        assert_eq!(lote.num_rows(), 5);
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!(anos.values().iter().all(|ano| *ano == 2018));
+        let sequencias = lote
+            .column(3)
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap();
+        assert_eq!(sequencias.null_count(), 2);
+        assert_eq!(sequencias.value(1), 500);
+        assert_eq!(sequencias.value(2), 500);
+        let datas = lote
+            .column(4)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 1);
+        let ordinais = lote
+            .column(9)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        let mut ordinais_publicados = ordinais.values().to_vec();
+        ordinais_publicados.sort_unstable();
+        assert_eq!(ordinais_publicados, [1, 2, 3, 4, 5]);
     }
 
     #[tokio::test]
