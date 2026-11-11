@@ -1,0 +1,2226 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentação do todeolhoaibr: ingestão de dados públicos brasileiros (político-socioeconômicos) com arquitetura hexagonal em Rust, camada Raw opaca e refino em medalhão.">
+      
+      
+        <meta name="author" content="Henrique Morais">
+      
+      
+        <link rel="canonical" href="https://rikemorais.github.io/todeolhoaibr/latest/refino/contratos-silver-fase0/">
+      
+      
+        <link rel="prev" href="../silver/">
+      
+      
+        <link rel="next" href="../pesquisa-tse-2014-2022/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>Contratos Silver da fase 0 - Tô de Olho AI</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+   <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: white; }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#contratos-silver-da-fase-0" class="md-skip">
+          Pular para conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href="../.." title="Tô de Olho AI" class="md-header__button md-logo" aria-label="Tô de Olho AI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m0-4.5c5 0 9.27 3.11 11 7.5-1.73 4.39-6 7.5-11 7.5S2.73 16.39 1 12c1.73-4.39 6-7.5 11-7.5M3.18 12a9.821 9.821 0 0 0 17.64 0 9.821 9.821 0 0 0-17.64 0"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tô de Olho AI
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Contratos Silver da fase 0
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Tema do sistema"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Tema do sistema" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Modo escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Modo escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Modo claro"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Modo claro" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando busca
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/rikemorais/todeolhoaibr" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    rikemorais/todeolhoaibr
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../adr/" class="md-tabs__link">
+          
+  
+    
+  
+  Arquitetura
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../bronze/" class="md-tabs__link">
+          
+  
+    
+  
+  Refino
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../fontes/pesquisa-remuneracao-estadual/" class="md-tabs__link">
+          
+  
+    
+  
+  Fontes de dados
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../diagramas/" class="md-tabs__link">
+        
+  
+    
+  
+  Diagramas
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../api/" class="md-tabs__link">
+        
+  
+    
+  
+  Referência de API
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tô de Olho AI" class="md-nav__button md-logo" aria-label="Tô de Olho AI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m0-4.5c5 0 9.27 3.11 11 7.5-1.73 4.39-6 7.5-11 7.5S2.73 16.39 1 12c1.73-4.39 6-7.5 11-7.5M3.18 12a9.821 9.821 0 0 0 17.64 0 9.821 9.821 0 0 0-17.64 0"/></svg>
+
+    </a>
+    Tô de Olho AI
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/rikemorais/todeolhoaibr" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    rikemorais/todeolhoaibr
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../adr/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Arquitetura
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Arquitetura
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0001-registrar-decisoes-com-adrs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0001. Registrar decisões com ADRs, em português do Brasil
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0002-monorepo-em-camadas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0002. Monorepo Cargo em camadas, aplicando SOLID e POO
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0003-dagron-core-com-executor-proprio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0003. dagron-core para o grafo, com executor próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0004-factory-method-para-fontes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0004. Factory Method para adicionar fontes de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0005-armazenamento-s3-com-versitygw/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0005. API S3 servida pelo versitygw, em vez do LocalStack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0006-layout-da-camada-raw/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0006. Layout imutável da camada Raw, com manifesto
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0007-docker-para-maquinas-modestas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0007. Docker como única dependência, pensando em máquinas modestas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0008-painel-de-execucoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0008. Painel próprio de execuções, alimentado por um histórico no armazenamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0009-interface-de-arquivos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0009. Interface web do versitygw para navegar pelos arquivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0010-selecao-e-arquivos-grandes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0010. Seleção com aviso de espaço e ingestão de arquivos grandes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0011-versionamento-e-commits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0011. Versionamento semântico e Conventional Commits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0012-pre-checagem-idempotente/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0012. Pré-checagem idempotente antes de ingerir
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0013-autenticacao-e-limite-de-taxa-no-cliente-http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0013. Autenticação e limite de taxa no cliente HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0014. Camada Raw opaca em bytes e refino em estágio separado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0015. Arquitetura de dados em medalhão: raw → bronze → silver → gold → diamond
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0016-documentacao-com-material-for-mkdocs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0016. Documentação como site estático com Material for MkDocs no GitHub Pages
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0017-fontes-organizadas-por-pasta/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0017. Organização das fontes por pasta, uma por fonte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0018-motor-de-consulta-duckdb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0018. Motor de consulta analítica: DuckDB sobre Parquet no versitygw
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0019-disparo-do-bronze-por-reconciliacao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0019. Disparo do bronze por reconciliação agendada
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0020-contrato-da-camada-silver/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0020. Contratos, publicação e execução SQL da camada silver
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/modelo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modelo de ADR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Refino
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Refino
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bronze/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camada bronze
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../silver/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camada silver — contrato inicial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Contratos Silver da fase 0
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Contratos Silver da fase 0
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#convencoes-comuns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Convenções comuns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisoes-por-familia" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decisões por família
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decisões por família">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tabelas-internas-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tabelas internas da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tabelas-internas-da-prestacao-de-contas-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tabelas internas da prestação de contas TSE
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidencia-minima-antes-da-ativacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Evidência mínima antes da ativação
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pesquisa-tse-2014-2022/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Prestação de contas TSE 2014–2022: inventário Bronze
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pesquisa-tse-2014-sup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TSE 2014: semântica do arquivo final suplementar
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pesquisa-tse-2016-2022/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fontes oficiais do TSE: prestação de contas 2016–2022
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fontes de dados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Fontes de dados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/pesquisa-remuneracao-estadual/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pesquisa de fontes oficiais de remuneração estadual
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/remuneracao-estadual-mg/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Remuneração estadual de Minas Gerais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/remuneracao-estadual-go/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Remuneração estadual de Goiás
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/pesquisa-remuneracao-municipal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pesquisa inicial: remuneração municipal
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/remuneracao-municipal-tce-ce/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte remuneracao-municipal-tce-ce — folhas municipais agregadas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ibge/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ibge — malha territorial (Localidades) e indicadores macro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/beneficios-sociais/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Benefícios sociais — Portal da Transparência
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/servidores-federais-ativos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Servidores federais ativos — Portal da Transparência
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ibge-pib-municipios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ibge-pib-municipios — PIB per capita dos municípios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/bcb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte bcb — séries macroeconômicas (Banco Central/SGS)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ipeadata/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ipeadata — séries socioeconômicas regionais (IPEA)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara — API da Câmara dos Deputados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara-despesas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-despesas — despesas da CEAP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara-votacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-votacoes — proposições e votações nominais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/camara-tramitacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte camara-tramitacoes — histórico de tramitações
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/senado-despesas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte senado-despesas — despesas da CEAPS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/senado-votacoes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte senado-votacoes — matérias e votações nominais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/tse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte tse — votos por seção eleitoral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/tse-prestacao-contas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte tse-prestacao-contas — prestação de contas de campanha
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/tse-candidaturas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte tse-candidaturas — candidaturas e bens declarados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../diagramas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Diagramas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Referência de API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#convencoes-comuns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Convenções comuns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisoes-por-familia" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decisões por família
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decisões por família">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tabelas-internas-da-camara" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tabelas internas da Câmara
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tabelas-internas-da-prestacao-de-contas-tse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tabelas internas da prestação de contas TSE
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidencia-minima-antes-da-ativacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Evidência mínima antes da ativação
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/rikemorais/todeolhoaibr/edit/main/docs/refino/contratos-silver-fase0.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="contratos-silver-da-fase-0">Contratos Silver da fase 0<a class="headerlink" href="#contratos-silver-da-fase-0" title="Permanent link">&para;</a></h1>
+<p>Esta especificação cobre as 26 entradas de <code>catalogo_refino()</code> no commit de 2026-11-09. Ela define o alvo de cada família e indica onde a evidência ainda não autoriza uma chave ou deduplicação. A <a href="../silver/#cobertura-planejada-do-catalogo-bronze">matriz do catálogo</a> registra o grão e a chave candidata por entrada; o <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a> rege publicação e qualidade. A existência de uma linha aqui não significa que a transformação esteja ativada nem que o publicador atual cumpra toda a política.</p>
+<h2 id="convencoes-comuns">Convenções comuns<a class="headerlink" href="#convencoes-comuns" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Cada linha publicada deve ter <code>_tdoa_origem_manifesto</code> e <code>_tdoa_origem_parte</code> como texto não nulo, e <code>_tdoa_origem_ordinal</code> como <code>UInt64</code> não nulo. A identidade técnica <code>(manifesto, parte, ordinal)</code> distingue linhas Bronze repetidas; relações que expandem uma linha, como votos do Senado, acrescentam um ordinal filho estável começando em 1. O contrato atual <code>senado_votos.sql</code> já extrai essa posição em <code>ordem_voto</code> (<code>UInt32</code>), preservando o ordinal da lista original. Nenhuma dessas referências é chave de negócio. O manifesto Silver registra recurso Bronze, tabela interna e versão da regra. Consultas que não projetem essas colunas permanecem <strong>não conformes</strong> até a correção.</li>
+<li>Identificadores externos, códigos territoriais, eleitorais e documentos são texto, mesmo quando contêm apenas dígitos. Exceções já versionadas: <code>camara-legislaturas.id</code> é <code>UInt16</code>, <code>tse-bens.ordem_bem</code> é <code>UInt32</code>, <code>tse-votacao-secao.turno</code> é <code>UInt8</code> e <code>senado-parlamentares.legislatura</code> é <code>UInt16</code>; mudar esses tipos exige nova versão de contrato. <code>TRIM</code> remove espaços de borda nos campos de chave; caixa, acentos e zeros à esquerda são preservados. Nenhum campo numérico ausente vira zero. Data sem fuso explícito usa <code>Date32</code>; instante com hora usa <code>Timestamp(Microsecond)</code> e exige fuso documentado antes de comparar fontes. Dinheiro usa <code>Decimal128(18,2)</code> quando a moeda é real; séries e indicadores usam escala declarada pela família.</li>
+<li>Campo obrigatório nulo, vazio ou inválido bloqueia a publicação pelo padrão de limiar zero; exceção exige limiar absoluto, quarentena estruturada e versão nova, como no ADR. Campo opcional inválido pode virar nulo se o original permanecer recuperável e a conversão for contada. Não usar <code>TRY_CAST</code> silencioso para transformar inválido obrigatório em nulo.</li>
+<li>Uma chave só é declarada única para o recorte em que a evidência a validou. Colisão de chave em contrato que exige unicidade bloqueia o ponteiro. Onde a chave não foi comprovada, manter todas as ocorrências, inclusive cópias exatas, com identidade técnica; não aplicar <code>DISTINCT</code>. Atualizações substituem a versão da tabela por novo manifesto e ponteiro, sem mutar versões anteriores.</li>
+<li>País, região, UF e município são níveis explícitos. <code>nivel_id</code> ou coluna equivalente identifica o nível; município é nulo fora de <code>N6</code> ou de um registro efetivamente municipal. O ano pertence à chave só quando faz parte do período/eleição da própria linha ou do recurso validado.</li>
+</ul>
+<h2 id="decisoes-por-familia">Decisões por família<a class="headerlink" href="#decisoes-por-familia" title="Permanent link">&para;</a></h2>
+<p><code>Obrig.</code> indica os campos mínimos para identificar o grão; demais atributos da origem ficam em <code>registro_original</code> ou coluna original equivalente enquanto não houver tipagem individual. <code>Preservar</code> significa conservar cada ocorrência sem deduplicar. Os tipos são o <strong>alvo</strong>; contratos SQL existentes podem cobrir apenas parte das colunas listadas.</p>
+<table>
+<thead>
+<tr>
+<th>Entrada(s)</th>
+<th>Campos tipados e nulabilidade alvo</th>
+<th>Normalização e duplicatas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>camara-despesas</code></td>
+<td><code>ano</code> <code>UInt16</code> obrigatório do recurso; <code>ideDocumento</code>, <code>idDeputado</code>, <code>tipoDespesa</code> texto anulável; <code>dataDocumento</code> <code>Date32</code> anulável; <code>valorDocumento</code> <code>Decimal128(18,6)</code> anulável, com original preservado</td>
+<td><code>ideDocumento</code> não identifica sozinho um lançamento. Preservar; data/valor inválidos preenchidos exigem rejeição ou exceção de contrato, nunca zero.</td>
+</tr>
+<tr>
+<td><code>camara-votacoes</code></td>
+<td>Sete tabelas independentes descritas abaixo; IDs oficiais texto obrigatório por tabela, datas <code>Date32</code> ou timestamp quando a origem fornecer hora; campos auxiliares anuláveis</td>
+<td>Validar vínculos e chave dentro do conjunto anual; preservar ocorrência até provar duplicata integral. Não juntar tabelas diferentes por <code>id</code> sozinho.</td>
+</tr>
+<tr>
+<td><code>camara-tramitacoes</code></td>
+<td><code>ano</code> <code>UInt16</code> e <code>uri_proposicao</code> texto obrigatórios; <code>sequencia</code> <code>UInt32</code>, <code>data_hora</code> <code>Timestamp(Microsecond)</code>, IDs e descrição anuláveis</td>
+<td><code>uriProposicao</code> não é chave de evento. Preservar repetições e ordem técnica; conversão preenchida inválida bloqueia a publicação.</td>
+</tr>
+<tr>
+<td><code>camara-deputados</code>, <code>camara-partidos</code></td>
+<td><code>id</code> texto obrigatório; nome/sigla/UF e demais atributos texto anulável</td>
+<td><code>TRIM</code> em ID; colisão de ID na fotografia bloqueia. Mudança de cadastro cria nova versão, não uma segunda linha corrente por ID.</td>
+</tr>
+<tr>
+<td><code>camara-legislaturas</code></td>
+<td><code>id</code> <code>UInt16</code>, <code>data_inicio</code> e <code>data_fim</code> <code>Date32</code> obrigatórios; <code>ano_eleicao</code> <code>UInt16</code> anulável</td>
+<td><code>data_fim &gt;= data_inicio</code>; colisão de ID ou intervalo invertido bloqueia.</td>
+</tr>
+<tr>
+<td><code>senado-despesas</code></td>
+<td><code>ano</code> <code>UInt16</code> do recurso; <code>COD_DOCUMENTO</code>, senador e fornecedor texto anulável; <code>DATA</code>, <code>VALOR_REEMBOLSADO</code> como <code>Date32</code>, <code>Decimal128(18,2)</code> anuláveis</td>
+<td><code>COD_DOCUMENTO</code> falta em parte da origem; não usá-lo como chave única global. Preservar lançamentos sem código e cópias até identidade comprovada.</td>
+</tr>
+<tr>
+<td><code>senado-votacoes</code></td>
+<td>Sessões: <code>codigoSessaoVotacao</code> texto obrigatório; data <code>Date32</code> anulável. Votos: chave da sessão + parlamentar texto obrigatório, escolha texto anulável; <code>ordem_voto</code> <code>UInt32</code> obrigatório como posição no array da sessão</td>
+<td>Duas tabelas e ponteiros independentes. A unicidade de sessão foi observada em recorte local; voto usa <code>ordem_voto</code> para distinguir duas ocorrências do mesmo parlamentar; nenhuma deduplicação é autorizada sem prova. Sessão sem votos continua na tabela pai.</td>
+</tr>
+<tr>
+<td><code>senado-parlamentares</code></td>
+<td>Código parlamentar texto e <code>legislatura</code> <code>UInt16</code> obrigatórios; nome, partido, UF e situação texto anulável</td>
+<td>A identidade é por parlamentar e legislatura, não apenas código; preservar mudanças da fotografia entre versões.</td>
+</tr>
+<tr>
+<td><code>senado-processos</code>, <code>senado-processos-detalhes</code></td>
+<td><code>id</code> texto e <code>ano</code> <code>UInt16</code> obrigatórios; detalhes aninhados em <code>processo_original</code> anulável</td>
+<td>Chave <code>(ano,id)</code> dentro de cada tipo de tabela. Detalhes não se juntam à listagem pela posição da linha; ausência de pai deve ser contada.</td>
+</tr>
+<tr>
+<td><code>tse-candidaturas</code></td>
+<td>Ano <code>UInt16</code> e componentes eleitorais da chave como texto obrigatórios; datas <code>Date32</code>, idade <code>UInt8</code> anuláveis</td>
+<td>Aliases por ano explícitos; zeros à esquerda preservados; colisão da chave validada bloqueia. Sentinelas do TSE viram nulo somente por coluna prevista.</td>
+</tr>
+<tr>
+<td><code>tse-bens</code></td>
+<td>Ano <code>UInt16</code>, eleição, UF, UE, candidato texto e <code>ordem_bem</code> <code>UInt32</code> obrigatórios; <code>valor_bem</code> <code>Decimal128(18,2)</code> anulável; datas <code>Date32</code> anuláveis</td>
+<td>Normalizar nome da coluna de ordem por ano, nunca o valor do identificador; valor decimal preenchido inválido bloqueia. Colisão da chave bloqueia.</td>
+</tr>
+<tr>
+<td><code>tse-prestacao-contas</code></td>
+<td>Tabelas internas e recortes anuais descritos abaixo. Documentos, eleição, prestador e candidato são texto; datas <code>Date32</code> ou timestamp; valor monetário <code>Decimal128(18,2)</code> quando a coluna indicar reais</td>
+<td>Não há chave de lançamento completa e única comprovada para 2014 nem para as famílias partidárias de 2016. Preservar ocorrências e variantes nacionais/UF separadas até reconciliar conteúdo; nunca somar consolidado com suas partes.</td>
+</tr>
+<tr>
+<td><code>tse-votacao-secao</code></td>
+<td>Ano <code>UInt16</code>, eleição, UF, município, zona, seção, cargo e votável como texto obrigatórios; <code>turno</code> <code>UInt8</code> obrigatório; <code>quantidade_votos</code> <code>UInt32</code> obrigatório; <code>data_eleicao</code> <code>Date32</code> anulável</td>
+<td>Chave composta por ano, eleição, turno, UF, município, zona, seção, cargo e votável; conversão inválida ou colisão bloqueia. Zero de votos é valor válido, diferente de nulo.</td>
+</tr>
+<tr>
+<td><code>bcb</code></td>
+<td><code>data</code> <code>Date32</code>, <code>valor</code> <code>Decimal128(18,6)</code> obrigatórios; série identificada pelo recurso</td>
+<td><code>DD/MM/AAAA</code> e decimal com ponto no contrato atual. Data repetida na mesma série bloqueia; não converter por <code>f64</code>.</td>
+</tr>
+<tr>
+<td><code>ipeadata</code></td>
+<td><code>SERCODIGO</code>, <code>TERCODIGO</code>, <code>VALDATA</code>, <code>NIVNOME</code> texto obrigatório para chave candidata; <code>data</code> <code>Date32</code> e <code>valor</code> decimal de escala por série, anuláveis até validação</td>
+<td><code>NIVNOME</code> distingue Brasil, UF, município e região. Não converter <code>TERCODIGO</code> para inteiro nem atribuir município a agregados. Preservar até testar chave em séries distintas.</td>
+</tr>
+<tr>
+<td><code>ibge-estados</code>, <code>ibge-regioes</code>, <code>ibge-municipios</code></td>
+<td><code>id</code> IBGE texto obrigatório; <code>nome</code> texto obrigatório; nível explícito; UF/região pai texto anulável conforme tipo</td>
+<td><code>id</code> com zeros à esquerda; colisão dentro de uma fotografia bloqueia. Fotografia não implica período de vigência histórico: não inventar data de início/fim.</td>
+</tr>
+<tr>
+<td><code>ibge-ipca</code>, <code>ibge-inpc</code>, <code>ibge-pib-municipios</code>, <code>ibge-pib-trimestral</code>, <code>ibge-pnad-desocupacao</code>, <code>ibge-populacao-municipios</code></td>
+<td><code>variavel_id</code>, <code>classificacoes</code>, <code>nivel_id</code>, <code>localidade_id</code>, <code>periodo</code> texto obrigatórios; <code>valor_original</code> texto anulável; <code>valor_decimal</code> <code>Decimal128(38,9)</code> anulável</td>
+<td>Chave inclui classificação e período; <code>nivel_id</code> define alcance geográfico. Valor textual não decimal permanece original e decimal nulo; sentinelas só ganham semântica após metadados específicos. Colisão da chave bloqueia após validação por recurso.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tabelas-internas-da-camara">Tabelas internas da Câmara<a class="headerlink" href="#tabelas-internas-da-camara" title="Permanent link">&para;</a></h3>
+<p>O recurso <code>camara-votacoes</code> de 2024 contém sete conjuntos distintos. A amostra e as contagens de unicidade estão em <a href="../silver/#conjuntos-da-camara">silver.md</a>. Cada contrato inclui <code>ano</code> <code>UInt16</code> do recurso, preserva texto original dos campos não tipados e aplica o padrão de nulos e linhagem acima.</p>
+<table>
+<thead>
+<tr>
+<th>Tabela</th>
+<th>Grão e chave candidata de 2024</th>
+<th>Campos mínimos obrigatórios</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>proposicoes</code></td>
+<td>proposição; <code>id</code></td>
+<td><code>id</code> textual</td>
+</tr>
+<tr>
+<td><code>proposicoesAutores</code></td>
+<td>assinatura; <code>idProposicao</code>, <code>ordemAssinatura</code></td>
+<td>ambos textuais; ordem pode ganhar <code>UInt32</code> adicional sem perder original</td>
+</tr>
+<tr>
+<td><code>votacoes</code></td>
+<td>sessão; <code>id</code></td>
+<td><code>id</code> textual</td>
+</tr>
+<tr>
+<td><code>votacoesVotos</code></td>
+<td>voto; <code>idVotacao</code>, <code>deputado_id</code></td>
+<td>ambos textuais; opção de voto anulável</td>
+</tr>
+<tr>
+<td><code>votacoesObjetos</code></td>
+<td>objeto; <code>idVotacao</code>, <code>proposicao_id</code></td>
+<td>ambos textuais</td>
+</tr>
+<tr>
+<td><code>votacoesProposicoes</code></td>
+<td>proposição relacionada; <code>idVotacao</code>, <code>proposicao_id</code></td>
+<td>ambos textuais</td>
+</tr>
+<tr>
+<td><code>votacoesOrientacoes</code></td>
+<td>orientação; <code>idVotacao</code>, <code>siglaBancada</code></td>
+<td>ambos textuais; orientação anulável</td>
+</tr>
+</tbody>
+</table>
+<p>Essas chaves foram medidas em 2024, não em todos os anos. Uma linha sem componente obrigatório ou com colisão impede a ativação do contrato do ano correspondente; as demais tabelas podem publicar independentemente.</p>
+<h3 id="tabelas-internas-da-prestacao-de-contas-tse">Tabelas internas da prestação de contas TSE<a class="headerlink" href="#tabelas-internas-da-prestacao-de-contas-tse" title="Permanent link">&para;</a></h3>
+<p>O catálogo tem <strong>uma</strong> entrada <code>tse-prestacao-contas</code>, mas o ZIP carrega relações distintas. O <a href="../pesquisa-tse-2014-2022/">inventário 2014–2022</a> fixa os manifestos, schemas e contagens; a <a href="../pesquisa-tse-2014-sup/">pesquisa de 2014 <code>_sup</code></a> trata os arquivos suplementares. O contrato de cada linha abaixo é por <strong>família × ano × recorte escolhido</strong>. Uma relação só é ativada depois de verificar cabeçalhos, sentinelas, chave ou ausência dela, multiplicidade e relação entre recortes.</p>
+<table>
+<thead>
+<tr>
+<th>Anos</th>
+<th>Tabelas internas</th>
+<th>Grão e decisão de identidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2002</td>
+<td><code>DespesaCandidato</code>, <code>ReceitaCandidato</code>, <code>DespesaComite</code>, <code>ReceitaComite</code></td>
+<td>Quatro lançamentos distintos. Combinações exploratórias colidem; conservar todas as ocorrências e os formatos de data/valor por tabela. Ver <a href="../pesquisa-tse-2002/">pesquisa 2002</a>.</td>
+</tr>
+<tr>
+<td>2004, 2006</td>
+<td>Despesas e receitas de candidato/comitê nos nomes físicos de cada ZIP</td>
+<td>Quatro relações por ano. Cabeçalhos mudam, inclusive nomes literais em 2004; não reaproveitar aliases nem inferir chave de outro ano. Ver <a href="../pesquisa-tse-2004-2006/">pesquisa 2004–2006</a>.</td>
+</tr>
+<tr>
+<td>2008</td>
+<td><code>despesas_candidatos</code>, <code>despesas_comites</code>, <code>receitas_candidatos</code>, <code>receitas_comites</code>; <code>leiaute-2008</code> é documentação, não tabela</td>
+<td>Quatro relações de lançamento sem chave validada. O TXT do leiaute não entra no catálogo Silver. Ver <a href="../pesquisa-tse-2008/">pesquisa 2008</a>.</td>
+</tr>
+<tr>
+<td>2010</td>
+<td><code>ReceitasCandidatos</code>, <code>DespesasCandidatos</code>, <code>ReceitasComites</code>, <code>DespesasComites</code>, <code>ReceitasPartidos</code>, <code>DespesasPartidos</code></td>
+<td>Seis relações; 28 partes por família. O manifesto omite o caminho UF, então conservar parte e ordinal e validar UF da linha. Ver <a href="../pesquisa-tse-2010-2012/">pesquisa 2010–2012</a>.</td>
+</tr>
+<tr>
+<td>2012</td>
+<td><code>despesas_candidatos</code>, <code>despesas_comites</code>, <code>despesas_partidos</code>, <code>receitas_candidatos</code>, <code>receitas_comites</code>, <code>receitas_partidos</code></td>
+<td>Seis relações; <code>_brasil</code> e UFs divergem em cobertura/schema. Receitas partidárias por UF/BR têm 19 colunas posicionais sem mapeamento validado. Não publicar uma união presumida.</td>
+</tr>
+<tr>
+<td>2014</td>
+<td><code>despesas_candidatos</code>, <code>despesas_comites</code>, <code>despesas_partidos</code>; <code>receitas_candidatos</code>, <code>receitas_comites</code>, <code>receitas_partidos</code></td>
+<td>Lançamento por tipo de prestador. Sondas de documento/recibo têm campos faltantes ou colisões; identidade técnica por linha, sem deduplicação.</td>
+</tr>
+<tr>
+<td>2014</td>
+<td><code>despesas_candidatos_prestacao_contas_final</code>, <code>despesas_partidos_prestacao_contas_final</code>, <code>receitas_candidatos_prestacao_contas_final</code>, <code>receitas_partidos_prestacao_contas_final</code> em <code>_sup</code></td>
+<td>Relações suplementares próprias; não anexar à tabela ordinária sem prova de semântica e multiplicidade.</td>
+</tr>
+<tr>
+<td>2016</td>
+<td><code>despesas_candidatos_prestacao_contas_final</code>, <code>despesas_partidos_prestacao_contas_final</code>, <code>receitas_candidatos_prestacao_contas_final</code>, <code>receitas_partidos_prestacao_contas_final</code></td>
+<td>Lançamento final por prestador. Partidárias têm chaves incompletas/colisões medidas; preservar todas. <code>_brasil</code> inclui registros <code>UF=BR</code> ou <code>UF=DF</code> além das UFs publicadas. <code>_sup</code> segue separado.</td>
+</tr>
+<tr>
+<td>2018, 2020, 2022</td>
+<td><code>despesas_contratadas_candidatos</code>, <code>despesas_pagas_candidatos</code>, <code>receitas_candidatos</code>, <code>receitas_candidatos_doador_originario</code></td>
+<td>Quatro grãos distintos. <code>_BRASIL</code> reproduz UFs + <code>_BR</code> em 2018/2022 e UFs em 2020 no snapshot medido; selecionar um recorte com versão de regra, sem somar ambos. As quatro famílias de 2022 e despesas contratadas de 2020 têm contratos próprios; as demais famílias/anos seguem pendentes.</td>
+</tr>
+<tr>
+<td>2024</td>
+<td><code>despesas_contratadas_candidatos</code>, <code>despesas_pagas_candidatos</code>, <code>receitas_candidatos</code>, <code>receitas_candidatos_doador_originario</code></td>
+<td>Quatro relações. Despesas pagas removem apenas 79 cópias integrais; despesas contratadas, receitas e doador originário preservam variantes com linhagem técnica por ocorrência. Documento do doador permanece texto, não é chave única. Ver <a href="../pesquisa-tse-2024/">pesquisa 2024</a>.</td>
+</tr>
+</tbody>
+</table>
+<p>Campos como <code>#NULO</code>, <code>#NE</code>, <code>-1</code> e <code>-3</code> têm interpretação <strong>por coluna e ano</strong> a partir do leia-me do pacote. <code>UF=BR</code> é nacional; <code>UF=DF</code> é Distrito Federal e não deve virar linha nacional. Valores monetários conservam a string original e recebem decimal apenas após validar separador e escala do layout anual. A ausência de chave comprovada não autoriza apagar uma ocorrência repetida.</p>
+<h2 id="evidencia-minima-antes-da-ativacao">Evidência mínima antes da ativação<a class="headerlink" href="#evidencia-minima-antes-da-ativacao" title="Permanent link">&para;</a></h2>
+<p>A fixture ou amostra real de cada contrato deve demonstrar: schema de entrada de pelo menos um ano antigo e um recente quando houver mudança; chave completa e unicidade ou decisão explícita de ausência de chave; datas, decimais e identificadores com zero à esquerda; nulos, sentinelas e linha inválida; duas ocorrências iguais com ordinais distintos; contagem de entrada, saída e rejeição; ponteiro anterior preservado em falha. Para CSV, JSON, IBGE agregado e TSE, o <a href="../silver/#evidencia-disponivel-no-repositorio">registro de evidência</a> e as pesquisas vinculadas fornecem os recortes já medidos. Falta de evidência mantém a família planejada, sem publicar um contrato presumido.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar para o topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../silver/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Camada silver — contrato inicial">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Camada silver — contrato inicial
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../pesquisa-tse-2014-2022/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Prestação de contas TSE 2014–2022: inventário Bronze">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                Prestação de contas TSE 2014–2022: inventário Bronze
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Henrique Morais
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.action.edit"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "mais 1 nesta p\u00e1gina", "search.result.more.other": "# mais nesta p\u00e1gina", "search.result.none": "Nenhum documento encontrado", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+    
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
+</html>
