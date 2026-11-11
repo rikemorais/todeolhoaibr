@@ -35,11 +35,12 @@ use todeolho_refino::{
     TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasContratadas,
     TarefaDeSilverTseDespesasContratadas2018, TarefaDeSilverTseDespesasContratadas2020,
     TarefaDeSilverTseDespesasContratadas2022, TarefaDeSilverTseDespesasPagas,
-    TarefaDeSilverTseDespesasPagas2020, TarefaDeSilverTseDespesasPagas2022,
-    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseReceitasCandidatos2020,
-    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
-    TarefaDeSilverTseReceitasDoadorOriginario2020, TarefaDeSilverTseReceitasDoadorOriginario2022,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseDespesasPagas2018, TarefaDeSilverTseDespesasPagas2020,
+    TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseReceitasCandidatos,
+    TarefaDeSilverTseReceitasCandidatos2020, TarefaDeSilverTseReceitasCandidatos2022,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2020,
+    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseVotacaoSecao,
+    TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -629,17 +630,24 @@ async fn passada_tse_prestacao_contas_silver(
         .await
         .context("não foi possível ler snapshot Bronze da prestação de contas de 2018")?
     {
+        let snapshot = Arc::new(snapshot);
         let tarefa = TarefaDeSilverTseDespesasContratadas2018::nova(
             Arc::clone(bronze),
-            Arc::new(snapshot),
+            Arc::clone(&snapshot),
             RECURSO_2018,
         )
         .expect("o contrato aceita somente a prestação de contas de 2018");
         if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
             tarefas.push(TarefaPlanejada::nova(tarefa));
         }
+        let tarefa_pagas =
+            TarefaDeSilverTseDespesasPagas2018::nova(Arc::clone(bronze), snapshot, RECURSO_2018)
+                .expect("o contrato aceita somente a prestação de contas de 2018");
+        if !somente_pendentes || tarefa_pagas.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa_pagas));
+        }
     } else {
-        println!("Bronze 2018 ausente; despesas contratadas de 2018 não serão refinadas.");
+        println!("Bronze 2018 ausente; despesas contratadas e pagas de 2018 não serão refinadas.");
     }
 
     const RECURSO_2020: &str = "prestacao-contas/ano=2020";
