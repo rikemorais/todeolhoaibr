@@ -82,6 +82,9 @@ pub use silver::tarefa_bcb::TarefaDeSilverBcb;
 pub use silver::tarefa_tse_despesas_contratadas::{
     TarefaDeSilverTseDespesasContratadas, publicar_tse_despesas_contratadas_2024,
 };
+pub use silver::tarefa_tse_despesas_contratadas_2018::{
+    TarefaDeSilverTseDespesasContratadas2018, publicar_tse_despesas_contratadas_2018,
+};
 pub use silver::tarefa_tse_despesas_contratadas_2022::{
     TarefaDeSilverTseDespesasContratadas2022, publicar_tse_despesas_contratadas_2022,
 };
@@ -110,6 +113,7 @@ pub use silver::tse_candidaturas::esquema_tse_candidaturas;
 #[cfg(test)]
 pub use silver::tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
 pub use silver::tse_despesas_contratadas::esquema_tse_despesas_contratadas_2024;
+pub use silver::tse_despesas_contratadas_2018::esquema_tse_despesas_contratadas_2018;
 pub use silver::tse_despesas_contratadas_2020::esquema_tse_despesas_contratadas_2020;
 pub use silver::tse_despesas_contratadas_2022::esquema_tse_despesas_contratadas_2022;
 pub use silver::tse_despesas_pagas::esquema_tse_despesas_pagas_2024;
