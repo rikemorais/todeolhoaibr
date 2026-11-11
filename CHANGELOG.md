@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.68.0] - 2026-11-11
+
 ### Adicionado
 
 - Contrato Silver para despesas pagas do TSE em 2020, preservando ocorrências com linhagem Bronze (issue #189); smoke integral publicou 3.086.924 linhas.
