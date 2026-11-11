@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Contrato Silver para despesas pagas do TSE em 2022, preservando ocorrências com linhagem Bronze (issue #189); smoke integral publicou 2.411.963 linhas.
+
 ## [0.65.0] - 2026-11-10
 
 ### Adicionado
