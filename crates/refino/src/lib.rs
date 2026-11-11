@@ -97,6 +97,9 @@ pub use silver::tarefa_tse_receitas_candidatos_2022::{
 pub use silver::tarefa_tse_receitas_doador_originario::{
     TarefaDeSilverTseReceitasDoadorOriginario, publicar_tse_receitas_doador_originario_2024,
 };
+pub use silver::tarefa_tse_receitas_doador_originario_2020::{
+    TarefaDeSilverTseReceitasDoadorOriginario2020, publicar_tse_receitas_doador_originario_2020,
+};
 pub use silver::tarefa_tse_receitas_doador_originario_2022::{
     TarefaDeSilverTseReceitasDoadorOriginario2022, publicar_tse_receitas_doador_originario_2022,
 };
@@ -120,6 +123,7 @@ pub use silver::tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
 pub use silver::tse_receitas_candidatos_2020::esquema_tse_receitas_candidatos_2020;
 pub use silver::tse_receitas_candidatos_2022::esquema_tse_receitas_candidatos_2022;
 pub use silver::tse_receitas_doador_originario::esquema_tse_receitas_doador_originario_2024;
+pub use silver::tse_receitas_doador_originario_2020::esquema_tse_receitas_doador_originario_2020;
 pub use silver::tse_receitas_doador_originario_2022::esquema_tse_receitas_doador_originario_2022;
 pub use silver::tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
