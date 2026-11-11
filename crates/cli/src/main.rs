@@ -652,7 +652,7 @@ async fn passada_tse_prestacao_contas_silver(
             tarefas.push(TarefaPlanejada::nova(tarefa_despesas_pagas));
         }
     } else {
-        println!("Bronze 2020 ausente; despesas contratadas de 2020 não serão refinadas.");
+        println!("Bronze 2020 ausente; despesas contratadas e pagas de 2020 não serão refinadas.");
     }
 
     const RECURSO_2022: &str = "prestacao-contas/ano=2022";
