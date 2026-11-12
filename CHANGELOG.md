@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.77.0] - 2026-11-12
+
+### Adicionado
+
+- Ingestão de renda domiciliar per capita dos municípios (IBGE/Censo via API SIDRA), Fase 1: Censos 2010 (tabela 3578) e 2022 (tabela 10295), camadas Raw→Bronze→Silver com contrato `ibge-renda-per-capita-v1` (issue #29).
+
 ## [0.76.1] - 2026-11-12
 
 ### Corrigido
