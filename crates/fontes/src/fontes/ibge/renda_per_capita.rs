@@ -27,8 +27,10 @@ const VARIAVEIS_2010: &str = "2012,2013,2035";
 const TABELA_2022: u32 = 10295;
 /// Variáveis de 2022: média (13431), mediana (13534), moradores (13604).
 const VARIAVEIS_2022: &str = "13431,13534,13604";
-/// Classificações fixadas em "Total" para 2022 (sexo, faixa etária, cor/raça).
-const CLASSIFICACOES_2022: &str = "/c2/6794/c287/95253/c86/95251";
+/// Classificações fixadas em "Total" para 2022 (sexo e cor/raça).
+/// A tabela 10295 não expõe c287 (faixa etária) como filtro de URL; o total
+/// de grupo de idade já vem agregado por padrão.
+const CLASSIFICACOES_2022: &str = "/c2/6794/c86/95251";
 
 const TAMANHO_TIPICO: u64 = 2_000_000;
 
@@ -124,8 +126,8 @@ mod testes {
         assert!(url.contains("/n6/all"), "nível municipal");
         assert!(url.contains("/v/13431,13534,13604"), "três variáveis");
         assert!(url.contains("/c2/6794"), "sexo = Total");
-        assert!(url.contains("/c287/95253"), "faixa etária = Total");
         assert!(url.contains("/c86/95251"), "cor/raça = Total");
+        assert!(!url.contains("/c287/"), "c287 não existe nesta tabela");
     }
 
     #[test]

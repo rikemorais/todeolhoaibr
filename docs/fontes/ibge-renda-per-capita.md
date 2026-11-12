@@ -15,7 +15,7 @@ Três variáveis por edição do Censo, no nível **municipal** (`N6`, ~5.570 mu
     Os censos de 1991 e 2000 **não** estão disponíveis na API SIDRA no nível municipal (`N6`). A issue prevê série comparável, mas os dados anteriores a 2010 só existem em microdados ou publicações tabulares, fora do escopo desta Fase 1.
 
 !!! note "Classificações de 2022"
-    A tabela 10295 exige filtros de classificação para obter totais: sexo = Total (`c2/6794`), faixa etária = Total (`c287/95253`), cor/raça = Total (`c86/95251`).
+    A tabela 10295 exige filtros de classificação para obter totais: sexo = Total (`c2/6794`) e cor/raça = Total (`c86/95251`). O grupo de idade já vem agregado por padrão (a tabela não expõe `c287` como filtro de URL).
 
 ## Layout na Raw
 
