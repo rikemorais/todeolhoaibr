@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.76.0] - 2026-11-12
+
+### Adicionado
+
+- Contratos Silver para despesas e receitas de partidos do TSE em 2016, completando as 4 famílias Bronze de 2016 na Silver: despesas de candidatos, receitas de candidatos, despesas de partidos e receitas de partidos (issue #189).
+
 ## [0.75.0] - 2026-11-11
 
 ### Adicionado
