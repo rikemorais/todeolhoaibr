@@ -29,21 +29,21 @@ use todeolho_refino::{
     FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
     TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
     TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
-    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIpeadata,
-    TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
-    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens,
-    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2016,
-    TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
-    TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
-    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseDespesasPagas2018,
-    TarefaDeSilverTseDespesasPagas2020, TarefaDeSilverTseDespesasPagas2022,
-    TarefaDeSilverTseDespesasPartidos2016, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasCandidatos2016, TarefaDeSilverTseReceitasCandidatos2018,
-    TarefaDeSilverTseReceitasCandidatos2020, TarefaDeSilverTseReceitasCandidatos2022,
-    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2018,
-    TarefaDeSilverTseReceitasDoadorOriginario2020, TarefaDeSilverTseReceitasDoadorOriginario2022,
-    TarefaDeSilverTseReceitasPartidos2016, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
-    catalogo_refino,
+    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita,
+    TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
+    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
+    TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
+    TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasContratadas,
+    TarefaDeSilverTseDespesasContratadas2018, TarefaDeSilverTseDespesasContratadas2020,
+    TarefaDeSilverTseDespesasContratadas2022, TarefaDeSilverTseDespesasPagas,
+    TarefaDeSilverTseDespesasPagas2018, TarefaDeSilverTseDespesasPagas2020,
+    TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseDespesasPartidos2016,
+    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseReceitasCandidatos2016,
+    TarefaDeSilverTseReceitasCandidatos2018, TarefaDeSilverTseReceitasCandidatos2020,
+    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
+    TarefaDeSilverTseReceitasDoadorOriginario2018, TarefaDeSilverTseReceitasDoadorOriginario2020,
+    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseReceitasPartidos2016,
+    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -535,6 +535,9 @@ async fn refinar(
                 TipoLocalidadeIbge::Municipios,
             )
             .await;
+        }
+        if fonte.as_deref() == Some("ibge-renda-per-capita") {
+            return refinar_ibge_renda_per_capita_silver(fonte, todas, intervalo).await;
         }
         if fonte.as_deref() == Some("ipeadata") {
             return refinar_ipeadata_silver(fonte, todas, intervalo).await;
@@ -1131,6 +1134,8 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             )
             .await?;
             let ipeadata = refinar_ipeadata_silver(Some("ipeadata".into()), false, None).await?;
+            let ibge_renda_per_capita =
+                refinar_ibge_renda_per_capita_silver(None, true, None).await?;
             Ok(bcb
                 && ibge
                 && senado
@@ -1149,7 +1154,8 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && ibge_regioes
                 && ibge_estados
                 && ibge_municipios
-                && ipeadata)
+                && ipeadata
+                && ibge_renda_per_capita)
         }
         Some(segundos) => {
             println!(
@@ -1268,6 +1274,11 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                     refinar_ipeadata_silver(Some("ipeadata".into()), false, None).await
                 {
                     eprintln!("Atenção: falha na reconciliação Silver Ipeadata: {erro:#}");
+                }
+                if let Err(erro) = refinar_ibge_renda_per_capita_silver(None, true, None).await {
+                    eprintln!(
+                        "Atenção: falha na reconciliação Silver IBGE renda per capita: {erro:#}"
+                    );
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
@@ -2101,6 +2112,131 @@ async fn passada_ibge_silver(
     }
     if dags.is_empty() {
         println!("Nada a refinar na Silver IBGE (recursos em dia ou não ingeridos).");
+        return Ok(true);
+    }
+
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            Uuid::new_v4().simple()
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let executor = ExecutorDeDag::novo(concorrencia()?);
+    let mut sucesso = true;
+    for dag in &dags {
+        let relatorio = executor
+            .executar(dag, &contexto, registrador.as_ref())
+            .await?;
+        imprimir(&relatorio);
+        sucesso &= relatorio.sucesso();
+    }
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(sucesso)
+}
+
+async fn refinar_ibge_renda_per_capita_silver(
+    fonte: Option<String>,
+    todas: bool,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    if todas && fonte.is_some() {
+        bail!("informe ibge-renda-per-capita ou --todas, não os dois");
+    }
+    let fontes: Vec<FonteDeRefino> = catalogo_refino()
+        .into_iter()
+        .filter(|item| {
+            item.nome == "ibge-renda-per-capita" && (todas || fonte.as_deref() == Some(item.nome))
+        })
+        .collect();
+    if fontes.is_empty() {
+        bail!("fonte Silver ibge-renda-per-capita não encontrada no catálogo");
+    }
+
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => {
+            passada_ibge_renda_per_capita_silver(&fontes, &raw_s3, &bronze, &silver, false).await
+        }
+        Some(segundos) => {
+            println!(
+                "Agendador Silver IBGE renda per capita: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) =
+                    passada_ibge_renda_per_capita_silver(&fontes, &raw_s3, &bronze, &silver, true)
+                        .await
+                {
+                    eprintln!(
+                        "Atenção: falha na reconciliação Silver IBGE renda per capita: {erro:#}"
+                    );
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn passada_ibge_renda_per_capita_silver(
+    fontes: &[FonteDeRefino],
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let mut dags = Vec::new();
+    for fonte in fontes {
+        let mut tarefas = Vec::new();
+        for recurso in recursos_no_raw(raw_s3, fonte).await? {
+            let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "ibge", &recurso)
+                .await
+                .context("não foi possível ler o snapshot Bronze IBGE renda per capita")?
+            else {
+                continue;
+            };
+            let tarefa = TarefaDeSilverIbgeRendaPerCapita::nova(
+                Arc::clone(bronze),
+                Arc::new(snapshot),
+                &recurso,
+            );
+            if somente_pendentes && !tarefa.pendente(silver.as_ref()).await? {
+                continue;
+            }
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+        if !tarefas.is_empty() {
+            dags.push(DagDeIngestao::construir(fonte.nome, tarefas)?);
+        }
+    }
+    if dags.is_empty() {
+        println!(
+            "Nada a refinar na Silver IBGE renda per capita (recursos em dia ou não ingeridos)."
+        );
         return Ok(true);
     }
 

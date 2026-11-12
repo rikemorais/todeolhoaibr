@@ -1,6 +1,6 @@
 # Camada silver — contrato inicial
 
-**Estado:** migração SQL/DataFusion concluída — todas as 28 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+**Estado:** migração SQL/DataFusion concluída — todas as 29 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 
 Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket `silver`. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são **candidatas**: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.
 
@@ -18,7 +18,7 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ```
 crates/refino/
-├── sql/silver/              # 28 consultas SQL versionadas
+├── sql/silver/              # 29 consultas SQL versionadas
 │   ├── bcb_sgs.sql
 │   ├── camara_deputados.sql
 │   ├── ...
@@ -155,34 +155,35 @@ O código Rust dos adaptadores (`tarefa_*.rs`) contém apenas:
 
 As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) são funções genéricas do executor, não transformações por contrato.
 
-### Inventário dos 24 contratos SQL
+### Inventário dos 25 contratos SQL
 
 | # | Arquivo SQL | Adaptador Rust | Regra | Família |
 | --- | --- | --- | --- | --- |
 | 1 | `bcb_sgs.sql` | `tarefa_bcb.rs` | `bcb-sgs-v2` | BCB |
 | 2 | `ibge_agregados.sql` | `tarefa_ibge.rs` | `ibge-agregado-v2` | IBGE |
-| 3 | `senado_parlamentares.sql` | `tarefa_senado.rs` | `senado-parlamentar-v2` | Senado |
-| 4 | `senado_votacoes.sql` | `tarefa_senado_votacoes.rs` | `senado-votacao-v2` | Senado |
-| 5 | `senado_votos.sql` | `tarefa_senado_votacoes.rs` | `senado-voto-nominal-v2` | Senado |
-| 6 | `senado_despesas.sql` | `tarefa_senado_despesas.rs` | `senado-despesa-ceaps-v4` | Senado |
-| 7 | `senado_processos.sql` | `tarefa_senado_processos.rs` | `senado-processo-v2` | Senado |
-| 8 | `senado_processos_detalhes.sql` | `tarefa_senado_processos_detalhes.rs` | `senado-processo-detalhe-v2` | Senado |
-| 9 | `camara_partidos.sql` | `tarefa_camara.rs` | `camara-partido-v2` | Câmara |
-| 10 | `camara_legislaturas.sql` | `tarefa_camara_legislaturas.rs` | `camara-legislatura-periodo-v2` | Câmara |
-| 11 | `camara_deputados.sql` | `tarefa_camara_deputados.rs` | `camara-deputado-exercicio-v2` | Câmara |
-| 12 | `camara_despesas.sql` | `tarefa_camara_despesas.rs` | `camara-despesa-ceap-v3` | Câmara |
-| 13 | `camara_tramitacoes.sql` | `tarefa_camara_tramitacoes.rs` | `camara-tramitacao-evento-v2` | Câmara |
-| 14 | `camara_votacoes_sessoes.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-v2` | Câmara |
-| 15 | `camara_votacoes_votos.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-votos-v3` | Câmara |
-| 16 | `camara_votacoes_proposicoes.sql` | `tarefa_camara_votacoes.rs` | `camara-proposicoes-v2` | Câmara |
-| 17 | `camara_votacoes_proposicoes_autores.sql` | `tarefa_camara_votacoes.rs` | `camara-proposicoes-autores-v2` | Câmara |
-| 18 | `camara_votacoes_proposicoes_relacionadas.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-proposicoes-v2` | Câmara |
-| 19 | `camara_votacoes_objetos.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-objetos-v2` | Câmara |
-| 20 | `camara_votacoes_orientacoes.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-orientacoes-v2` | Câmara |
-| 21 | `tse_candidaturas.sql` | `tarefa_tse_candidaturas.rs` | `tse-candidatura-registro-v2` | TSE |
-| 22 | `tse_bens.sql` | `tarefa_tse_bens.rs` | `tse-bem-candidato-v2` | TSE |
-| 23 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
-| 24 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
+| 3 | `ibge_renda_per_capita.sql` | `tarefa_ibge_renda_per_capita.rs` | `ibge-renda-per-capita-v1` | IBGE |
+| 4 | `senado_parlamentares.sql` | `tarefa_senado.rs` | `senado-parlamentar-v2` | Senado |
+| 5 | `senado_votacoes.sql` | `tarefa_senado_votacoes.rs` | `senado-votacao-v2` | Senado |
+| 6 | `senado_votos.sql` | `tarefa_senado_votacoes.rs` | `senado-voto-nominal-v2` | Senado |
+| 7 | `senado_despesas.sql` | `tarefa_senado_despesas.rs` | `senado-despesa-ceaps-v4` | Senado |
+| 8 | `senado_processos.sql` | `tarefa_senado_processos.rs` | `senado-processo-v2` | Senado |
+| 9 | `senado_processos_detalhes.sql` | `tarefa_senado_processos_detalhes.rs` | `senado-processo-detalhe-v2` | Senado |
+| 10 | `camara_partidos.sql` | `tarefa_camara.rs` | `camara-partido-v2` | Câmara |
+| 11 | `camara_legislaturas.sql` | `tarefa_camara_legislaturas.rs` | `camara-legislatura-periodo-v2` | Câmara |
+| 12 | `camara_deputados.sql` | `tarefa_camara_deputados.rs` | `camara-deputado-exercicio-v2` | Câmara |
+| 13 | `camara_despesas.sql` | `tarefa_camara_despesas.rs` | `camara-despesa-ceap-v3` | Câmara |
+| 14 | `camara_tramitacoes.sql` | `tarefa_camara_tramitacoes.rs` | `camara-tramitacao-evento-v2` | Câmara |
+| 15 | `camara_votacoes_sessoes.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-v2` | Câmara |
+| 16 | `camara_votacoes_votos.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-votos-v3` | Câmara |
+| 17 | `camara_votacoes_proposicoes.sql` | `tarefa_camara_votacoes.rs` | `camara-proposicoes-v2` | Câmara |
+| 18 | `camara_votacoes_proposicoes_autores.sql` | `tarefa_camara_votacoes.rs` | `camara-proposicoes-autores-v2` | Câmara |
+| 19 | `camara_votacoes_proposicoes_relacionadas.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-proposicoes-v2` | Câmara |
+| 20 | `camara_votacoes_objetos.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-objetos-v2` | Câmara |
+| 21 | `camara_votacoes_orientacoes.sql` | `tarefa_camara_votacoes.rs` | `camara-votacoes-orientacoes-v2` | Câmara |
+| 22 | `tse_candidaturas.sql` | `tarefa_tse_candidaturas.rs` | `tse-candidatura-registro-v2` | TSE |
+| 23 | `tse_bens.sql` | `tarefa_tse_bens.rs` | `tse-bem-candidato-v2` | TSE |
+| 24 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
+| 25 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
 
 O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) garante em CI que esta lista permanece sincronizada com o código.
 
@@ -271,6 +272,8 @@ Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conf
 O [`EscritorParquetTipado`](../../crates/refino/src/escritor.rs) recebe o schema Arrow do contrato Silver e grava lotes `RecordBatch` em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente.
 
 O contrato `bcb.sgs.observacao.v1` é definido em [`bcb_sgs.sql`](../../crates/refino/sql/silver/bcb_sgs.sql): `data` em `Date32` e `valor` em `Decimal128(18,6)`, sem conversão por `f64`. A consulta exige data `DD/MM/AAAA` e valor decimal com ponto e até seis casas; dados inválidos ou nulos falham antes de publicar. O adaptador [`TarefaDeSilverBcb`](../../crates/refino/src/silver/tarefa_bcb.rs) usa `TarefaDeSilverSql` e o publicador comum, que mantém manifesto, ponteiro, idempotência e revalidação do snapshot Bronze. A regra `bcb-sgs-v2` reprocessa uma vez o que foi publicado pelo transformador Arrow anterior. A nulabilidade do schema publicado permanece a do contrato; nulos em campos obrigatórios são rejeitados na borda Arrow/Parquet. A CLI aceita `todeolho refinar silver bcb` e `todeolho refinar silver --todas --intervalo 3600`. A execução Silver aparece no painel com o selo azul.
+
+O contrato `ibge.renda_per_capita.observacao.v1` está em [`ibge_renda_per_capita.sql`](../../crates/refino/sql/silver/ibge_renda_per_capita.sql). Mapeia as colunas codificadas do SIDRA `/values` (`D1C`→`municipio_id`, `D2C`→`variavel_id`, `D3C`→`ano_censo`, `V`→`valor_original`/`valor_decimal`) e filtra o cabeçalho descritivo (`NC <> 'Nível Territorial (Código)'`) e sentinelas de supressão (`..`, `-`, `X`). A regra `ibge-renda-per-capita-v1` cobre os Censos 2010 (tabela 3578) e 2022 (tabela 10295). `TarefaDeSilverIbgeRendaPerCapita` publica manifesto e ponteiro com idempotência por versão Bronze/regra. A CLI rota `ibge-renda-per-capita` antes do catch-all `ibge-*` para usar o adaptador próprio.
 
 O contrato `ibge.agregado.observacao.v1` está em [`ibge_agregados.sql`](../../crates/refino/sql/silver/ibge_agregados.sql). Mantém IDs, classificações e período como texto, preserva o valor recebido em `valor_original` e acrescenta `valor_decimal` (`Decimal128(38,9)`) quando o conteúdo corresponde a decimal simples com ponto. Valor nulo, sentinela textual ou valor acima da escala permitida recebe decimal nulo, sem descartar a linha nem classificar sentinelas sem metadados da tabela. `TarefaDeSilverIbge` publica manifesto e ponteiro com idempotência por versão Bronze/regra e verifica que o ponteiro Bronze não mudou durante a transformação. A regra `ibge-agregado-v2` reprocessa uma vez os recursos que foram publicados pelo transformador Arrow anterior. A CLI oferece as seis fontes agregadas com contrato: `ibge-ipca`, `ibge-inpc`, `ibge-pib-municipios`, `ibge-pib-trimestral`, `ibge-pnad-desocupacao` e `ibge-populacao-municipios`. `ibge-estados`, `ibge-regioes` e `ibge-municipios` ainda não têm contrato Silver e ficam fora de `--todas`. A reconciliação percorre as fontes suportadas; passadas vazias não são registradas no painel. Fixtures comparam o Parquet SQL ao transformador Arrow anterior, mantido somente em builds de teste.
 
