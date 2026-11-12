@@ -94,6 +94,9 @@ pub use silver::tarefa_tse_despesas_contratadas_2022::{
 pub use silver::tarefa_tse_receitas_candidatos::{
     TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
 };
+pub use silver::tarefa_tse_receitas_candidatos_2016::{
+    TarefaDeSilverTseReceitasCandidatos2016, publicar_tse_receitas_candidatos_2016,
+};
 pub use silver::tarefa_tse_receitas_candidatos_2018::{
     TarefaDeSilverTseReceitasCandidatos2018, publicar_tse_receitas_candidatos_2018,
 };
