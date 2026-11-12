@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.77.1] - 2026-11-12
+
+### Corrigido
+
+- Remove classificação `c287/95253` inexistente na tabela SIDRA 10295 (Censo 2022), que causava erro 400 na API (issue #29).
+
 ## [0.77.0] - 2026-11-12
 
 ### Adicionado
