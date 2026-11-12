@@ -145,6 +145,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "municipios/",
             cria_decodificador: || Arc::new(DecodificadorJson::novo("municipios")),
         },
+        // IBGE SIDRA (Censos): array flat de objetos com colunas codificadas.
+        FonteDeRefino {
+            nome: "ibge-renda-per-capita",
+            fonte_raw: "ibge",
+            prefixo_recurso: "renda-per-capita/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("renda-per-capita")),
+        },
         // Senado (dados abertos): array de objetos no topo.
         FonteDeRefino {
             nome: "senado-processos",
