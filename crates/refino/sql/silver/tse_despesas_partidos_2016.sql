@@ -1,6 +1,6 @@
 -- Contrato tse.prestacao_contas.despesa_partido.2016.v1.
 -- Layout histórico de 2016: cabeçalhos acentuados, valor sem centavos ou com vírgula,
--- data colada ao horário (dd/MM/yyyyHH:mm:ss) e sem coluna de ano.
+-- data DD-MON-YY (mês abreviado em inglês) e sem coluna de ano.
 -- Diferente de despesas_candidatos: o prestador é o diretório partidário (CNPJ + sequencial).
 WITH origem AS (
     SELECT
@@ -11,14 +11,6 @@ WITH origem AS (
         TRIM("Valor despesa") AS valor_texto,
         NULLIF(TRIM("Tipo despesa"), '') AS tipo_despesa,
         NULLIF(TRIM("Descrição da despesa"), '') AS descricao_despesa,
-        CASE
-            WHEN regexp_like(TRIM("Data da despesa"), '^[0-9]{2}/[0-9]{2}/[0-9]{4}')
-                THEN regexp_replace(
-                    substr(TRIM("Data da despesa"), 1, 10),
-                    '^([0-9]{2})/([0-9]{2})/([0-9]{4})$',
-                    '$3-$2-$1'
-                )
-        END AS data_iso,
         regexp_replace(TRIM("Valor despesa"), ',', '.', 'g') AS valor_normalizado,
         _tdoa_json_original AS registro_original,
         _tdoa_origem_manifesto,
@@ -28,12 +20,13 @@ WITH origem AS (
     WHERE regexp_like(upper(_tdoa_origem_url), 'DESPESAS_PARTIDOS_PRESTACAO_CONTAS_FINAL_2016_BRASIL([.]CSV|[.]TXT)?$')
 ), tipadas AS (
     SELECT *,
-        arrow_try_cast(data_iso, 'Date32') AS data_despesa,
+        CASE WHEN data_texto IS NOT NULL
+            THEN to_date(upper(data_texto), '%d-%b-%y') END AS data_despesa,
         TRY_CAST(valor_normalizado AS DECIMAL(18, 2)) AS valor_despesa
     FROM origem
 )
 SELECT
-    CAST(2016 AS SMALLINT UNSIGNED) AS ano_eleicao,
+    arrow_try_cast('2016', 'UInt16') AS ano_eleicao,
     codigo_eleicao,
     sequencia_prestador,
     cnpj_prestador,
