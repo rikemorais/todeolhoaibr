@@ -64,6 +64,7 @@ pub mod tarefa_tse_receitas_doador_originario;
 pub mod tarefa_tse_receitas_doador_originario_2018;
 pub mod tarefa_tse_receitas_doador_originario_2020;
 pub mod tarefa_tse_receitas_doador_originario_2022;
+pub mod tarefa_tse_receitas_partidos_2016;
 pub mod tarefa_tse_votacao_secao;
 pub mod tse_bens;
 pub mod tse_candidaturas;
@@ -86,6 +87,7 @@ pub mod tse_receitas_doador_originario;
 pub mod tse_receitas_doador_originario_2018;
 pub mod tse_receitas_doador_originario_2020;
 pub mod tse_receitas_doador_originario_2022;
+pub mod tse_receitas_partidos_2016;
 pub mod tse_votacao_secao;
 
 pub use camara_deputados::esquema_camara_deputados;
@@ -208,6 +210,9 @@ pub use tarefa_tse_receitas_doador_originario_2020::{
 pub use tarefa_tse_receitas_doador_originario_2022::{
     TarefaDeSilverTseReceitasDoadorOriginario2022, publicar_tse_receitas_doador_originario_2022,
 };
+pub use tarefa_tse_receitas_partidos_2016::{
+    TarefaDeSilverTseReceitasPartidos2016, publicar_tse_receitas_partidos_2016,
+};
 pub use tarefa_tse_votacao_secao::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
 pub use tse_bens::esquema_tse_bens;
 #[cfg(test)]
@@ -233,6 +238,7 @@ pub use tse_receitas_candidatos_2016::esquema_tse_receitas_candidatos_2016;
 pub use tse_receitas_candidatos_2022::esquema_tse_receitas_candidatos_2022;
 pub use tse_receitas_doador_originario::esquema_tse_receitas_doador_originario_2024;
 pub use tse_receitas_doador_originario_2022::esquema_tse_receitas_doador_originario_2022;
+pub use tse_receitas_partidos_2016::esquema_tse_receitas_partidos_2016;
 pub use tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
 pub use tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
