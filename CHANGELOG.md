@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Contrato Silver para receitas de comitês do TSE em 2014, preservando as 9.173 ocorrências do consolidado nacional e a linhagem Bronze (issue #189).
+
 ## [0.78.0] - 2026-11-12
 
 ### Adicionado

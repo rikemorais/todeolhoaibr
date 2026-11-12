@@ -145,6 +145,7 @@ mod testes {
         silver::tarefa_tse_receitas_candidatos_2018::publicar_tse_receitas_candidatos_2018,
         silver::tarefa_tse_receitas_candidatos_2020::publicar_tse_receitas_candidatos_2020,
         silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
+        silver::tarefa_tse_receitas_comites_2014::publicar_tse_receitas_comites_2014,
         silver::tarefa_tse_receitas_doador_originario::publicar_tse_receitas_doador_originario_2024,
         silver::tarefa_tse_receitas_doador_originario_2018::publicar_tse_receitas_doador_originario_2018,
         silver::tarefa_tse_receitas_doador_originario_2020::publicar_tse_receitas_doador_originario_2020,
@@ -465,6 +466,105 @@ mod testes {
             .await
             .unwrap();
         SnapshotBronze::vigente(bronze, "tse", &recurso)
+            .await
+            .unwrap()
+            .unwrap()
+    }
+
+    async fn preparar_snapshot_receitas_comites_2014(bronze: &Memoria) -> SnapshotBronze {
+        let instante = Utc.with_ymd_and_hms(2026, 11, 12, 21, 30, 0).unwrap();
+        let recurso = "prestacao-contas/ano=2014";
+        let id_bronze = "bronze-receitas-comites-2014";
+        let colunas = [
+            "Cód. Eleição",
+            "Sequencial Comite",
+            "CNPJ Prestador Conta",
+            "UF",
+            "Tipo Comite",
+            "Data da receita",
+            "Valor receita",
+            "Tipo receita",
+            "Descrição da receita",
+        ];
+        let linha = |data: &str, valor: &str| {
+            [
+                "143",
+                "12345",
+                "12345678000190",
+                "AC",
+                "Financeiro",
+                data,
+                valor,
+                "Doação",
+                "Teste",
+            ]
+            .map(|v| Some(v.into()))
+        };
+        let nacional = Tabela::nova(colunas)
+            .com_linha(linha("10/10/201412:30:00", "100"))
+            .com_linha(linha("10/10/201412:30:00", "100"))
+            .com_linha(linha("", ",25"));
+        let estadual = Tabela::nova(colunas).com_linha(linha("11/10/201412:30:00", "10"));
+        let local = LocalizacaoRaw::nova("tse", recurso, instante, id_bronze);
+        let mut partes = Vec::new();
+        for (indice, (nome, tabela)) in [
+            ("receitas_comites_2014_brasil.txt", nacional),
+            ("receitas_comites_2014_AC.txt", estadual),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let conteudo = tabela.para_parquet().unwrap();
+            let parte = ParteRaw {
+                chave: local.parte(indice + 1, "parquet"),
+                url: format!("https://dados.tse.jus.br/{nome}"),
+                bytes: conteudo.len() as u64,
+                sha256: hex::encode(Sha256::digest(&conteudo)),
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                versao: Some(id_bronze.into()),
+            };
+            bronze
+                .gravar(ObjetoRaw {
+                    chave: parte.chave.clone(),
+                    conteudo,
+                    tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                })
+                .await
+                .unwrap();
+            partes.push(parte);
+        }
+        let manifesto = ManifestoRaw {
+            fonte: "tse".into(),
+            recurso: recurso.into(),
+            id_execucao: id_bronze.into(),
+            url_inicial: "fixture".into(),
+            iniciada_em: instante,
+            concluida_em: instante,
+            partes,
+        };
+        let chave_manifesto = local.manifesto();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: chave_manifesto.clone(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao("tse", recurso),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some(id_bronze.into()),
+                    manifesto: chave_manifesto,
+                    iniciada_em: Some(instante),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        SnapshotBronze::vigente(bronze, "tse", recurso)
             .await
             .unwrap()
             .unwrap()
@@ -1388,6 +1488,80 @@ mod testes {
             (0..originais.len())
                 .any(|i| originais.value(i).contains("serviço contratado retificado"))
         );
+    }
+
+    #[tokio::test]
+    async fn receitas_comites_2014_preserva_copias_e_separa_parte_estadual() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_receitas_comites_2014(&bronze).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_receitas_comites_2014(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 12, 22, 0, 0).unwrap(),
+            "silver-receitas-comites-2014",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+        let destino = "prestacao-contas/ano=2014/receitas-comites";
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao("tse", destino))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .build()
+            .unwrap();
+        let lote = leitor.next().unwrap().unwrap();
+        assert_eq!(lote.num_rows(), 3);
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!((0..3).all(|i| anos.value(i) == 2014));
+        let datas = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 1);
+        let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let esperado = chrono::NaiveDate::from_ymd_opt(2014, 10, 10)
+            .unwrap()
+            .signed_duration_since(epoch)
+            .num_days() as i32;
+        assert_eq!(datas.value(0), esperado);
+        assert_eq!(datas.value(1), esperado);
+        let valores = lote
+            .column(7)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        assert_eq!(
+            (0..3).map(|i| valores.value(i)).collect::<Vec<_>>(),
+            [10_000, 10_000, 25]
+        );
+        let ordinais = lote
+            .column(13)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        assert_eq!(ordinais.values(), &[1, 2, 3]);
     }
 
     #[tokio::test]
