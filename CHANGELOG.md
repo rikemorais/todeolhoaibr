@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.77.2] - 2026-11-12
+
 ### Corrigido
 
 - Corrige os três contratos Silver restantes de prestação de contas do TSE em 2016: conversão de datas de candidatos e partidos e tipo do ano eleitoral no DataFusion (issue #189).
