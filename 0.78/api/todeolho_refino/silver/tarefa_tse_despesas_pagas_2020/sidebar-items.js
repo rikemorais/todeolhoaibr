@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_tse_despesas_pagas_2020"],"struct":["TarefaDeSilverTseDespesasPagas2020"]};
