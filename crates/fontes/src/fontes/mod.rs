@@ -9,3 +9,4 @@ pub mod tce_ce;
 pub mod transparencia;
 pub mod transparencia_servidores;
 pub mod tse;
+pub mod world_bank;
