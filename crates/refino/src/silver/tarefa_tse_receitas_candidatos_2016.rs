@@ -16,7 +16,7 @@ use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
 
 const RECURSO: &str = "prestacao-contas/ano=2016";
 const DESTINO: &str = "prestacao-contas/ano=2016/receitas-candidatos";
-const REGRA: &str = "tse-receita-candidato-2016-v1";
+const REGRA: &str = "tse-receita-candidato-2016-v2";
 const SQL: &str = include_str!("../../sql/silver/tse_receitas_candidatos_2016.sql");
 
 /// Tarefa Silver para receitas de candidatos do consolidado `BRASIL` de 2016.

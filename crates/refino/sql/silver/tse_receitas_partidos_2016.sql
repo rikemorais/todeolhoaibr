@@ -1,6 +1,6 @@
 -- Contrato tse.prestacao_contas.receita_partido.2016.v1.
 -- Layout histórico de 2016: cabeçalhos acentuados, valor sem centavos ou com vírgula,
--- data colada ao horário (dd/MM/yyyyHH:mm:ss) e sem coluna de ano.
+-- data DD-MON-YY (mês abreviado em inglês) e sem coluna de ano.
 -- Diferente de receitas_candidatos: o prestador é o diretório partidário (CNPJ + sequencial).
 WITH origem AS (
     SELECT
@@ -11,14 +11,6 @@ WITH origem AS (
         TRIM("Valor receita") AS valor_texto,
         NULLIF(TRIM("Tipo receita"), '') AS tipo_receita,
         NULLIF(TRIM("Descrição da receita"), '') AS descricao_receita,
-        CASE
-            WHEN regexp_like(TRIM("Data da receita"), '^[0-9]{2}/[0-9]{2}/[0-9]{4}')
-                THEN regexp_replace(
-                    substr(TRIM("Data da receita"), 1, 10),
-                    '^([0-9]{2})/([0-9]{2})/([0-9]{4})$',
-                    '$3-$2-$1'
-                )
-        END AS data_iso,
         regexp_replace(TRIM("Valor receita"), ',', '.', 'g') AS valor_normalizado,
         _tdoa_json_original AS registro_original,
         _tdoa_origem_manifesto,
@@ -28,12 +20,13 @@ WITH origem AS (
     WHERE regexp_like(upper(_tdoa_origem_url), 'RECEITAS_PARTIDOS_PRESTACAO_CONTAS_FINAL_2016_BRASIL([.]CSV|[.]TXT)?$')
 ), tipadas AS (
     SELECT *,
-        arrow_try_cast(data_iso, 'Date32') AS data_receita,
+        CASE WHEN data_texto IS NOT NULL
+            THEN to_date(upper(data_texto), '%d-%b-%y') END AS data_receita,
         TRY_CAST(valor_normalizado AS DECIMAL(18, 2)) AS valor_receita
     FROM origem
 )
 SELECT
-    CAST(2016 AS SMALLINT UNSIGNED) AS ano_eleicao,
+    arrow_try_cast('2016', 'UInt16') AS ano_eleicao,
     codigo_eleicao,
     sequencia_prestador,
     cnpj_prestador,
