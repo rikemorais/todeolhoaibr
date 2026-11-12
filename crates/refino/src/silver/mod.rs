@@ -14,6 +14,7 @@ pub mod ibge_estados;
 pub mod ibge_municipios;
 /// Esquema Silver para as regiões do IBGE.
 pub mod ibge_regioes;
+pub mod ibge_renda_per_capita;
 /// Esquema Silver para as séries históricas do Ipeadata.
 pub mod ipeadata;
 mod publicacao;
@@ -35,6 +36,7 @@ pub mod tarefa_camara_votacoes;
 pub mod tarefa_ibge;
 /// Tarefas que publicam localidades do IBGE na camada Silver.
 pub mod tarefa_ibge_localidades;
+pub mod tarefa_ibge_renda_per_capita;
 /// Tarefa que publica séries do Ipeadata na camada Silver.
 pub mod tarefa_ipeadata;
 pub mod tarefa_senado;
@@ -142,6 +144,9 @@ pub use tarefa_camara_tramitacoes::{TarefaDeSilverCamaraTramitacoes, publicar_ca
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_ibge_localidades::{TarefaDeSilverIbgeLocalidades, TipoLocalidadeIbge};
+pub use tarefa_ibge_renda_per_capita::{
+    TarefaDeSilverIbgeRendaPerCapita, publicar_ibge_renda_per_capita,
+};
 pub use tarefa_ipeadata::TarefaDeSilverIpeadata;
 pub use tarefa_senado::{TarefaDeSilverSenadoParlamentares, publicar_senado_parlamentares};
 pub use tarefa_senado_despesas::{TarefaDeSilverSenadoDespesas, publicar_senado_despesas};
