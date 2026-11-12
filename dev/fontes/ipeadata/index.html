@@ -1937,7 +1937,7 @@
 
 
 <h1 id="fonte-ipeadata-series-socioeconomicas-regionais-ipea">Fonte <code>ipeadata</code> — séries socioeconômicas regionais (IPEA)<a class="headerlink" href="#fonte-ipeadata-series-socioeconomicas-regionais-ipea" title="Permanent link">&para;</a></h1>
-<p>Séries socioeconômicas <strong>já consolidadas</strong> do Ipeadata (IPEA): renda, desigualdade (Gini), pobreza e <strong>vulnerabilidade social (IVS)</strong>, por território. Complementa o eixo de desenvolvimento no join <code>município + ano</code>, evitando reconstruir tudo do Censo bruto. Implementa a <a href="https://github.com/rikemorais/todeolhoaibr/issues/32">issue #32</a>.</p>
+<p>Séries socioeconômicas <strong>já consolidadas</strong> do Ipeadata (IPEA): <strong>IDHM</strong>, renda, desigualdade (Gini), pobreza e <strong>vulnerabilidade social (IVS)</strong>, por território. Complementa o eixo de desenvolvimento no join <code>município + ano</code>, evitando reconstruir tudo do Censo bruto. Implementa as issues <a href="https://github.com/rikemorais/todeolhoaibr/issues/32">#32</a> e <a href="https://github.com/rikemorais/todeolhoaibr/issues/31">#31</a> (IDHM).</p>
 <h2 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Uma <strong>requisição por série</strong>, que traz <strong>todos os valores</strong> (todos os territórios e períodos) em JSON (OData), da API do Ipeadata
@@ -1979,11 +1979,35 @@
 <td>AVS_IVS</td>
 <td>Índice de Vulnerabilidade Social (Atlas da Vulnerabilidade Social)</td>
 </tr>
+<tr>
+<td><code>idhm</code></td>
+<td>ADH_IDHM</td>
+<td>IDHM geral (Atlas DH – Censo), por município</td>
+</tr>
+<tr>
+<td><code>idhm-educacao</code></td>
+<td>ADH_IDHM_E</td>
+<td>IDHM — dimensão educação (Atlas DH – Censo), por município</td>
+</tr>
+<tr>
+<td><code>idhm-longevidade</code></td>
+<td>ADH_IDHM_L</td>
+<td>IDHM — dimensão longevidade (Atlas DH – Censo), por município</td>
+</tr>
+<tr>
+<td><code>idhm-renda</code></td>
+<td>ADH_IDHM_R</td>
+<td>IDHM — dimensão renda (Atlas DH – Censo), por município</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Procedência</p>
-<p>São séries <strong>derivadas pelo IPEA</strong> a partir do Censo/PNAD; a fonte canônica de cada uma é o IBGE. As do Atlas DH são <strong>decenais</strong> (1991, 2000, 2010, por município); o IVS é por região/UF. O <strong>IDHM</strong>, também do Atlas, fica na <a href="https://github.com/rikemorais/todeolhoaibr/issues/31">issue #31</a>.</p>
+<p>São séries <strong>derivadas pelo IPEA</strong> a partir do Censo/PNAD; a fonte canônica de cada uma é o IBGE. As do Atlas DH são <strong>decenais</strong> (1991, 2000, 2010, por município); o IVS é por região/UF.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">IDHM: recálculo e limite temporal</p>
+<p>O IDHM de 1991 e 2000 foi <strong>recalculado</strong> com a metodologia de 2010 pelo Atlas do Desenvolvimento Humano (PNUD/IPEA/Fundação João Pinheiro). <strong>Não há edição baseada no Censo 2022</strong> ainda — a série termina em 2010. Cada série traz ~16.776 observações (5.592 municípios × 3 anos).</p>
 </div>
 <h2 id="layout-na-raw">Layout na Raw<a class="headerlink" href="#layout-na-raw" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>raw/ipeadata/series/&lt;serie&gt;/_ultima_versao.json
