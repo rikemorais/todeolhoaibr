@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.81.0] - 2026-11-12
+
+### Adicionado
+
+- Nova fonte `world-bank` com oito indicadores de desenvolvimento por país via API v2 do Banco Mundial (PIB, Gini, pobreza, população, expectativa de vida, alfabetização e desemprego), sem autenticação, para comparação internacional (issue #63).
+
 ## [0.80.0] - 2026-11-12
 
 ### Adicionado
