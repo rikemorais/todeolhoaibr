@@ -48,6 +48,7 @@ pub mod tarefa_sql;
 pub mod tarefa_tse_bens;
 pub mod tarefa_tse_candidaturas;
 pub mod tarefa_tse_despesas_candidatos_2016;
+pub mod tarefa_tse_despesas_comites_2014;
 pub mod tarefa_tse_despesas_contratadas;
 pub mod tarefa_tse_despesas_contratadas_2018;
 pub mod tarefa_tse_despesas_contratadas_2020;
@@ -72,6 +73,7 @@ pub mod tarefa_tse_votacao_secao;
 pub mod tse_bens;
 pub mod tse_candidaturas;
 pub mod tse_despesas_candidatos_2016;
+pub mod tse_despesas_comites_2014;
 pub mod tse_despesas_contratadas;
 pub mod tse_despesas_contratadas_2018;
 pub mod tse_despesas_contratadas_2020;
@@ -163,6 +165,9 @@ pub use tarefa_tse_candidaturas::{TarefaDeSilverTseCandidaturas, publicar_tse_ca
 pub use tarefa_tse_despesas_candidatos_2016::{
     TarefaDeSilverTseDespesasCandidatos2016, publicar_tse_despesas_candidatos_2016,
 };
+pub use tarefa_tse_despesas_comites_2014::{
+    TarefaDeSilverTseDespesasComites2014, publicar_tse_despesas_comites_2014,
+};
 pub use tarefa_tse_despesas_contratadas::{
     TarefaDeSilverTseDespesasContratadas, publicar_tse_despesas_contratadas_2024,
 };
@@ -231,6 +236,7 @@ pub use tse_candidaturas::esquema_tse_candidaturas;
 #[cfg(test)]
 pub use tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
 pub use tse_despesas_candidatos_2016::esquema_tse_despesas_candidatos_2016;
+pub use tse_despesas_comites_2014::esquema_tse_despesas_comites_2014;
 pub use tse_despesas_contratadas::esquema_tse_despesas_contratadas_2024;
 pub use tse_despesas_contratadas_2020::esquema_tse_despesas_contratadas_2020;
 pub use tse_despesas_contratadas_2022::esquema_tse_despesas_contratadas_2022;

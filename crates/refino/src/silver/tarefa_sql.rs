@@ -132,6 +132,7 @@ mod testes {
         SnapshotBronze, Tabela,
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
         silver::tarefa_tse_despesas_candidatos_2016::publicar_tse_despesas_candidatos_2016,
+        silver::tarefa_tse_despesas_comites_2014::publicar_tse_despesas_comites_2014,
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
         silver::tarefa_tse_despesas_contratadas_2018::publicar_tse_despesas_contratadas_2018,
         silver::tarefa_tse_despesas_contratadas_2020::publicar_tse_despesas_contratadas_2020,
@@ -471,7 +472,7 @@ mod testes {
             .unwrap()
     }
 
-    async fn preparar_snapshot_receitas_comites_2014(bronze: &Memoria) -> SnapshotBronze {
+    async fn preparar_snapshot_comites_2014(bronze: &Memoria) -> SnapshotBronze {
         let instante = Utc.with_ymd_and_hms(2026, 11, 12, 21, 30, 0).unwrap();
         let recurso = "prestacao-contas/ano=2014";
         let id_bronze = "bronze-receitas-comites-2014";
@@ -505,11 +506,44 @@ mod testes {
             .com_linha(linha("10/10/201412:30:00", "100"))
             .com_linha(linha("", ",25"));
         let estadual = Tabela::nova(colunas).com_linha(linha("11/10/201412:30:00", "10"));
+        let colunas_despesa = [
+            "Cód. Eleição",
+            "Sequencial Comite",
+            "CNPJ Prestador Conta",
+            "UF",
+            "Tipo Comite",
+            "Data da despesa",
+            "Valor despesa",
+            "Tipo despesa",
+            "Descrição da despesa",
+        ];
+        let linha_despesa = |data: &str, valor: &str| {
+            [
+                "143",
+                "12345",
+                "12345678000190",
+                "AC",
+                "Financeiro",
+                data,
+                valor,
+                "Serviço",
+                "Teste",
+            ]
+            .map(|v| Some(v.into()))
+        };
+        let despesa_nacional = Tabela::nova(colunas_despesa)
+            .com_linha(linha_despesa("10/10/201412:30:00", "100"))
+            .com_linha(linha_despesa("10/10/201412:30:00", "100"))
+            .com_linha(linha_despesa("", ",25"));
+        let despesa_estadual =
+            Tabela::nova(colunas_despesa).com_linha(linha_despesa("11/10/201412:30:00", "10"));
         let local = LocalizacaoRaw::nova("tse", recurso, instante, id_bronze);
         let mut partes = Vec::new();
         for (indice, (nome, tabela)) in [
             ("receitas_comites_2014_brasil.txt", nacional),
             ("receitas_comites_2014_AC.txt", estadual),
+            ("despesas_comites_2014_brasil.txt", despesa_nacional),
+            ("despesas_comites_2014_AC.txt", despesa_estadual),
         ]
         .into_iter()
         .enumerate()
@@ -1491,9 +1525,83 @@ mod testes {
     }
 
     #[tokio::test]
+    async fn despesas_comites_2014_preserva_copias_e_separa_parte_estadual() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_comites_2014(&bronze).await;
+        let silver = Arc::new(Memoria::default());
+        let resumo = publicar_tse_despesas_comites_2014(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            Utc.with_ymd_and_hms(2026, 11, 12, 22, 0, 0).unwrap(),
+            "silver-despesas-comites-2014",
+        )
+        .await
+        .unwrap();
+        assert_eq!(resumo.partes, 1);
+        let destino = "prestacao-contas/ano=2014/despesas-comites";
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao("tse", destino))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: ManifestoRaw =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let parquet = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+            .unwrap()
+            .build()
+            .unwrap();
+        let lote = leitor.next().unwrap().unwrap();
+        assert_eq!(lote.num_rows(), 3);
+        let anos = lote
+            .column(0)
+            .as_any()
+            .downcast_ref::<UInt16Array>()
+            .unwrap();
+        assert!((0..3).all(|i| anos.value(i) == 2014));
+        let datas = lote
+            .column(6)
+            .as_any()
+            .downcast_ref::<Date32Array>()
+            .unwrap();
+        assert_eq!(datas.null_count(), 1);
+        let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let esperado = chrono::NaiveDate::from_ymd_opt(2014, 10, 10)
+            .unwrap()
+            .signed_duration_since(epoch)
+            .num_days() as i32;
+        assert_eq!(datas.value(0), esperado);
+        assert_eq!(datas.value(1), esperado);
+        let valores = lote
+            .column(7)
+            .as_any()
+            .downcast_ref::<Decimal128Array>()
+            .unwrap();
+        assert_eq!(
+            (0..3).map(|i| valores.value(i)).collect::<Vec<_>>(),
+            [10_000, 10_000, 25]
+        );
+        let ordinais = lote
+            .column(13)
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .unwrap();
+        assert_eq!(ordinais.values(), &[1, 2, 3]);
+    }
+
+    #[tokio::test]
     async fn receitas_comites_2014_preserva_copias_e_separa_parte_estadual() {
         let bronze = Arc::new(Memoria::default());
-        let snapshot = preparar_snapshot_receitas_comites_2014(&bronze).await;
+        let snapshot = preparar_snapshot_comites_2014(&bronze).await;
         let silver = Arc::new(Memoria::default());
         let resumo = publicar_tse_receitas_comites_2014(
             bronze.as_ref(),

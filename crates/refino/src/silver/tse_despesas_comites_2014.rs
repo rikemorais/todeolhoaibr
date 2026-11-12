@@ -1,0 +1,25 @@
+//! Contrato Silver para despesas de comitês do TSE em 2014.
+
+use std::sync::Arc;
+
+use arrow::datatypes::{DataType, Field, Schema};
+
+/// Schema versionado `tse.prestacao_contas.despesa_comite.2014.v1`.
+pub fn esquema_tse_despesas_comites_2014() -> Arc<Schema> {
+    Arc::new(Schema::new(vec![
+        Field::new("ano_eleicao", DataType::UInt16, false),
+        Field::new("codigo_eleicao", DataType::Utf8, false),
+        Field::new("sequencia_comite", DataType::Utf8, false),
+        Field::new("cnpj_prestador", DataType::Utf8, false),
+        Field::new("uf", DataType::Utf8, true),
+        Field::new("tipo_comite", DataType::Utf8, true),
+        Field::new("data_despesa", DataType::Date32, true),
+        Field::new("valor_despesa", DataType::Decimal128(18, 2), false),
+        Field::new("tipo_despesa", DataType::Utf8, true),
+        Field::new("descricao_despesa", DataType::Utf8, true),
+        Field::new("registro_original", DataType::Utf8, false),
+        Field::new("_tdoa_origem_manifesto", DataType::Utf8, false),
+        Field::new("_tdoa_origem_parte", DataType::Utf8, false),
+        Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
+    ]))
+}
