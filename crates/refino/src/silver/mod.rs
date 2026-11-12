@@ -62,6 +62,7 @@ pub mod tarefa_tse_receitas_candidatos_2016;
 pub mod tarefa_tse_receitas_candidatos_2018;
 pub mod tarefa_tse_receitas_candidatos_2020;
 pub mod tarefa_tse_receitas_candidatos_2022;
+pub mod tarefa_tse_receitas_comites_2014;
 pub mod tarefa_tse_receitas_doador_originario;
 pub mod tarefa_tse_receitas_doador_originario_2018;
 pub mod tarefa_tse_receitas_doador_originario_2020;
@@ -85,6 +86,7 @@ pub mod tse_receitas_candidatos_2016;
 pub mod tse_receitas_candidatos_2018;
 pub mod tse_receitas_candidatos_2020;
 pub mod tse_receitas_candidatos_2022;
+pub mod tse_receitas_comites_2014;
 pub mod tse_receitas_doador_originario;
 pub mod tse_receitas_doador_originario_2018;
 pub mod tse_receitas_doador_originario_2020;
@@ -203,6 +205,9 @@ pub use tarefa_tse_receitas_candidatos_2020::{
 pub use tarefa_tse_receitas_candidatos_2022::{
     TarefaDeSilverTseReceitasCandidatos2022, publicar_tse_receitas_candidatos_2022,
 };
+pub use tarefa_tse_receitas_comites_2014::{
+    TarefaDeSilverTseReceitasComites2014, publicar_tse_receitas_comites_2014,
+};
 pub use tarefa_tse_receitas_doador_originario::{
     TarefaDeSilverTseReceitasDoadorOriginario, publicar_tse_receitas_doador_originario_2024,
 };
@@ -241,6 +246,7 @@ pub use tse_despesas_partidos_2016::esquema_tse_despesas_partidos_2016;
 pub use tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
 pub use tse_receitas_candidatos_2016::esquema_tse_receitas_candidatos_2016;
 pub use tse_receitas_candidatos_2022::esquema_tse_receitas_candidatos_2022;
+pub use tse_receitas_comites_2014::esquema_tse_receitas_comites_2014;
 pub use tse_receitas_doador_originario::esquema_tse_receitas_doador_originario_2024;
 pub use tse_receitas_doador_originario_2022::esquema_tse_receitas_doador_originario_2022;
 pub use tse_receitas_partidos_2016::esquema_tse_receitas_partidos_2016;

@@ -40,10 +40,11 @@ use todeolho_refino::{
     TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseDespesasPartidos2016,
     TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseReceitasCandidatos2016,
     TarefaDeSilverTseReceitasCandidatos2018, TarefaDeSilverTseReceitasCandidatos2020,
-    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasDoadorOriginario,
-    TarefaDeSilverTseReceitasDoadorOriginario2018, TarefaDeSilverTseReceitasDoadorOriginario2020,
-    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseReceitasPartidos2016,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasComites2014,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2018,
+    TarefaDeSilverTseReceitasDoadorOriginario2020, TarefaDeSilverTseReceitasDoadorOriginario2022,
+    TarefaDeSilverTseReceitasPartidos2016, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -630,6 +631,22 @@ async fn passada_tse_prestacao_contas_silver(
     somente_pendentes: bool,
 ) -> Result<bool> {
     let mut tarefas = Vec::new();
+
+    const RECURSO_2014: &str = "prestacao-contas/ano=2014";
+    if let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", RECURSO_2014)
+        .await
+        .context("não foi possível ler snapshot Bronze da prestação de contas de 2014")?
+    {
+        let snapshot = Arc::new(snapshot);
+        let tarefa =
+            TarefaDeSilverTseReceitasComites2014::nova(Arc::clone(bronze), snapshot, RECURSO_2014)
+                .expect("o contrato aceita somente a prestação de contas de 2014");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+    } else {
+        println!("Bronze 2014 ausente; receitas de comitês de 2014 não serão refinadas.");
+    }
 
     const RECURSO_2016: &str = "prestacao-contas/ano=2016";
     if let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), "tse", RECURSO_2016)
