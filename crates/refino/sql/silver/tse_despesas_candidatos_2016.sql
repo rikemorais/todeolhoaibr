@@ -10,14 +10,11 @@ WITH origem AS (
         TRIM("Valor despesa") AS valor_texto,
         NULLIF(TRIM("Tipo despesa"), '') AS tipo_despesa,
         NULLIF(TRIM("Descriçao da despesa"), '') AS descricao_despesa,
-        CASE
-            WHEN regexp_like(TRIM("Data da despesa"), '^[0-9]{2}/[0-9]{2}/[0-9]{4}')
-                THEN regexp_replace(
-                    substr(TRIM("Data da despesa"), 1, 10),
-                    '^([0-9]{2})/([0-9]{2})/([0-9]{4})$',
-                    '$3-$2-$1'
-                )
-        END AS data_iso,
+        regexp_replace(
+            NULLIF(TRIM("Data da despesa"), ''),
+            '^([0-9]{2})/([0-9]{2})/([0-9]{4})[0-9]{2}:[0-9]{2}:[0-9]{2}$',
+            '$3-$2-$1'
+        ) AS data_iso,
         regexp_replace(TRIM("Valor despesa"), ',', '.', 'g') AS valor_normalizado,
         _tdoa_json_original AS registro_original,
         _tdoa_origem_manifesto,
@@ -32,7 +29,7 @@ WITH origem AS (
     FROM origem
 )
 SELECT
-    CAST(2016 AS SMALLINT UNSIGNED) AS ano_eleicao,
+    arrow_try_cast('2016', 'UInt16') AS ano_eleicao,
     codigo_eleicao,
     sequencia_candidato,
     cpf_candidato,

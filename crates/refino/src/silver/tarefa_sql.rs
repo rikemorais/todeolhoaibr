@@ -131,6 +131,7 @@ mod testes {
     use crate::{
         SnapshotBronze, Tabela,
         executor_sql::{executar_sql, preparar_snapshot as preparar_entrada_sql},
+        silver::tarefa_tse_despesas_candidatos_2016::publicar_tse_despesas_candidatos_2016,
         silver::tarefa_tse_despesas_contratadas::publicar_tse_despesas_contratadas_2024,
         silver::tarefa_tse_despesas_contratadas_2018::publicar_tse_despesas_contratadas_2018,
         silver::tarefa_tse_despesas_contratadas_2020::publicar_tse_despesas_contratadas_2020,
@@ -140,6 +141,7 @@ mod testes {
         silver::tarefa_tse_despesas_pagas_2022::publicar_tse_despesas_pagas_2022,
         silver::tarefa_tse_despesas_partidos_2016::publicar_tse_despesas_partidos_2016,
         silver::tarefa_tse_receitas_candidatos::publicar_tse_receitas_candidatos_2024,
+        silver::tarefa_tse_receitas_candidatos_2016::publicar_tse_receitas_candidatos_2016,
         silver::tarefa_tse_receitas_candidatos_2018::publicar_tse_receitas_candidatos_2018,
         silver::tarefa_tse_receitas_candidatos_2020::publicar_tse_receitas_candidatos_2020,
         silver::tarefa_tse_receitas_candidatos_2022::publicar_tse_receitas_candidatos_2022,
@@ -147,6 +149,7 @@ mod testes {
         silver::tarefa_tse_receitas_doador_originario_2018::publicar_tse_receitas_doador_originario_2018,
         silver::tarefa_tse_receitas_doador_originario_2020::publicar_tse_receitas_doador_originario_2020,
         silver::tarefa_tse_receitas_doador_originario_2022::publicar_tse_receitas_doador_originario_2022,
+        silver::tarefa_tse_receitas_partidos_2016::publicar_tse_receitas_partidos_2016,
     };
 
     const FONTE: &str = "teste-sql";
@@ -462,6 +465,157 @@ mod testes {
             .await
             .unwrap();
         SnapshotBronze::vigente(bronze, "tse", &recurso)
+            .await
+            .unwrap()
+            .unwrap()
+    }
+
+    async fn preparar_snapshot_datas_2016(bronze: &Memoria) -> SnapshotBronze {
+        let instante = Utc.with_ymd_and_hms(2026, 11, 12, 12, 0, 0).unwrap();
+        let recurso = "prestacao-contas/ano=2016";
+        let id_bronze = "bronze-datas-2016";
+        let despesa = Tabela::nova([
+            "Cód. Eleição",
+            "Sequencial Candidato",
+            "CPF do candidato",
+            "Data da despesa",
+            "Valor despesa",
+            "Tipo despesa",
+            "Descriçao da despesa",
+        ])
+        .com_linha(
+            [
+                "220",
+                "12345",
+                "12345678901",
+                "10/10/201612:30:00",
+                "100",
+                "Serviço",
+                "Teste",
+            ]
+            .map(|v| Some(v.into())),
+        )
+        .com_linha(
+            ["220", "12345", "12345678901", "", "1,5", "Serviço", "Teste"].map(|v| Some(v.into())),
+        );
+        let receita = Tabela::nova([
+            "Cód. Eleição",
+            "Sequencial Candidato",
+            "CPF do candidato",
+            "Data da receita",
+            "Valor receita",
+            "Tipo receita",
+            "Descricao da receita",
+        ])
+        .com_linha(
+            [
+                "220",
+                "12345",
+                "12345678901",
+                "11/10/201613:40:00",
+                "2,5",
+                "Doação",
+                "Teste",
+            ]
+            .map(|v| Some(v.into())),
+        )
+        .com_linha(
+            ["220", "12345", "12345678901", "", "3", "Doação", "Teste"].map(|v| Some(v.into())),
+        );
+        let receita_partido = Tabela::nova([
+            "Cód. Eleição",
+            "Sequencial prestador conta",
+            "CNPJ Prestador Conta",
+            "Data da receita",
+            "Valor receita",
+            "Tipo receita",
+            "Descrição da receita",
+        ])
+        .com_linha(
+            [
+                "220",
+                "12345",
+                "12345678000190",
+                "10-OCT-16",
+                "4,5",
+                "Doação",
+                "Teste",
+            ]
+            .map(|v| Some(v.into())),
+        )
+        .com_linha(
+            ["220", "12345", "12345678000190", "", "5", "Doação", "Teste"].map(|v| Some(v.into())),
+        );
+        let local = LocalizacaoRaw::nova("tse", recurso, instante, id_bronze);
+        let mut partes = Vec::new();
+        for (indice, (nome, tabela)) in [
+            (
+                "despesas_candidatos_prestacao_contas_final_2016_brasil.txt",
+                despesa,
+            ),
+            (
+                "receitas_candidatos_prestacao_contas_final_2016_brasil.txt",
+                receita,
+            ),
+            (
+                "receitas_partidos_prestacao_contas_final_2016_brasil.txt",
+                receita_partido,
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let conteudo = tabela.para_parquet().unwrap();
+            let parte = ParteRaw {
+                chave: local.parte(indice + 1, "parquet"),
+                url: format!("https://dados.tse.jus.br/{nome}"),
+                bytes: conteudo.len() as u64,
+                sha256: hex::encode(Sha256::digest(&conteudo)),
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                versao: Some(id_bronze.into()),
+            };
+            bronze
+                .gravar(ObjetoRaw {
+                    chave: parte.chave.clone(),
+                    conteudo,
+                    tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                })
+                .await
+                .unwrap();
+            partes.push(parte);
+        }
+        let manifesto = ManifestoRaw {
+            fonte: "tse".into(),
+            recurso: recurso.into(),
+            id_execucao: id_bronze.into(),
+            url_inicial: "fixture".into(),
+            iniciada_em: instante,
+            concluida_em: instante,
+            partes,
+        };
+        let chave_manifesto = local.manifesto();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: chave_manifesto.clone(),
+                conteudo: serde_json::to_vec(&manifesto).unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao("tse", recurso),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some(id_bronze.into()),
+                    manifesto: chave_manifesto,
+                    iniciada_em: Some(instante),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        SnapshotBronze::vigente(bronze, "tse", recurso)
             .await
             .unwrap()
             .unwrap()
@@ -1234,6 +1388,103 @@ mod testes {
             (0..originais.len())
                 .any(|i| originais.value(i).contains("serviço contratado retificado"))
         );
+    }
+
+    #[tokio::test]
+    async fn contratos_2016_convertem_datas_historicas_no_datafusion() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = preparar_snapshot_datas_2016(&bronze).await;
+        let silver = Arc::new(Memoria::default());
+        let instante = Utc.with_ymd_and_hms(2026, 11, 12, 12, 30, 0).unwrap();
+        for destino in [
+            "despesas-candidatos",
+            "receitas-candidatos",
+            "receitas-partidos",
+        ] {
+            let resumo = match destino {
+                "despesas-candidatos" => {
+                    publicar_tse_despesas_candidatos_2016(
+                        bronze.as_ref(),
+                        silver.as_ref(),
+                        &snapshot,
+                        instante,
+                        destino,
+                    )
+                    .await
+                }
+                "receitas-candidatos" => {
+                    publicar_tse_receitas_candidatos_2016(
+                        bronze.as_ref(),
+                        silver.as_ref(),
+                        &snapshot,
+                        instante,
+                        destino,
+                    )
+                    .await
+                }
+                _ => {
+                    publicar_tse_receitas_partidos_2016(
+                        bronze.as_ref(),
+                        silver.as_ref(),
+                        &snapshot,
+                        instante,
+                        destino,
+                    )
+                    .await
+                }
+            }
+            .unwrap();
+            assert_eq!(resumo.partes, 1, "{destino}");
+            let recurso = format!("prestacao-contas/ano=2016/{destino}");
+            let ponteiro: UltimaVersao = serde_json::from_slice(
+                &silver
+                    .ler(&LocalizacaoRaw::ultima_versao("tse", &recurso))
+                    .await
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap();
+            let manifesto: ManifestoRaw =
+                serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                    .unwrap();
+            let parquet = silver
+                .ler(&manifesto.partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap();
+            let mut leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(parquet))
+                .unwrap()
+                .build()
+                .unwrap();
+            let lote = leitor.next().unwrap().unwrap();
+            assert_eq!(lote.num_rows(), 2, "{destino}");
+            let ano = lote
+                .column(0)
+                .as_any()
+                .downcast_ref::<UInt16Array>()
+                .unwrap();
+            assert_eq!(ano.value(0), 2016, "{destino}");
+            let datas = lote
+                .column(4)
+                .as_any()
+                .downcast_ref::<Date32Array>()
+                .unwrap();
+            assert_eq!(datas.null_count(), 1, "{destino}");
+            let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+            let esperado = chrono::NaiveDate::from_ymd_opt(
+                2016,
+                10,
+                if destino == "receitas-candidatos" {
+                    11
+                } else {
+                    10
+                },
+            )
+            .unwrap()
+            .signed_duration_since(epoch)
+            .num_days() as i32;
+            assert_eq!(datas.value(0), esperado, "{destino}");
+        }
     }
 
     #[tokio::test]
