@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.78.0] - 2026-11-12
+
+### Adicionado
+
+- Ingestão do IDHM municipal do Atlas do Desenvolvimento Humano (PNUD/IPEA/FJP) via API OData4 do Ipeadata: séries ADH_IDHM, ADH_IDHM_E (educação), ADH_IDHM_L (longevidade) e ADH_IDHM_R (renda), cobrindo 5.592 municípios × 3 anos censitários (1991, 2000 e 2010) (issue #31).
+
 ## [0.77.2] - 2026-11-12
 
 ### Corrigido
