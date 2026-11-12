@@ -1187,9 +1187,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#inventario-dos-24-contratos-sql" class="md-nav__link">
+  <a href="#inventario-dos-25-contratos-sql" class="md-nav__link">
     <span class="md-ellipsis">
-      Inventário dos 24 contratos SQL
+      Inventário dos 25 contratos SQL
     </span>
   </a>
   
@@ -1556,6 +1556,8 @@
       
         
       
+        
+      
     
     
       
@@ -1769,6 +1771,27 @@
   
   <span class="md-ellipsis">
     Fonte ibge-pib-municipios — PIB per capita dos municípios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fontes/ibge-renda-per-capita/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fonte ibge-renda-per-capita — Renda domiciliar per capita dos municípios
   </span>
   
 
@@ -2174,9 +2197,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#inventario-dos-24-contratos-sql" class="md-nav__link">
+  <a href="#inventario-dos-25-contratos-sql" class="md-nav__link">
     <span class="md-ellipsis">
-      Inventário dos 24 contratos SQL
+      Inventário dos 25 contratos SQL
     </span>
   </a>
   
@@ -2418,7 +2441,7 @@
 
 
 <h1 id="camada-silver-contrato-inicial">Camada silver — contrato inicial<a class="headerlink" href="#camada-silver-contrato-inicial" title="Permanent link">&para;</a></h1>
-<p><strong>Estado:</strong> migração SQL/DataFusion concluída — todas as 28 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em <code>#[cfg(test)]</code> para paridade (<a href="https://github.com/rikemorais/todeolhoaibr/issues/244">issue #244</a>, PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
+<p><strong>Estado:</strong> migração SQL/DataFusion concluída — todas as 29 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em <code>#[cfg(test)]</code> para paridade (<a href="https://github.com/rikemorais/todeolhoaibr/issues/244">issue #244</a>, PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
 <p>Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket <code>silver</code>. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são <strong>candidatas</strong>: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.</p>
 <h2 id="contribuir-com-uma-transformacao-sql">Contribuir com uma transformação SQL<a class="headerlink" href="#contribuir-com-uma-transformacao-sql" title="Permanent link">&para;</a></h2>
 <p>Contratos SQL ficam versionados em <code>crates/refino/sql/silver/</code> e entram no binário com <code>include_str!</code>. A consulta lê a tabela <code>bronze</code>, preparada somente com as partes do manifesto fixado. Além das colunas Bronze, há quatro colunas internas de linhagem: <code>_tdoa_origem_manifesto</code>, <code>_tdoa_origem_parte</code>, <code>_tdoa_origem_url</code> (nome/tabela da parte) e <code>_tdoa_origem_ordinal</code>. A URL permite que contratos selecionem uma tabela específica dentro de um recurso ZIP, como a parte consolidada <code>BRASIL</code> do TSE. Para contratos que preservam colunas de origem dinâmicas, o executor também pode fornecer <code>_tdoa_json_original</code>, serializado pelo adaptador; os casts, validações e projeções continuam no SQL. A consulta deve projetar explicitamente as colunas Silver definidas pelo schema do contrato. Valores externos nunca são interpolados no SQL; em <code>senado_processos.sql</code>, o ano é validado como número no caminho do recurso antes de ser inserido na consulta; detalhes usam a coluna Bronze <code>ano</code>.</p>
@@ -2427,7 +2450,7 @@
 <p>O smoke e benchmark sintético reproduzível do executor está em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a>. Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.</p>
 <h3 id="estrutura-de-arquivos">Estrutura de arquivos<a class="headerlink" href="#estrutura-de-arquivos" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>crates/refino/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── sql/silver/              # 28 consultas SQL versionadas
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── sql/silver/              # 29 consultas SQL versionadas
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── bcb_sgs.sql
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── camara_deputados.sql
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── ...
@@ -2622,7 +2645,7 @@
 <li>Configuração de limites de memória/spill quando diverge do padrão.</li>
 </ul>
 <p>As UDFs Rust (<code>tdoa_assert_true</code>, <code>tdoa_json_get</code>, <code>tdoa_json_expand_votos</code>) são funções genéricas do executor, não transformações por contrato.</p>
-<h3 id="inventario-dos-24-contratos-sql">Inventário dos 24 contratos SQL<a class="headerlink" href="#inventario-dos-24-contratos-sql" title="Permanent link">&para;</a></h3>
+<h3 id="inventario-dos-25-contratos-sql">Inventário dos 25 contratos SQL<a class="headerlink" href="#inventario-dos-25-contratos-sql" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2650,153 +2673,160 @@
 </tr>
 <tr>
 <td>3</td>
+<td><code>ibge_renda_per_capita.sql</code></td>
+<td><code>tarefa_ibge_renda_per_capita.rs</code></td>
+<td><code>ibge-renda-per-capita-v1</code></td>
+<td>IBGE</td>
+</tr>
+<tr>
+<td>4</td>
 <td><code>senado_parlamentares.sql</code></td>
 <td><code>tarefa_senado.rs</code></td>
 <td><code>senado-parlamentar-v2</code></td>
 <td>Senado</td>
 </tr>
 <tr>
-<td>4</td>
+<td>5</td>
 <td><code>senado_votacoes.sql</code></td>
 <td><code>tarefa_senado_votacoes.rs</code></td>
 <td><code>senado-votacao-v2</code></td>
 <td>Senado</td>
 </tr>
 <tr>
-<td>5</td>
+<td>6</td>
 <td><code>senado_votos.sql</code></td>
 <td><code>tarefa_senado_votacoes.rs</code></td>
 <td><code>senado-voto-nominal-v2</code></td>
 <td>Senado</td>
 </tr>
 <tr>
-<td>6</td>
+<td>7</td>
 <td><code>senado_despesas.sql</code></td>
 <td><code>tarefa_senado_despesas.rs</code></td>
 <td><code>senado-despesa-ceaps-v4</code></td>
 <td>Senado</td>
 </tr>
 <tr>
-<td>7</td>
+<td>8</td>
 <td><code>senado_processos.sql</code></td>
 <td><code>tarefa_senado_processos.rs</code></td>
 <td><code>senado-processo-v2</code></td>
 <td>Senado</td>
 </tr>
 <tr>
-<td>8</td>
+<td>9</td>
 <td><code>senado_processos_detalhes.sql</code></td>
 <td><code>tarefa_senado_processos_detalhes.rs</code></td>
 <td><code>senado-processo-detalhe-v2</code></td>
 <td>Senado</td>
 </tr>
 <tr>
-<td>9</td>
+<td>10</td>
 <td><code>camara_partidos.sql</code></td>
 <td><code>tarefa_camara.rs</code></td>
 <td><code>camara-partido-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>10</td>
+<td>11</td>
 <td><code>camara_legislaturas.sql</code></td>
 <td><code>tarefa_camara_legislaturas.rs</code></td>
 <td><code>camara-legislatura-periodo-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>11</td>
+<td>12</td>
 <td><code>camara_deputados.sql</code></td>
 <td><code>tarefa_camara_deputados.rs</code></td>
 <td><code>camara-deputado-exercicio-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>12</td>
+<td>13</td>
 <td><code>camara_despesas.sql</code></td>
 <td><code>tarefa_camara_despesas.rs</code></td>
 <td><code>camara-despesa-ceap-v3</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>13</td>
+<td>14</td>
 <td><code>camara_tramitacoes.sql</code></td>
 <td><code>tarefa_camara_tramitacoes.rs</code></td>
 <td><code>camara-tramitacao-evento-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>14</td>
+<td>15</td>
 <td><code>camara_votacoes_sessoes.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-votacoes-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>15</td>
+<td>16</td>
 <td><code>camara_votacoes_votos.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-votacoes-votos-v3</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>16</td>
+<td>17</td>
 <td><code>camara_votacoes_proposicoes.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-proposicoes-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>17</td>
+<td>18</td>
 <td><code>camara_votacoes_proposicoes_autores.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-proposicoes-autores-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>18</td>
+<td>19</td>
 <td><code>camara_votacoes_proposicoes_relacionadas.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-votacoes-proposicoes-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>19</td>
+<td>20</td>
 <td><code>camara_votacoes_objetos.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-votacoes-objetos-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>20</td>
+<td>21</td>
 <td><code>camara_votacoes_orientacoes.sql</code></td>
 <td><code>tarefa_camara_votacoes.rs</code></td>
 <td><code>camara-votacoes-orientacoes-v2</code></td>
 <td>Câmara</td>
 </tr>
 <tr>
-<td>21</td>
+<td>22</td>
 <td><code>tse_candidaturas.sql</code></td>
 <td><code>tarefa_tse_candidaturas.rs</code></td>
 <td><code>tse-candidatura-registro-v2</code></td>
 <td>TSE</td>
 </tr>
 <tr>
-<td>22</td>
+<td>23</td>
 <td><code>tse_bens.sql</code></td>
 <td><code>tarefa_tse_bens.rs</code></td>
 <td><code>tse-bem-candidato-v2</code></td>
 <td>TSE</td>
 </tr>
 <tr>
-<td>23</td>
+<td>24</td>
 <td><code>tse_despesas_pagas.sql</code></td>
 <td><code>tarefa_tse_despesas_pagas.rs</code></td>
 <td><code>tse-despesa-paga-2024-v2</code></td>
 <td>TSE</td>
 </tr>
 <tr>
-<td>24</td>
+<td>25</td>
 <td><code>tse_votacao_secao.sql</code></td>
 <td><code>tarefa_tse_votacao_secao.rs</code></td>
 <td><code>tse-votacao-secao-v2</code></td>
@@ -3016,6 +3046,7 @@ condição de corrida foram entregues na
 <p>Esse snapshot fixa a versão lida no início. A tarefa Silver ainda deverá conferir o ponteiro bronze antes de publicar sua própria versão, para não publicar resultado de uma entrada que já foi substituída. A referência da linha vale somente para a versão bronze selecionada e não substitui a chave de negócio. Nenhuma tabela Silver é publicada por esse leitor.</p>
 <p>O <a href="../../crates/refino/src/escritor.rs"><code>EscritorParquetTipado</code></a> recebe o schema Arrow do contrato Silver e grava lotes <code>RecordBatch</code> em Parquet, inclusive para um arquivo temporário. Ele exige correspondência exata de nomes, tipos e nulabilidade em cada lote; data e decimal permanecem tipados. O teste de ida e volta cobre dois lotes, nulo e rejeição de escala decimal divergente.</p>
 <p>O contrato <code>bcb.sgs.observacao.v1</code> é definido em <a href="../../crates/refino/sql/silver/bcb_sgs.sql"><code>bcb_sgs.sql</code></a>: <code>data</code> em <code>Date32</code> e <code>valor</code> em <code>Decimal128(18,6)</code>, sem conversão por <code>f64</code>. A consulta exige data <code>DD/MM/AAAA</code> e valor decimal com ponto e até seis casas; dados inválidos ou nulos falham antes de publicar. O adaptador <a href="../../crates/refino/src/silver/tarefa_bcb.rs"><code>TarefaDeSilverBcb</code></a> usa <code>TarefaDeSilverSql</code> e o publicador comum, que mantém manifesto, ponteiro, idempotência e revalidação do snapshot Bronze. A regra <code>bcb-sgs-v2</code> reprocessa uma vez o que foi publicado pelo transformador Arrow anterior. A nulabilidade do schema publicado permanece a do contrato; nulos em campos obrigatórios são rejeitados na borda Arrow/Parquet. A CLI aceita <code>todeolho refinar silver bcb</code> e <code>todeolho refinar silver --todas --intervalo 3600</code>. A execução Silver aparece no painel com o selo azul.</p>
+<p>O contrato <code>ibge.renda_per_capita.observacao.v1</code> está em <a href="../../crates/refino/sql/silver/ibge_renda_per_capita.sql"><code>ibge_renda_per_capita.sql</code></a>. Mapeia as colunas codificadas do SIDRA <code>/values</code> (<code>D1C</code>→<code>municipio_id</code>, <code>D2C</code>→<code>variavel_id</code>, <code>D3C</code>→<code>ano_censo</code>, <code>V</code>→<code>valor_original</code>/<code>valor_decimal</code>) e filtra o cabeçalho descritivo (<code>NC &lt;&gt; 'Nível Territorial (Código)'</code>) e sentinelas de supressão (<code>..</code>, <code>-</code>, <code>X</code>). A regra <code>ibge-renda-per-capita-v1</code> cobre os Censos 2010 (tabela 3578) e 2022 (tabela 10295). <code>TarefaDeSilverIbgeRendaPerCapita</code> publica manifesto e ponteiro com idempotência por versão Bronze/regra. A CLI rota <code>ibge-renda-per-capita</code> antes do catch-all <code>ibge-*</code> para usar o adaptador próprio.</p>
 <p>O contrato <code>ibge.agregado.observacao.v1</code> está em <a href="../../crates/refino/sql/silver/ibge_agregados.sql"><code>ibge_agregados.sql</code></a>. Mantém IDs, classificações e período como texto, preserva o valor recebido em <code>valor_original</code> e acrescenta <code>valor_decimal</code> (<code>Decimal128(38,9)</code>) quando o conteúdo corresponde a decimal simples com ponto. Valor nulo, sentinela textual ou valor acima da escala permitida recebe decimal nulo, sem descartar a linha nem classificar sentinelas sem metadados da tabela. <code>TarefaDeSilverIbge</code> publica manifesto e ponteiro com idempotência por versão Bronze/regra e verifica que o ponteiro Bronze não mudou durante a transformação. A regra <code>ibge-agregado-v2</code> reprocessa uma vez os recursos que foram publicados pelo transformador Arrow anterior. A CLI oferece as seis fontes agregadas com contrato: <code>ibge-ipca</code>, <code>ibge-inpc</code>, <code>ibge-pib-municipios</code>, <code>ibge-pib-trimestral</code>, <code>ibge-pnad-desocupacao</code> e <code>ibge-populacao-municipios</code>. <code>ibge-estados</code>, <code>ibge-regioes</code> e <code>ibge-municipios</code> ainda não têm contrato Silver e ficam fora de <code>--todas</code>. A reconciliação percorre as fontes suportadas; passadas vazias não são registradas no painel. Fixtures comparam o Parquet SQL ao transformador Arrow anterior, mantido somente em builds de teste.</p>
 <h3 id="paridade-e-smoke-sqldatafusion-2026-11-06">Paridade e smoke SQL/DataFusion (2026-11-06)<a class="headerlink" href="#paridade-e-smoke-sqldatafusion-2026-11-06" title="Permanent link">&para;</a></h3>
 <p>As fixtures de publicação comparam os <code>RecordBatch</code> Silver da consulta com a implementação Arrow anterior. Cobrem datas e decimais BCB válidos, datas inválidas/nulas, precisão excedida, chaves IBGE que incluem classificação, códigos com zero à esquerda, sentinelas textuais e valores nulos. Os testes confirmam chave única nos casos válidos e ausência de ponteiro quando a consulta BCB rejeita dados inválidos.</p>
