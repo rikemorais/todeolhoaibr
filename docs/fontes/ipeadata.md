@@ -1,6 +1,6 @@
 # Fonte `ipeadata` — séries socioeconômicas regionais (IPEA)
 
-Séries socioeconômicas **já consolidadas** do Ipeadata (IPEA): renda, desigualdade (Gini), pobreza e **vulnerabilidade social (IVS)**, por território. Complementa o eixo de desenvolvimento no join `município + ano`, evitando reconstruir tudo do Censo bruto. Implementa a [issue #32](https://github.com/rikemorais/todeolhoaibr/issues/32).
+Séries socioeconômicas **já consolidadas** do Ipeadata (IPEA): **IDHM**, renda, desigualdade (Gini), pobreza e **vulnerabilidade social (IVS)**, por território. Complementa o eixo de desenvolvimento no join `município + ano`, evitando reconstruir tudo do Censo bruto. Implementa as issues [#32](https://github.com/rikemorais/todeolhoaibr/issues/32) e [#31](https://github.com/rikemorais/todeolhoaibr/issues/31) (IDHM).
 
 ## O que é ingerido
 
@@ -17,9 +17,16 @@ Séries socioeconômicas **já consolidadas** do Ipeadata (IPEA): renda, desigua
 | `proporcao-pobres` | ADH_PMPOB | Proporção de pessoas pobres (Atlas DH – Censo) |
 | `proporcao-extremamente-pobres` | ADH_PIND | Proporção de pessoas extremamente pobres (Atlas DH – Censo) |
 | `ivs` | AVS_IVS | Índice de Vulnerabilidade Social (Atlas da Vulnerabilidade Social) |
+| `idhm` | ADH_IDHM | IDHM geral (Atlas DH – Censo), por município |
+| `idhm-educacao` | ADH_IDHM_E | IDHM — dimensão educação (Atlas DH – Censo), por município |
+| `idhm-longevidade` | ADH_IDHM_L | IDHM — dimensão longevidade (Atlas DH – Censo), por município |
+| `idhm-renda` | ADH_IDHM_R | IDHM — dimensão renda (Atlas DH – Censo), por município |
 
 !!! note "Procedência"
-    São séries **derivadas pelo IPEA** a partir do Censo/PNAD; a fonte canônica de cada uma é o IBGE. As do Atlas DH são **decenais** (1991, 2000, 2010, por município); o IVS é por região/UF. O **IDHM**, também do Atlas, fica na [issue #31](https://github.com/rikemorais/todeolhoaibr/issues/31).
+    São séries **derivadas pelo IPEA** a partir do Censo/PNAD; a fonte canônica de cada uma é o IBGE. As do Atlas DH são **decenais** (1991, 2000, 2010, por município); o IVS é por região/UF.
+
+!!! note "IDHM: recálculo e limite temporal"
+    O IDHM de 1991 e 2000 foi **recalculado** com a metodologia de 2010 pelo Atlas do Desenvolvimento Humano (PNUD/IPEA/Fundação João Pinheiro). **Não há edição baseada no Censo 2022** ainda — a série termina em 2010. Cada série traz ~16.776 observações (5.592 municípios × 3 anos).
 
 ## Layout na Raw
 
