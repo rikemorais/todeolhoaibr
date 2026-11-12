@@ -112,6 +112,9 @@ pub use silver::tarefa_tse_receitas_candidatos_2020::{
 pub use silver::tarefa_tse_receitas_candidatos_2022::{
     TarefaDeSilverTseReceitasCandidatos2022, publicar_tse_receitas_candidatos_2022,
 };
+pub use silver::tarefa_tse_receitas_comites_2014::{
+    TarefaDeSilverTseReceitasComites2014, publicar_tse_receitas_comites_2014,
+};
 pub use silver::tarefa_tse_receitas_doador_originario::{
     TarefaDeSilverTseReceitasDoadorOriginario, publicar_tse_receitas_doador_originario_2024,
 };
