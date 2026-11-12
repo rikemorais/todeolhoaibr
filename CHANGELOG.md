@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- Corrige a conversão de datas no contrato Silver de despesas partidárias de 2016 para o DataFusion em uso e cobre cópias exatas, formatos monetários históricos e exclusão do recorte estadual (issue #189).
+
 ## [0.76.0] - 2026-11-12
 
 ### Adicionado
