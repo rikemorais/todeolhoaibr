@@ -121,6 +121,9 @@ pub use silver::tarefa_tse_receitas_doador_originario_2020::{
 pub use silver::tarefa_tse_receitas_doador_originario_2022::{
     TarefaDeSilverTseReceitasDoadorOriginario2022, publicar_tse_receitas_doador_originario_2022,
 };
+pub use silver::tarefa_tse_receitas_partidos_2016::{
+    TarefaDeSilverTseReceitasPartidos2016, publicar_tse_receitas_partidos_2016,
+};
 pub use silver::tse_bens::esquema_tse_bens;
 #[cfg(test)]
 pub use silver::tse_bens::{ErroTseBensSilver, transformar_tse_bens};
