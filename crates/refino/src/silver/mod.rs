@@ -54,6 +54,7 @@ pub mod tarefa_tse_despesas_pagas;
 pub mod tarefa_tse_despesas_pagas_2018;
 pub mod tarefa_tse_despesas_pagas_2020;
 pub mod tarefa_tse_despesas_pagas_2022;
+pub mod tarefa_tse_despesas_partidos_2016;
 pub mod tarefa_tse_receitas_candidatos;
 pub mod tarefa_tse_receitas_candidatos_2016;
 pub mod tarefa_tse_receitas_candidatos_2018;
@@ -75,6 +76,7 @@ pub mod tse_despesas_pagas;
 pub mod tse_despesas_pagas_2018;
 pub mod tse_despesas_pagas_2020;
 pub mod tse_despesas_pagas_2022;
+pub mod tse_despesas_partidos_2016;
 pub mod tse_receitas_candidatos;
 pub mod tse_receitas_candidatos_2016;
 pub mod tse_receitas_candidatos_2018;
@@ -176,6 +178,9 @@ pub use tarefa_tse_despesas_pagas_2020::{
 pub use tarefa_tse_despesas_pagas_2022::{
     TarefaDeSilverTseDespesasPagas2022, publicar_tse_despesas_pagas_2022,
 };
+pub use tarefa_tse_despesas_partidos_2016::{
+    TarefaDeSilverTseDespesasPartidos2016, publicar_tse_despesas_partidos_2016,
+};
 pub use tarefa_tse_receitas_candidatos::{
     TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
 };
@@ -222,6 +227,7 @@ pub use tse_despesas_pagas::{
 pub use tse_despesas_pagas_2018::esquema_tse_despesas_pagas_2018;
 pub use tse_despesas_pagas_2020::esquema_tse_despesas_pagas_2020;
 pub use tse_despesas_pagas_2022::esquema_tse_despesas_pagas_2022;
+pub use tse_despesas_partidos_2016::esquema_tse_despesas_partidos_2016;
 pub use tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
 pub use tse_receitas_candidatos_2016::esquema_tse_receitas_candidatos_2016;
 pub use tse_receitas_candidatos_2022::esquema_tse_receitas_candidatos_2022;
