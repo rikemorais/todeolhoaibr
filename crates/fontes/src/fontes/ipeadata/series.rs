@@ -1,5 +1,5 @@
-//! Séries socioeconômicas regionais do Ipeadata (IPEA): renda, desigualdade (Gini),
-//! pobreza e vulnerabilidade social (IVS), já consolidadas por território.
+//! Séries socioeconômicas regionais do Ipeadata (IPEA): IDHM, renda, desigualdade
+//! (Gini), pobreza e vulnerabilidade social (IVS), já consolidadas por território.
 //!
 //! Cada série é um recurso da fonte `ipeadata` que baixa **todos os valores** (todos os
 //! territórios e períodos) de um código do Ipeadata, em JSON (OData), gravado opaco na
@@ -23,8 +23,7 @@ struct Serie {
 }
 
 /// Séries confirmadas no catálogo do Ipeadata em 2026-11, todas municipais do Atlas do
-/// Desenvolvimento Humano (Censo), exceto o IVS, por região/UF. O IDHM, também do Atlas,
-/// fica na issue #31.
+/// Desenvolvimento Humano (Censo), exceto o IVS, por região/UF.
 const SERIES: &[Serie] = &[
     Serie {
         slug: "renda-per-capita",
@@ -51,6 +50,26 @@ const SERIES: &[Serie] = &[
         codigo: "AVS_IVS",
         tamanho_tipico: 70_000,
     },
+    Serie {
+        slug: "idhm",
+        codigo: "ADH_IDHM",
+        tamanho_tipico: 2_400_000,
+    },
+    Serie {
+        slug: "idhm-educacao",
+        codigo: "ADH_IDHM_E",
+        tamanho_tipico: 2_400_000,
+    },
+    Serie {
+        slug: "idhm-longevidade",
+        codigo: "ADH_IDHM_L",
+        tamanho_tipico: 2_400_000,
+    },
+    Serie {
+        slug: "idhm-renda",
+        codigo: "ADH_IDHM_R",
+        tamanho_tipico: 2_400_000,
+    },
 ];
 
 fn url(serie: &Serie) -> String {
@@ -76,7 +95,7 @@ impl FonteDeDados for FonteIpeadata {
     }
 
     fn descricao(&self) -> &str {
-        "Ipeadata - séries socioeconômicas regionais (renda, Gini, pobreza, IVS)"
+        "Ipeadata - séries socioeconômicas regionais (IDHM, renda, Gini, pobreza, IVS)"
     }
 
     fn perfil_http(&self) -> todeolho_nucleo::PerfilHttp {
@@ -132,6 +151,24 @@ mod testes {
             url(gini),
             "https://www.ipeadata.gov.br/api/odata4/Metadados('ADH_GINI')/Valores"
         );
+    }
+
+    #[test]
+    fn a_url_do_idhm_aponta_para_o_codigo_adh_idhm() {
+        let idhm = SERIES.iter().find(|s| s.slug == "idhm").unwrap();
+        assert_eq!(
+            url(idhm),
+            "https://www.ipeadata.gov.br/api/odata4/Metadados('ADH_IDHM')/Valores"
+        );
+    }
+
+    #[test]
+    fn as_quatro_dimensoes_do_idhm_estao_presentes() {
+        let slugs: Vec<&str> = SERIES.iter().map(|s| s.slug).collect();
+        assert!(slugs.contains(&"idhm"), "IDHM geral");
+        assert!(slugs.contains(&"idhm-educacao"), "IDHM educação");
+        assert!(slugs.contains(&"idhm-longevidade"), "IDHM longevidade");
+        assert!(slugs.contains(&"idhm-renda"), "IDHM renda");
     }
 
     #[test]
