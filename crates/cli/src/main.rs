@@ -42,7 +42,8 @@ use todeolho_refino::{
     TarefaDeSilverTseReceitasCandidatos2020, TarefaDeSilverTseReceitasCandidatos2022,
     TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2018,
     TarefaDeSilverTseReceitasDoadorOriginario2020, TarefaDeSilverTseReceitasDoadorOriginario2022,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverTseReceitasPartidos2016, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -654,6 +655,16 @@ async fn passada_tse_prestacao_contas_silver(
         }
 
         let tarefa = TarefaDeSilverTseDespesasPartidos2016::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2016,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2016");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+
+        let tarefa = TarefaDeSilverTseReceitasPartidos2016::nova(
             Arc::clone(bronze),
             Arc::clone(&snapshot),
             RECURSO_2016,
