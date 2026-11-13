@@ -343,7 +343,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
 
 Para que o menu mostre o tamanho e permita filtrar:
 
-- **Tamanho:** use `.com_tamanho_tipico(bytes)` em APIs. Em arquivos, `TarefaDeArquivo` consulta o tamanho na origem.
+- **Tamanho:** use `.com_tamanho_tipico(bytes)` em APIs. Para arquivos, o menu evita consultar a origem: uma cópia íntegra na Raw mostra 0 B; sem cópia, a estimativa fica desconhecida. Após a seleção, a checagem exata consulta o tamanho na origem.
 - **Filtros:** use `.com_etiquetas([("ano", "2024"), ("uf", "AC")])` em cada tarefa. Filtros e menu são gerados a partir das etiquetas.
 - **Fontes muito grandes:** implemente `sob_demanda` retornando `true`, para ficarem fora de `--todas`.
 
