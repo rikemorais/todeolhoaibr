@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.86.0] - 2026-11-13
+
+### Adicionado
+
+- Bronze para as duas últimas fontes pendentes: `ana` (XML DataSet .NET via `DecodificadorXmlDataset`) e `b3` (COTAHIST fixed-width de 245 bytes via `DecodificadorCotahist`, que extrai o TXT do ZIP e converte decimais implícitos V99/V06). Com isso, todas as 28 fontes da ingestão têm decodificador bronze.
+
 ## [0.85.0] - 2026-11-13
 
 ### Adicionado
