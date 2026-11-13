@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.84.0] - 2026-11-13
+
+### Adicionado
+
+- Nova fonte `ana` com inventário completo de estações hidrológicas do SNIRH/ANA — estações fluviométricas (vazão/nível, ~61 MB) e pluviométricas (chuva, ~76 MB) via ServiceANA/HidroInventario, sob demanda (~137 MB), com recorte municipal e estadual direto (issue #48).
+
 ## [0.83.0] - 2026-11-13
 
 ### Adicionado
