@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- Atualiza a descoberta da remuneração estadual de MG para reconhecer os nomes e links atuais dos CSVs mensais do catálogo CKAN.
+
 ## [0.87.0] - 2026-11-13
 
 ### Adicionado
