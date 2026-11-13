@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.84.1] - 2026-11-13
+
+### Corrigido
+
+- User-Agent de navegador no `PerfilHttp` para portais que bloqueiam bots: CGU (`dadosabertos-download.cgu.gov.br`, 405 WAF), MG (`dados.mg.gov.br`, 403) e GO (`dadosabertos.go.gov.br`, "Acesso Negado"). Novo campo `agente` em `PerfilHttp` permite sobrescrever o User-Agent por fonte.
+
 ## [0.84.0] - 2026-11-13
 
 ### Adicionado
