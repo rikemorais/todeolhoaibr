@@ -299,7 +299,47 @@ mod testes {
             .expect("camara-despesas no catálogo");
         assert_eq!(fonte.fonte_raw, "camara");
         assert_eq!(fonte.prefixo_recurso, "despesas/");
-        // O decodificador é construível.
         let _ = fonte.decodificador();
+    }
+
+    #[test]
+    fn nomes_do_catalogo_sao_unicos() {
+        let catalogo = catalogo_refino();
+        let mut nomes: Vec<&str> = catalogo.iter().map(|f| f.nome).collect();
+        nomes.sort();
+        let antes = nomes.len();
+        nomes.dedup();
+        assert_eq!(antes, nomes.len(), "nomes duplicados no catálogo de refino");
+    }
+
+    #[test]
+    fn novas_fontes_apontam_para_o_raw_correto() {
+        let catalogo = catalogo_refino();
+        let casos = [
+            ("undp", "undp", "indices-compostos"),
+            ("remuneracao-estadual-mg", "remuneracao-estadual", "uf=MG/"),
+            ("remuneracao-estadual-go", "remuneracao-estadual", "uf=GO/"),
+            ("world-bank", "world-bank", "indicadores/"),
+            (
+                "remuneracao-municipal-tce-ce",
+                "remuneracao-municipal-tce-ce",
+                "folhas-pagamentos/",
+            ),
+            ("transparencia-beneficios", "transparencia", "beneficios/"),
+            (
+                "transparencia-servidores-ativos",
+                "transparencia",
+                "servidores-ativos/",
+            ),
+        ];
+        for (nome, raw, prefixo) in casos {
+            let fonte = catalogo
+                .iter()
+                .find(|f| f.nome == nome)
+                .unwrap_or_else(|| panic!("{nome} ausente no catálogo"));
+            assert_eq!(fonte.fonte_raw, raw, "raw errado para {nome}");
+            assert_eq!(fonte.prefixo_recurso, prefixo, "prefixo errado para {nome}");
+            let _ = fonte.decodificador();
+        }
     }
 }
