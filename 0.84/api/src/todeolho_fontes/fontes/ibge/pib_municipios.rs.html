@@ -92,90 +92,91 @@
 <a href=#92 id=92 data-nosnippet>92</a>                requisicoes: <span class="number">4</span>,
 <a href=#93 id=93 data-nosnippet>93</a>                intervalo: Duration::from_secs(<span class="number">1</span>),
 <a href=#94 id=94 data-nosnippet>94</a>            }),
-<a href=#95 id=95 data-nosnippet>95</a>        }
-<a href=#96 id=96 data-nosnippet>96</a>    }
-<a href=#97 id=97 data-nosnippet>97</a>
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt; {
-<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>pib = (PRIMEIRO_ANO_PIB..=ULTIMO_ANO_PIB)
-<a href=#100 id=100 data-nosnippet>100</a>            .map(|ano| tarefa(<span class="string">"pib"</span>, <span class="string">"pib-municipios"</span>, AGREGADO_PIB, VARIAVEL_PIB, ano));
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>populacao = (PRIMEIRO_ANO_POP..=ULTIMO_ANO_POP).map(|ano| {
-<a href=#102 id=102 data-nosnippet>102</a>            tarefa(
-<a href=#103 id=103 data-nosnippet>103</a>                <span class="string">"populacao"</span>,
-<a href=#104 id=104 data-nosnippet>104</a>                <span class="string">"populacao-municipios"</span>,
-<a href=#105 id=105 data-nosnippet>105</a>                AGREGADO_POP,
-<a href=#106 id=106 data-nosnippet>106</a>                VARIAVEL_POP,
-<a href=#107 id=107 data-nosnippet>107</a>                ano,
-<a href=#108 id=108 data-nosnippet>108</a>            )
-<a href=#109 id=109 data-nosnippet>109</a>        });
-<a href=#110 id=110 data-nosnippet>110</a>        pib.chain(populacao).collect()
-<a href=#111 id=111 data-nosnippet>111</a>    }
-<a href=#112 id=112 data-nosnippet>112</a>}
-<a href=#113 id=113 data-nosnippet>113</a>
-<a href=#114 id=114 data-nosnippet>114</a><span class="attr">#[cfg(test)]
-<a href=#115 id=115 data-nosnippet>115</a></span><span class="kw">mod </span>testes {
-<a href=#116 id=116 data-nosnippet>116</a>    <span class="kw">use </span>std::collections::BTreeSet;
-<a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#119 id=119 data-nosnippet>119</a>
-<a href=#120 id=120 data-nosnippet>120</a>    <span class="kw">fn </span>anos_do_indicador(indicador: <span class="kw-2">&amp;</span>str) -&gt; BTreeSet&lt;u16&gt; {
-<a href=#121 id=121 data-nosnippet>121</a>        FonteIbgePibMunicipios
-<a href=#122 id=122 data-nosnippet>122</a>            .criar_tarefas()
-<a href=#123 id=123 data-nosnippet>123</a>            .iter()
-<a href=#124 id=124 data-nosnippet>124</a>            .filter(|t| t.etiquetas.get(<span class="string">"indicador"</span>).map(String::as_str) == <span class="prelude-val">Some</span>(indicador))
-<a href=#125 id=125 data-nosnippet>125</a>            .map(|t| t.etiquetas[<span class="string">"ano"</span>].parse().expect(<span class="string">"ano numérico"</span>))
-<a href=#126 id=126 data-nosnippet>126</a>            .collect()
-<a href=#127 id=127 data-nosnippet>127</a>    }
-<a href=#128 id=128 data-nosnippet>128</a>
-<a href=#129 id=129 data-nosnippet>129</a>    <span class="attr">#[test]
-<a href=#130 id=130 data-nosnippet>130</a>    </span><span class="kw">fn </span>cobre_os_anos_de_pib_e_de_populacao() {
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="macro">assert_eq!</span>(
-<a href=#132 id=132 data-nosnippet>132</a>            anos_do_indicador(<span class="string">"pib"</span>),
-<a href=#133 id=133 data-nosnippet>133</a>            (PRIMEIRO_ANO_PIB..=ULTIMO_ANO_PIB).collect()
-<a href=#134 id=134 data-nosnippet>134</a>        );
-<a href=#135 id=135 data-nosnippet>135</a>        <span class="macro">assert_eq!</span>(
-<a href=#136 id=136 data-nosnippet>136</a>            anos_do_indicador(<span class="string">"populacao"</span>),
-<a href=#137 id=137 data-nosnippet>137</a>            (PRIMEIRO_ANO_POP..=ULTIMO_ANO_POP).collect()
-<a href=#138 id=138 data-nosnippet>138</a>        );
-<a href=#139 id=139 data-nosnippet>139</a>    }
-<a href=#140 id=140 data-nosnippet>140</a>
-<a href=#141 id=141 data-nosnippet>141</a>    <span class="attr">#[test]
-<a href=#142 id=142 data-nosnippet>142</a>    </span><span class="kw">fn </span>a_url_pede_um_ano_no_nivel_municipal() {
-<a href=#143 id=143 data-nosnippet>143</a>        <span class="macro">assert_eq!</span>(
-<a href=#144 id=144 data-nosnippet>144</a>            url(AGREGADO_PIB, VARIAVEL_PIB, <span class="number">2020</span>),
-<a href=#145 id=145 data-nosnippet>145</a>            <span class="string">"https://servicodados.ibge.gov.br/api/v3/agregados/5938/periodos/2020/variaveis/37?localidades=N6%5Ball%5D"
-<a href=#146 id=146 data-nosnippet>146</a>        </span>);
-<a href=#147 id=147 data-nosnippet>147</a>    }
-<a href=#148 id=148 data-nosnippet>148</a>
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="attr">#[test]
-<a href=#150 id=150 data-nosnippet>150</a>    </span><span class="kw">fn </span>cada_tarefa_tem_ano_e_indicador_coerentes_com_o_recurso() {
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">for </span>tarefa <span class="kw">in </span>FonteIbgePibMunicipios.criar_tarefas() {
-<a href=#152 id=152 data-nosnippet>152</a>            <span class="kw">let </span>nome = tarefa.tarefa.nome();
-<a href=#153 id=153 data-nosnippet>153</a>            <span class="kw">let </span>ano = tarefa.etiquetas.get(<span class="string">"ano"</span>).expect(<span class="string">"etiqueta ano"</span>);
-<a href=#154 id=154 data-nosnippet>154</a>            <span class="kw">let </span>indicador = tarefa
-<a href=#155 id=155 data-nosnippet>155</a>                .etiquetas
-<a href=#156 id=156 data-nosnippet>156</a>                .get(<span class="string">"indicador"</span>)
-<a href=#157 id=157 data-nosnippet>157</a>                .expect(<span class="string">"etiqueta indicador"</span>);
-<a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">let </span>base = <span class="kw">match </span>indicador.as_str() {
-<a href=#159 id=159 data-nosnippet>159</a>                <span class="string">"pib" </span>=&gt; <span class="string">"pib-municipios"</span>,
-<a href=#160 id=160 data-nosnippet>160</a>                <span class="string">"populacao" </span>=&gt; <span class="string">"populacao-municipios"</span>,
-<a href=#161 id=161 data-nosnippet>161</a>                outro =&gt; <span class="macro">panic!</span>(<span class="string">"indicador inesperado: {outro}"</span>),
-<a href=#162 id=162 data-nosnippet>162</a>            };
-<a href=#163 id=163 data-nosnippet>163</a>            <span class="macro">assert_eq!</span>(nome, <span class="macro">format!</span>(<span class="string">"{base}/ano={ano}"</span>), <span class="string">"recurso incoerente"</span>);
-<a href=#164 id=164 data-nosnippet>164</a>        }
-<a href=#165 id=165 data-nosnippet>165</a>    }
-<a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a>    <span class="attr">#[test]
-<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">fn </span>declara_o_limite_do_host_do_ibge() {
-<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>limite = FonteIbgePibMunicipios
-<a href=#170 id=170 data-nosnippet>170</a>            .perfil_http()
-<a href=#171 id=171 data-nosnippet>171</a>            .limite
-<a href=#172 id=172 data-nosnippet>172</a>            .expect(<span class="string">"limite do IBGE"</span>);
-<a href=#173 id=173 data-nosnippet>173</a>        <span class="macro">assert_eq!</span>(limite.host, <span class="string">"servicodados.ibge.gov.br"</span>);
-<a href=#174 id=174 data-nosnippet>174</a>    }
-<a href=#175 id=175 data-nosnippet>175</a>
-<a href=#176 id=176 data-nosnippet>176</a>    <span class="attr">#[test]
-<a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">fn </span>nao_entra_em_todas_por_acidente() {
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">assert!</span>(FonteIbgePibMunicipios.sob_demanda());
-<a href=#179 id=179 data-nosnippet>179</a>    }
-<a href=#180 id=180 data-nosnippet>180</a>}
+<a href=#95 id=95 data-nosnippet>95</a>            agente: <span class="prelude-val">None</span>,
+<a href=#96 id=96 data-nosnippet>96</a>        }
+<a href=#97 id=97 data-nosnippet>97</a>    }
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt; {
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>pib = (PRIMEIRO_ANO_PIB..=ULTIMO_ANO_PIB)
+<a href=#101 id=101 data-nosnippet>101</a>            .map(|ano| tarefa(<span class="string">"pib"</span>, <span class="string">"pib-municipios"</span>, AGREGADO_PIB, VARIAVEL_PIB, ano));
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">let </span>populacao = (PRIMEIRO_ANO_POP..=ULTIMO_ANO_POP).map(|ano| {
+<a href=#103 id=103 data-nosnippet>103</a>            tarefa(
+<a href=#104 id=104 data-nosnippet>104</a>                <span class="string">"populacao"</span>,
+<a href=#105 id=105 data-nosnippet>105</a>                <span class="string">"populacao-municipios"</span>,
+<a href=#106 id=106 data-nosnippet>106</a>                AGREGADO_POP,
+<a href=#107 id=107 data-nosnippet>107</a>                VARIAVEL_POP,
+<a href=#108 id=108 data-nosnippet>108</a>                ano,
+<a href=#109 id=109 data-nosnippet>109</a>            )
+<a href=#110 id=110 data-nosnippet>110</a>        });
+<a href=#111 id=111 data-nosnippet>111</a>        pib.chain(populacao).collect()
+<a href=#112 id=112 data-nosnippet>112</a>    }
+<a href=#113 id=113 data-nosnippet>113</a>}
+<a href=#114 id=114 data-nosnippet>114</a>
+<a href=#115 id=115 data-nosnippet>115</a><span class="attr">#[cfg(test)]
+<a href=#116 id=116 data-nosnippet>116</a></span><span class="kw">mod </span>testes {
+<a href=#117 id=117 data-nosnippet>117</a>    <span class="kw">use </span>std::collections::BTreeSet;
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#120 id=120 data-nosnippet>120</a>
+<a href=#121 id=121 data-nosnippet>121</a>    <span class="kw">fn </span>anos_do_indicador(indicador: <span class="kw-2">&amp;</span>str) -&gt; BTreeSet&lt;u16&gt; {
+<a href=#122 id=122 data-nosnippet>122</a>        FonteIbgePibMunicipios
+<a href=#123 id=123 data-nosnippet>123</a>            .criar_tarefas()
+<a href=#124 id=124 data-nosnippet>124</a>            .iter()
+<a href=#125 id=125 data-nosnippet>125</a>            .filter(|t| t.etiquetas.get(<span class="string">"indicador"</span>).map(String::as_str) == <span class="prelude-val">Some</span>(indicador))
+<a href=#126 id=126 data-nosnippet>126</a>            .map(|t| t.etiquetas[<span class="string">"ano"</span>].parse().expect(<span class="string">"ano numérico"</span>))
+<a href=#127 id=127 data-nosnippet>127</a>            .collect()
+<a href=#128 id=128 data-nosnippet>128</a>    }
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="attr">#[test]
+<a href=#131 id=131 data-nosnippet>131</a>    </span><span class="kw">fn </span>cobre_os_anos_de_pib_e_de_populacao() {
+<a href=#132 id=132 data-nosnippet>132</a>        <span class="macro">assert_eq!</span>(
+<a href=#133 id=133 data-nosnippet>133</a>            anos_do_indicador(<span class="string">"pib"</span>),
+<a href=#134 id=134 data-nosnippet>134</a>            (PRIMEIRO_ANO_PIB..=ULTIMO_ANO_PIB).collect()
+<a href=#135 id=135 data-nosnippet>135</a>        );
+<a href=#136 id=136 data-nosnippet>136</a>        <span class="macro">assert_eq!</span>(
+<a href=#137 id=137 data-nosnippet>137</a>            anos_do_indicador(<span class="string">"populacao"</span>),
+<a href=#138 id=138 data-nosnippet>138</a>            (PRIMEIRO_ANO_POP..=ULTIMO_ANO_POP).collect()
+<a href=#139 id=139 data-nosnippet>139</a>        );
+<a href=#140 id=140 data-nosnippet>140</a>    }
+<a href=#141 id=141 data-nosnippet>141</a>
+<a href=#142 id=142 data-nosnippet>142</a>    <span class="attr">#[test]
+<a href=#143 id=143 data-nosnippet>143</a>    </span><span class="kw">fn </span>a_url_pede_um_ano_no_nivel_municipal() {
+<a href=#144 id=144 data-nosnippet>144</a>        <span class="macro">assert_eq!</span>(
+<a href=#145 id=145 data-nosnippet>145</a>            url(AGREGADO_PIB, VARIAVEL_PIB, <span class="number">2020</span>),
+<a href=#146 id=146 data-nosnippet>146</a>            <span class="string">"https://servicodados.ibge.gov.br/api/v3/agregados/5938/periodos/2020/variaveis/37?localidades=N6%5Ball%5D"
+<a href=#147 id=147 data-nosnippet>147</a>        </span>);
+<a href=#148 id=148 data-nosnippet>148</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="attr">#[test]
+<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">fn </span>cada_tarefa_tem_ano_e_indicador_coerentes_com_o_recurso() {
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">for </span>tarefa <span class="kw">in </span>FonteIbgePibMunicipios.criar_tarefas() {
+<a href=#153 id=153 data-nosnippet>153</a>            <span class="kw">let </span>nome = tarefa.tarefa.nome();
+<a href=#154 id=154 data-nosnippet>154</a>            <span class="kw">let </span>ano = tarefa.etiquetas.get(<span class="string">"ano"</span>).expect(<span class="string">"etiqueta ano"</span>);
+<a href=#155 id=155 data-nosnippet>155</a>            <span class="kw">let </span>indicador = tarefa
+<a href=#156 id=156 data-nosnippet>156</a>                .etiquetas
+<a href=#157 id=157 data-nosnippet>157</a>                .get(<span class="string">"indicador"</span>)
+<a href=#158 id=158 data-nosnippet>158</a>                .expect(<span class="string">"etiqueta indicador"</span>);
+<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">let </span>base = <span class="kw">match </span>indicador.as_str() {
+<a href=#160 id=160 data-nosnippet>160</a>                <span class="string">"pib" </span>=&gt; <span class="string">"pib-municipios"</span>,
+<a href=#161 id=161 data-nosnippet>161</a>                <span class="string">"populacao" </span>=&gt; <span class="string">"populacao-municipios"</span>,
+<a href=#162 id=162 data-nosnippet>162</a>                outro =&gt; <span class="macro">panic!</span>(<span class="string">"indicador inesperado: {outro}"</span>),
+<a href=#163 id=163 data-nosnippet>163</a>            };
+<a href=#164 id=164 data-nosnippet>164</a>            <span class="macro">assert_eq!</span>(nome, <span class="macro">format!</span>(<span class="string">"{base}/ano={ano}"</span>), <span class="string">"recurso incoerente"</span>);
+<a href=#165 id=165 data-nosnippet>165</a>        }
+<a href=#166 id=166 data-nosnippet>166</a>    }
+<a href=#167 id=167 data-nosnippet>167</a>
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="attr">#[test]
+<a href=#169 id=169 data-nosnippet>169</a>    </span><span class="kw">fn </span>declara_o_limite_do_host_do_ibge() {
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span>limite = FonteIbgePibMunicipios
+<a href=#171 id=171 data-nosnippet>171</a>            .perfil_http()
+<a href=#172 id=172 data-nosnippet>172</a>            .limite
+<a href=#173 id=173 data-nosnippet>173</a>            .expect(<span class="string">"limite do IBGE"</span>);
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="macro">assert_eq!</span>(limite.host, <span class="string">"servicodados.ibge.gov.br"</span>);
+<a href=#175 id=175 data-nosnippet>175</a>    }
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="attr">#[test]
+<a href=#178 id=178 data-nosnippet>178</a>    </span><span class="kw">fn </span>nao_entra_em_todas_por_acidente() {
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="macro">assert!</span>(FonteIbgePibMunicipios.sob_demanda());
+<a href=#180 id=180 data-nosnippet>180</a>    }
+<a href=#181 id=181 data-nosnippet>181</a>}
 </code></pre></div></section></main></body></html>
