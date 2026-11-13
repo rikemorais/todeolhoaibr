@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EstadoDaTarefa"],"struct":["ExecutorDeDag","RelatorioDaExecucao","ResultadoDaTarefa"],"trait":["ObservadorDeExecucao"]};
