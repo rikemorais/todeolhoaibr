@@ -10,7 +10,7 @@ A fonte `remuneracao-estadual-mg` consulta o endpoint `package_show` do CKAN, se
 raw/remuneracao-estadual/uf=MG/competencia=AAAA-MM/...
 ```
 
-Ela é sob demanda e pode ser executada pelo nome `remuneracao-estadual-mg`. A seleção exige URL HTTPS no domínio oficial `www.dados.mg.gov.br`, nome no padrão `servidores_MMYYYY.csv`, competência válida, tamanho declarado positivo e até 1 GiB. O arquivo não é carregado inteiro na memória.
+Ela é sob demanda e pode ser executada pelo nome `remuneracao-estadual-mg`. A seleção exige URL HTTPS no domínio oficial `dados.mg.gov.br` (ou no domínio legado `www.dados.mg.gov.br`), competência válida e tamanho declarado positivo de até 1 GiB. O catálogo atualmente publica arquivos no padrão `servidores-YYYY-MM.csv`; o padrão legado `servidores_MMYYYY.csv` também é aceito. O arquivo não é carregado inteiro na memória.
 
 O adaptador preserva somente a competência mais recente anunciada no catálogo. Não faz carga histórica retroativa. Os leiautes anteriores a 2021 divergem dos arquivos mais novos e precisam de estratégia própria antes de uma eventual carga histórica.
 
