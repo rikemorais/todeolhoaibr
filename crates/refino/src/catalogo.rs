@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
 use crate::fontes::{
-    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
-    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
+    DecodificadorCotahist, DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -284,6 +284,22 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "servidores-ativos/",
             cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
         },
+        // --- XML DataSet ---
+        // ANA/SNIRH: estações hidrológicas em XML DataSet (dois recursos: fluvio e pluvio).
+        FonteDeRefino {
+            nome: "ana",
+            fonte_raw: "ana",
+            prefixo_recurso: "estacoes-",
+            cria_decodificador: || Arc::new(DecodificadorXmlDataset::novo("estacoes")),
+        },
+        // --- Fixed-width (ZIP) ---
+        // B3 COTAHIST: cotações históricas em ZIP com TXT de 245 bytes por registro.
+        FonteDeRefino {
+            nome: "b3",
+            fonte_raw: "b3",
+            prefixo_recurso: "cotahist/",
+            cria_decodificador: || Arc::new(DecodificadorCotahist),
+        },
     ]
 }
 
@@ -331,6 +347,8 @@ mod testes {
                 "transparencia",
                 "servidores-ativos/",
             ),
+            ("ana", "ana", "estacoes-"),
+            ("b3", "b3", "cotahist/"),
         ];
         for (nome, raw, prefixo) in casos {
             let fonte = catalogo

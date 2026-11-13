@@ -26,6 +26,7 @@ tokio = { workspace = true, features = ["fs", "io-util"] }
 zip = { version = "9.3.0", default-features = false, features = ["deflate"] }
 csv = "1.4.0"
 encoding_rs = "0.8.44"
+quick-xml = "0.41.0"
 
 [dependencies.datafusion]
 version = "55.2.0"
