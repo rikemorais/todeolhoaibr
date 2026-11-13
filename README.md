@@ -50,8 +50,8 @@ cd todeolhoaibr
 # Sobe armazenamento, painel e agendador do bronze. Na primeira vez, compila a imagem.
 docker compose up -d --build
 
-# Abre o menu para escolher o que ingerir
-docker compose run --rm --build ingestao
+# Abre o menu para escolher o que ingerir (na primeira vez, compila a imagem)
+docker compose run --rm ingestao
 ```
 
 O `agendador` faz uma primeira reconciliação ao iniciar e repete a cada hora. Se ainda não houver dados na Raw, não há o que refinar; depois da ingestão, o bronze será produzido na próxima passada. Para produzi-lo imediatamente, rode `docker compose run --rm refino refinar bronze --todas`. Veja [como processar e conferir o bronze](docs/refino/bronze.md#como-rodar).
@@ -62,7 +62,13 @@ Votos por seção do TSE são processados explicitamente com `docker compose run
 
 Para prestação de contas do TSE, `docker compose run --rm refino refinar silver tse-prestacao-contas` publica despesas e receitas de comitês de 2014, despesas e receitas de candidatos e partidos de 2016, além das quatro famílias (despesas contratadas, despesas pagas, receitas de candidatos e receitas de doador originário) de 2018, 2020, 2022 e 2024. As outras tabelas e eleições permanecem em Bronze.
 
-> **Use `--build` depois de mudar o código.** Na primeira vez, o Compose constrói a imagem sozinho (não há imagem local). Depois disso, `docker compose run`/`up` **reaproveitam a imagem já construída** e não enxergam mudanças no código — uma fonte recém-adicionada, por exemplo, não aparece no menu. O `--build` **força a reconstrução mesmo quando já existe imagem local**, então inclua-o após um `git pull` ou alteração no código (é rápido quando nada mudou, pelo cache de camadas).
+> **Desenvolvimento local:** o `docker-compose.override.yml` não versionado seleciona o perfil Rust `dev`, com compilação incremental. O Dockerfile usa cache persistente do BuildKit para dependências e artefatos do Cargo. A primeira compilação ainda compila todas as dependências; a meta de até 30 segundos se aplica aos builds incrementais e depende do tamanho da mudança e dos recursos disponíveis. Após editar código ou fazer `git pull`, use `docker compose run --rm --build ingestao`; sem mudanças, rode `docker compose run --rm ingestao` para reutilizar a imagem existente. O BuildKit vem habilitado por padrão nas versões atuais do Docker.
+
+Em um clone sem `docker-compose.override.yml` local, ative o mesmo perfil com a sobreposição versionada:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build ingestao
+```
 
 **Atualizando uma instalação que só tinha Raw:** após `git pull`, rode `docker compose up -d --build`. Atualizar os arquivos da branch sozinho não executa o bronze: o Compose precisa criar o novo `agendador` com a imagem atualizada. O volume da Raw continua disponível; a primeira passada do agendador encontra os recursos já ingeridos e produz os Parquets ausentes no bucket `bronze`. Não é preciso ingerir a Raw outra vez. Para acompanhar, use `docker compose ps agendador` e `docker compose logs --tail=50 agendador`.
 
