@@ -227,6 +227,63 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
                 Arc::new(DecodificadorIbgeAgregados::novo("populacao-municipios"))
             },
         },
+        // --- Fontes que gravam CSV solto no raw ---
+        // UNDP Human Development Report: CSV com vírgula, sem preâmbulo.
+        FonteDeRefino {
+            nome: "undp",
+            fonte_raw: "undp",
+            prefixo_recurso: "indices-compostos",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("indices-compostos", b',', 0)),
+        },
+        // Remuneração estadual de MG: CSV com ponto-e-vírgula do CKAN.
+        FonteDeRefino {
+            nome: "remuneracao-estadual-mg",
+            fonte_raw: "remuneracao-estadual",
+            prefixo_recurso: "uf=MG/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("remuneracao-mg", b';', 0)),
+        },
+        // Remuneração estadual de GO: CSV com ponto-e-vírgula do CKAN.
+        FonteDeRefino {
+            nome: "remuneracao-estadual-go",
+            fonte_raw: "remuneracao-estadual",
+            prefixo_recurso: "uf=GO/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("remuneracao-go", b';', 0)),
+        },
+        // --- Fontes JSON ---
+        // World Bank Open Data: resposta `[meta, [registros]]`, array sob índice 1.
+        FonteDeRefino {
+            nome: "world-bank",
+            fonte_raw: "world-bank",
+            prefixo_recurso: "indicadores/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_caminho("indicador", &["1"])),
+        },
+        // TCE-CE (SIM): registros sob a chave `elements`.
+        FonteDeRefino {
+            nome: "remuneracao-municipal-tce-ce",
+            fonte_raw: "remuneracao-municipal-tce-ce",
+            prefixo_recurso: "folhas-pagamentos/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho(
+                    "folhas-pagamentos",
+                    &["elements"],
+                ))
+            },
+        },
+        // Portal da Transparência - benefícios: array de registros no topo por página.
+        FonteDeRefino {
+            nome: "transparencia-beneficios",
+            fonte_raw: "transparencia",
+            prefixo_recurso: "beneficios/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("beneficios")),
+        },
+        // --- ZIP com CSV ---
+        // Portal da Transparência - servidores ativos: ZIP com CSV (`;`).
+        FonteDeRefino {
+            nome: "transparencia-servidores-ativos",
+            fonte_raw: "transparencia",
+            prefixo_recurso: "servidores-ativos/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
     ]
 }
 

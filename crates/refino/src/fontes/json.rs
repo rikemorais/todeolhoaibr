@@ -60,7 +60,10 @@ impl Decodificador for DecodificadorJson {
             .map_err(|erro| ErroDeRefino::Decodificacao(format!("JSON inválido: {erro}")))?;
         let mut atual = Some(&raiz);
         for chave in self.caminho {
-            atual = atual.and_then(|v| v.get(chave));
+            atual = atual.and_then(|v| match chave.parse::<usize>() {
+                Ok(indice) if v.is_array() => v.get(indice),
+                _ => v.get(chave),
+            });
         }
         let Some(Value::Array(registros)) = atual else {
             let onde = if self.caminho.is_empty() {
@@ -164,6 +167,21 @@ mod testes {
         let (colunas, linhas) = ler_parte(&partes[0]);
         assert_eq!(colunas, vec!["a"]);
         assert_eq!(linhas, vec![vec![c("1")], vec![c("2")]]);
+    }
+
+    #[test]
+    fn decodifica_array_por_indice_numerico() {
+        let json =
+            br#"[{"page":1,"total":2},[{"pais":"BR","valor":"100"},{"pais":"US","valor":"200"}]]"#;
+        let partes = DecodificadorJson::com_caminho("indicador", &["1"])
+            .decodificar(json, "application/json")
+            .unwrap();
+        let (colunas, linhas) = ler_parte(&partes[0]);
+        assert_eq!(colunas, vec!["pais", "valor"]);
+        assert_eq!(
+            linhas,
+            vec![vec![c("BR"), c("100")], vec![c("US"), c("200")]]
+        );
     }
 
     #[test]
