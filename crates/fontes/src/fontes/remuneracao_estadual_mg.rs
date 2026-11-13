@@ -181,6 +181,7 @@ impl FonteDeDados for FonteRemuneracaoEstadualMg {
                 requisicoes: 2,
                 intervalo: Duration::from_secs(1),
             }),
+            agente: None,
         }
     }
 
