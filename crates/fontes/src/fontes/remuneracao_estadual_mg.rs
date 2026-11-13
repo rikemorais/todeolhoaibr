@@ -57,13 +57,12 @@ fn competencia_do_url(url: &str) -> Option<(i32, u32, String)> {
     let (ano, mes) = if let Some(data) = data.strip_prefix("servidores-") {
         let (ano, mes) = data.split_once('-')?;
         (ano.parse().ok()?, mes.parse().ok()?)
-    } else if let Some(data) = data.strip_prefix("servidores_") {
+    } else {
+        let data = data.strip_prefix("servidores_")?;
         if data.len() != 6 || !data.bytes().all(|byte| byte.is_ascii_digit()) {
             return None;
         }
         (data[2..].parse().ok()?, data[..2].parse().ok()?)
-    } else {
-        return None;
     };
     if !(1..=12).contains(&mes) || !(2012..=2099).contains(&ano) {
         return None;
