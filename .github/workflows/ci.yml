@@ -3,6 +3,13 @@ name: ci
 on:
   pull_request:
     branches: [main]
+  # Pull request caches are scoped to each PR merge ref. Refresh the reusable
+  # default-branch cache after dependency or CI changes so sibling PRs can hit it.
+  push:
+    branches: [main]
+    paths:
+      - Cargo.lock
+      - .github/workflows/ci.yml
   workflow_dispatch:
 
 permissions:
