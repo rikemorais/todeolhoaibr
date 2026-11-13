@@ -7,6 +7,16 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.87.0] - 2026-11-13
+
+### Adicionado
+
+- Silver para as 4 famílias de prestação de contas do TSE em 2014 que estavam faltando: despesas de candidatos, despesas de partidos, receitas de candidatos e receitas de partidos. Com isso, todas as 6 famílias de 2014 (+ comitês) têm contrato Silver (issue #189).
+
+### Melhorado
+
+- Cache da CI aquecido automaticamente ao mergear dependências na main.
+
 ## [0.86.1] - 2026-11-13
 
 ### Melhorado
