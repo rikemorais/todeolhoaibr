@@ -47,6 +47,7 @@ pub mod tarefa_senado_votacoes;
 pub mod tarefa_sql;
 pub mod tarefa_tse_bens;
 pub mod tarefa_tse_candidaturas;
+pub mod tarefa_tse_despesas_candidatos_2014;
 pub mod tarefa_tse_despesas_candidatos_2016;
 pub mod tarefa_tse_despesas_comites_2014;
 pub mod tarefa_tse_despesas_contratadas;
@@ -57,8 +58,10 @@ pub mod tarefa_tse_despesas_pagas;
 pub mod tarefa_tse_despesas_pagas_2018;
 pub mod tarefa_tse_despesas_pagas_2020;
 pub mod tarefa_tse_despesas_pagas_2022;
+pub mod tarefa_tse_despesas_partidos_2014;
 pub mod tarefa_tse_despesas_partidos_2016;
 pub mod tarefa_tse_receitas_candidatos;
+pub mod tarefa_tse_receitas_candidatos_2014;
 pub mod tarefa_tse_receitas_candidatos_2016;
 pub mod tarefa_tse_receitas_candidatos_2018;
 pub mod tarefa_tse_receitas_candidatos_2020;
@@ -68,10 +71,12 @@ pub mod tarefa_tse_receitas_doador_originario;
 pub mod tarefa_tse_receitas_doador_originario_2018;
 pub mod tarefa_tse_receitas_doador_originario_2020;
 pub mod tarefa_tse_receitas_doador_originario_2022;
+pub mod tarefa_tse_receitas_partidos_2014;
 pub mod tarefa_tse_receitas_partidos_2016;
 pub mod tarefa_tse_votacao_secao;
 pub mod tse_bens;
 pub mod tse_candidaturas;
+pub mod tse_despesas_candidatos_2014;
 pub mod tse_despesas_candidatos_2016;
 pub mod tse_despesas_comites_2014;
 pub mod tse_despesas_contratadas;
@@ -82,8 +87,10 @@ pub mod tse_despesas_pagas;
 pub mod tse_despesas_pagas_2018;
 pub mod tse_despesas_pagas_2020;
 pub mod tse_despesas_pagas_2022;
+pub mod tse_despesas_partidos_2014;
 pub mod tse_despesas_partidos_2016;
 pub mod tse_receitas_candidatos;
+pub mod tse_receitas_candidatos_2014;
 pub mod tse_receitas_candidatos_2016;
 pub mod tse_receitas_candidatos_2018;
 pub mod tse_receitas_candidatos_2020;
@@ -93,6 +100,7 @@ pub mod tse_receitas_doador_originario;
 pub mod tse_receitas_doador_originario_2018;
 pub mod tse_receitas_doador_originario_2020;
 pub mod tse_receitas_doador_originario_2022;
+pub mod tse_receitas_partidos_2014;
 pub mod tse_receitas_partidos_2016;
 pub mod tse_votacao_secao;
 
@@ -162,6 +170,9 @@ pub use tarefa_senado_votacoes::{TarefaDeSilverSenadoVotacoes, publicar_senado_v
 pub use tarefa_sql::TarefaDeSilverSql;
 pub use tarefa_tse_bens::{TarefaDeSilverTseBens, publicar_tse_bens};
 pub use tarefa_tse_candidaturas::{TarefaDeSilverTseCandidaturas, publicar_tse_candidaturas};
+pub use tarefa_tse_despesas_candidatos_2014::{
+    TarefaDeSilverTseDespesasCandidatos2014, publicar_tse_despesas_candidatos_2014,
+};
 pub use tarefa_tse_despesas_candidatos_2016::{
     TarefaDeSilverTseDespesasCandidatos2016, publicar_tse_despesas_candidatos_2016,
 };
@@ -192,11 +203,17 @@ pub use tarefa_tse_despesas_pagas_2020::{
 pub use tarefa_tse_despesas_pagas_2022::{
     TarefaDeSilverTseDespesasPagas2022, publicar_tse_despesas_pagas_2022,
 };
+pub use tarefa_tse_despesas_partidos_2014::{
+    TarefaDeSilverTseDespesasPartidos2014, publicar_tse_despesas_partidos_2014,
+};
 pub use tarefa_tse_despesas_partidos_2016::{
     TarefaDeSilverTseDespesasPartidos2016, publicar_tse_despesas_partidos_2016,
 };
 pub use tarefa_tse_receitas_candidatos::{
     TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
+};
+pub use tarefa_tse_receitas_candidatos_2014::{
+    TarefaDeSilverTseReceitasCandidatos2014, publicar_tse_receitas_candidatos_2014,
 };
 pub use tarefa_tse_receitas_candidatos_2016::{
     TarefaDeSilverTseReceitasCandidatos2016, publicar_tse_receitas_candidatos_2016,
@@ -225,6 +242,9 @@ pub use tarefa_tse_receitas_doador_originario_2020::{
 pub use tarefa_tse_receitas_doador_originario_2022::{
     TarefaDeSilverTseReceitasDoadorOriginario2022, publicar_tse_receitas_doador_originario_2022,
 };
+pub use tarefa_tse_receitas_partidos_2014::{
+    TarefaDeSilverTseReceitasPartidos2014, publicar_tse_receitas_partidos_2014,
+};
 pub use tarefa_tse_receitas_partidos_2016::{
     TarefaDeSilverTseReceitasPartidos2016, publicar_tse_receitas_partidos_2016,
 };
@@ -235,6 +255,7 @@ pub use tse_bens::{ErroTseBensSilver, transformar_tse_bens};
 pub use tse_candidaturas::esquema_tse_candidaturas;
 #[cfg(test)]
 pub use tse_candidaturas::{ErroTseCandidaturasSilver, transformar_tse_candidaturas};
+pub use tse_despesas_candidatos_2014::esquema_tse_despesas_candidatos_2014;
 pub use tse_despesas_candidatos_2016::esquema_tse_despesas_candidatos_2016;
 pub use tse_despesas_comites_2014::esquema_tse_despesas_comites_2014;
 pub use tse_despesas_contratadas::esquema_tse_despesas_contratadas_2024;
@@ -248,13 +269,16 @@ pub use tse_despesas_pagas::{
 pub use tse_despesas_pagas_2018::esquema_tse_despesas_pagas_2018;
 pub use tse_despesas_pagas_2020::esquema_tse_despesas_pagas_2020;
 pub use tse_despesas_pagas_2022::esquema_tse_despesas_pagas_2022;
+pub use tse_despesas_partidos_2014::esquema_tse_despesas_partidos_2014;
 pub use tse_despesas_partidos_2016::esquema_tse_despesas_partidos_2016;
 pub use tse_receitas_candidatos::esquema_tse_receitas_candidatos_2024;
+pub use tse_receitas_candidatos_2014::esquema_tse_receitas_candidatos_2014;
 pub use tse_receitas_candidatos_2016::esquema_tse_receitas_candidatos_2016;
 pub use tse_receitas_candidatos_2022::esquema_tse_receitas_candidatos_2022;
 pub use tse_receitas_comites_2014::esquema_tse_receitas_comites_2014;
 pub use tse_receitas_doador_originario::esquema_tse_receitas_doador_originario_2024;
 pub use tse_receitas_doador_originario_2022::esquema_tse_receitas_doador_originario_2022;
+pub use tse_receitas_partidos_2014::esquema_tse_receitas_partidos_2014;
 pub use tse_receitas_partidos_2016::esquema_tse_receitas_partidos_2016;
 pub use tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
