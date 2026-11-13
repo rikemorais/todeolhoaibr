@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.86.1] - 2026-11-13
+
+### Melhorado
+
+- Acelera builds incrementais da imagem Docker em desenvolvimento com cache persistente do Cargo via BuildKit e perfil Rust `dev`.
+
 ## [0.86.0] - 2026-11-13
 
 ### Adicionado
