@@ -33,17 +33,19 @@ use todeolho_refino::{
     TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
     TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
     TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
-    TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasComites2014,
-    TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
-    TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
-    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseDespesasPagas2018,
-    TarefaDeSilverTseDespesasPagas2020, TarefaDeSilverTseDespesasPagas2022,
+    TarefaDeSilverTseDespesasCandidatos2014, TarefaDeSilverTseDespesasCandidatos2016,
+    TarefaDeSilverTseDespesasComites2014, TarefaDeSilverTseDespesasContratadas,
+    TarefaDeSilverTseDespesasContratadas2018, TarefaDeSilverTseDespesasContratadas2020,
+    TarefaDeSilverTseDespesasContratadas2022, TarefaDeSilverTseDespesasPagas,
+    TarefaDeSilverTseDespesasPagas2018, TarefaDeSilverTseDespesasPagas2020,
+    TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseDespesasPartidos2014,
     TarefaDeSilverTseDespesasPartidos2016, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasCandidatos2016, TarefaDeSilverTseReceitasCandidatos2018,
-    TarefaDeSilverTseReceitasCandidatos2020, TarefaDeSilverTseReceitasCandidatos2022,
-    TarefaDeSilverTseReceitasComites2014, TarefaDeSilverTseReceitasDoadorOriginario,
-    TarefaDeSilverTseReceitasDoadorOriginario2018, TarefaDeSilverTseReceitasDoadorOriginario2020,
-    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseReceitasPartidos2016,
+    TarefaDeSilverTseReceitasCandidatos2014, TarefaDeSilverTseReceitasCandidatos2016,
+    TarefaDeSilverTseReceitasCandidatos2018, TarefaDeSilverTseReceitasCandidatos2020,
+    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasComites2014,
+    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2018,
+    TarefaDeSilverTseReceitasDoadorOriginario2020, TarefaDeSilverTseReceitasDoadorOriginario2022,
+    TarefaDeSilverTseReceitasPartidos2014, TarefaDeSilverTseReceitasPartidos2016,
     TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
@@ -648,16 +650,54 @@ async fn passada_tse_prestacao_contas_silver(
             tarefas.push(TarefaPlanejada::nova(tarefa));
         }
 
+        let tarefa = TarefaDeSilverTseReceitasComites2014::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2014,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2014");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+
+        let tarefa = TarefaDeSilverTseDespesasCandidatos2014::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2014,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2014");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+
+        let tarefa = TarefaDeSilverTseReceitasCandidatos2014::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2014,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2014");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+
+        let tarefa = TarefaDeSilverTseDespesasPartidos2014::nova(
+            Arc::clone(bronze),
+            Arc::clone(&snapshot),
+            RECURSO_2014,
+        )
+        .expect("o contrato aceita somente a prestação de contas de 2014");
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+
         let tarefa =
-            TarefaDeSilverTseReceitasComites2014::nova(Arc::clone(bronze), snapshot, RECURSO_2014)
+            TarefaDeSilverTseReceitasPartidos2014::nova(Arc::clone(bronze), snapshot, RECURSO_2014)
                 .expect("o contrato aceita somente a prestação de contas de 2014");
         if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
             tarefas.push(TarefaPlanejada::nova(tarefa));
         }
     } else {
-        println!(
-            "Bronze 2014 ausente; despesas e receitas de comitês de 2014 não serão refinadas."
-        );
+        println!("Bronze 2014 ausente; prestação de contas de 2014 não será refinada.");
     }
 
     const RECURSO_2016: &str = "prestacao-contas/ano=2016";

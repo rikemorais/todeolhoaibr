@@ -82,6 +82,9 @@ pub use silver::tarefa_bcb::TarefaDeSilverBcb;
 pub use silver::tarefa_ibge_renda_per_capita::{
     TarefaDeSilverIbgeRendaPerCapita, publicar_ibge_renda_per_capita,
 };
+pub use silver::tarefa_tse_despesas_candidatos_2014::{
+    TarefaDeSilverTseDespesasCandidatos2014, publicar_tse_despesas_candidatos_2014,
+};
 pub use silver::tarefa_tse_despesas_candidatos_2016::{
     TarefaDeSilverTseDespesasCandidatos2016, publicar_tse_despesas_candidatos_2016,
 };
@@ -97,11 +100,17 @@ pub use silver::tarefa_tse_despesas_contratadas_2018::{
 pub use silver::tarefa_tse_despesas_contratadas_2022::{
     TarefaDeSilverTseDespesasContratadas2022, publicar_tse_despesas_contratadas_2022,
 };
+pub use silver::tarefa_tse_despesas_partidos_2014::{
+    TarefaDeSilverTseDespesasPartidos2014, publicar_tse_despesas_partidos_2014,
+};
 pub use silver::tarefa_tse_despesas_partidos_2016::{
     TarefaDeSilverTseDespesasPartidos2016, publicar_tse_despesas_partidos_2016,
 };
 pub use silver::tarefa_tse_receitas_candidatos::{
     TarefaDeSilverTseReceitasCandidatos, publicar_tse_receitas_candidatos_2024,
+};
+pub use silver::tarefa_tse_receitas_candidatos_2014::{
+    TarefaDeSilverTseReceitasCandidatos2014, publicar_tse_receitas_candidatos_2014,
 };
 pub use silver::tarefa_tse_receitas_candidatos_2016::{
     TarefaDeSilverTseReceitasCandidatos2016, publicar_tse_receitas_candidatos_2016,
@@ -129,6 +138,9 @@ pub use silver::tarefa_tse_receitas_doador_originario_2020::{
 };
 pub use silver::tarefa_tse_receitas_doador_originario_2022::{
     TarefaDeSilverTseReceitasDoadorOriginario2022, publicar_tse_receitas_doador_originario_2022,
+};
+pub use silver::tarefa_tse_receitas_partidos_2014::{
+    TarefaDeSilverTseReceitasPartidos2014, publicar_tse_receitas_partidos_2014,
 };
 pub use silver::tarefa_tse_receitas_partidos_2016::{
     TarefaDeSilverTseReceitasPartidos2016, publicar_tse_receitas_partidos_2016,
