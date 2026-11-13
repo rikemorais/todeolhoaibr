@@ -227,6 +227,63 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
                 Arc::new(DecodificadorIbgeAgregados::novo("populacao-municipios"))
             },
         },
+        // --- Fontes que gravam CSV solto no raw ---
+        // UNDP Human Development Report: CSV com vírgula, sem preâmbulo.
+        FonteDeRefino {
+            nome: "undp",
+            fonte_raw: "undp",
+            prefixo_recurso: "indices-compostos",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("indices-compostos", b',', 0)),
+        },
+        // Remuneração estadual de MG: CSV com ponto-e-vírgula do CKAN.
+        FonteDeRefino {
+            nome: "remuneracao-estadual-mg",
+            fonte_raw: "remuneracao-estadual",
+            prefixo_recurso: "uf=MG/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("remuneracao-mg", b';', 0)),
+        },
+        // Remuneração estadual de GO: CSV com ponto-e-vírgula do CKAN.
+        FonteDeRefino {
+            nome: "remuneracao-estadual-go",
+            fonte_raw: "remuneracao-estadual",
+            prefixo_recurso: "uf=GO/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("remuneracao-go", b';', 0)),
+        },
+        // --- Fontes JSON ---
+        // World Bank Open Data: resposta `[meta, [registros]]`, array sob índice 1.
+        FonteDeRefino {
+            nome: "world-bank",
+            fonte_raw: "world-bank",
+            prefixo_recurso: "indicadores/",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_caminho("indicador", &["1"])),
+        },
+        // TCE-CE (SIM): registros sob a chave `elements`.
+        FonteDeRefino {
+            nome: "remuneracao-municipal-tce-ce",
+            fonte_raw: "remuneracao-municipal-tce-ce",
+            prefixo_recurso: "folhas-pagamentos/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho(
+                    "folhas-pagamentos",
+                    &["elements"],
+                ))
+            },
+        },
+        // Portal da Transparência - benefícios: array de registros no topo por página.
+        FonteDeRefino {
+            nome: "transparencia-beneficios",
+            fonte_raw: "transparencia",
+            prefixo_recurso: "beneficios/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("beneficios")),
+        },
+        // --- ZIP com CSV ---
+        // Portal da Transparência - servidores ativos: ZIP com CSV (`;`).
+        FonteDeRefino {
+            nome: "transparencia-servidores-ativos",
+            fonte_raw: "transparencia",
+            prefixo_recurso: "servidores-ativos/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
     ]
 }
 
@@ -242,7 +299,47 @@ mod testes {
             .expect("camara-despesas no catálogo");
         assert_eq!(fonte.fonte_raw, "camara");
         assert_eq!(fonte.prefixo_recurso, "despesas/");
-        // O decodificador é construível.
         let _ = fonte.decodificador();
+    }
+
+    #[test]
+    fn nomes_do_catalogo_sao_unicos() {
+        let catalogo = catalogo_refino();
+        let mut nomes: Vec<&str> = catalogo.iter().map(|f| f.nome).collect();
+        nomes.sort();
+        let antes = nomes.len();
+        nomes.dedup();
+        assert_eq!(antes, nomes.len(), "nomes duplicados no catálogo de refino");
+    }
+
+    #[test]
+    fn novas_fontes_apontam_para_o_raw_correto() {
+        let catalogo = catalogo_refino();
+        let casos = [
+            ("undp", "undp", "indices-compostos"),
+            ("remuneracao-estadual-mg", "remuneracao-estadual", "uf=MG/"),
+            ("remuneracao-estadual-go", "remuneracao-estadual", "uf=GO/"),
+            ("world-bank", "world-bank", "indicadores/"),
+            (
+                "remuneracao-municipal-tce-ce",
+                "remuneracao-municipal-tce-ce",
+                "folhas-pagamentos/",
+            ),
+            ("transparencia-beneficios", "transparencia", "beneficios/"),
+            (
+                "transparencia-servidores-ativos",
+                "transparencia",
+                "servidores-ativos/",
+            ),
+        ];
+        for (nome, raw, prefixo) in casos {
+            let fonte = catalogo
+                .iter()
+                .find(|f| f.nome == nome)
+                .unwrap_or_else(|| panic!("{nome} ausente no catálogo"));
+            assert_eq!(fonte.fonte_raw, raw, "raw errado para {nome}");
+            assert_eq!(fonte.prefixo_recurso, prefixo, "prefixo errado para {nome}");
+            let _ = fonte.decodificador();
+        }
     }
 }
