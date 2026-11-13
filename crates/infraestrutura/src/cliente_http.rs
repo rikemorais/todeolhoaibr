@@ -80,8 +80,9 @@ impl ClienteHttpComRetentativas {
         perfil: PerfilHttp,
         segredo: Option<&str>,
     ) -> Result<Self, ErroDeIngestao> {
+        let agente = perfil.agente.unwrap_or(AGENTE);
         let mut construtor = reqwest::Client::builder()
-            .user_agent(AGENTE)
+            .user_agent(agente)
             .connect_timeout(TEMPO_DE_CONEXAO)
             .read_timeout(TEMPO_SEM_DADOS);
 
@@ -564,6 +565,7 @@ mod testes {
             prefixo: "",
         }),
         limite: None,
+        agente: None,
     };
 
     #[tokio::test]
@@ -714,6 +716,7 @@ mod testes {
                 requisicoes: 0,
                 intervalo: Duration::from_secs(1),
             }),
+            agente: None,
         };
         assert!(
             ClienteHttpComRetentativas::com_perfil(PoliticaDeRetentativas::default(), perfil, None)

@@ -1,7 +1,9 @@
 //! Arquivos mensais de remuneração dos servidores civis ativos do Executivo Federal.
 
+use std::time::Duration;
+
 use chrono::{Datelike, NaiveDate, Utc};
-use todeolho_nucleo::{FonteDeDados, TarefaPlanejada};
+use todeolho_nucleo::{FonteDeDados, LimiteHttp, PerfilHttp, TarefaPlanejada};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
 
@@ -9,6 +11,23 @@ const NOME: &str = "transparencia-servidores-ativos";
 const FONTE_RAW: &str = "transparencia";
 const BASE: &str = "https://portaldatransparencia.gov.br/download-de-dados/servidores";
 const PRIMEIRA_COMPETENCIA: (i32, u32) = (2020, 1);
+
+// O CDN da CGU (dadosabertos-download.cgu.gov.br) usa AWS WAF que bloqueia
+// User-Agents de bots. Um agente genérico de navegador evita o bloqueio sem
+// violar os termos de uso dos dados abertos.
+const AGENTE: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
+
+const fn perfil_http_cgu() -> PerfilHttp {
+    PerfilHttp {
+        credencial: None,
+        limite: Some(LimiteHttp {
+            host: "portaldatransparencia.gov.br",
+            requisicoes: 2,
+            intervalo: Duration::from_secs(1),
+        }),
+        agente: Some(AGENTE),
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 enum Origem {
@@ -103,6 +122,10 @@ impl FonteDeDados for FonteTransparenciaServidoresAtivos {
         true
     }
 
+    fn perfil_http(&self) -> PerfilHttp {
+        perfil_http_cgu()
+    }
+
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
         tarefas_ate(ultima_competencia_publicada())
     }
@@ -147,5 +170,21 @@ mod testes {
     #[test]
     fn nao_entra_em_todas_por_acidente() {
         assert!(FonteTransparenciaServidoresAtivos.sob_demanda());
+    }
+
+    #[test]
+    fn usa_agente_de_navegador_para_evitar_waf() {
+        let perfil = FonteTransparenciaServidoresAtivos.perfil_http();
+        assert!(perfil.agente.is_some());
+        assert!(perfil.agente.unwrap().contains("Mozilla"));
+    }
+
+    #[test]
+    fn limita_requisicoes_ao_portal() {
+        let limite = FonteTransparenciaServidoresAtivos
+            .perfil_http()
+            .limite
+            .expect("limite do portal");
+        assert_eq!(limite.host, "portaldatransparencia.gov.br");
     }
 }

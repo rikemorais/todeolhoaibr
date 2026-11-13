@@ -92,6 +92,7 @@ impl FonteDeDados for FonteIbgePibMunicipios {
                 requisicoes: 4,
                 intervalo: Duration::from_secs(1),
             }),
+            agente: None,
         }
     }
 

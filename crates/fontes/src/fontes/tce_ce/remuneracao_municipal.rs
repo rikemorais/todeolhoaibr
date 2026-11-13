@@ -91,6 +91,7 @@ impl FonteDeDados for FonteRemuneracaoMunicipalTceCe {
                 requisicoes: 5,
                 intervalo: Duration::from_secs(1),
             }),
+            agente: None,
         }
     }
 
