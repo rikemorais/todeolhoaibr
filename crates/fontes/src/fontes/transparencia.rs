@@ -287,6 +287,7 @@ impl FonteDeDados for FonteTransparenciaBeneficios {
                 requisicoes: 90,
                 intervalo: Duration::from_secs(60),
             }),
+            agente: None,
         }
     }
 

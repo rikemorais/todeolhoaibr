@@ -36,6 +36,8 @@ pub struct PerfilHttp {
     pub credencial: Option<CredencialHttp>,
     /// Limite opcional da API.
     pub limite: Option<LimiteHttp>,
+    /// User-Agent alternativo; quando `Some`, sobrescreve o padrão do projeto.
+    pub agente: Option<&'static str>,
 }
 
 /// Uma API pública ingerida pelo projeto (o "criador" do Factory Method).

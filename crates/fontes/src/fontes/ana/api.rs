@@ -10,5 +10,6 @@ pub(super) const fn perfil_http() -> PerfilHttp {
             requisicoes: 1,
             intervalo: Duration::from_secs(2),
         }),
+        agente: None,
     }
 }
