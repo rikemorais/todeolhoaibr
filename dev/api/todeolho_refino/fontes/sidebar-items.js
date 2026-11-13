@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["csv","ibge_agregados","json","senado_processos_detalhes","zip_csv"]};
+window.SIDEBAR_ITEMS = {"mod":["cotahist","csv","ibge_agregados","json","senado_processos_detalhes","xml_dataset","zip_csv"]};

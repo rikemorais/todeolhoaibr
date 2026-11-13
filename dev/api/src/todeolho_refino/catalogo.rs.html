@@ -7,8 +7,8 @@
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span><span class="kw">crate</span>::decodificador::Decodificador;
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span><span class="kw">crate</span>::fontes::{
-<a href=#10 id=10 data-nosnippet>10</a>    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
-<a href=#11 id=11 data-nosnippet>11</a>    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
+<a href=#10 id=10 data-nosnippet>10</a>    DecodificadorCotahist, DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
+<a href=#11 id=11 data-nosnippet>11</a>    DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset, DecodificadorZipCsv,
 <a href=#12 id=12 data-nosnippet>12</a>};
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a><span class="doccomment">/// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -284,63 +284,81 @@
 <a href=#284 id=284 data-nosnippet>284</a>            prefixo_recurso: <span class="string">"servidores-ativos/"</span>,
 <a href=#285 id=285 data-nosnippet>285</a>            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(<span class="string">b';'</span>)),
 <a href=#286 id=286 data-nosnippet>286</a>        },
-<a href=#287 id=287 data-nosnippet>287</a>    ]
-<a href=#288 id=288 data-nosnippet>288</a>}
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a><span class="attr">#[cfg(test)]
-<a href=#291 id=291 data-nosnippet>291</a></span><span class="kw">mod </span>testes {
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>    <span class="attr">#[test]
-<a href=#295 id=295 data-nosnippet>295</a>    </span><span class="kw">fn </span>o_catalogo_tem_a_camara_despesas_apontando_para_o_raw_camara() {
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="kw">let </span>fonte = catalogo_refino()
-<a href=#297 id=297 data-nosnippet>297</a>            .into_iter()
-<a href=#298 id=298 data-nosnippet>298</a>            .find(|f| f.nome == <span class="string">"camara-despesas"</span>)
-<a href=#299 id=299 data-nosnippet>299</a>            .expect(<span class="string">"camara-despesas no catálogo"</span>);
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="macro">assert_eq!</span>(fonte.fonte_raw, <span class="string">"camara"</span>);
-<a href=#301 id=301 data-nosnippet>301</a>        <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, <span class="string">"despesas/"</span>);
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let _ </span>= fonte.decodificador();
-<a href=#303 id=303 data-nosnippet>303</a>    }
-<a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>    <span class="attr">#[test]
-<a href=#306 id=306 data-nosnippet>306</a>    </span><span class="kw">fn </span>nomes_do_catalogo_sao_unicos() {
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>catalogo = catalogo_refino();
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span><span class="kw-2">mut </span>nomes: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = catalogo.iter().map(|f| f.nome).collect();
-<a href=#309 id=309 data-nosnippet>309</a>        nomes.sort();
-<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span>antes = nomes.len();
-<a href=#311 id=311 data-nosnippet>311</a>        nomes.dedup();
-<a href=#312 id=312 data-nosnippet>312</a>        <span class="macro">assert_eq!</span>(antes, nomes.len(), <span class="string">"nomes duplicados no catálogo de refino"</span>);
-<a href=#313 id=313 data-nosnippet>313</a>    }
-<a href=#314 id=314 data-nosnippet>314</a>
-<a href=#315 id=315 data-nosnippet>315</a>    <span class="attr">#[test]
-<a href=#316 id=316 data-nosnippet>316</a>    </span><span class="kw">fn </span>novas_fontes_apontam_para_o_raw_correto() {
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="kw">let </span>catalogo = catalogo_refino();
-<a href=#318 id=318 data-nosnippet>318</a>        <span class="kw">let </span>casos = [
-<a href=#319 id=319 data-nosnippet>319</a>            (<span class="string">"undp"</span>, <span class="string">"undp"</span>, <span class="string">"indices-compostos"</span>),
-<a href=#320 id=320 data-nosnippet>320</a>            (<span class="string">"remuneracao-estadual-mg"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=MG/"</span>),
-<a href=#321 id=321 data-nosnippet>321</a>            (<span class="string">"remuneracao-estadual-go"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=GO/"</span>),
-<a href=#322 id=322 data-nosnippet>322</a>            (<span class="string">"world-bank"</span>, <span class="string">"world-bank"</span>, <span class="string">"indicadores/"</span>),
-<a href=#323 id=323 data-nosnippet>323</a>            (
-<a href=#324 id=324 data-nosnippet>324</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
-<a href=#325 id=325 data-nosnippet>325</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
-<a href=#326 id=326 data-nosnippet>326</a>                <span class="string">"folhas-pagamentos/"</span>,
-<a href=#327 id=327 data-nosnippet>327</a>            ),
-<a href=#328 id=328 data-nosnippet>328</a>            (<span class="string">"transparencia-beneficios"</span>, <span class="string">"transparencia"</span>, <span class="string">"beneficios/"</span>),
-<a href=#329 id=329 data-nosnippet>329</a>            (
-<a href=#330 id=330 data-nosnippet>330</a>                <span class="string">"transparencia-servidores-ativos"</span>,
-<a href=#331 id=331 data-nosnippet>331</a>                <span class="string">"transparencia"</span>,
-<a href=#332 id=332 data-nosnippet>332</a>                <span class="string">"servidores-ativos/"</span>,
-<a href=#333 id=333 data-nosnippet>333</a>            ),
-<a href=#334 id=334 data-nosnippet>334</a>        ];
-<a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">for </span>(nome, raw, prefixo) <span class="kw">in </span>casos {
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="kw">let </span>fonte = catalogo
-<a href=#337 id=337 data-nosnippet>337</a>                .iter()
-<a href=#338 id=338 data-nosnippet>338</a>                .find(|f| f.nome == nome)
-<a href=#339 id=339 data-nosnippet>339</a>                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"{nome} ausente no catálogo"</span>));
-<a href=#340 id=340 data-nosnippet>340</a>            <span class="macro">assert_eq!</span>(fonte.fonte_raw, raw, <span class="string">"raw errado para {nome}"</span>);
-<a href=#341 id=341 data-nosnippet>341</a>            <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, prefixo, <span class="string">"prefixo errado para {nome}"</span>);
-<a href=#342 id=342 data-nosnippet>342</a>            <span class="kw">let _ </span>= fonte.decodificador();
-<a href=#343 id=343 data-nosnippet>343</a>        }
-<a href=#344 id=344 data-nosnippet>344</a>    }
-<a href=#345 id=345 data-nosnippet>345</a>}
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="comment">// --- XML DataSet ---
+<a href=#288 id=288 data-nosnippet>288</a>        // ANA/SNIRH: estações hidrológicas em XML DataSet (dois recursos: fluvio e pluvio).
+<a href=#289 id=289 data-nosnippet>289</a>        </span>FonteDeRefino {
+<a href=#290 id=290 data-nosnippet>290</a>            nome: <span class="string">"ana"</span>,
+<a href=#291 id=291 data-nosnippet>291</a>            fonte_raw: <span class="string">"ana"</span>,
+<a href=#292 id=292 data-nosnippet>292</a>            prefixo_recurso: <span class="string">"estacoes-"</span>,
+<a href=#293 id=293 data-nosnippet>293</a>            cria_decodificador: || Arc::new(DecodificadorXmlDataset::novo(<span class="string">"estacoes"</span>)),
+<a href=#294 id=294 data-nosnippet>294</a>        },
+<a href=#295 id=295 data-nosnippet>295</a>        <span class="comment">// --- Fixed-width (ZIP) ---
+<a href=#296 id=296 data-nosnippet>296</a>        // B3 COTAHIST: cotações históricas em ZIP com TXT de 245 bytes por registro.
+<a href=#297 id=297 data-nosnippet>297</a>        </span>FonteDeRefino {
+<a href=#298 id=298 data-nosnippet>298</a>            nome: <span class="string">"b3"</span>,
+<a href=#299 id=299 data-nosnippet>299</a>            fonte_raw: <span class="string">"b3"</span>,
+<a href=#300 id=300 data-nosnippet>300</a>            prefixo_recurso: <span class="string">"cotahist/"</span>,
+<a href=#301 id=301 data-nosnippet>301</a>            cria_decodificador: || Arc::new(DecodificadorCotahist),
+<a href=#302 id=302 data-nosnippet>302</a>        },
+<a href=#303 id=303 data-nosnippet>303</a>    ]
+<a href=#304 id=304 data-nosnippet>304</a>}
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a><span class="attr">#[cfg(test)]
+<a href=#307 id=307 data-nosnippet>307</a></span><span class="kw">mod </span>testes {
+<a href=#308 id=308 data-nosnippet>308</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#309 id=309 data-nosnippet>309</a>
+<a href=#310 id=310 data-nosnippet>310</a>    <span class="attr">#[test]
+<a href=#311 id=311 data-nosnippet>311</a>    </span><span class="kw">fn </span>o_catalogo_tem_a_camara_despesas_apontando_para_o_raw_camara() {
+<a href=#312 id=312 data-nosnippet>312</a>        <span class="kw">let </span>fonte = catalogo_refino()
+<a href=#313 id=313 data-nosnippet>313</a>            .into_iter()
+<a href=#314 id=314 data-nosnippet>314</a>            .find(|f| f.nome == <span class="string">"camara-despesas"</span>)
+<a href=#315 id=315 data-nosnippet>315</a>            .expect(<span class="string">"camara-despesas no catálogo"</span>);
+<a href=#316 id=316 data-nosnippet>316</a>        <span class="macro">assert_eq!</span>(fonte.fonte_raw, <span class="string">"camara"</span>);
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, <span class="string">"despesas/"</span>);
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="kw">let _ </span>= fonte.decodificador();
+<a href=#319 id=319 data-nosnippet>319</a>    }
+<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#321 id=321 data-nosnippet>321</a>    <span class="attr">#[test]
+<a href=#322 id=322 data-nosnippet>322</a>    </span><span class="kw">fn </span>nomes_do_catalogo_sao_unicos() {
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">let </span>catalogo = catalogo_refino();
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">let </span><span class="kw-2">mut </span>nomes: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = catalogo.iter().map(|f| f.nome).collect();
+<a href=#325 id=325 data-nosnippet>325</a>        nomes.sort();
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>antes = nomes.len();
+<a href=#327 id=327 data-nosnippet>327</a>        nomes.dedup();
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="macro">assert_eq!</span>(antes, nomes.len(), <span class="string">"nomes duplicados no catálogo de refino"</span>);
+<a href=#329 id=329 data-nosnippet>329</a>    }
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a>    <span class="attr">#[test]
+<a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">fn </span>novas_fontes_apontam_para_o_raw_correto() {
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">let </span>catalogo = catalogo_refino();
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>casos = [
+<a href=#335 id=335 data-nosnippet>335</a>            (<span class="string">"undp"</span>, <span class="string">"undp"</span>, <span class="string">"indices-compostos"</span>),
+<a href=#336 id=336 data-nosnippet>336</a>            (<span class="string">"remuneracao-estadual-mg"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=MG/"</span>),
+<a href=#337 id=337 data-nosnippet>337</a>            (<span class="string">"remuneracao-estadual-go"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=GO/"</span>),
+<a href=#338 id=338 data-nosnippet>338</a>            (<span class="string">"world-bank"</span>, <span class="string">"world-bank"</span>, <span class="string">"indicadores/"</span>),
+<a href=#339 id=339 data-nosnippet>339</a>            (
+<a href=#340 id=340 data-nosnippet>340</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
+<a href=#341 id=341 data-nosnippet>341</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
+<a href=#342 id=342 data-nosnippet>342</a>                <span class="string">"folhas-pagamentos/"</span>,
+<a href=#343 id=343 data-nosnippet>343</a>            ),
+<a href=#344 id=344 data-nosnippet>344</a>            (<span class="string">"transparencia-beneficios"</span>, <span class="string">"transparencia"</span>, <span class="string">"beneficios/"</span>),
+<a href=#345 id=345 data-nosnippet>345</a>            (
+<a href=#346 id=346 data-nosnippet>346</a>                <span class="string">"transparencia-servidores-ativos"</span>,
+<a href=#347 id=347 data-nosnippet>347</a>                <span class="string">"transparencia"</span>,
+<a href=#348 id=348 data-nosnippet>348</a>                <span class="string">"servidores-ativos/"</span>,
+<a href=#349 id=349 data-nosnippet>349</a>            ),
+<a href=#350 id=350 data-nosnippet>350</a>            (<span class="string">"ana"</span>, <span class="string">"ana"</span>, <span class="string">"estacoes-"</span>),
+<a href=#351 id=351 data-nosnippet>351</a>            (<span class="string">"b3"</span>, <span class="string">"b3"</span>, <span class="string">"cotahist/"</span>),
+<a href=#352 id=352 data-nosnippet>352</a>        ];
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">for </span>(nome, raw, prefixo) <span class="kw">in </span>casos {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">let </span>fonte = catalogo
+<a href=#355 id=355 data-nosnippet>355</a>                .iter()
+<a href=#356 id=356 data-nosnippet>356</a>                .find(|f| f.nome == nome)
+<a href=#357 id=357 data-nosnippet>357</a>                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"{nome} ausente no catálogo"</span>));
+<a href=#358 id=358 data-nosnippet>358</a>            <span class="macro">assert_eq!</span>(fonte.fonte_raw, raw, <span class="string">"raw errado para {nome}"</span>);
+<a href=#359 id=359 data-nosnippet>359</a>            <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, prefixo, <span class="string">"prefixo errado para {nome}"</span>);
+<a href=#360 id=360 data-nosnippet>360</a>            <span class="kw">let _ </span>= fonte.decodificador();
+<a href=#361 id=361 data-nosnippet>361</a>        }
+<a href=#362 id=362 data-nosnippet>362</a>    }
+<a href=#363 id=363 data-nosnippet>363</a>}
 </code></pre></div></section></main></body></html>
