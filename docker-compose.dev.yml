@@ -1,0 +1,22 @@
+# Sobreposição para compilações locais rápidas. A configuração padrão continua
+# usando release; o cache BuildKit mantém dependências e artefatos entre builds.
+services:
+  painel:
+    build:
+      args:
+        CARGO_PROFILE: dev
+
+  ingestao:
+    build:
+      args:
+        CARGO_PROFILE: dev
+
+  refino:
+    build:
+      args:
+        CARGO_PROFILE: dev
+
+  agendador:
+    build:
+      args:
+        CARGO_PROFILE: dev
