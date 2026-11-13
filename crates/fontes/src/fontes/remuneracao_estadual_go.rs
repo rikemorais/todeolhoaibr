@@ -21,6 +21,7 @@ const CATALOGO: &str =
 const PREFIXO_DOWNLOAD: &str = "https://dadosabertos.go.gov.br/dataset/";
 const HOST: &str = "dadosabertos.go.gov.br";
 const TAMANHO_MAXIMO: u64 = 1_073_741_824;
+const AGENTE: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
 
 #[derive(Debug, Deserialize)]
 struct RespostaCatalogo {
@@ -180,7 +181,7 @@ impl FonteDeDados for FonteRemuneracaoEstadualGo {
                 requisicoes: 2,
                 intervalo: Duration::from_secs(1),
             }),
-            agente: None,
+            agente: Some(AGENTE),
         }
     }
 
