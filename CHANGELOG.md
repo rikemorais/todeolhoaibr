@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.83.0] - 2026-11-13
+
+### Adicionado
+
+- Nova fonte `b3` com 41 arquivos ZIP anuais do COTAHIST (cotações históricas diárias da bolsa, 1986-2026), sob demanda (~1,5 GB), com ETag e retomada de download (issue #53).
+
 ## [0.82.0] - 2026-11-13
 
 ### Adicionado
