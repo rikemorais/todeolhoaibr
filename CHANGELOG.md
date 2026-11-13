@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.85.0] - 2026-11-13
+
+### Adicionado
+
+- Bronze para 7 fontes que estavam só na Raw: `undp` (CSV), `remuneracao-estadual-mg` (CSV `;`), `remuneracao-estadual-go` (CSV `;`), `world-bank` (JSON), `remuneracao-municipal-tce-ce` (JSON), `transparencia-beneficios` (JSON) e `transparencia-servidores-ativos` (ZIP/CSV). O `DecodificadorJson` agora suporta índice numérico no caminho para arrays (World Bank).
+
 ## [0.84.1] - 2026-11-13
 
 ### Corrigido
