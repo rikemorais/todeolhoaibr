@@ -7,6 +7,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.82.0] - 2026-11-13
+
+### Adicionado
+
+- Nova fonte `undp` com IDH global e índices compostos do Human Development Report 2025 (HDI, GDI, GII, PHDI, MPI e componentes), por país e ano (1990-2023), sem autenticação — camada de comparação internacional complementar ao World Bank (issue #64).
+
 ## [0.81.0] - 2026-11-12
 
 ### Adicionado
