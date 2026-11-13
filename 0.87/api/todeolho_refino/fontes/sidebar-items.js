@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["cotahist","csv","ibge_agregados","json","senado_processos_detalhes","xml_dataset","zip_csv"]};
