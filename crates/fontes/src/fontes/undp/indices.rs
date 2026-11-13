@@ -11,8 +11,7 @@ use crate::ingestao_http::TarefaDeIngestaoHttp;
 use super::api;
 
 const NOME: &str = "undp";
-const URL_INDICES: &str =
-    "https://hdr.undp.org/sites/default/files/2025_HDR/HDR25_Composite_indices_complete_time_series.csv";
+const URL_INDICES: &str = "https://hdr.undp.org/sites/default/files/2025_HDR/HDR25_Composite_indices_complete_time_series.csv";
 
 /// IDH global e índices compostos de desenvolvimento humano (UNDP/HDRO).
 ///
@@ -41,11 +40,17 @@ impl FonteDeDados for FonteUndp {
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        vec![TarefaPlanejada::nova(
-            TarefaDeIngestaoHttp::sem_paginacao(NOME, "indices-compostos", URL_INDICES.to_owned())
+        vec![
+            TarefaPlanejada::nova(
+                TarefaDeIngestaoHttp::sem_paginacao(
+                    NOME,
+                    "indices-compostos",
+                    URL_INDICES.to_owned(),
+                )
                 .com_tamanho_tipico(2_100_000),
-        )
-        .com_etiquetas([("recurso", "indices-compostos")])]
+            )
+            .com_etiquetas([("recurso", "indices-compostos")]),
+        ]
     }
 }
 
