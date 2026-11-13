@@ -17,7 +17,10 @@ const NOME: &str = "remuneracao-estadual-mg";
 const FONTE_RAW: &str = "remuneracao-estadual";
 const CATALOGO: &str =
     "https://www.dados.mg.gov.br/api/3/action/package_show?id=remuneracao-servidores-ativos";
-const PREFIXO_DOWNLOAD: &str = "https://www.dados.mg.gov.br/dataset/";
+const PREFIXOS_DOWNLOAD: [&str; 2] = [
+    "https://dados.mg.gov.br/dataset/",
+    "https://www.dados.mg.gov.br/dataset/",
+];
 const TAMANHO_MAXIMO: u64 = 1_073_741_824;
 const HOST: &str = "www.dados.mg.gov.br";
 // O portal CKAN de MG bloqueia User-Agents de bot com 403.
@@ -50,12 +53,17 @@ struct ArquivoMensal {
 
 fn competencia_do_url(url: &str) -> Option<(i32, u32, String)> {
     let nome = url.rsplit('/').next()?;
-    let data = nome.strip_prefix("servidores_")?.strip_suffix(".csv")?;
-    if data.len() != 6 || !data.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
-    let mes: u32 = data[..2].parse().ok()?;
-    let ano: i32 = data[2..].parse().ok()?;
+    let data = nome.strip_suffix(".csv")?;
+    let (ano, mes) = if let Some(data) = data.strip_prefix("servidores-") {
+        let (ano, mes) = data.split_once('-')?;
+        (ano.parse().ok()?, mes.parse().ok()?)
+    } else {
+        let data = data.strip_prefix("servidores_")?;
+        if data.len() != 6 || !data.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        (data[2..].parse().ok()?, data[..2].parse().ok()?)
+    };
     if !(1..=12).contains(&mes) || !(2012..=2099).contains(&ano) {
         return None;
     }
@@ -63,7 +71,9 @@ fn competencia_do_url(url: &str) -> Option<(i32, u32, String)> {
 }
 
 fn validar_url(url: &str) -> bool {
-    url.starts_with(PREFIXO_DOWNLOAD)
+    PREFIXOS_DOWNLOAD
+        .iter()
+        .any(|prefixo| url.starts_with(prefixo))
         && !url.contains(['?', '#', '@'])
         && competencia_do_url(url).is_some()
 }
@@ -201,15 +211,16 @@ mod testes {
         let pacote: Pacote = serde_json::from_str(
             r#"{"resources":[
                 {"format":"CSV","url":"https://www.dados.mg.gov.br/dataset/abc/resource/123/download/servidores_082026.csv","size":100},
-                {"format":"CSV","url":"https://www.dados.mg.gov.br/dataset/abc/resource/456/download/servidores_092026.csv","size":200},
-                {"format":"PDF","url":"https://www.dados.mg.gov.br/dataset/abc/resource/789/download/servidores_102026.csv","size":300}
+                {"format":"CSV","url":"https://dados.mg.gov.br/dataset/abc/resource/456/download/servidores-2026-08.csv","size":200},
+                {"format":"CSV","url":"https://dados.mg.gov.br/dataset/abc/resource/789/download/servidores-2026-09.csv","size":300},
+                {"format":"PDF","url":"https://dados.mg.gov.br/dataset/abc/resource/789/download/servidores-2026-10.csv","size":400}
             ]}"#,
         )
         .unwrap();
 
         let atual = selecionar_arquivo(pacote).unwrap();
         assert_eq!(atual.competencia, "2026-09");
-        assert!(atual.url.ends_with("servidores_092026.csv"));
+        assert!(atual.url.ends_with("servidores-2026-09.csv"));
     }
 
     #[test]
@@ -217,8 +228,8 @@ mod testes {
         let pacote: Pacote = serde_json::from_str(
             r#"{"resources":[
                 {"format":"CSV","url":"https://example.org/servidores_102026.csv","size":10},
-                {"format":"CSV","url":"https://www.dados.mg.gov.br/dataset/a/resource/b/download/servidores_132026.csv","size":10},
-                {"format":"CSV","url":"https://www.dados.mg.gov.br/dataset/a/resource/c/download/servidores_092026.csv","size":null}
+                {"format":"CSV","url":"https://dados.mg.gov.br/dataset/a/resource/b/download/servidores-2026-13.csv","size":10},
+                {"format":"CSV","url":"https://dados.mg.gov.br/dataset/a/resource/c/download/servidores-2026-08.csv","size":null}
             ]}"#,
         )
         .unwrap();
