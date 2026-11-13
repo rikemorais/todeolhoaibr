@@ -29,6 +29,7 @@ pub use fontes::tce_ce::FonteRemuneracaoMunicipalTceCe;
 pub use fontes::transparencia::FonteTransparenciaBeneficios;
 pub use fontes::transparencia_servidores::FonteTransparenciaServidoresAtivos;
 pub use fontes::tse::{FonteTse, FonteTseCandidaturas, FonteTsePrestacaoContas};
+pub use fontes::undp::FonteUndp;
 pub use fontes::world_bank::FonteWorldBank;
 
 /// Todas as fontes disponíveis. Único ponto a alterar ao adicionar uma nova.
@@ -63,6 +64,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteTse),
         Box::new(FonteTsePrestacaoContas),
         Box::new(FonteTseCandidaturas),
+        Box::new(FonteUndp),
         Box::new(FonteWorldBank),
     ]
 }
