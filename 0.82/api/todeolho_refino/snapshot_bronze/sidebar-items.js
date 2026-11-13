@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroDeSnapshotBronze"],"struct":["ParteBronzeBaixada","SnapshotBronze"]};

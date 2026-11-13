@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Tô De Olho Aí — Arquitetura dos crates",
+    "output": "docs/diagramas/arquitetura-crates.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "apis", "type": "external", "label": "APIs públicas", "sublabel": "IBGE · Câmara · TSE", "pos": [40, 90], "size": [150, 64] },
+    { "id": "navegador", "type": "external", "label": "Navegador", "sublabel": "operador", "pos": [40, 430], "size": [150, 60] },
+    { "id": "cli", "type": "backend", "label": "cli", "sublabel": "binário / menu", "pos": [450, 70], "size": [150, 64], "tag": "entrypoint" },
+    { "id": "nucleo", "type": "backend", "label": "nucleo", "sublabel": "domínio + portas", "pos": [450, 250], "size": [170, 72], "tag": "sem I/O" },
+    { "id": "fontes", "type": "backend", "label": "fontes", "sublabel": "FonteDeDados + tarefas", "pos": [230, 250], "size": [160, 64] },
+    { "id": "infra", "type": "backend", "label": "infraestrutura", "sublabel": "adaptadores das portas", "pos": [700, 250], "size": [170, 64] },
+    { "id": "painel", "type": "backend", "label": "painel", "sublabel": "web só-leitura :8080", "pos": [450, 430], "size": [150, 64] },
+    { "id": "s3", "type": "cloud", "label": "Armazenamento S3", "sublabel": "camada Raw + execuções", "pos": [1000, 250], "size": [170, 64], "tag": "versitygw" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Workspace Rust (cargo)", "wraps": ["cli", "nucleo", "fontes", "infra", "painel"] }
+  ],
+  "connections": [
+    { "id": "cli-nucleo", "from": "cli", "to": "nucleo", "label": "orquestra DAG", "variant": "emphasis" },
+    { "id": "cli-fontes", "from": "cli", "to": "fontes", "label": "catálogo", "fromSide": "left", "toSide": "top" },
+    { "id": "cli-infra", "from": "cli", "to": "infra", "label": "injeta adaptadores", "fromSide": "right", "toSide": "top" },
+    { "id": "fontes-nucleo", "from": "fontes", "to": "nucleo", "label": "implementa FonteDeDados" },
+    { "id": "infra-nucleo", "from": "infra", "to": "nucleo", "label": "implementa portas" },
+    { "id": "painel-nucleo", "from": "painel", "to": "nucleo", "label": "ConsultaDeExecucoes", "fromSide": "top", "toSide": "bottom" },
+    { "id": "infra-apis", "from": "infra", "to": "apis", "label": "HTTP (ClienteHttp)", "variant": "dashed" },
+    { "id": "infra-s3", "from": "infra", "to": "s3", "label": "grava Raw/execuções" },
+    { "id": "painel-s3", "from": "painel", "to": "s3", "label": "lê histórico", "variant": "dashed", "fromSide": "right", "toSide": "left" },
+    { "id": "navegador-painel", "from": "navegador", "to": "painel", "label": "HTTP :8080", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Domínio no centro", "items": ["nucleo define portas (ArmazenamentoRaw, ClienteHttp) e não conhece infraestrutura", "fontes e painel dependem só do nucleo (ADR 0002)"] },
+    { "dot": "cyan", "title": "Adaptadores", "items": ["infraestrutura implementa as portas: ArmazenamentoS3, ClienteHttpComRetentativas, HistoricoS3", "cli injeta os adaptadores concretos na execução"] },
+    { "dot": "rose", "title": "Fronteiras externas", "items": ["APIs públicas entram pelo ClienteHttp", "Camada Raw e histórico ficam em storage S3 (versitygw)"] }
+  ]
+}
