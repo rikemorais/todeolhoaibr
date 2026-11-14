@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
+use chrono::{Datelike, Utc};
 use clap::{Args, Parser, Subcommand};
 use futures::stream::{self, StreamExt};
 use todeolho_fontes::catalogo;
@@ -26,14 +26,14 @@ use todeolho_nucleo::{
     TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{
-    FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
-    TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
-    TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
-    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita,
-    TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
-    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
-    TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql, TarefaDeSilverTseBens,
-    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
+    FiltrosSqlEmendas, FonteDeRefino, SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO, SnapshotBronze,
+    TarefaDeBronze, TarefaDeSilverBcb, TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas,
+    TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
+    TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes, TarefaDeSilverIbge,
+    TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita, TarefaDeSilverIpeadata,
+    TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
+    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql,
+    TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
     TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasComites2014,
     TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
     TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
@@ -95,7 +95,7 @@ enum Comando {
         /// Como o bronze é idempotente, passadas sem mudança são quase instantâneas.
         #[arg(long, value_name = "SEGUNDOS")]
         intervalo: Option<u64>,
-        /// Restringe a votação por seção, como --filtro ano=2024 --filtro uf=AC,RO
+        /// Restringe fontes compatíveis, como --filtro ano=2024 --filtro uf=AC,RO
         #[arg(long = "filtro", value_name = "NOME=VALORES")]
         filtros: Vec<String>,
     },
@@ -455,8 +455,17 @@ async fn refinar(
             }
             return refinar_mapa_empresas_silver(intervalo).await;
         }
+        if fonte.as_deref() == Some("emendas") {
+            return refinar_emendas_silver(intervalo, filtros).await;
+        }
+        if fonte.as_deref() == Some("emendas-cgu") {
+            return refinar_emendas_cgu_silver(intervalo, filtros).await;
+        }
+        if fonte.as_deref() == Some("emendas-tesouro") {
+            return refinar_emendas_tesouro_silver(intervalo, filtros).await;
+        }
         if !filtros.is_empty() {
-            bail!("--filtro só vale para `silver tse-votacao-secao`");
+            bail!("--filtro só vale para fontes com filtros Silver implementados");
         }
         if todas {
             if fonte.is_some() {
@@ -2866,6 +2875,7 @@ async fn passada_generica_silver(
     item: &FonteDeRefino,
     armazenamentos: ArmazenamentosParaSilver<'_>,
     somente_pendentes: bool,
+    filtros_emendas: Option<&FiltrosSqlEmendas>,
 ) -> Result<bool> {
     let mut tarefas = Vec::new();
     for recurso in recursos_no_raw(armazenamentos.raw, item).await? {
@@ -2876,17 +2886,34 @@ async fn passada_generica_silver(
         else {
             continue;
         };
+        let destino_filtrado = filtros_emendas
+            .filter(|f| !f.anos.is_empty() || !f.ufs.is_empty())
+            .map(|f| {
+                let mut partes = Vec::new();
+                if !f.anos.is_empty() {
+                    partes.push(format!("ano={}", f.anos.join(",")));
+                }
+                if !f.ufs.is_empty() {
+                    partes.push(format!("uf={}", f.ufs.join(",")));
+                }
+                format!("{recurso}/filtros/{}", partes.join("/"))
+            });
+        let regra_filtrada = filtros_emendas
+            .map(|f| format!("{regra}|ano={}|uf={}", f.anos.join(","), f.ufs.join(",")));
         let mut tarefa = TarefaDeSilverSql::nova_para_contrato(
             Arc::clone(armazenamentos.bronze),
             Arc::new(snapshot),
             nome_catalogo,
             recurso,
-            None,
-            regra,
+            destino_filtrado,
+            regra_filtrada.as_deref().unwrap_or(regra),
             sql,
         );
         if item.fonte_raw != nome_catalogo {
             tarefa = tarefa.com_fonte_bronze(item.fonte_raw);
+        }
+        if let Some(filtros) = filtros_emendas {
+            tarefa = tarefa.com_filtros_emendas(filtros.clone());
         }
         if !somente_pendentes || tarefa.pendente(armazenamentos.silver.as_ref()).await? {
             tarefas.push(TarefaPlanejada::nova(tarefa));
@@ -2965,6 +2992,7 @@ async fn refinar_fonte_silver(
                     silver: &silver,
                 },
                 false,
+                None,
             )
             .await
         }
@@ -2984,6 +3012,7 @@ async fn refinar_fonte_silver(
                         silver: &silver,
                     },
                     true,
+                    None,
                 )
                 .await
                 {
@@ -2993,6 +3022,172 @@ async fn refinar_fonte_silver(
             }
         }
     }
+}
+
+async fn refinar_fonte_silver_com_filtros_emendas(
+    nome_catalogo: &str,
+    regra: &'static str,
+    sql: &'static str,
+    intervalo: Option<u64>,
+    filtros: &FiltrosSqlEmendas,
+) -> Result<bool> {
+    let catalogo = catalogo_refino();
+    let item = catalogo
+        .iter()
+        .find(|f| f.nome == nome_catalogo)
+        .context(format!("fonte {nome_catalogo} não encontrada no catálogo"))?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    match intervalo.filter(|segundos| *segundos > 0) {
+        None => {
+            passada_generica_silver(
+                nome_catalogo,
+                regra,
+                sql,
+                item,
+                ArmazenamentosParaSilver {
+                    raw: &raw_s3,
+                    bronze: &bronze,
+                    silver: &silver,
+                },
+                false,
+                Some(filtros),
+            )
+            .await
+        }
+        Some(segundos) => {
+            println!(
+                "Agendador Silver {nome_catalogo}: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) = passada_generica_silver(
+                    nome_catalogo,
+                    regra,
+                    sql,
+                    item,
+                    ArmazenamentosParaSilver {
+                        raw: &raw_s3,
+                        bronze: &bronze,
+                        silver: &silver,
+                    },
+                    true,
+                    Some(filtros),
+                )
+                .await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver {nome_catalogo}: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn refinar_emendas_silver(intervalo: Option<u64>, filtros: Vec<String>) -> Result<bool> {
+    let filtros = filtros_sql_emendas(&filtros)?;
+    let cgu_selecionada = filtros.ufs.is_empty();
+    let mut sucesso = true;
+    if cgu_selecionada {
+        sucesso &= refinar_emendas_cgu_silver(intervalo, filtros_ano(&filtros)).await?;
+    } else {
+        println!("CGU ignorada: a localidade publicada pela API não tem UF estruturada.");
+    }
+    sucesso &= refinar_emendas_tesouro_silver(intervalo, filtros_para_tesouro(&filtros)).await?;
+    Ok(sucesso)
+}
+
+async fn refinar_emendas_cgu_silver(intervalo: Option<u64>, filtros: Vec<String>) -> Result<bool> {
+    let filtros = filtros_sql_emendas(&filtros)?;
+    if !filtros.ufs.is_empty() {
+        bail!(
+            "a CGU não publica UF estruturada; use o contrato emendas-tesouro para filtrar por UF"
+        );
+    }
+    refinar_fonte_silver_com_filtros_emendas(
+        "emendas-cgu",
+        "emendas-cgu-autoria-localidade-v1",
+        SQL_EMENDAS_CGU,
+        intervalo,
+        &filtros,
+    )
+    .await
+}
+
+async fn refinar_emendas_tesouro_silver(
+    intervalo: Option<u64>,
+    filtros: Vec<String>,
+) -> Result<bool> {
+    let filtros = filtros_sql_emendas(&filtros)?;
+    refinar_fonte_silver_com_filtros_emendas(
+        "emendas-tesouro",
+        "emendas-tesouro-pagamento-municipal-v1",
+        SQL_EMENDAS_TESOURO,
+        intervalo,
+        &filtros,
+    )
+    .await
+}
+
+fn filtros_ano(filtros: &FiltrosSqlEmendas) -> Vec<String> {
+    if filtros.anos.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!("ano={}", filtros.anos.join(","))]
+    }
+}
+
+fn filtros_para_tesouro(filtros: &FiltrosSqlEmendas) -> Vec<String> {
+    let mut saida = filtros_ano(filtros);
+    if !filtros.ufs.is_empty() {
+        saida.push(format!("uf={}", filtros.ufs.join(",")));
+    }
+    saida
+}
+
+fn filtros_sql_emendas(filtros: &[String]) -> Result<FiltrosSqlEmendas> {
+    let mut resultado = FiltrosSqlEmendas::default();
+    const UFS: &[&str] = &[
+        "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB",
+        "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+    ];
+    for filtro in filtros {
+        let (nome, valores) = filtro
+            .split_once('=')
+            .context("filtro deve usar NOME=VALORES")?;
+        if nome != "ano" && nome != "uf" {
+            bail!("filtro desconhecido para emendas: {nome}; use ano e uf");
+        }
+        for valor in valores.split(',') {
+            if valor.is_empty() {
+                bail!("valor vazio no filtro {nome}");
+            }
+            match nome {
+                "ano" => {
+                    let ano = valor
+                        .parse::<u16>()
+                        .with_context(|| format!("ano inválido: {valor}"))?;
+                    if !(2015..=Utc::now().year() as u16).contains(&ano) {
+                        bail!("ano fora da cobertura de emendas: {ano} (2015 em diante)");
+                    }
+                    resultado.anos.push(ano.to_string());
+                }
+                "uf" if UFS.contains(&valor) => resultado.ufs.push(valor.to_owned()),
+                "uf" => bail!("UF inválida: {valor}; use uma sigla brasileira em maiúsculas"),
+                _ => unreachable!(),
+            }
+        }
+    }
+    resultado.anos.sort();
+    resultado.anos.dedup();
+    resultado.ufs.sort();
+    resultado.ufs.dedup();
+    Ok(resultado)
 }
 
 async fn refinar_world_bank_silver(intervalo: Option<u64>) -> Result<bool> {

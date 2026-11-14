@@ -9,6 +9,8 @@ pub mod camara_legislaturas;
 pub mod camara_partidos;
 pub mod camara_tramitacoes;
 pub mod camara_votacoes;
+/// Contratos SQL Silver para os dois conjuntos de emendas parlamentares.
+pub mod emendas;
 pub mod ibge_agregados;
 /// Esquema Silver para as unidades federativas do IBGE.
 pub mod ibge_estados;

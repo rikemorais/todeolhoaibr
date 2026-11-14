@@ -28,14 +28,14 @@ A [documentação oficial Swagger da API do Portal da Transparência](https://ap
 
 O endpoint é uma alternativa para enriquecer a série: o schema `ConsultaEmendasDTO` da especificação OpenAPI lista `codigoEmenda`, `ano`, `tipoEmenda`, `autor`, `nomeAutor`, `numeroEmenda`, `localidadeDoGasto` e valores empenhado, liquidado, pago e restos a pagar. A especificação não define `localidadeDoGasto` como código municipal IBGE; tratá-lo como texto, sem inferir código. O endpoint exige a chave no cabeçalho `chave-api-dados`, obtida no [cadastro da API](https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email). Os parâmetros documentados incluem ano e página, mas não UF.
 
-## Integração implementada e limites restantes
+## Integração e limites restantes
 
 1. A fonte `emendas` ingere o CSV completo do Tesouro em `repasses/tesouro` e as respostas da API CGU em recursos anuais `cgu/ano=AAAA`; ambas preservam conteúdo e manifesto na Raw.
 2. A consulta CGU usa o filtro `ano`, páginas até array vazio, o token `PORTAL_TRANSPARENCIA_TOKEN` e o limite de 90 requisições por minuto existente no cliente.
 3. A inspeção do CSV confirmou UF e código IBGE, além de ordem bancária e favorecido. A API CGU fornece autoria, localidade como texto e valores. Os grãos não são unidos nem deduplicados na ingestão.
 4. A API SIOP não foi integrada: sua documentação requer credenciais/perfil de Web Service e a estrutura de beneficiários ainda precisa de inspeção de amostra.
-5. A especificação CGU não oferece filtro de UF e o CSV Tesouro é um único download integral. Como a Raw preserva respostas opacas, o filtro de UF fica para o refino; a tarefa anual CGU já pode ser selecionada por `--filtro ano=...`.
-6. Antes de modelar Silver ou associar um pagamento ao autor, validar `localidadeDoGasto`, estabilidade da ordem bancária e possíveis chaves de ligação usando amostras reais dos dois conjuntos.
+5. A Silver oferece contratos separados para CGU (`emendas-cgu`) e Tesouro (`emendas-tesouro`), sem cruzamento. Os filtros Silver de ano valem para ambos; UF só vale para o Tesouro. As saídas filtradas usam recursos próprios e preservam a publicação integral. Veja [contratos e comandos](emendas.md#refino-silver).
+6. A Issue #33 não está totalmente atendida: o Tesouro não identifica o autor parlamentar, a CGU não fornece código IBGE/UF estruturada e a SIOP ainda não foi integrada. Permanecem pendentes credenciais/perfil SIOP, inspeção de uma resposta real de beneficiários e validação de colisões/estabilidade da OB. Nenhum relacionamento autor-pagamento ou município+ano é presumido.
 
 ## Fontes primárias
 
