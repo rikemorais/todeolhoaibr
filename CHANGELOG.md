@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Corrigido
+
+- Evita consultas `HEAD` à origem ao abrir o menu de ingestão; arquivos sem cópia íntegra na Raw ficam com estimativa desconhecida até a seleção.
+
 ## [0.87.1] - 2026-11-13
 
 ### Corrigido
