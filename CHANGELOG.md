@@ -7,6 +7,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+## [0.88.0] - 2026-11-14
+
 ### Adicionado
 
 - Contratos Silver para ANA, B3, remunerações estaduais de MG e GO, TCE-CE, Transparência, UNDP e World Bank; execução genérica reconciliável e runbook operacional (issue #190).
