@@ -7,6 +7,11 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Adicionado
+
+- Contratos Silver para ANA, B3, remunerações estaduais de MG e GO, TCE-CE, Transparência, UNDP e World Bank; execução genérica reconciliável e runbook operacional (issue #190).
+- Decodificação streaming dos arquivos COTAHIST da B3 e suporte explícito a CSV Windows-1252 da UNDP.
+
 ## [0.87.2] - 2026-11-13
 
 ### Corrigido

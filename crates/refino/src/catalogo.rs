@@ -228,12 +228,18 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             },
         },
         // --- Fontes que gravam CSV solto no raw ---
-        // UNDP Human Development Report: CSV com vírgula, sem preâmbulo.
+        // UNDP Human Development Report: CSV Windows-1252 com vírgula, sem preâmbulo.
         FonteDeRefino {
             nome: "undp",
             fonte_raw: "undp",
             prefixo_recurso: "indices-compostos",
-            cria_decodificador: || Arc::new(DecodificadorCsv::novo("indices-compostos", b',', 0)),
+            cria_decodificador: || {
+                Arc::new(DecodificadorCsv::novo_windows1252(
+                    "indices-compostos",
+                    b',',
+                    0,
+                ))
+            },
         },
         // Remuneração estadual de MG: CSV com ponto-e-vírgula do CKAN.
         FonteDeRefino {

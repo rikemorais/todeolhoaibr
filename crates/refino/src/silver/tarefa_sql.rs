@@ -17,11 +17,12 @@ pub struct TarefaDeSilverSql {
     bronze: Arc<dyn ArmazenamentoRaw>,
     snapshot: Arc<SnapshotBronze>,
     fonte: String,
+    fonte_bronze: Option<String>,
     recurso: String,
     recurso_destino: Option<String>,
     regra: String,
     sql: &'static str,
-    esquema: SchemaRef,
+    esquema: Option<SchemaRef>,
     executor: ConfiguracaoExecutorSql,
 }
 
@@ -42,6 +43,41 @@ impl TarefaDeSilverSql {
             bronze,
             snapshot,
             fonte: fonte.into(),
+            fonte_bronze: None,
+            recurso: recurso.into(),
+            recurso_destino,
+            regra: regra.into(),
+            sql,
+            esquema: Some(esquema),
+            executor: ConfiguracaoExecutorSql::default(),
+        }
+    }
+
+    /// Cria uma tarefa SQL com o schema versionado conhecido para a fonte.
+    /// Fontes passthrough sem contrato Arrow registrado inferem o schema da consulta.
+    #[allow(clippy::too_many_arguments)]
+    pub fn nova_para_contrato(
+        bronze: Arc<dyn ArmazenamentoRaw>,
+        snapshot: Arc<SnapshotBronze>,
+        fonte: impl Into<String>,
+        recurso: impl Into<String>,
+        recurso_destino: Option<String>,
+        regra: impl Into<String>,
+        sql: &'static str,
+    ) -> Self {
+        let fonte = fonte.into();
+        let esquema = match fonte.as_str() {
+            "ana" => Some(super::ana::esquema_ana()),
+            "b3" => Some(super::b3::esquema_b3()),
+            "undp" => Some(super::undp::esquema_undp()),
+            "world-bank" => Some(super::world_bank::esquema_world_bank()),
+            _ => None,
+        };
+        Self {
+            bronze,
+            snapshot,
+            fonte,
+            fonte_bronze: None,
             recurso: recurso.into(),
             recurso_destino,
             regra: regra.into(),
@@ -49,6 +85,12 @@ impl TarefaDeSilverSql {
             esquema,
             executor: ConfiguracaoExecutorSql::default(),
         }
+    }
+
+    /// Define a fonte Bronze esperada quando a saída usa outra identidade Silver.
+    pub fn com_fonte_bronze(mut self, fonte: impl Into<String>) -> Self {
+        self.fonte_bronze = Some(fonte.into());
+        self
     }
 
     /// Substitui os limites operacionais desta tarefa.
@@ -83,23 +125,37 @@ impl Tarefa for TarefaDeSilverSql {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-        publicar_transformacao_sql(
-            self.bronze.as_ref(),
-            contexto.armazenamento.as_ref(),
-            &self.snapshot,
-            ConfiguracaoDePublicacao {
-                fonte: &self.fonte,
-                recurso: &self.recurso,
-                recurso_destino: self.recurso_destino.as_deref(),
-                regra: &self.regra,
-                esquema: Some(self.esquema.clone()),
-                iniciada_em: contexto.iniciada_em,
-                id_execucao: &contexto.id_execucao,
-            },
-            self.sql,
-            &self.executor,
-        )
-        .await
+        let configuracao = ConfiguracaoDePublicacao {
+            fonte: &self.fonte,
+            recurso: &self.recurso,
+            recurso_destino: self.recurso_destino.as_deref(),
+            regra: &self.regra,
+            esquema: self.esquema.clone(),
+            iniciada_em: contexto.iniciada_em,
+            id_execucao: &contexto.id_execucao,
+        };
+        if let Some(fonte_bronze) = self.fonte_bronze.as_deref() {
+            super::publicacao::publicar_transformacao_sql_com_fonte_bronze(
+                self.bronze.as_ref(),
+                contexto.armazenamento.as_ref(),
+                &self.snapshot,
+                fonte_bronze,
+                configuracao,
+                self.sql,
+                &self.executor,
+            )
+            .await
+        } else {
+            publicar_transformacao_sql(
+                self.bronze.as_ref(),
+                contexto.armazenamento.as_ref(),
+                &self.snapshot,
+                configuracao,
+                self.sql,
+                &self.executor,
+            )
+            .await
+        }
     }
 }
 
@@ -1416,6 +1472,45 @@ mod testes {
         assert_eq!(
             bronze.leituras_de_partes.load(Ordering::Relaxed),
             leituras_antes
+        );
+    }
+
+    #[tokio::test]
+    async fn tarefa_sql_publica_em_identidade_silver_distinta_da_fonte_bronze() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let bronze_armazenamento: Arc<dyn ArmazenamentoRaw> = bronze.clone();
+        let tarefa = TarefaDeSilverSql::nova(
+            bronze_armazenamento,
+            snapshot,
+            "silver-alias",
+            RECURSO,
+            None,
+            REGRA,
+            SQL,
+            esquema_saida(),
+        )
+        .com_fonte_bronze(FONTE);
+
+        tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-alias-1"))
+            .await
+            .unwrap();
+
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao("silver-alias", RECURSO))
+                .await
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .is_none()
         );
     }
 

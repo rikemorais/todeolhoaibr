@@ -32,21 +32,22 @@ use todeolho_refino::{
     TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita,
     TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
     TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
-    TarefaDeSilverSenadoVotacoes, TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas,
-    TarefaDeSilverTseDespesasCandidatos2014, TarefaDeSilverTseDespesasCandidatos2016,
-    TarefaDeSilverTseDespesasComites2014, TarefaDeSilverTseDespesasContratadas,
-    TarefaDeSilverTseDespesasContratadas2018, TarefaDeSilverTseDespesasContratadas2020,
-    TarefaDeSilverTseDespesasContratadas2022, TarefaDeSilverTseDespesasPagas,
-    TarefaDeSilverTseDespesasPagas2018, TarefaDeSilverTseDespesasPagas2020,
-    TarefaDeSilverTseDespesasPagas2022, TarefaDeSilverTseDespesasPartidos2014,
-    TarefaDeSilverTseDespesasPartidos2016, TarefaDeSilverTseReceitasCandidatos,
-    TarefaDeSilverTseReceitasCandidatos2014, TarefaDeSilverTseReceitasCandidatos2016,
-    TarefaDeSilverTseReceitasCandidatos2018, TarefaDeSilverTseReceitasCandidatos2020,
-    TarefaDeSilverTseReceitasCandidatos2022, TarefaDeSilverTseReceitasComites2014,
-    TarefaDeSilverTseReceitasDoadorOriginario, TarefaDeSilverTseReceitasDoadorOriginario2018,
-    TarefaDeSilverTseReceitasDoadorOriginario2020, TarefaDeSilverTseReceitasDoadorOriginario2022,
-    TarefaDeSilverTseReceitasPartidos2014, TarefaDeSilverTseReceitasPartidos2016,
-    TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge, catalogo_refino,
+    TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql, TarefaDeSilverTseBens,
+    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
+    TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasComites2014,
+    TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
+    TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
+    TarefaDeSilverTseDespesasPagas, TarefaDeSilverTseDespesasPagas2018,
+    TarefaDeSilverTseDespesasPagas2020, TarefaDeSilverTseDespesasPagas2022,
+    TarefaDeSilverTseDespesasPartidos2014, TarefaDeSilverTseDespesasPartidos2016,
+    TarefaDeSilverTseReceitasCandidatos, TarefaDeSilverTseReceitasCandidatos2014,
+    TarefaDeSilverTseReceitasCandidatos2016, TarefaDeSilverTseReceitasCandidatos2018,
+    TarefaDeSilverTseReceitasCandidatos2020, TarefaDeSilverTseReceitasCandidatos2022,
+    TarefaDeSilverTseReceitasComites2014, TarefaDeSilverTseReceitasDoadorOriginario,
+    TarefaDeSilverTseReceitasDoadorOriginario2018, TarefaDeSilverTseReceitasDoadorOriginario2020,
+    TarefaDeSilverTseReceitasDoadorOriginario2022, TarefaDeSilverTseReceitasPartidos2014,
+    TarefaDeSilverTseReceitasPartidos2016, TarefaDeSilverTseVotacaoSecao, TipoLocalidadeIbge,
+    catalogo_refino,
 };
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -544,6 +545,33 @@ async fn refinar(
         }
         if fonte.as_deref() == Some("ipeadata") {
             return refinar_ipeadata_silver(fonte, todas, intervalo).await;
+        }
+        if fonte.as_deref() == Some("world-bank") {
+            return refinar_world_bank_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("undp") {
+            return refinar_undp_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("ana") {
+            return refinar_ana_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("b3") {
+            return refinar_b3_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("remuneracao-estadual-mg") {
+            return refinar_remuneracao_estadual_mg_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("remuneracao-estadual-go") {
+            return refinar_remuneracao_estadual_go_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("remuneracao-municipal-tce-ce") {
+            return refinar_tce_ce_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("transparencia-beneficios") {
+            return refinar_transparencia_beneficios_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("transparencia-servidores-ativos") {
+            return refinar_transparencia_servidores_ativos_silver(intervalo).await;
         }
         if fonte
             .as_deref()
@@ -1205,6 +1233,15 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             let ipeadata = refinar_ipeadata_silver(Some("ipeadata".into()), false, None).await?;
             let ibge_renda_per_capita =
                 refinar_ibge_renda_per_capita_silver(None, true, None).await?;
+            let world_bank = refinar_world_bank_silver(None).await?;
+            let undp = refinar_undp_silver(None).await?;
+            let ana = refinar_ana_silver(None).await?;
+            let b3 = refinar_b3_silver(None).await?;
+            let mg = refinar_remuneracao_estadual_mg_silver(None).await?;
+            let go = refinar_remuneracao_estadual_go_silver(None).await?;
+            let tce_ce = refinar_tce_ce_silver(None).await?;
+            let beneficios = refinar_transparencia_beneficios_silver(None).await?;
+            let transparencia = refinar_transparencia_servidores_ativos_silver(None).await?;
             Ok(bcb
                 && ibge
                 && senado
@@ -1224,7 +1261,16 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && ibge_estados
                 && ibge_municipios
                 && ipeadata
-                && ibge_renda_per_capita)
+                && ibge_renda_per_capita
+                && world_bank
+                && undp
+                && ana
+                && b3
+                && mg
+                && go
+                && tce_ce
+                && beneficios
+                && transparencia)
         }
         Some(segundos) => {
             println!(
@@ -2793,6 +2839,230 @@ fn concorrencia() -> Result<usize> {
             .with_context(|| format!("TODEOLHO_CONCORRENCIA inválida: {valor}")),
         Err(_) => Ok(2),
     }
+}
+
+/// Cria as tarefas de um contrato SQL percorrendo os recursos disponíveis no Raw.
+async fn passada_generica_silver(
+    nome_catalogo: &str,
+    regra: &'static str,
+    sql: &'static str,
+    item: &FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let mut tarefas = Vec::new();
+    for recurso in recursos_no_raw(raw_s3, item).await? {
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), item.fonte_raw, &recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze")?
+        else {
+            continue;
+        };
+        let mut tarefa = TarefaDeSilverSql::nova_para_contrato(
+            Arc::clone(bronze),
+            Arc::new(snapshot),
+            nome_catalogo,
+            recurso,
+            None,
+            regra,
+            sql,
+        );
+        if item.fonte_raw != nome_catalogo {
+            tarefa = tarefa.com_fonte_bronze(item.fonte_raw);
+        }
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+    }
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver {nome_catalogo} (em dia ou não ingerido).");
+        return Ok(true);
+    }
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            Uuid::new_v4().simple()
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let dag = DagDeIngestao::construir(nome_catalogo, tarefas)?;
+    let dags = vec![dag];
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
+}
+
+/// Inicializa armazenamento e chama `passada_generica_silver` para uma fonte.
+async fn refinar_fonte_silver(
+    nome_catalogo: &str,
+    regra: &'static str,
+    sql: &'static str,
+    intervalo: Option<u64>,
+) -> Result<bool> {
+    let catalogo = catalogo_refino();
+    let item = catalogo
+        .iter()
+        .find(|f| f.nome == nome_catalogo)
+        .context(format!("fonte {nome_catalogo} não encontrada no catálogo"))?;
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    match intervalo.filter(|s| *s > 0) {
+        None => {
+            passada_generica_silver(
+                nome_catalogo,
+                regra,
+                sql,
+                item,
+                &raw_s3,
+                &bronze,
+                &silver,
+                false,
+            )
+            .await
+        }
+        Some(segundos) => {
+            println!(
+                "Agendador Silver {nome_catalogo}: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) = passada_generica_silver(
+                    nome_catalogo,
+                    regra,
+                    sql,
+                    item,
+                    &raw_s3,
+                    &bronze,
+                    &silver,
+                    true,
+                )
+                .await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver {nome_catalogo}: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+async fn refinar_world_bank_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "world-bank",
+        "world-bank-indicador-v1",
+        include_str!("../../refino/sql/silver/world_bank.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_undp_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "undp",
+        "undp-indices-compostos-v1",
+        include_str!("../../refino/sql/silver/undp.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_ana_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "ana",
+        "ana-estacao-v1",
+        include_str!("../../refino/sql/silver/ana.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_b3_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "b3",
+        "b3-cotahist-v1",
+        include_str!("../../refino/sql/silver/b3.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_remuneracao_estadual_mg_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "remuneracao-estadual-mg",
+        "remuneracao-estadual-mg-folha-v1",
+        include_str!("../../refino/sql/silver/remuneracao_estadual_mg.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_remuneracao_estadual_go_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "remuneracao-estadual-go",
+        "remuneracao-estadual-go-folha-v1",
+        include_str!("../../refino/sql/silver/remuneracao_estadual_go.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_tce_ce_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "remuneracao-municipal-tce-ce",
+        "tce-ce-folhas-pagamentos-v1",
+        include_str!("../../refino/sql/silver/tce_ce.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_transparencia_beneficios_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "transparencia-beneficios",
+        "transparencia-beneficios-v1",
+        include_str!("../../refino/sql/silver/transparencia_beneficios.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_transparencia_servidores_ativos_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "transparencia-servidores-ativos",
+        "transparencia-servidores-ativos-v1",
+        include_str!("../../refino/sql/silver/transparencia_servidores_ativos.sql"),
+        intervalo,
+    )
+    .await
 }
 
 #[cfg(test)]
