@@ -2842,26 +2842,31 @@ fn concorrencia() -> Result<usize> {
 }
 
 /// Cria as tarefas de um contrato SQL percorrendo os recursos disponíveis no Raw.
+struct ArmazenamentosParaSilver<'a> {
+    raw: &'a ArmazenamentoS3,
+    bronze: &'a Arc<dyn ArmazenamentoRaw>,
+    silver: &'a Arc<dyn ArmazenamentoRaw>,
+}
+
 async fn passada_generica_silver(
     nome_catalogo: &str,
     regra: &'static str,
     sql: &'static str,
     item: &FonteDeRefino,
-    raw_s3: &ArmazenamentoS3,
-    bronze: &Arc<dyn ArmazenamentoRaw>,
-    silver: &Arc<dyn ArmazenamentoRaw>,
+    armazenamentos: ArmazenamentosParaSilver<'_>,
     somente_pendentes: bool,
 ) -> Result<bool> {
     let mut tarefas = Vec::new();
-    for recurso in recursos_no_raw(raw_s3, item).await? {
-        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), item.fonte_raw, &recurso)
-            .await
-            .context("não foi possível ler o snapshot Bronze")?
+    for recurso in recursos_no_raw(armazenamentos.raw, item).await? {
+        let Some(snapshot) =
+            SnapshotBronze::vigente(armazenamentos.bronze.as_ref(), item.fonte_raw, &recurso)
+                .await
+                .context("não foi possível ler o snapshot Bronze")?
         else {
             continue;
         };
         let mut tarefa = TarefaDeSilverSql::nova_para_contrato(
-            Arc::clone(bronze),
+            Arc::clone(armazenamentos.bronze),
             Arc::new(snapshot),
             nome_catalogo,
             recurso,
@@ -2872,7 +2877,7 @@ async fn passada_generica_silver(
         if item.fonte_raw != nome_catalogo {
             tarefa = tarefa.com_fonte_bronze(item.fonte_raw);
         }
-        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+        if !somente_pendentes || tarefa.pendente(armazenamentos.silver.as_ref()).await? {
             tarefas.push(TarefaPlanejada::nova(tarefa));
         }
     }
@@ -2888,7 +2893,7 @@ async fn passada_generica_silver(
             Uuid::new_v4().simple()
         ),
         iniciada_em,
-        armazenamento: Arc::clone(silver),
+        armazenamento: Arc::clone(armazenamentos.silver),
         http: Arc::new(ClienteHttpComRetentativas::novo(
             PoliticaDeRetentativas::default(),
         )?),
@@ -2943,9 +2948,11 @@ async fn refinar_fonte_silver(
                 regra,
                 sql,
                 item,
-                &raw_s3,
-                &bronze,
-                &silver,
+                ArmazenamentosParaSilver {
+                    raw: &raw_s3,
+                    bronze: &bronze,
+                    silver: &silver,
+                },
                 false,
             )
             .await
@@ -2960,9 +2967,11 @@ async fn refinar_fonte_silver(
                     regra,
                     sql,
                     item,
-                    &raw_s3,
-                    &bronze,
-                    &silver,
+                    ArmazenamentosParaSilver {
+                        raw: &raw_s3,
+                        bronze: &bronze,
+                        silver: &silver,
+                    },
                     true,
                 )
                 .await
