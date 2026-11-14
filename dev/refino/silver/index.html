@@ -1187,9 +1187,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#inventario-dos-25-contratos-sql" class="md-nav__link">
+  <a href="#inventario-dos-25-contratos-sql-centrais" class="md-nav__link">
     <span class="md-ellipsis">
-      Inventário dos 25 contratos SQL
+      Inventário dos 25 contratos SQL centrais
     </span>
   </a>
   
@@ -1210,22 +1210,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cobertura-planejada-do-catalogo-bronze" class="md-nav__link">
+  <a href="#cobertura-do-catalogo-bronze" class="md-nav__link">
     <span class="md-ellipsis">
-      Cobertura planejada do catálogo bronze
+      Cobertura do catálogo Bronze
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#contrato-minimo-por-tabela" class="md-nav__link">
-    <span class="md-ellipsis">
-      Contrato mínimo por tabela
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Contrato mínimo por tabela">
+    <nav class="md-nav" aria-label="Cobertura do catálogo Bronze">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1399,9 +1390,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proxima-validacao-da-fase-0" class="md-nav__link">
+  <a href="#limites-remanescentes" class="md-nav__link">
     <span class="md-ellipsis">
-      Próxima validação da fase 0
+      Limites remanescentes
     </span>
   </a>
   
@@ -2197,9 +2188,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#inventario-dos-25-contratos-sql" class="md-nav__link">
+  <a href="#inventario-dos-25-contratos-sql-centrais" class="md-nav__link">
     <span class="md-ellipsis">
-      Inventário dos 25 contratos SQL
+      Inventário dos 25 contratos SQL centrais
     </span>
   </a>
   
@@ -2220,22 +2211,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cobertura-planejada-do-catalogo-bronze" class="md-nav__link">
+  <a href="#cobertura-do-catalogo-bronze" class="md-nav__link">
     <span class="md-ellipsis">
-      Cobertura planejada do catálogo bronze
+      Cobertura do catálogo Bronze
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#contrato-minimo-por-tabela" class="md-nav__link">
-    <span class="md-ellipsis">
-      Contrato mínimo por tabela
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Contrato mínimo por tabela">
+    <nav class="md-nav" aria-label="Cobertura do catálogo Bronze">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2409,9 +2391,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proxima-validacao-da-fase-0" class="md-nav__link">
+  <a href="#limites-remanescentes" class="md-nav__link">
     <span class="md-ellipsis">
-      Próxima validação da fase 0
+      Limites remanescentes
     </span>
   </a>
   
@@ -2441,7 +2423,7 @@
 
 
 <h1 id="camada-silver-contrato-inicial">Camada silver — contrato inicial<a class="headerlink" href="#camada-silver-contrato-inicial" title="Permanent link">&para;</a></h1>
-<p><strong>Estado:</strong> migração SQL/DataFusion concluída — todas as 29 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em <code>#[cfg(test)]</code> para paridade (<a href="https://github.com/rikemorais/todeolhoaibr/issues/244">issue #244</a>, PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
+<p><strong>Estado:</strong> as 63 consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em <code>#[cfg(test)]</code> para paridade (<a href="https://github.com/rikemorais/todeolhoaibr/issues/244">issue #244</a>, PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
 <p>Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket <code>silver</code>. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são <strong>candidatas</strong>: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.</p>
 <h2 id="contribuir-com-uma-transformacao-sql">Contribuir com uma transformação SQL<a class="headerlink" href="#contribuir-com-uma-transformacao-sql" title="Permanent link">&para;</a></h2>
 <p>Contratos SQL ficam versionados em <code>crates/refino/sql/silver/</code> e entram no binário com <code>include_str!</code>. A consulta lê a tabela <code>bronze</code>, preparada somente com as partes do manifesto fixado. Além das colunas Bronze, há quatro colunas internas de linhagem: <code>_tdoa_origem_manifesto</code>, <code>_tdoa_origem_parte</code>, <code>_tdoa_origem_url</code> (nome/tabela da parte) e <code>_tdoa_origem_ordinal</code>. A URL permite que contratos selecionem uma tabela específica dentro de um recurso ZIP, como a parte consolidada <code>BRASIL</code> do TSE. Para contratos que preservam colunas de origem dinâmicas, o executor também pode fornecer <code>_tdoa_json_original</code>, serializado pelo adaptador; os casts, validações e projeções continuam no SQL. A consulta deve projetar explicitamente as colunas Silver definidas pelo schema do contrato. Valores externos nunca são interpolados no SQL; em <code>senado_processos.sql</code>, o ano é validado como número no caminho do recurso antes de ser inserido na consulta; detalhes usam a coluna Bronze <code>ano</code>.</p>
@@ -2450,7 +2432,7 @@
 <p>O smoke e benchmark sintético reproduzível do executor está em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a>. Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.</p>
 <h3 id="estrutura-de-arquivos">Estrutura de arquivos<a class="headerlink" href="#estrutura-de-arquivos" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>crates/refino/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── sql/silver/              # 29 consultas SQL versionadas
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── sql/silver/              # 63 consultas SQL versionadas
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── bcb_sgs.sql
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── camara_deputados.sql
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── ...
@@ -2596,7 +2578,7 @@
 <p>A versão Silver publicada é <code>&lt;id_execução_bronze&gt;|regra=&lt;REGRA&gt;</code>. O publicador compara essa string antes de executar; se já existe, reaproveia sem reprocessar (idempotência por versão Bronze + regra).</p>
 <p>Incrementar a versão força reprocessamento de todos os recursos da família. Fazer isso somente quando a semântica da saída muda.</p>
 <h3 id="fixtures-e-testes">Fixtures e testes<a class="headerlink" href="#fixtures-e-testes" title="Permanent link">&para;</a></h3>
-<p>Os 24 contratos são cobertos por testes em <code>crates/refino/src/silver/tarefa_sql.rs</code> e nos respectivos <code>tarefa_*.rs</code>. Os testes usam fixtures Parquet em memória com <code>ArmazenamentoEmMemoria</code>:</p>
+<p>Os contratos migrados têm testes de executor, fixtures de paridade e testes de borda em <code>crates/refino/src/silver/tarefa_sql.rs</code> e nos respectivos <code>tarefa_*.rs</code>. Os testes usam fixtures Parquet em memória com <code>ArmazenamentoEmMemoria</code>:</p>
 <ol>
 <li><strong>Fixtures de paridade</strong>: comparam a saída SQL com a saída da transformação Arrow manual (<code>#[cfg(test)]</code>). Garantem que a migração não alterou os dados publicados.</li>
 <li><strong>Fixtures de borda</strong>: testam datas inválidas, decimais fora de escala, sentinelas, JSON nulo, chaves duplicadas, arrays vazios e colunas ausentes.</li>
@@ -2645,7 +2627,7 @@
 <li>Configuração de limites de memória/spill quando diverge do padrão.</li>
 </ul>
 <p>As UDFs Rust (<code>tdoa_assert_true</code>, <code>tdoa_json_get</code>, <code>tdoa_json_expand_votos</code>) são funções genéricas do executor, não transformações por contrato.</p>
-<h3 id="inventario-dos-25-contratos-sql">Inventário dos 25 contratos SQL<a class="headerlink" href="#inventario-dos-25-contratos-sql" title="Permanent link">&para;</a></h3>
+<h3 id="inventario-dos-25-contratos-sql-centrais">Inventário dos 25 contratos SQL centrais<a class="headerlink" href="#inventario-dos-25-contratos-sql-centrais" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2837,8 +2819,8 @@
 <p>O teste de inventário (<code>nenhum_sql_silver_orfao_nem_contrato_sem_consulta</code>) garante em CI que esta lista permanece sincronizada com o código.</p>
 <h2 id="contratos-eleitorais-sqldatafusion">Contratos eleitorais SQL/DataFusion<a class="headerlink" href="#contratos-eleitorais-sqldatafusion" title="Permanent link">&para;</a></h2>
 <p>As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em <code>registro_original</code>; as três referências Bronze são projetadas na saída e exigidas pelo publicador. A votação por seção permanece fora de <code>silver --todas</code> por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.</p>
-<h2 id="cobertura-planejada-do-catalogo-bronze">Cobertura planejada do catálogo bronze<a class="headerlink" href="#cobertura-planejada-do-catalogo-bronze" title="Permanent link">&para;</a></h2>
-<p>O <a href="../../crates/refino/src/catalogo.rs">catálogo</a> tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. <code>recurso</code> e <code>versão bronze</code> fazem parte da procedência, mas não substituem a chave de negócio.</p>
+<h2 id="cobertura-do-catalogo-bronze">Cobertura do catálogo Bronze<a class="headerlink" href="#cobertura-do-catalogo-bronze" title="Permanent link">&para;</a></h2>
+<p>O <a href="../../crates/refino/src/catalogo.rs">catálogo</a> tem 35 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada relação interna precisa de contrato próprio ou de exclusão com justificativa explícita. <code>recurso</code> e <code>versão bronze</code> fazem parte da procedência, mas não substituem a chave de negócio.</p>
 <p>A <a href="../contratos-silver-fase0/">especificação de contratos da fase 0</a> detalha tipos,
 nulos, normalização, deduplicação e tabelas internas para cada família. Esta
 matriz resume o grão e a evidência de chave; “candidata” não autoriza descartar
@@ -2847,6 +2829,7 @@ linhas nem ativar uma relação sem validação do recorte.</p>
 <thead>
 <tr>
 <th>Entrada bronze</th>
+<th>Estado</th>
 <th>Família</th>
 <th>Grão candidato da silver</th>
 <th>Chave candidata / validação necessária</th>
@@ -2855,163 +2838,258 @@ linhas nem ativar uma relação sem validação do recorte.</p>
 <tbody>
 <tr>
 <td><code>camara-despesas</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>lançamento CEAP</td>
 <td><code>ideDocumento</code> é candidato, mas não único; preservar todas as linhas até definir chave</td>
 </tr>
 <tr>
 <td><code>camara-votacoes</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>registro de um dos sete conjuntos anuais</td>
 <td>contrato separado para <code>proposicoes</code>, <code>proposicoesAutores</code>, <code>votacoes</code>, <code>votacoesVotos</code>, <code>votacoesObjetos</code>, <code>votacoesProposicoes</code> e <code>votacoesOrientacoes</code>; chaves de 2024 abaixo</td>
 </tr>
 <tr>
 <td><code>camara-tramitacoes</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>evento de tramitação</td>
 <td>não há chave de negócio única comprovada; preservar repetições e usar proveniência do recurso/snapshot</td>
 </tr>
 <tr>
 <td><code>camara-deputados</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>deputado em exercício na versão Bronze vigente</td>
 <td><code>id</code> oficial (513/513 distintos na amostra local; cada versão é uma fotografia)</td>
 </tr>
 <tr>
 <td><code>camara-partidos</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>partido no cadastro observado</td>
 <td><code>id</code> oficial (21/21 distintos na amostra local; não prova unicidade histórica)</td>
 </tr>
 <tr>
 <td><code>camara-legislaturas</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>período de atividade parlamentar</td>
 <td><code>id</code> sequencial (57/57 distintos na amostra local)</td>
 </tr>
 <tr>
 <td><code>senado-despesas</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>lançamento CEAPS</td>
 <td><code>COD_DOCUMENTO</code> candidato, único quando presente na amostra; preservar linhas sem código</td>
 </tr>
 <tr>
 <td><code>senado-votacoes</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>uma sessão de votação nominal</td>
 <td><code>codigoSessaoVotacao</code> (3.652/3.652 distintos no recorte local consultado); sessão conserva JSON original, e votos são publicados também em tabela filha com ponteiro próprio</td>
 </tr>
 <tr>
 <td><code>senado-parlamentares</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>parlamentar em legislatura</td>
 <td><code>IdentificacaoParlamentar.CodigoParlamentar</code> e <code>legislatura</code> no bronze local</td>
 </tr>
 <tr>
 <td><code>senado-processos</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>um processo na listagem anual</td>
 <td><code>id</code> textual único no recurso; <code>ano</code> UInt16 do caminho</td>
 </tr>
 <tr>
 <td><code>senado-processos-detalhes</code></td>
+<td>Silver ativo</td>
 <td>Legislativo</td>
 <td>um detalhe por processo em cada recurso anual</td>
 <td><code>id</code> textual; <code>ano</code> UInt16; demais campos preservados em <code>processo_original</code></td>
 </tr>
 <tr>
 <td><code>tse-candidaturas</code></td>
+<td>Silver ativo</td>
 <td>Eleitoral</td>
 <td>candidatura por eleição</td>
 <td>ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; <a href="#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05">validação histórica abaixo</a></td>
 </tr>
 <tr>
 <td><code>tse-bens</code></td>
+<td>Silver ativo</td>
 <td>Eleitoral</td>
 <td>bem declarado</td>
 <td>ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano</td>
 </tr>
 <tr>
 <td><code>tse-prestacao-contas</code></td>
+<td>Parcial: subconjuntos sem chave validada ficam em Bronze, sem deduplicação</td>
 <td>Eleitoral</td>
 <td>lançamento por tabela interna</td>
 <td>contrato por conjunto e ano; sequências de 2024 colidem no consolidado, conforme <a href="#prestacao-de-contas-do-tse-em-2024">validação abaixo</a>; sondas de chaves para as seis famílias de 2014 e as duas famílias partidárias de 2016 não encontraram chave completa e única; ver <a href="../pesquisa-tse-2014-2022/">medições e inventário 2014–2022</a>, <a href="../pesquisa-tse-2016-2022/">fontes oficiais 2016–2022</a> e <a href="../pesquisa-tse-2014-sup/">pesquisa sobre <code>_sup</code></a></td>
 </tr>
 <tr>
 <td><code>tse-votacao-secao</code></td>
+<td>Silver ativo</td>
 <td>Eleitoral</td>
 <td>voto agregado por seção e votável</td>
 <td>ano, eleição, UF, turno, município, zona, seção, cargo e votável; <a href="#votacao-por-secao-do-tse-no-bronze-local-2026-11-05">recortes validados abaixo</a></td>
 </tr>
 <tr>
+<td><code>undp</code></td>
+<td>Silver ativo</td>
+<td>Índices de desenvolvimento</td>
+<td>país × edição do relatório</td>
+<td><code>iso3</code> e edição; CSV Windows-1252, colunas do relatório corrente, regra v1</td>
+</tr>
+<tr>
+<td><code>remuneracao-estadual-mg</code></td>
+<td>Silver ativo</td>
+<td>Remuneração estadual</td>
+<td>servidor × competência no recurso MG</td>
+<td>passthrough com linhagem; schema herdado do Bronze até validação de domínio</td>
+</tr>
+<tr>
+<td><code>remuneracao-estadual-go</code></td>
+<td>Silver ativo</td>
+<td>Remuneração estadual</td>
+<td>servidor × competência no recurso GO</td>
+<td>passthrough com linhagem; schema herdado do Bronze até validação de domínio</td>
+</tr>
+<tr>
+<td><code>world-bank</code></td>
+<td>Silver ativo</td>
+<td>Indicador econômico</td>
+<td>país × indicador × ano</td>
+<td><code>codigo_pais</code>, <code>codigo_indicador</code>, <code>ano</code>; valor decimal e status preservados</td>
+</tr>
+<tr>
+<td><code>remuneracao-municipal-tce-ce</code></td>
+<td>Silver ativo</td>
+<td>Remuneração municipal</td>
+<td>registro de folha por recurso TCE-CE</td>
+<td>passthrough com linhagem; schema herdado do Bronze até validação de domínio</td>
+</tr>
+<tr>
+<td><code>transparencia-beneficios</code></td>
+<td>Silver ativo</td>
+<td>Benefícios federais</td>
+<td>benefício por registro/página</td>
+<td>passthrough com linhagem; schema herdado do Bronze, sem deduplicação entre páginas</td>
+</tr>
+<tr>
+<td><code>transparencia-servidores-ativos</code></td>
+<td>Silver ativo</td>
+<td>Servidores federais</td>
+<td>servidor por linha do CSV</td>
+<td>passthrough com linhagem; schema herdado do Bronze, identificadores não são chave validada</td>
+</tr>
+<tr>
+<td><code>ana</code></td>
+<td>Silver ativo</td>
+<td>Recursos hídricos</td>
+<td>estação × recurso (fluviométrico ou pluviométrico)</td>
+<td><code>codigo_estacao</code> é candidata; validação de unicidade ainda limitada ao recurso</td>
+</tr>
+<tr>
+<td><code>b3</code></td>
+<td>Silver ativo</td>
+<td>Mercado financeiro</td>
+<td>ativo × pregão × mercado</td>
+<td>candidata composta por data, ticker, BDI e mercado; conservar repetições até validação</td>
+</tr>
+<tr>
 <td><code>bcb</code></td>
+<td>Silver ativo</td>
 <td>Série</td>
 <td>observação SGS</td>
 <td>série (do recurso) e <code>data</code>; <code>valor</code> decimal; data no formato <code>DD/MM/AAAA</code> no fixture</td>
 </tr>
 <tr>
 <td><code>ipeadata</code></td>
+<td>Silver ativo</td>
 <td>Série</td>
 <td>observação OData</td>
 <td><code>SERCODIGO</code>, <code>TERCODIGO</code> e <code>VALDATA</code> candidatos; <code>NIVNOME</code> distingue Brasil, estados, municípios e regiões</td>
 </tr>
 <tr>
 <td><code>ibge-estados</code></td>
+<td>Silver ativo</td>
 <td>Território</td>
 <td>UF</td>
 <td>código IBGE e vigência</td>
 </tr>
 <tr>
 <td><code>ibge-regioes</code></td>
+<td>Silver ativo</td>
 <td>Território</td>
 <td>região</td>
 <td>código IBGE e vigência</td>
 </tr>
 <tr>
 <td><code>ibge-municipios</code></td>
+<td>Silver ativo</td>
 <td>Território</td>
 <td>município</td>
 <td>código IBGE e vigência</td>
 </tr>
 <tr>
 <td><code>ibge-ipca</code></td>
+<td>Silver ativo</td>
 <td>Agregado IBGE</td>
 <td>variável × localidade × período</td>
 <td>variável, classificações, nível, localidade e período; validar classificações</td>
 </tr>
 <tr>
 <td><code>ibge-inpc</code></td>
+<td>Silver ativo</td>
 <td>Agregado IBGE</td>
 <td>variável × localidade × período</td>
 <td>idem</td>
 </tr>
 <tr>
 <td><code>ibge-pib-municipios</code></td>
+<td>Silver ativo</td>
 <td>Agregado IBGE</td>
 <td>variável × localidade × período</td>
 <td>idem; município somente se nível N6</td>
 </tr>
 <tr>
 <td><code>ibge-pib-trimestral</code></td>
+<td>Silver ativo</td>
 <td>Agregado IBGE</td>
 <td>variável × localidade × período</td>
 <td>idem</td>
 </tr>
 <tr>
 <td><code>ibge-pnad-desocupacao</code></td>
+<td>Silver ativo</td>
 <td>Agregado IBGE</td>
 <td>variável × localidade × período</td>
 <td>idem</td>
 </tr>
 <tr>
 <td><code>ibge-populacao-municipios</code></td>
+<td>Silver ativo</td>
 <td>Agregado IBGE</td>
 <td>variável × localidade × período</td>
 <td>idem; município somente se nível N6</td>
 </tr>
+<tr>
+<td>## Contrato mínimo por tabela</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
 </tbody>
 </table>
-<h2 id="contrato-minimo-por-tabela">Contrato mínimo por tabela<a class="headerlink" href="#contrato-minimo-por-tabela" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Nome estável, tabela bronze de origem, grão e chave de negócio, incluindo escopo temporal.</li>
 <li>Colunas de saída, tipos Arrow/Parquet, nulabilidade, unidades e conversão de sentinelas.</li>
@@ -3109,6 +3187,8 @@ o resultado da outra permanece consultável e a reconciliação retoma apenas a
 que estiver pendente.</p>
 <p>O console DuckDB cria views <code>bronze_*</code> e <code>silver_*</code> a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.</p>
 <h2 id="evidencia-disponivel-no-repositorio">Evidência disponível no repositório<a class="headerlink" href="#evidencia-disponivel-no-repositorio" title="Permanent link">&para;</a></h2>
+<p>Os nove contratos acima ampliam o inventário do catálogo de 26 para 35 entradas. Os cinco contratos com schema inferido (remuneração MG/GO, TCE-CE e Portal da Transparência) são uma etapa operacional de passthrough: preservam colunas e linhagem, mas não afirmam ainda uma chave de negócio nem normalização semântica. Não os usar como dimensões/fatos conformados até que a inspeção dos dados reais fixe esses contratos. Os quatro contratos tipados (World Bank, UNDP, ANA e B3) declaram colunas no SQL e schemas Arrow e validam chaves conforme o próprio SQL; a unicidade de domínio continua condicionada à execução nos snapshots locais.</p>
+<p>O catálogo completo está acima. A prestação de contas do TSE é a única família que deliberadamente mantém tabelas internas sem contrato nesta fase: os contratos ativos e os anos atendidos estão enumerados na seção de prestação de contas; os demais conjuntos/anos permanecem Bronze, pois sondagens documentadas não encontraram uma chave composta única e não há política de deduplicação aprovada. Essa exclusão preserva todas as linhas e sua linhagem no Bronze. As tabelas internas de ZIPs de outras famílias são descritas junto ao respectivo contrato; ausência de uma relação publicada deve ser tratada como limitação explícita, não como dado descartado.</p>
 <h3 id="despesas-da-camara-ceap">Despesas da Câmara (CEAP)<a class="headerlink" href="#despesas-da-camara-ceap" title="Permanent link">&para;</a></h3>
 <p>O contrato <code>camara.despesa.ceap.v2</code> é executado por SQL/DataFusion (regra <code>camara-despesa-ceap-v3</code>) e publica uma linha por lançamento anual, tipa o ano do caminho como <code>UInt16</code>, datas de emissão/restituição como <code>Date32</code> e os quatro valores monetários como <code>Decimal128(18,6)</code>. A precisão de seis casas é necessária para preservar valores históricos de 2013–2015; no Bronze local, nenhuma linha supera 12 dígitos inteiros ou seis decimais. Identificadores permanecem texto. Campos ausentes ou em branco nesses campos opcionais viram nulos; valor preenchido fora do formato esperado interrompe a publicação. <code>registro_original</code> preserva todos os campos do Bronze, inclusive campos que ainda não têm projeção tipada. A consulta não deduplica: <code>ideDocumento</code> colide no conjunto histórico e não é chave única comprovada. A CLI <code>todeolho refinar silver camara-despesas</code> aceita um recurso anual, participa de <code>--todas</code> e da reconciliação Silver.</p>
 <h3 id="tramitacoes-da-camara">Tramitações da Câmara<a class="headerlink" href="#tramitacoes-da-camara" title="Permanent link">&para;</a></h3>
@@ -3823,8 +3903,8 @@ que estiver pendente.</p>
 <li>A tabela <code>receitas_partidos_2012_MT</code> da prestação de contas do TSE (parte bronze <code>00150</code>, ano 2012) tinha uma data de registro como nome de coluna. Os 27 TXT dessa família com sufixo de duas letras não têm cabeçalho; o bronze corrigido publica colunas posicionais e preserva a primeira linha. A <a href="../pesquisa-tse-2012/">pesquisa do leiaute de 2012</a> mostra que o <code>LEIAME.pdf</code> do ZIP não descreve as 19 posições e que o cabeçalho de 25 campos do consolidado não serve para mapeá-las. A chave silver continua pendente de leiaute oficial específico.</li>
 </ul>
 <p>As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.</p>
-<h2 id="proxima-validacao-da-fase-0">Próxima validação da fase 0<a class="headerlink" href="#proxima-validacao-da-fase-0" title="Permanent link">&para;</a></h2>
-<p>Conferir amostras das 26 entradas do catálogo e todas as tabelas internas dos ZIPs, incluindo anos antigos e recentes; fixar chaves e schemas somente depois dessa conferência. A fase 1 (#186) implementa o mecanismo; as fases 2–4 (#187–#189) entregam os contratos específicos.</p>
+<h2 id="limites-remanescentes">Limites remanescentes<a class="headerlink" href="#limites-remanescentes" title="Permanent link">&para;</a></h2>
+<p>O smoke do repositório cobre famílias e recortes diferentes, mas não substitui a validação de todas as versões históricas dos 35 itens nem de cada tabela interna de cada ZIP. As chaves continuam candidatas onde a matriz diz isso. Em particular, remunerações e Transparência permanecem passthrough com schema inferido; as fontes internas TSE sem chave estão explicitamente mantidas em Bronze. Não deduplicar nem declarar contrato tipado completo nesses casos antes de validar leiautes e chaves com amostras antigas e recentes.</p>
 
 
 
