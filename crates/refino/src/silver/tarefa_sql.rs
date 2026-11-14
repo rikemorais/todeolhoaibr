@@ -316,16 +316,26 @@ mod testes {
     }
 
     async fn preparar_snapshot(bronze: &Memoria) -> SnapshotBronze {
+        preparar_snapshot_com_versao(
+            bronze,
+            "bronze-1",
+            vec![
+                vec![("1", "10"), ("2", "20")],
+                vec![("3", "30"), ("4", "40")],
+            ],
+        )
+        .await
+    }
+
+    async fn preparar_snapshot_com_versao(
+        bronze: &Memoria,
+        id_bronze: &str,
+        linhas_por_parte: Vec<Vec<(&str, &str)>>,
+    ) -> SnapshotBronze {
         let instante = Utc.with_ymd_and_hms(2026, 11, 6, 12, 0, 0).unwrap();
-        let local = LocalizacaoRaw::nova(FONTE, RECURSO, instante, "bronze-1");
+        let local = LocalizacaoRaw::nova(FONTE, RECURSO, instante, id_bronze);
         let mut partes = Vec::new();
-        for (indice, linhas) in [
-            vec![("1", "10"), ("2", "20")],
-            vec![("3", "30"), ("4", "40")],
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (indice, linhas) in linhas_por_parte.into_iter().enumerate() {
             let conteudo = parquet(&linhas);
             let parte = ParteRaw {
                 chave: local.parte(indice + 1, "parquet"),
@@ -333,7 +343,7 @@ mod testes {
                 bytes: conteudo.len() as u64,
                 sha256: hex::encode(Sha256::digest(&conteudo)),
                 tipo_de_conteudo: "application/vnd.apache.parquet".into(),
-                versao: Some("bronze-1".into()),
+                versao: Some(id_bronze.into()),
             };
             bronze
                 .gravar(ObjetoRaw {
@@ -357,7 +367,7 @@ mod testes {
         let manifesto = ManifestoRaw {
             fonte: FONTE.into(),
             recurso: RECURSO.into(),
-            id_execucao: "bronze-1".into(),
+            id_execucao: id_bronze.into(),
             url_inicial: "fixture".into(),
             iniciada_em: instante,
             concluida_em: instante,
@@ -376,7 +386,7 @@ mod testes {
             .gravar(ObjetoRaw {
                 chave: LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
                 conteudo: serde_json::to_vec(&UltimaVersao {
-                    versao: Some("bronze-1".into()),
+                    versao: Some(id_bronze.into()),
                     manifesto: chave_manifesto,
                     iniciada_em: Some(instante),
                 })
@@ -1481,6 +1491,70 @@ mod testes {
             bronze.leituras_de_partes.load(Ordering::Relaxed),
             leituras_antes
         );
+    }
+
+    #[tokio::test]
+    async fn tarefa_sql_reconcilia_novo_snapshot_sem_alterar_bronze() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot_v1 = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let tarefa_v1 = nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot_v1), REGRA, SQL);
+        tarefa_v1
+            .executar(&contexto(Arc::clone(&silver), "silver-v1"))
+            .await
+            .unwrap();
+
+        let snapshot_v2 = Arc::new(
+            preparar_snapshot_com_versao(
+                &bronze,
+                "bronze-2",
+                vec![
+                    vec![("1", "11"), ("2", "20")],
+                    vec![("3", "30"), ("5", "50")],
+                ],
+            )
+            .await,
+        );
+        let ponteiro_bronze = bronze
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        let manifesto_bronze = snapshot_v2.manifesto().clone();
+        let tarefa_v2 = nova_tarefa(Arc::clone(&bronze), snapshot_v2, REGRA, SQL);
+
+        assert!(tarefa_v2.pendente(silver.as_ref()).await.unwrap());
+        let mut contexto_v2 = contexto(Arc::clone(&silver), "silver-v2");
+        contexto_v2.iniciada_em += chrono::Duration::seconds(1);
+        tarefa_v2.executar(&contexto_v2).await.unwrap();
+        assert!(!tarefa_v2.pendente(silver.as_ref()).await.unwrap());
+        assert_eq!(
+            bronze
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .unwrap(),
+            ponteiro_bronze
+        );
+
+        let ponteiro_silver = silver
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro_silver: UltimaVersao = serde_json::from_slice(&ponteiro_silver).unwrap();
+        assert_eq!(
+            ponteiro_silver.versao.as_deref(),
+            Some("bronze-2|regra=teste-v1")
+        );
+        let manifesto_silver = silver
+            .ler(&ponteiro_silver.manifesto)
+            .await
+            .unwrap()
+            .unwrap();
+        let manifesto_silver: ManifestoRaw = serde_json::from_slice(&manifesto_silver).unwrap();
+        assert_eq!(manifesto_silver.id_execucao, "silver-v2");
+        assert_eq!(manifesto_bronze.id_execucao, "bronze-2");
     }
 
     #[tokio::test]
