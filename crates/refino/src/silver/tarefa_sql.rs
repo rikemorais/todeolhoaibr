@@ -1400,6 +1400,14 @@ mod testes {
             .unwrap();
         assert_eq!(resumo.partes, 1);
         assert!(!tarefa.pendente(silver.as_ref()).await.unwrap());
+        let tarefa_com_regra_nova =
+            nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot), "teste-v2", SQL);
+        assert!(
+            tarefa_com_regra_nova
+                .pendente(silver.as_ref())
+                .await
+                .unwrap()
+        );
 
         let bytes_ponteiro = silver
             .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
