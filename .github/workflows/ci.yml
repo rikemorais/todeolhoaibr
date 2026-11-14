@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
+      cobertura: ${{ steps.filter.outputs.cobertura }}
       consulta: ${{ steps.filter.outputs.consulta }}
     steps:
       - name: Detecta os arquivos alterados
@@ -34,6 +35,7 @@ jobs:
         run: |
           if [[ "$EVENT_NAME" != "pull_request" ]]; then
             echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "cobertura=true" >> "$GITHUB_OUTPUT"
             echo "consulta=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -41,6 +43,7 @@ jobs:
           # A API limita a listagem de arquivos a 3.000; acima disso, valide tudo.
           if (( PR_CHANGED_FILES >= 3000 )); then
             echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "cobertura=true" >> "$GITHUB_OUTPUT"
             echo "consulta=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -51,15 +54,22 @@ jobs:
               --jq '.[].filename' > "$arquivos"; then
             echo "::warning::Não foi possível filtrar os arquivos; executando todas as verificações."
             echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "cobertura=true" >> "$GITHUB_OUTPUT"
             echo "consulta=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          entradas_rust='^(Cargo\.toml|Cargo\.lock|\.cargo/|crates/|rust-toolchain(\.toml)?$)'
           rust=false
-          if grep -Eq '^(Cargo\.toml|Cargo\.lock|\.cargo/|crates/|rust-toolchain(\.toml)?$|\.github/workflows/)' "$arquivos"; then
+          cobertura=false
+          if grep -Eq "$entradas_rust" "$arquivos"; then
+            rust=true
+            cobertura=true
+          elif grep -Eq '^\.github/workflows/' "$arquivos"; then
             rust=true
           fi
           echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          echo "cobertura=$cobertura" >> "$GITHUB_OUTPUT"
 
           consulta=false
           if grep -Eq '^(docker/consulta/|docker-compose.*\.yml$)' "$arquivos"; then
@@ -89,7 +99,7 @@ jobs:
   # regressões. cargo-llvm-cov publica o resumo por arquivo no log do job.
   cobertura:
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.rust == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.cobertura == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
