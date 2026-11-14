@@ -8,7 +8,8 @@ use std::sync::Arc;
 use crate::decodificador::Decodificador;
 use crate::fontes::{
     DecodificadorCotahist, DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
-    DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset, DecodificadorZipCsv,
+    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset,
+    DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -32,6 +33,13 @@ impl FonteDeRefino {
 /// Fontes do bronze disponíveis. Cresce conforme novos decodificadores entram.
 pub fn catalogo_refino() -> Vec<FonteDeRefino> {
     vec![
+        // O XLSX mensal tem blocos municipal e estadual lado a lado; publica só o bloco UF.
+        FonteDeRefino {
+            nome: "mapa_empresas",
+            fonte_raw: "mapa_empresas",
+            prefixo_recurso: "movimentacao/",
+            cria_decodificador: || Arc::new(DecodificadorMapaEmpresas),
+        },
         // CEAP da Câmara: ZIP com um CSV anual (`;`).
         FonteDeRefino {
             nome: "camara-despesas",

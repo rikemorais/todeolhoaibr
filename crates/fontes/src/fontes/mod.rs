@@ -4,6 +4,7 @@ pub mod bcb;
 pub mod camara;
 pub mod ibge;
 pub mod ipeadata;
+pub mod mapa_empresas;
 pub mod remuneracao_estadual_go;
 pub mod remuneracao_estadual_mg;
 pub mod senado;
