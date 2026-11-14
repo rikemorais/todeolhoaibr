@@ -5,7 +5,11 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
-## [0.89.0] - 2026-11-14
+## [0.90.0] - 2026-11-14
+
+### Adicionado
+
+- Fonte `mapa_empresas` com snapshots mensais do MEMP preservados na Raw e tabela Bronze agregada por UF, com filtro por período (issue #35).
 
 ### Melhorado
 
