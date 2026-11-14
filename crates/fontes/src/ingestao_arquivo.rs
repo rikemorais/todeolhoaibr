@@ -244,10 +244,11 @@ impl Tarefa for TarefaDeArquivo {
         // reaproveitada, então evitamos o HEAD na origem — custoso quando são centenas
         // de arquivos num host limitado a 5 req/s. A rodada real ainda faz a pré-checagem
         // condicional, então nada é baixado indevidamente.
-        if precisao == PrecisaoDaEstimativa::Rapida
-            && estado.as_ref().is_some_and(|e| e.completa && e.integra)
-        {
-            return Ok(Some(0));
+        if precisao == PrecisaoDaEstimativa::Rapida {
+            return Ok(match estado.as_ref() {
+                Some(e) if e.completa && e.integra => Some(0),
+                _ => None,
+            });
         }
         let informacoes = contexto.http.informacoes(&self.url).await?;
         match decidir(&informacoes, estado.as_ref()) {
@@ -1103,16 +1104,16 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn o_modo_rapido_nao_consulta_a_origem_quando_a_raw_esta_completa() {
+    async fn o_modo_rapido_nao_consulta_a_origem_e_reconhece_raw_completa() {
         let cenario = cenario(HttpFalso::novo(Some("v1")));
 
-        // Sem nada na Raw, mesmo o modo rápido precisa consultar a origem para saber o tamanho.
+        // Sem cópia íntegra, o menu não consulta a origem e deixa a estimativa desconhecida.
         let antes = tarefa()
             .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Rapida)
             .await
             .unwrap();
-        assert_eq!(antes, Some(CONTEUDO.len() as u64));
-        assert_eq!(*cenario.http.consultas.lock().unwrap(), 1);
+        assert_eq!(antes, None);
+        assert_eq!(*cenario.http.consultas.lock().unwrap(), 0);
 
         tarefa().executar(&cenario.contexto).await.unwrap();
         let consultas_ate_aqui = *cenario.http.consultas.lock().unwrap();
