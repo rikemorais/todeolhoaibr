@@ -43,8 +43,40 @@ pub(crate) async fn publicar_transformacao_sql(
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, None)
-        .await
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        None,
+        None,
+    )
+    .await
+}
+
+/// Executa SQL quando a fonte Bronze tem nome diferente da fonte Silver publicada.
+pub(crate) async fn publicar_transformacao_sql_com_fonte_bronze(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    fonte_bronze: &str,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        None,
+        Some(fonte_bronze),
+    )
+    .await
 }
 
 /// Executa um contrato SQL preservando também os campos dinâmicos da linha Bronze em JSON.
@@ -64,6 +96,7 @@ pub(crate) async fn publicar_transformacao_sql_com_json_original(
         sql,
         executor,
         Some(true),
+        None,
     )
     .await
 }
@@ -85,6 +118,7 @@ pub(crate) async fn publicar_transformacao_sql_com_json_string_original(
         sql,
         executor,
         Some(false),
+        None,
     )
     .await
 }
@@ -97,6 +131,7 @@ async fn publicar_transformacao_sql_interno(
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
     json_original_aninhado: Option<bool>,
+    fonte_bronze: Option<&str>,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
     let ConfiguracaoDePublicacao {
         fonte,
@@ -108,7 +143,9 @@ async fn publicar_transformacao_sql_interno(
         id_execucao,
     } = configuracao;
     let recurso_destino = recurso_destino.unwrap_or(recurso);
-    if snapshot.manifesto().fonte != fonte || snapshot.manifesto().recurso != recurso {
+    if snapshot.manifesto().fonte != fonte_bronze.unwrap_or(fonte)
+        || snapshot.manifesto().recurso != recurso
+    {
         return Err(erro_manifesto(
             recurso,
             format!("snapshot não pertence ao recurso {fonte} solicitado"),
@@ -253,7 +290,7 @@ async fn publicar_transformacao_sql_interno(
 
     let guarda = bloquear_publicacao(fonte, recurso).await;
     if !snapshot
-        .ainda_vigente(bronze, fonte, recurso)
+        .ainda_vigente(bronze, fonte_bronze.unwrap_or(fonte), recurso)
         .await
         .map_err(|erro| erro_manifesto(recurso, erro))?
     {

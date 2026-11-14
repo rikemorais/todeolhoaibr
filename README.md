@@ -19,7 +19,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | Ingestão para a camada Raw | Disponível |
 | Painel de acompanhamento das execuções | Disponível |
 | Bronze | Disponível para as fontes do catálogo |
-| Silver | Em implementação; consulte [cobertura e limitações](docs/refino/silver.md) |
+| Silver | Contratos e operação por família; consulte [cobertura](docs/refino/silver.md) e o [runbook de operação](docs/refino/operacao-silver.md) |
 | Apresentação | A definir |
 
 ### Fontes de dados
@@ -61,6 +61,8 @@ Para gerar Silver manualmente, rode `docker compose run --rm refino refinar silv
 Votos por seção do TSE são processados explicitamente com `docker compose run --rm refino refinar silver tse-votacao-secao`; para limitar a passada, use `--filtro ano=2024 --filtro uf=AC,RO`. Essa fonte, que ocupa mais de 16 GB localmente, não participa de `silver --todas` nem da reconciliação automática.
 
 Para prestação de contas do TSE, `docker compose run --rm refino refinar silver tse-prestacao-contas` publica despesas e receitas de comitês de 2014, despesas e receitas de candidatos e partidos de 2016, além das quatro famílias (despesas contratadas, despesas pagas, receitas de candidatos e receitas de doador originário) de 2018, 2020, 2022 e 2024. As outras tabelas e eleições permanecem em Bronze.
+
+Também há contratos Silver para `undp`, `world-bank`, `ana`, `b3`, remuneração estadual de MG/GO, folhas municipais do TCE-CE e benefícios/servidores ativos da Transparência. Execute qualquer família com `docker compose run --rm refino refinar silver NOME`; a reconciliação pula recursos cuja versão Bronze e regra já estão publicadas. Os contratos de remuneração e Transparência ainda preservam o schema Bronze sem afirmar uma chave de negócio. Consulte o [runbook Silver](docs/refino/operacao-silver.md) para reprocessar, validar e recuperar uma publicação.
 
 > **Desenvolvimento local:** o `docker-compose.override.yml` não versionado seleciona o perfil Rust `dev`, com compilação incremental. O Dockerfile usa cache persistente do BuildKit para dependências e artefatos do Cargo. A primeira compilação ainda compila todas as dependências; a meta de até 30 segundos se aplica aos builds incrementais e depende do tamanho da mudança e dos recursos disponíveis. Após editar código ou fazer `git pull`, use `docker compose run --rm --build ingestao`; sem mudanças, rode `docker compose run --rm ingestao` para reutilizar a imagem existente. O BuildKit vem habilitado por padrão nas versões atuais do Docker.
 

@@ -4,7 +4,10 @@
 //! preâmbulo antes do cabeçalho) e para as votações da Câmara (UTF-8 com BOM). O bronze só
 //! reencoda para UTF-8 e põe em colunas — a interpretação dos campos é do silver.
 
-use crate::csv_zip::{partes_de_csv, partes_de_csv_em_fluxo};
+use crate::csv_zip::{
+    partes_de_csv, partes_de_csv_em_fluxo, partes_de_csv_windows1252,
+    partes_de_csv_windows1252_em_fluxo,
+};
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::ErroDeRefino;
 
@@ -16,6 +19,7 @@ pub struct DecodificadorCsv {
     nome: &'static str,
     separador: u8,
     linhas_a_pular: usize,
+    windows1252: bool,
 }
 
 impl DecodificadorCsv {
@@ -25,6 +29,21 @@ impl DecodificadorCsv {
             nome,
             separador,
             linhas_a_pular,
+            windows1252: false,
+        }
+    }
+
+    /// Cria um decodificador para uma fonte cujo CSV é declarado Windows-1252.
+    pub const fn novo_windows1252(
+        nome: &'static str,
+        separador: u8,
+        linhas_a_pular: usize,
+    ) -> Self {
+        Self {
+            nome,
+            separador,
+            linhas_a_pular,
+            windows1252: true,
         }
     }
 }
@@ -35,7 +54,11 @@ impl Decodificador for DecodificadorCsv {
         bytes: &[u8],
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        partes_de_csv(bytes, self.nome, self.separador, self.linhas_a_pular)
+        if self.windows1252 {
+            partes_de_csv_windows1252(bytes, self.nome, self.separador, self.linhas_a_pular)
+        } else {
+            partes_de_csv(bytes, self.nome, self.separador, self.linhas_a_pular)
+        }
     }
 
     fn decodificar_arquivo(
@@ -44,7 +67,16 @@ impl Decodificador for DecodificadorCsv {
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
         let arquivo = std::fs::File::open(caminho)?;
-        partes_de_csv_em_fluxo(arquivo, self.nome, self.separador, self.linhas_a_pular)
+        if self.windows1252 {
+            partes_de_csv_windows1252_em_fluxo(
+                arquivo,
+                self.nome,
+                self.separador,
+                self.linhas_a_pular,
+            )
+        } else {
+            partes_de_csv_em_fluxo(arquivo, self.nome, self.separador, self.linhas_a_pular)
+        }
     }
 }
 
@@ -82,5 +114,18 @@ mod testes {
         let (colunas, linhas) = ler_parte(&partes[0]);
         assert_eq!(colunas, vec!["idVotacao", "orientacao"]);
         assert_eq!(linhas, vec![vec![c("1"), c("Sim")]]);
+    }
+
+    #[test]
+    fn decodifica_windows1252_mesmo_com_prefixo_ascii() {
+        let csv = b"pais;valor\n";
+        let mut bytes = csv.to_vec();
+        bytes.extend_from_slice(b"Sao Paulo;1\nCaf\xe9;2\n");
+        let partes = DecodificadorCsv::novo_windows1252("dados", b';', 0)
+            .decodificar(&bytes, "text/csv")
+            .unwrap();
+        let (colunas, linhas) = ler_parte(&partes[0]);
+        assert_eq!(colunas, ["pais", "valor"]);
+        assert_eq!(linhas[1], vec![c("Café"), c("2")]);
     }
 }

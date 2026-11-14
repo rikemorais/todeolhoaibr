@@ -1,0 +1,35 @@
+-- Contrato ana.estacao.v1.
+-- Estações hidrológicas do SNIRH/ANA (fluviométricas e pluviométricas).
+-- Os nomes das colunas são os elementos XML do ServiceANA/HidroInventario.
+SELECT
+    CAST(NULLIF(TRIM("Codigo"), '') AS BIGINT) AS codigo_estacao,
+    NULLIF(TRIM("Nome"), '') AS nome_estacao,
+    CAST(NULLIF(TRIM("TipoEstacao"), '') AS INT) AS tipo_estacao,
+    NULLIF(TRIM("Descricao"), '') AS descricao,
+    CAST(NULLIF(TRIM("BaciaCodigo"), '') AS INT) AS codigo_bacia,
+    CAST(NULL AS VARCHAR) AS nome_bacia,
+    CAST(NULLIF(TRIM("SubBaciaCodigo"), '') AS INT) AS codigo_sub_bacia,
+    CAST(NULL AS VARCHAR) AS nome_sub_bacia,
+    CAST(NULLIF(TRIM("RioCodigo"), '') AS INT) AS codigo_rio,
+    NULLIF(TRIM("RioNome"), '') AS nome_rio,
+    CAST(NULLIF(TRIM("EstadoCodigo"), '') AS INT) AS codigo_estado,
+    NULLIF(TRIM("nmEstado"), '') AS nome_estado,
+    CAST(NULLIF(TRIM("MunicipioCodigo"), '') AS INT) AS codigo_municipio,
+    NULLIF(TRIM("nmMunicipio"), '') AS nome_municipio,
+    CAST(NULLIF(TRIM("ResponsavelCodigo"), '') AS INT) AS codigo_responsavel,
+    NULLIF(TRIM("ResponsavelSigla"), '') AS responsavel_sigla,
+    NULLIF(TRIM("ResponsavelUnidade"), '') AS responsavel_unidade,
+    NULLIF(TRIM("ResponsavelJurisdicao"), '') AS responsavel_jurisdicao,
+    CAST(NULLIF(TRIM("OperadoraCodigo"), '') AS INT) AS codigo_operadora,
+    NULLIF(TRIM("OperadoraSigla"), '') AS operadora_sigla,
+    NULLIF(TRIM("OperadoraUnidade"), '') AS operadora_unidade,
+    NULLIF(TRIM("OperadoraSubUnidade"), '') AS operadora_sub_unidade,
+    TRY_CAST(NULLIF(TRIM("Latitude"), '') AS DOUBLE) AS latitude,
+    TRY_CAST(NULLIF(TRIM("Longitude"), '') AS DOUBLE) AS longitude,
+    TRY_CAST(NULLIF(TRIM("Altitude"), '') AS DOUBLE) AS altitude,
+    TRY_CAST(NULLIF(TRIM("AreaDrenagem"), '') AS DOUBLE) AS area_drenagem,
+    CAST(NULLIF(TRIM("Operando"), '') AS INT) AS operando,
+    _tdoa_origem_manifesto,
+    _tdoa_origem_parte,
+    _tdoa_origem_ordinal
+FROM bronze

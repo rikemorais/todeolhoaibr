@@ -64,6 +64,16 @@ fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
     }
 }
 
+/// Cria um leitor que decodifica explicitamente Windows-1252, sem depender de amostra.
+fn leitor_windows1252<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
+    LeitorAutoEncoding::Latin1(
+        encoding_rs_io::DecodeReaderBytesBuilder::new()
+            .encoding(Some(encoding_rs::WINDOWS_1252))
+            .strip_bom(true)
+            .build(BufReader::new(fonte)),
+    )
+}
+
 /// Descarta uma linha do `BufRead` usando apenas o buffer interno (sem alocar a linha
 /// descartada em memória), resistindo a preâmbulos arbitrariamente longos.
 fn descartar_uma_linha(leitor: &mut impl BufRead) -> std::io::Result<()> {
@@ -283,6 +293,18 @@ pub fn partes_de_csv(
     Ok(vec![ParteBronze::nova(nome, &parquet)?])
 }
 
+/// Decodifica um CSV solto cuja origem declara Windows-1252, em memória.
+pub fn partes_de_csv_windows1252(
+    bytes: &[u8],
+    nome: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    let texto = encoding_rs::WINDOWS_1252.decode(bytes).0.into_owned();
+    let parquet = parquet_de_csv(&texto, delimitador, linhas_a_pular, false)?;
+    Ok(vec![ParteBronze::nova(nome, &parquet)?])
+}
+
 /// Como [`partes_de_csv`], mas lê o CSV **em fluxo** a partir de um `Read`, transcodificando
 /// encoding e gravando Parquet em disco sem materializar o CSV inteiro em memória.
 pub fn partes_de_csv_em_fluxo<R: Read>(
@@ -292,6 +314,26 @@ pub fn partes_de_csv_em_fluxo<R: Read>(
     linhas_a_pular: usize,
 ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
     let leitor = leitor_auto_encoding(fonte);
+    partes_de_csv_com_leitor(leitor, nome, delimitador, linhas_a_pular)
+}
+
+/// Decodifica um CSV solto Windows-1252 em fluxo para uma parte Parquet temporária.
+pub fn partes_de_csv_windows1252_em_fluxo<R: Read>(
+    fonte: R,
+    nome: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    let leitor = leitor_windows1252(fonte);
+    partes_de_csv_com_leitor(leitor, nome, delimitador, linhas_a_pular)
+}
+
+fn partes_de_csv_com_leitor(
+    leitor: impl Read,
+    nome: &str,
+    delimitador: u8,
+    linhas_a_pular: usize,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
     let mut leitor_buf = BufReader::new(leitor);
     for _ in 0..linhas_a_pular {
         descartar_uma_linha(&mut leitor_buf)?;
