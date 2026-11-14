@@ -57,6 +57,11 @@ pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
 #[cfg(test)]
 pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
 pub use silver::publicar_bcb_sgs;
+pub use silver::publicar_remuneracao_estadual_go;
+pub use silver::publicar_remuneracao_estadual_mg;
+pub use silver::publicar_remuneracao_municipal_tce_ce;
+pub use silver::publicar_transparencia_beneficios;
+pub use silver::publicar_transparencia_servidores_ativos;
 pub use silver::senado_despesas::esquema_senado_despesas;
 #[cfg(test)]
 pub use silver::senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
@@ -174,6 +179,8 @@ pub use silver::tse_receitas_doador_originario_2022::esquema_tse_receitas_doador
 pub use silver::tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
 pub use silver::tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
+pub use silver::{TarefaDeSilverAna, publicar_ana};
+pub use silver::{TarefaDeSilverB3, publicar_b3};
 pub use silver::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
 pub use silver::{TarefaDeSilverCamaraDespesas, publicar_camara_despesas};
 pub use silver::{TarefaDeSilverCamaraLegislaturas, publicar_camara_legislaturas};
@@ -197,5 +204,7 @@ pub use silver::{TarefaDeSilverTseDespesasPagas2018, publicar_tse_despesas_pagas
 pub use silver::{TarefaDeSilverTseDespesasPagas2020, publicar_tse_despesas_pagas_2020};
 pub use silver::{TarefaDeSilverTseDespesasPagas2022, publicar_tse_despesas_pagas_2022};
 pub use silver::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
+pub use silver::{TarefaDeSilverUndp, publicar_undp};
+pub use silver::{TarefaDeSilverWorldBank, publicar_world_bank};
 pub use snapshot_bronze::{ErroDeSnapshotBronze, ParteBronzeBaixada, SnapshotBronze};
 pub use tarefa::TarefaDeBronze;

@@ -1,6 +1,6 @@
 # Camada silver — contrato inicial
 
-**Estado:** migração SQL/DataFusion concluída — todas as 29 consultas SQL estão ativas e as transformações Arrow manuais vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais o código de transformação Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+**Estado:** as 63 consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 
 Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket `silver`. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são **candidatas**: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.
 
@@ -18,7 +18,7 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ```
 crates/refino/
-├── sql/silver/              # 29 consultas SQL versionadas
+├── sql/silver/              # 63 consultas SQL versionadas
 │   ├── bcb_sgs.sql
 │   ├── camara_deputados.sql
 │   ├── ...
@@ -96,7 +96,7 @@ Incrementar a versão força reprocessamento de todos os recursos da família. F
 
 ### Fixtures e testes
 
-Os 24 contratos são cobertos por testes em `crates/refino/src/silver/tarefa_sql.rs` e nos respectivos `tarefa_*.rs`. Os testes usam fixtures Parquet em memória com `ArmazenamentoEmMemoria`:
+Os contratos migrados têm testes de executor, fixtures de paridade e testes de borda em `crates/refino/src/silver/tarefa_sql.rs` e nos respectivos `tarefa_*.rs`. Os testes usam fixtures Parquet em memória com `ArmazenamentoEmMemoria`:
 
 1. **Fixtures de paridade**: comparam a saída SQL com a saída da transformação Arrow manual (`#[cfg(test)]`). Garantem que a migração não alterou os dados publicados.
 2. **Fixtures de borda**: testam datas inválidas, decimais fora de escala, sentinelas, JSON nulo, chaves duplicadas, arrays vazios e colunas ausentes.
@@ -155,7 +155,7 @@ O código Rust dos adaptadores (`tarefa_*.rs`) contém apenas:
 
 As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) são funções genéricas do executor, não transformações por contrato.
 
-### Inventário dos 25 contratos SQL
+### Inventário dos 25 contratos SQL centrais
 
 | # | Arquivo SQL | Adaptador Rust | Regra | Família |
 | --- | --- | --- | --- | --- |
@@ -191,44 +191,52 @@ O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) gar
 
 As quatro famílias Silver já existentes do TSE usam SQL versionado executado pelo publicador comum: candidaturas, bens, votação por seção e despesas pagas. O executor expande placeholders de campos opcionais e aliases são combinados explicitamente nas consultas, preservando layouts históricos. Os parâmetros anuais vêm de recursos validados; a votação por seção aceita somente ano de quatro dígitos e UF de duas letras maiúsculas. A origem integral continua em `registro_original`; as três referências Bronze são projetadas na saída e exigidas pelo publicador. A votação por seção permanece fora de `silver --todas` por seu volume local de 16,4 GB. As regras v2 provocam uma reconciliação dos Parquets publicados com Arrow.
 
-## Cobertura planejada do catálogo bronze
+## Cobertura do catálogo Bronze
 
-O [catálogo](../../crates/refino/src/catalogo.rs) tem 26 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada uma precisará de contrato próprio. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
+O [catálogo](../../crates/refino/src/catalogo.rs) tem 35 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada relação interna precisa de contrato próprio ou de exclusão com justificativa explícita. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
 
 A [especificação de contratos da fase 0](contratos-silver-fase0.md) detalha tipos,
 nulos, normalização, deduplicação e tabelas internas para cada família. Esta
 matriz resume o grão e a evidência de chave; “candidata” não autoriza descartar
 linhas nem ativar uma relação sem validação do recorte.
 
-| Entrada bronze | Família | Grão candidato da silver | Chave candidata / validação necessária |
-| --- | --- | --- | --- |
-| `camara-despesas` | Legislativo | lançamento CEAP | `ideDocumento` é candidato, mas não único; preservar todas as linhas até definir chave |
-| `camara-votacoes` | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes`; chaves de 2024 abaixo |
-| `camara-tramitacoes` | Legislativo | evento de tramitação | não há chave de negócio única comprovada; preservar repetições e usar proveniência do recurso/snapshot |
-| `camara-deputados` | Legislativo | deputado em exercício na versão Bronze vigente | `id` oficial (513/513 distintos na amostra local; cada versão é uma fotografia) |
-| `camara-partidos` | Legislativo | partido no cadastro observado | `id` oficial (21/21 distintos na amostra local; não prova unicidade histórica) |
-| `camara-legislaturas` | Legislativo | período de atividade parlamentar | `id` sequencial (57/57 distintos na amostra local) |
-| `senado-despesas` | Legislativo | lançamento CEAPS | `COD_DOCUMENTO` candidato, único quando presente na amostra; preservar linhas sem código |
-| `senado-votacoes` | Legislativo | uma sessão de votação nominal | `codigoSessaoVotacao` (3.652/3.652 distintos no recorte local consultado); sessão conserva JSON original, e votos são publicados também em tabela filha com ponteiro próprio |
-| `senado-parlamentares` | Legislativo | parlamentar em legislatura | `IdentificacaoParlamentar.CodigoParlamentar` e `legislatura` no bronze local |
-| `senado-processos` | Legislativo | um processo na listagem anual | `id` textual único no recurso; `ano` UInt16 do caminho |
-| `senado-processos-detalhes` | Legislativo | um detalhe por processo em cada recurso anual | `id` textual; `ano` UInt16; demais campos preservados em `processo_original` |
-| `tse-candidaturas` | Eleitoral | candidatura por eleição | ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; [validação histórica abaixo](#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05) |
-| `tse-bens` | Eleitoral | bem declarado | ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano |
-| `tse-prestacao-contas` | Eleitoral | lançamento por tabela interna | contrato por conjunto e ano; sequências de 2024 colidem no consolidado, conforme [validação abaixo](#prestacao-de-contas-do-tse-em-2024); sondas de chaves para as seis famílias de 2014 e as duas famílias partidárias de 2016 não encontraram chave completa e única; ver [medições e inventário 2014–2022](pesquisa-tse-2014-2022.md), [fontes oficiais 2016–2022](pesquisa-tse-2016-2022.md) e [pesquisa sobre `_sup`](pesquisa-tse-2014-sup.md) |
-| `tse-votacao-secao` | Eleitoral | voto agregado por seção e votável | ano, eleição, UF, turno, município, zona, seção, cargo e votável; [recortes validados abaixo](#votacao-por-secao-do-tse-no-bronze-local-2026-11-05) |
-| `bcb` | Série | observação SGS | série (do recurso) e `data`; `valor` decimal; data no formato `DD/MM/AAAA` no fixture |
-| `ipeadata` | Série | observação OData | `SERCODIGO`, `TERCODIGO` e `VALDATA` candidatos; `NIVNOME` distingue Brasil, estados, municípios e regiões |
-| `ibge-estados` | Território | UF | código IBGE e vigência |
-| `ibge-regioes` | Território | região | código IBGE e vigência |
-| `ibge-municipios` | Território | município | código IBGE e vigência |
-| `ibge-ipca` | Agregado IBGE | variável × localidade × período | variável, classificações, nível, localidade e período; validar classificações |
-| `ibge-inpc` | Agregado IBGE | variável × localidade × período | idem |
-| `ibge-pib-municipios` | Agregado IBGE | variável × localidade × período | idem; município somente se nível N6 |
-| `ibge-pib-trimestral` | Agregado IBGE | variável × localidade × período | idem |
-| `ibge-pnad-desocupacao` | Agregado IBGE | variável × localidade × período | idem |
-| `ibge-populacao-municipios` | Agregado IBGE | variável × localidade × período | idem; município somente se nível N6 |
-
+| Entrada bronze | Estado | Família | Grão candidato da silver | Chave candidata / validação necessária |
+| --- | --- | --- | --- | --- |
+| `camara-despesas` | Silver ativo | Legislativo | lançamento CEAP | `ideDocumento` é candidato, mas não único; preservar todas as linhas até definir chave |
+| `camara-votacoes` | Silver ativo | Legislativo | registro de um dos sete conjuntos anuais | contrato separado para `proposicoes`, `proposicoesAutores`, `votacoes`, `votacoesVotos`, `votacoesObjetos`, `votacoesProposicoes` e `votacoesOrientacoes`; chaves de 2024 abaixo |
+| `camara-tramitacoes` | Silver ativo | Legislativo | evento de tramitação | não há chave de negócio única comprovada; preservar repetições e usar proveniência do recurso/snapshot |
+| `camara-deputados` | Silver ativo | Legislativo | deputado em exercício na versão Bronze vigente | `id` oficial (513/513 distintos na amostra local; cada versão é uma fotografia) |
+| `camara-partidos` | Silver ativo | Legislativo | partido no cadastro observado | `id` oficial (21/21 distintos na amostra local; não prova unicidade histórica) |
+| `camara-legislaturas` | Silver ativo | Legislativo | período de atividade parlamentar | `id` sequencial (57/57 distintos na amostra local) |
+| `senado-despesas` | Silver ativo | Legislativo | lançamento CEAPS | `COD_DOCUMENTO` candidato, único quando presente na amostra; preservar linhas sem código |
+| `senado-votacoes` | Silver ativo | Legislativo | uma sessão de votação nominal | `codigoSessaoVotacao` (3.652/3.652 distintos no recorte local consultado); sessão conserva JSON original, e votos são publicados também em tabela filha com ponteiro próprio |
+| `senado-parlamentares` | Silver ativo | Legislativo | parlamentar em legislatura | `IdentificacaoParlamentar.CodigoParlamentar` e `legislatura` no bronze local |
+| `senado-processos` | Silver ativo | Legislativo | um processo na listagem anual | `id` textual único no recurso; `ano` UInt16 do caminho |
+| `senado-processos-detalhes` | Silver ativo | Legislativo | um detalhe por processo em cada recurso anual | `id` textual; `ano` UInt16; demais campos preservados em `processo_original` |
+| `tse-candidaturas` | Silver ativo | Eleitoral | candidatura por eleição | ano, eleição, UF, unidade eleitoral, cargo, número e sequência do candidato; [validação histórica abaixo](#candidaturas-e-bens-do-tse-no-bronze-local-2026-11-05) |
+| `tse-bens` | Silver ativo | Eleitoral | bem declarado | ano, eleição, UF, unidade eleitoral, sequência do candidato e ordem do bem; alias da ordem muda por ano |
+| `tse-prestacao-contas` | Parcial: subconjuntos sem chave validada ficam em Bronze, sem deduplicação | Eleitoral | lançamento por tabela interna | contrato por conjunto e ano; sequências de 2024 colidem no consolidado, conforme [validação abaixo](#prestacao-de-contas-do-tse-em-2024); sondas de chaves para as seis famílias de 2014 e as duas famílias partidárias de 2016 não encontraram chave completa e única; ver [medições e inventário 2014–2022](pesquisa-tse-2014-2022.md), [fontes oficiais 2016–2022](pesquisa-tse-2016-2022.md) e [pesquisa sobre `_sup`](pesquisa-tse-2014-sup.md) |
+| `tse-votacao-secao` | Silver ativo | Eleitoral | voto agregado por seção e votável | ano, eleição, UF, turno, município, zona, seção, cargo e votável; [recortes validados abaixo](#votacao-por-secao-do-tse-no-bronze-local-2026-11-05) |
+| `undp` | Silver ativo | Índices de desenvolvimento | país × edição do relatório | `iso3` e edição; CSV Windows-1252, colunas do relatório corrente, regra v1 |
+| `remuneracao-estadual-mg` | Silver ativo | Remuneração estadual | servidor × competência no recurso MG | passthrough com linhagem; schema herdado do Bronze até validação de domínio |
+| `remuneracao-estadual-go` | Silver ativo | Remuneração estadual | servidor × competência no recurso GO | passthrough com linhagem; schema herdado do Bronze até validação de domínio |
+| `world-bank` | Silver ativo | Indicador econômico | país × indicador × ano | `codigo_pais`, `codigo_indicador`, `ano`; valor decimal e status preservados |
+| `remuneracao-municipal-tce-ce` | Silver ativo | Remuneração municipal | registro de folha por recurso TCE-CE | passthrough com linhagem; schema herdado do Bronze até validação de domínio |
+| `transparencia-beneficios` | Silver ativo | Benefícios federais | benefício por registro/página | passthrough com linhagem; schema herdado do Bronze, sem deduplicação entre páginas |
+| `transparencia-servidores-ativos` | Silver ativo | Servidores federais | servidor por linha do CSV | passthrough com linhagem; schema herdado do Bronze, identificadores não são chave validada |
+| `ana` | Silver ativo | Recursos hídricos | estação × recurso (fluviométrico ou pluviométrico) | `codigo_estacao` é candidata; validação de unicidade ainda limitada ao recurso |
+| `b3` | Silver ativo | Mercado financeiro | ativo × pregão × mercado | candidata composta por data, ticker, BDI e mercado; conservar repetições até validação |
+| `bcb` | Silver ativo | Série | observação SGS | série (do recurso) e `data`; `valor` decimal; data no formato `DD/MM/AAAA` no fixture |
+| `ipeadata` | Silver ativo | Série | observação OData | `SERCODIGO`, `TERCODIGO` e `VALDATA` candidatos; `NIVNOME` distingue Brasil, estados, municípios e regiões |
+| `ibge-estados` | Silver ativo | Território | UF | código IBGE e vigência |
+| `ibge-regioes` | Silver ativo | Território | região | código IBGE e vigência |
+| `ibge-municipios` | Silver ativo | Território | município | código IBGE e vigência |
+| `ibge-ipca` | Silver ativo | Agregado IBGE | variável × localidade × período | variável, classificações, nível, localidade e período; validar classificações |
+| `ibge-inpc` | Silver ativo | Agregado IBGE | variável × localidade × período | idem |
+| `ibge-pib-municipios` | Silver ativo | Agregado IBGE | variável × localidade × período | idem; município somente se nível N6 |
+| `ibge-pib-trimestral` | Silver ativo | Agregado IBGE | variável × localidade × período | idem |
+| `ibge-pnad-desocupacao` | Silver ativo | Agregado IBGE | variável × localidade × período | idem |
+| `ibge-populacao-municipios` | Silver ativo | Agregado IBGE | variável × localidade × período | idem; município somente se nível N6 |
 ## Contrato mínimo por tabela
 
 1. Nome estável, tabela bronze de origem, grão e chave de negócio, incluindo escopo temporal.
@@ -321,6 +329,10 @@ que estiver pendente.
 O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigentes e dos manifestos correspondentes. As views Silver incluem apenas Parquets publicados pela Silver; execuções antigas permanecem fora do glob.
 
 ## Evidência disponível no repositório
+
+Os nove contratos acima ampliam o inventário do catálogo de 26 para 35 entradas. Os cinco contratos com schema inferido (remuneração MG/GO, TCE-CE e Portal da Transparência) são uma etapa operacional de passthrough: preservam colunas e linhagem, mas não afirmam ainda uma chave de negócio nem normalização semântica. Não os usar como dimensões/fatos conformados até que a inspeção dos dados reais fixe esses contratos. Os quatro contratos tipados (World Bank, UNDP, ANA e B3) declaram colunas no SQL e schemas Arrow e validam chaves conforme o próprio SQL; a unicidade de domínio continua condicionada à execução nos snapshots locais.
+
+O catálogo completo está acima. A prestação de contas do TSE é a única família que deliberadamente mantém tabelas internas sem contrato nesta fase: os contratos ativos e os anos atendidos estão enumerados na seção de prestação de contas; os demais conjuntos/anos permanecem Bronze, pois sondagens documentadas não encontraram uma chave composta única e não há política de deduplicação aprovada. Essa exclusão preserva todas as linhas e sua linhagem no Bronze. As tabelas internas de ZIPs de outras famílias são descritas junto ao respectivo contrato; ausência de uma relação publicada deve ser tratada como limitação explícita, não como dado descartado.
 
 ### Despesas da Câmara (CEAP)
 
@@ -590,6 +602,6 @@ O leiaute oficial descreve `proposicoesAutores` como uma relação em que uma pr
 
 As evidências do código e das amostras locais ainda não cobrem todos os anos, partes e tabelas internas. Portanto as chaves e políticas de deduplicação da matriz continuam candidatas.
 
-## Próxima validação da fase 0
+## Limites remanescentes
 
-Conferir amostras das 26 entradas do catálogo e todas as tabelas internas dos ZIPs, incluindo anos antigos e recentes; fixar chaves e schemas somente depois dessa conferência. A fase 1 (#186) implementa o mecanismo; as fases 2–4 (#187–#189) entregam os contratos específicos.
+O smoke do repositório cobre famílias e recortes diferentes, mas não substitui a validação de todas as versões históricas dos 35 itens nem de cada tabela interna de cada ZIP. As chaves continuam candidatas onde a matriz diz isso. Em particular, remunerações e Transparência permanecem passthrough com schema inferido; as fontes internas TSE sem chave estão explicitamente mantidas em Bronze. Não deduplicar nem declarar contrato tipado completo nesses casos antes de validar leiautes e chaves com amostras antigas e recentes.
