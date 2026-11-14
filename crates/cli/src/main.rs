@@ -26,14 +26,14 @@ use todeolho_nucleo::{
     TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{
-    FiltrosSqlEmendas, FonteDeRefino, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
-    TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
-    TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
-    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita,
-    TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
-    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
-    TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql, TarefaDeSilverTseBens,
-    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
+    FiltrosSqlEmendas, FonteDeRefino, SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO, SnapshotBronze,
+    TarefaDeBronze, TarefaDeSilverBcb, TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas,
+    TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
+    TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes, TarefaDeSilverIbge,
+    TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita, TarefaDeSilverIpeadata,
+    TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
+    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql,
+    TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
     TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasComites2014,
     TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
     TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
@@ -3112,7 +3112,7 @@ async fn refinar_emendas_cgu_silver(intervalo: Option<u64>, filtros: Vec<String>
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-cgu",
         "emendas-cgu-autoria-localidade-v1",
-        include_str!("../../refino/sql/silver/emendas_cgu.sql"),
+        SQL_EMENDAS_CGU,
         intervalo,
         &filtros,
     )
@@ -3127,7 +3127,7 @@ async fn refinar_emendas_tesouro_silver(
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-tesouro",
         "emendas-tesouro-pagamento-municipal-v1",
-        include_str!("../../refino/sql/silver/emendas_tesouro.sql"),
+        SQL_EMENDAS_TESOURO,
         intervalo,
         &filtros,
     )
