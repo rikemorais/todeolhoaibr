@@ -74,6 +74,15 @@ pub struct ConfiguracaoExecutorSql {
     pub tamanho_lote: usize,
 }
 
+/// Filtros tipados usados pelos contratos SQL de emendas.
+#[derive(Debug, Clone, Default)]
+pub struct FiltrosSqlEmendas {
+    /// Exercícios aceitos pelo filtro.
+    pub anos: Vec<String>,
+    /// Siglas de UF aceitas pelo filtro.
+    pub ufs: Vec<String>,
+}
+
 impl Default for ConfiguracaoExecutorSql {
     fn default() -> Self {
         Self {
@@ -439,6 +448,17 @@ pub async fn executar_sql(
     sql: &str,
     configuracao: &ConfiguracaoExecutorSql,
 ) -> Result<SendableRecordBatchStream, ErroExecutorSql> {
+    executar_sql_com_filtros(diretorio_bronze, diretorio_spill, sql, configuracao, None).await
+}
+
+/// Executa SQL com filtros tipados para os contratos Silver de emendas.
+pub async fn executar_sql_com_filtros(
+    diretorio_bronze: &Path,
+    diretorio_spill: &Path,
+    sql: &str,
+    configuracao: &ConfiguracaoExecutorSql,
+    filtros_emendas: Option<&FiltrosSqlEmendas>,
+) -> Result<SendableRecordBatchStream, ErroExecutorSql> {
     if configuracao.limite_memoria_bytes == 0
         || configuracao.limite_spill_bytes == 0
         || configuracao.particoes == 0
@@ -494,6 +514,14 @@ pub async fn executar_sql(
         Volatility::Immutable,
         Arc::new(json_expand_votos),
     ));
+    let filtros = filtros_emendas.cloned().unwrap_or_default();
+    contexto.register_udf(create_udf(
+        "tdoa_emendas_corresponde_filtro",
+        vec![DataType::Utf8, DataType::Utf8],
+        DataType::Boolean,
+        Volatility::Immutable,
+        Arc::new(move |argumentos| filtrar_emendas(argumentos, &filtros)),
+    ));
     contexto
         .register_parquet(
             "bronze",
@@ -503,6 +531,40 @@ pub async fn executar_sql(
         .await?;
     let dataframe = contexto.sql(sql).await?;
     Ok(dataframe.execute_stream().await?)
+}
+
+fn filtrar_emendas(
+    argumentos: &[ColumnarValue],
+    filtros: &FiltrosSqlEmendas,
+) -> datafusion::common::Result<ColumnarValue> {
+    let quantidade = argumentos
+        .iter()
+        .filter_map(|valor| match valor {
+            ColumnarValue::Array(array) => Some(array.len()),
+            ColumnarValue::Scalar(_) => None,
+        })
+        .max()
+        .unwrap_or(1);
+    let valores = argumentos
+        .iter()
+        .map(|valor| valor.clone().into_array(quantidade))
+        .collect::<datafusion::common::Result<Vec<_>>>()?;
+    let [anos, ufs] = valores.as_slice() else {
+        return Err(DataFusionError::Execution(
+            "tdoa_emendas_corresponde_filtro requer ano e UF".into(),
+        ));
+    };
+    let anos = anos.as_string::<i32>();
+    let ufs = ufs.as_string::<i32>();
+    let mut resultado = BooleanArray::builder(quantidade);
+    for indice in 0..quantidade {
+        let ano_ok = filtros.anos.is_empty()
+            || (!anos.is_null(indice) && filtros.anos.iter().any(|ano| ano == anos.value(indice)));
+        let uf_ok = filtros.ufs.is_empty()
+            || (!ufs.is_null(indice) && filtros.ufs.iter().any(|uf| uf == ufs.value(indice)));
+        resultado.append_value(ano_ok && uf_ok);
+    }
+    Ok(ColumnarValue::Array(Arc::new(resultado.finish())))
 }
 
 /// Extrai uma chave JSON e devolve escalares como texto ou objetos como JSON compacto.

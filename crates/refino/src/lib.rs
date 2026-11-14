@@ -29,6 +29,7 @@ pub mod tarefa;
 pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
+pub use executor_sql::FiltrosSqlEmendas;
 pub use fontes::{
     DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,

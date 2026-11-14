@@ -89,6 +89,20 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             cria_decodificador: || Arc::new(DecodificadorCsv::novo("votacoes", b';', 0)),
         },
         // --- JSON de API: array de registros (no topo, ou sob uma chave) ---
+        // Emendas CGU: respostas anuais paginadas, array de objetos no topo.
+        FonteDeRefino {
+            nome: "emendas-cgu",
+            fonte_raw: "emendas",
+            prefixo_recurso: "cgu/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("emendas-cgu")),
+        },
+        // Repasses do Tesouro: CSV histórico integral, Latin-1/Windows-1252 e `;`.
+        FonteDeRefino {
+            nome: "emendas-tesouro",
+            fonte_raw: "emendas",
+            prefixo_recurso: "repasses/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("emendas-tesouro", b';', 0)),
+        },
         // BCB (SGS): array no topo [{data, valor}].
         FonteDeRefino {
             nome: "bcb",
@@ -363,6 +377,8 @@ mod testes {
             ),
             ("ana", "ana", "estacoes-"),
             ("b3", "b3", "cotahist/"),
+            ("emendas-cgu", "emendas", "cgu/"),
+            ("emendas-tesouro", "emendas", "repasses/"),
         ];
         for (nome, raw, prefixo) in casos {
             let fonte = catalogo
