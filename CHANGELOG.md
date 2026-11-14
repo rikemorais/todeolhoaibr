@@ -7,6 +7,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não lançado]
 
+### Melhorado
+
+- Console DuckDB lista perfis de qualidade das tabelas Silver vigentes, com linhas, nulos por coluna, linhagem e métricas de chaves candidatas (issue #190).
+
 ## [0.88.0] - 2026-11-14
 
 ### Adicionado
