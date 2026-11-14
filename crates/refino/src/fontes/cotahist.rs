@@ -5,12 +5,14 @@
 //! decimais implícitos (`(11)V99`, `(16)V99`, `(07)V06`) são convertidos
 //! para texto decimal ("12345" com V99 → "123.45").
 
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 
 use crate::decodificador::{Decodificador, ParteBronze};
-use crate::escritor::{ErroDeRefino, Tabela};
+use crate::escritor::{ErroDeRefino, EscritorParquet, Tabela};
+use tempfile::NamedTempFile;
 
 const TAMANHO_REGISTRO: usize = 245;
+const LINHAS_POR_LOTE: usize = 50_000;
 
 struct Campo {
     nome: &'static str,
@@ -222,9 +224,8 @@ fn extrair_txt_do_zip(bytes: &[u8]) -> Result<Vec<u8>, ErroDeRefino> {
             .map_err(|e| ErroDeRefino::Decodificacao(format!("entrada ZIP: {e}")))?;
         let nome = entrada
             .name()
-            .map_err(|e| ErroDeRefino::Decodificacao(format!("nome ZIP: {e}")))?
-            .to_lowercase();
-        if nome.ends_with(".txt") {
+            .map_err(|e| ErroDeRefino::Decodificacao(format!("nome ZIP: {e}")))?;
+        if membro_cotahist(&nome) {
             let mut conteudo = Vec::new();
             entrada
                 .read_to_end(&mut conteudo)
@@ -233,32 +234,7 @@ fn extrair_txt_do_zip(bytes: &[u8]) -> Result<Vec<u8>, ErroDeRefino> {
         }
     }
     Err(ErroDeRefino::Decodificacao(
-        "ZIP não contém arquivo .txt".into(),
-    ))
-}
-
-fn extrair_txt_do_zip_arquivo(caminho: &std::path::Path) -> Result<Vec<u8>, ErroDeRefino> {
-    let arquivo = std::fs::File::open(caminho)?;
-    let mut zip = zip::ZipArchive::new(arquivo)
-        .map_err(|e| ErroDeRefino::Decodificacao(format!("ZIP inválido: {e}")))?;
-    for i in 0..zip.len() {
-        let mut entrada = zip
-            .by_index(i)
-            .map_err(|e| ErroDeRefino::Decodificacao(format!("entrada ZIP: {e}")))?;
-        let nome = entrada
-            .name()
-            .map_err(|e| ErroDeRefino::Decodificacao(format!("nome ZIP: {e}")))?
-            .to_lowercase();
-        if nome.ends_with(".txt") {
-            let mut conteudo = Vec::new();
-            entrada
-                .read_to_end(&mut conteudo)
-                .map_err(|e| ErroDeRefino::Decodificacao(format!("leitura ZIP: {e}")))?;
-            return Ok(conteudo);
-        }
-    }
-    Err(ErroDeRefino::Decodificacao(
-        "ZIP não contém arquivo .txt".into(),
+        "ZIP não contém arquivo COTAHIST".into(),
     ))
 }
 
@@ -277,9 +253,80 @@ impl Decodificador for DecodificadorCotahist {
         caminho: &std::path::Path,
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        let txt = extrair_txt_do_zip_arquivo(caminho)?;
-        decodificar_cotahist(&txt)
+        let arquivo = std::fs::File::open(caminho)?;
+        let mut zip = zip::ZipArchive::new(arquivo)
+            .map_err(|e| ErroDeRefino::Decodificacao(format!("ZIP inválido: {e}")))?;
+        for i in 0..zip.len() {
+            let mut entrada = zip
+                .by_index(i)
+                .map_err(|e| ErroDeRefino::Decodificacao(format!("entrada ZIP: {e}")))?;
+            let nome = entrada
+                .name()
+                .map_err(|e| ErroDeRefino::Decodificacao(format!("nome ZIP: {e}")))?;
+            if membro_cotahist(&nome) {
+                return decodificar_cotahist_em_fluxo(&mut entrada);
+            }
+        }
+        Err(ErroDeRefino::Decodificacao(
+            "ZIP não contém arquivo COTAHIST".into(),
+        ))
     }
+}
+
+fn membro_cotahist(nome: &str) -> bool {
+    nome.rsplit('/')
+        .next()
+        .is_some_and(|nome| nome.to_ascii_lowercase().starts_with("cotahist"))
+}
+
+fn decodificar_cotahist_em_fluxo<R: Read>(fonte: R) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    let colunas: Vec<String> = CAMPOS
+        .iter()
+        .skip(1)
+        .map(|campo| campo.nome.to_string())
+        .collect();
+    let arquivo = NamedTempFile::new()?;
+    let mut escritor = EscritorParquet::novo_em(arquivo.reopen()?, &colunas)?;
+    let mut leitor = BufReader::new(fonte);
+    let mut linha = Vec::new();
+    let mut lote = Vec::with_capacity(LINHAS_POR_LOTE);
+    let mut contagem = 0u64;
+
+    loop {
+        linha.clear();
+        if leitor.read_until(b'\n', &mut linha)? == 0 {
+            break;
+        }
+        if linha.last() == Some(&b'\n') {
+            linha.pop();
+        }
+        let linha = linha.strip_suffix(b"\r").unwrap_or(&linha);
+        if linha.len() < TAMANHO_REGISTRO || !linha.starts_with(b"01") {
+            continue;
+        }
+        lote.push(
+            CAMPOS
+                .iter()
+                .skip(1)
+                .map(|campo| campo_texto(linha, campo))
+                .collect(),
+        );
+        contagem += 1;
+        if lote.len() >= LINHAS_POR_LOTE {
+            escritor.escrever_lote(&lote)?;
+            lote.clear();
+        }
+    }
+    escritor.escrever_lote(&lote)?;
+    escritor.fechar()?;
+
+    if contagem == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![ParteBronze::de_arquivo(
+        "cotahist",
+        arquivo.into_temp_path(),
+    )])
 }
 
 fn decodificar_cotahist(bytes: &[u8]) -> Result<Vec<ParteBronze>, ErroDeRefino> {
@@ -381,6 +428,44 @@ mod testes {
         assert_eq!(linhas[0][2], c("PETR4"));
         assert_eq!(linhas[0][8], c("38.50"));
         assert_eq!(linhas[0][9], c("39.50"));
+    }
+
+    #[test]
+    fn decodifica_nome_historico_cotahist_sem_extensao_txt() {
+        let mut registro = vec![b' '; TAMANHO_REGISTRO];
+        registro[..2].copy_from_slice(b"01");
+        registro[2..10].copy_from_slice(b"20240102");
+        registro[12..17].copy_from_slice(b"PETR4");
+        registro.push(b'\n');
+        let dados_zip = zip_com_txt("COTAHIST.A1998", &registro);
+
+        let partes = DecodificadorCotahist
+            .decodificar(&dados_zip, "application/zip")
+            .unwrap();
+
+        assert_eq!(partes.len(), 1);
+        assert_eq!(ler_parte(&partes[0]).1.len(), 1);
+    }
+
+    #[test]
+    fn decodifica_arquivo_cotahist_em_fluxo_para_disco() {
+        use std::io::Write;
+
+        let mut registro = vec![b' '; TAMANHO_REGISTRO];
+        registro[..2].copy_from_slice(b"01");
+        registro[2..10].copy_from_slice(b"20240102");
+        registro[12..17].copy_from_slice(b"PETR4");
+        registro.push(b'\n');
+        let zip = zip_com_txt("COTAHIST_A2024.TXT", &registro);
+        let mut arquivo = NamedTempFile::new().unwrap();
+        arquivo.write_all(&zip).unwrap();
+
+        let partes = DecodificadorCotahist
+            .decodificar_arquivo(arquivo.path(), "application/zip")
+            .unwrap();
+
+        assert_eq!(partes.len(), 1);
+        assert_eq!(ler_parte(&partes[0]).1.len(), 1);
     }
 
     #[test]

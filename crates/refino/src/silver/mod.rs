@@ -1,5 +1,7 @@
 //! Transformadores Silver por contrato de tabela.
 
+pub mod ana;
+pub mod b3;
 pub mod bcb;
 pub mod camara_deputados;
 pub mod camara_despesas;
@@ -18,6 +20,9 @@ pub mod ibge_renda_per_capita;
 /// Esquema Silver para as séries históricas do Ipeadata.
 pub mod ipeadata;
 mod publicacao;
+pub mod remuneracao_estadual_go;
+pub mod remuneracao_estadual_mg;
+pub mod remuneracao_municipal_tce_ce;
 pub mod senado_despesas;
 pub mod senado_parlamentares;
 /// Contrato Silver para o catálogo anual de processos legislativos do Senado.
@@ -26,6 +31,8 @@ pub mod senado_processos;
 pub mod senado_processos_detalhes;
 pub mod senado_votacoes;
 pub mod senado_votos;
+pub mod tarefa_ana;
+pub mod tarefa_b3;
 pub mod tarefa_bcb;
 pub mod tarefa_camara;
 pub mod tarefa_camara_deputados;
@@ -74,6 +81,10 @@ pub mod tarefa_tse_receitas_doador_originario_2022;
 pub mod tarefa_tse_receitas_partidos_2014;
 pub mod tarefa_tse_receitas_partidos_2016;
 pub mod tarefa_tse_votacao_secao;
+pub mod tarefa_undp;
+pub mod tarefa_world_bank;
+pub mod transparencia_beneficios;
+pub mod transparencia_servidores_ativos;
 pub mod tse_bens;
 pub mod tse_candidaturas;
 pub mod tse_despesas_candidatos_2014;
@@ -103,7 +114,11 @@ pub mod tse_receitas_doador_originario_2022;
 pub mod tse_receitas_partidos_2014;
 pub mod tse_receitas_partidos_2016;
 pub mod tse_votacao_secao;
+pub mod undp;
+pub mod world_bank;
 
+pub use ana::esquema_ana;
+pub use b3::esquema_b3;
 pub use camara_deputados::esquema_camara_deputados;
 #[cfg(test)]
 pub use camara_deputados::{ErroCamaraDeputadosSilver, transformar_camara_deputados};
@@ -126,6 +141,9 @@ pub use ibge_estados::esquema_ibge_estados;
 pub use ibge_municipios::esquema_ibge_municipios;
 pub use ibge_regioes::esquema_ibge_regioes;
 pub use ipeadata::esquema_ipeadata;
+pub use remuneracao_estadual_go::publicar_remuneracao_estadual_go;
+pub use remuneracao_estadual_mg::publicar_remuneracao_estadual_mg;
+pub use remuneracao_municipal_tce_ce::publicar_remuneracao_municipal_tce_ce;
 pub use senado_despesas::esquema_senado_despesas;
 #[cfg(test)]
 pub use senado_despesas::{ErroSenadoDespesasSilver, transformar_senado_despesas};
@@ -145,6 +163,8 @@ pub use senado_votacoes::{ErroSenadoVotacoesSilver, transformar_senado_votacoes}
 pub use senado_votos::esquema_senado_votos;
 #[cfg(test)]
 pub use senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
+pub use tarefa_ana::{TarefaDeSilverAna, publicar_ana};
+pub use tarefa_b3::{TarefaDeSilverB3, publicar_b3};
 pub use tarefa_bcb::publicar_bcb_sgs;
 pub use tarefa_camara::{TarefaDeSilverCamaraPartidos, publicar_camara_partidos};
 pub use tarefa_camara_deputados::{TarefaDeSilverCamaraDeputados, publicar_camara_deputados};
@@ -249,6 +269,10 @@ pub use tarefa_tse_receitas_partidos_2016::{
     TarefaDeSilverTseReceitasPartidos2016, publicar_tse_receitas_partidos_2016,
 };
 pub use tarefa_tse_votacao_secao::{TarefaDeSilverTseVotacaoSecao, publicar_tse_votacao_secao};
+pub use tarefa_undp::{TarefaDeSilverUndp, publicar_undp};
+pub use tarefa_world_bank::{TarefaDeSilverWorldBank, publicar_world_bank};
+pub use transparencia_beneficios::publicar_transparencia_beneficios;
+pub use transparencia_servidores_ativos::publicar_transparencia_servidores_ativos;
 pub use tse_bens::esquema_tse_bens;
 #[cfg(test)]
 pub use tse_bens::{ErroTseBensSilver, transformar_tse_bens};
@@ -283,3 +307,5 @@ pub use tse_receitas_partidos_2016::esquema_tse_receitas_partidos_2016;
 pub use tse_votacao_secao::esquema_tse_votacao_secao;
 #[cfg(test)]
 pub use tse_votacao_secao::{ErroTseVotacaoSecaoSilver, transformar_tse_votacao_secao};
+pub use undp::esquema_undp;
+pub use world_bank::esquema_world_bank;

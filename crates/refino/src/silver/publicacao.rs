@@ -34,6 +34,11 @@ pub(crate) struct ConfiguracaoDePublicacao<'a> {
     pub id_execucao: &'a str,
 }
 
+struct OpcoesDeTransformacao<'a> {
+    json_original_aninhado: Option<bool>,
+    fonte_bronze: Option<&'a str>,
+}
+
 /// Executa um contrato SQL sobre o snapshot inteiro e publica sua saída em fluxo.
 pub(crate) async fn publicar_transformacao_sql(
     bronze: &dyn ArmazenamentoRaw,
@@ -43,8 +48,44 @@ pub(crate) async fn publicar_transformacao_sql(
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-    publicar_transformacao_sql_interno(bronze, silver, snapshot, configuracao, sql, executor, None)
-        .await
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        OpcoesDeTransformacao {
+            json_original_aninhado: None,
+            fonte_bronze: None,
+        },
+    )
+    .await
+}
+
+/// Executa SQL quando a fonte Bronze tem nome diferente da fonte Silver publicada.
+pub(crate) async fn publicar_transformacao_sql_com_fonte_bronze(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    fonte_bronze: &str,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        OpcoesDeTransformacao {
+            json_original_aninhado: None,
+            fonte_bronze: Some(fonte_bronze),
+        },
+    )
+    .await
 }
 
 /// Executa um contrato SQL preservando também os campos dinâmicos da linha Bronze em JSON.
@@ -63,7 +104,10 @@ pub(crate) async fn publicar_transformacao_sql_com_json_original(
         configuracao,
         sql,
         executor,
-        Some(true),
+        OpcoesDeTransformacao {
+            json_original_aninhado: Some(true),
+            fonte_bronze: None,
+        },
     )
     .await
 }
@@ -84,7 +128,10 @@ pub(crate) async fn publicar_transformacao_sql_com_json_string_original(
         configuracao,
         sql,
         executor,
-        Some(false),
+        OpcoesDeTransformacao {
+            json_original_aninhado: Some(false),
+            fonte_bronze: None,
+        },
     )
     .await
 }
@@ -96,7 +143,7 @@ async fn publicar_transformacao_sql_interno(
     configuracao: ConfiguracaoDePublicacao<'_>,
     sql: &str,
     executor: &ConfiguracaoExecutorSql,
-    json_original_aninhado: Option<bool>,
+    opcoes: OpcoesDeTransformacao<'_>,
 ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
     let ConfiguracaoDePublicacao {
         fonte,
@@ -108,7 +155,9 @@ async fn publicar_transformacao_sql_interno(
         id_execucao,
     } = configuracao;
     let recurso_destino = recurso_destino.unwrap_or(recurso);
-    if snapshot.manifesto().fonte != fonte || snapshot.manifesto().recurso != recurso {
+    if snapshot.manifesto().fonte != opcoes.fonte_bronze.unwrap_or(fonte)
+        || snapshot.manifesto().recurso != recurso
+    {
         return Err(erro_manifesto(
             recurso,
             format!("snapshot não pertence ao recurso {fonte} solicitado"),
@@ -126,7 +175,7 @@ async fn publicar_transformacao_sql_interno(
         });
     }
 
-    let entrada = match json_original_aninhado {
+    let entrada = match opcoes.json_original_aninhado {
         Some(true) => {
             preparar_snapshot_com_json_original(bronze, snapshot, executor.limite_entrada_bytes)
                 .await
@@ -253,7 +302,7 @@ async fn publicar_transformacao_sql_interno(
 
     let guarda = bloquear_publicacao(fonte, recurso).await;
     if !snapshot
-        .ainda_vigente(bronze, fonte, recurso)
+        .ainda_vigente(bronze, opcoes.fonte_bronze.unwrap_or(fonte), recurso)
         .await
         .map_err(|erro| erro_manifesto(recurso, erro))?
     {
