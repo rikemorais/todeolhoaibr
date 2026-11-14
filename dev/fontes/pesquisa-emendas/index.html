@@ -1831,9 +1831,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#integracao-implementada-e-limites-restantes" class="md-nav__link">
+  <a href="#integracao-e-limites-restantes" class="md-nav__link">
     <span class="md-ellipsis">
-      Integração implementada e limites restantes
+      Integração e limites restantes
     </span>
   </a>
   
@@ -1886,14 +1886,14 @@
 <h3 id="portal-da-transparencia-cgu">Portal da Transparência (CGU)<a class="headerlink" href="#portal-da-transparencia-cgu" title="Permanent link">&para;</a></h3>
 <p>A <a href="https://api.portaldatransparencia.gov.br/swagger-ui/index.html">documentação oficial Swagger da API do Portal da Transparência</a> publica <code>GET /api-de-dados/emendas</code> (“Consulta as emendas parlamentares”) e <code>GET /api-de-dados/emendas/documentos/{codigo}</code> (documentos por código de emenda). O <a href="https://www.gov.br/conecta/catalogo/apis/portal-da-transparencia-do-governo-federal">catálogo de APIs do Conecta gov.br</a> confirma que a API publica dados sobre emendas e aponta para o Swagger de produção.</p>
 <p>O endpoint é uma alternativa para enriquecer a série: o schema <code>ConsultaEmendasDTO</code> da especificação OpenAPI lista <code>codigoEmenda</code>, <code>ano</code>, <code>tipoEmenda</code>, <code>autor</code>, <code>nomeAutor</code>, <code>numeroEmenda</code>, <code>localidadeDoGasto</code> e valores empenhado, liquidado, pago e restos a pagar. A especificação não define <code>localidadeDoGasto</code> como código municipal IBGE; tratá-lo como texto, sem inferir código. O endpoint exige a chave no cabeçalho <code>chave-api-dados</code>, obtida no <a href="https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email">cadastro da API</a>. Os parâmetros documentados incluem ano e página, mas não UF.</p>
-<h2 id="integracao-implementada-e-limites-restantes">Integração implementada e limites restantes<a class="headerlink" href="#integracao-implementada-e-limites-restantes" title="Permanent link">&para;</a></h2>
+<h2 id="integracao-e-limites-restantes">Integração e limites restantes<a class="headerlink" href="#integracao-e-limites-restantes" title="Permanent link">&para;</a></h2>
 <ol>
 <li>A fonte <code>emendas</code> ingere o CSV completo do Tesouro em <code>repasses/tesouro</code> e as respostas da API CGU em recursos anuais <code>cgu/ano=AAAA</code>; ambas preservam conteúdo e manifesto na Raw.</li>
 <li>A consulta CGU usa o filtro <code>ano</code>, páginas até array vazio, o token <code>PORTAL_TRANSPARENCIA_TOKEN</code> e o limite de 90 requisições por minuto existente no cliente.</li>
 <li>A inspeção do CSV confirmou UF e código IBGE, além de ordem bancária e favorecido. A API CGU fornece autoria, localidade como texto e valores. Os grãos não são unidos nem deduplicados na ingestão.</li>
 <li>A API SIOP não foi integrada: sua documentação requer credenciais/perfil de Web Service e a estrutura de beneficiários ainda precisa de inspeção de amostra.</li>
-<li>A especificação CGU não oferece filtro de UF e o CSV Tesouro é um único download integral. Como a Raw preserva respostas opacas, o filtro de UF fica para o refino; a tarefa anual CGU já pode ser selecionada por <code>--filtro ano=...</code>.</li>
-<li>Antes de modelar Silver ou associar um pagamento ao autor, validar <code>localidadeDoGasto</code>, estabilidade da ordem bancária e possíveis chaves de ligação usando amostras reais dos dois conjuntos.</li>
+<li>A Silver oferece contratos separados para CGU (<code>emendas-cgu</code>) e Tesouro (<code>emendas-tesouro</code>), sem cruzamento. Os filtros Silver de ano valem para ambos; UF só vale para o Tesouro. As saídas filtradas usam recursos próprios e preservam a publicação integral. Veja <a href="../emendas/#refino-silver">contratos e comandos</a>.</li>
+<li>A Issue #33 não está totalmente atendida: o Tesouro não identifica o autor parlamentar, a CGU não fornece código IBGE/UF estruturada e a SIOP ainda não foi integrada. Permanecem pendentes credenciais/perfil SIOP, inspeção de uma resposta real de beneficiários e validação de colisões/estabilidade da OB. Nenhum relacionamento autor-pagamento ou município+ano é presumido.</li>
 </ol>
 <h2 id="fontes-primarias">Fontes primárias<a class="headerlink" href="#fontes-primarias" title="Permanent link">&para;</a></h2>
 <ul>

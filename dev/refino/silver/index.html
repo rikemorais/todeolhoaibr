@@ -1096,6 +1096,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#emendas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Emendas
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#contribuir-com-uma-transformacao-sql" class="md-nav__link">
     <span class="md-ellipsis">
       Contribuir com uma transformação SQL
@@ -2143,6 +2152,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#emendas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Emendas
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#contribuir-com-uma-transformacao-sql" class="md-nav__link">
     <span class="md-ellipsis">
       Contribuir com uma transformação SQL
@@ -2469,16 +2487,19 @@
 
 
 <h1 id="camada-silver-contrato-inicial">Camada silver — contrato inicial<a class="headerlink" href="#camada-silver-contrato-inicial" title="Permanent link">&para;</a></h1>
-<p><strong>Estado:</strong> as 64 consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em <code>#[cfg(test)]</code> para paridade (<a href="https://github.com/rikemorais/todeolhoaibr/issues/244">issue #244</a>, PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
+<p><strong>Estado:</strong> as consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em <code>#[cfg(test)]</code> para paridade (<a href="https://github.com/rikemorais/todeolhoaibr/issues/244">issue #244</a>, PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no <a href="../../adr/0020-contrato-da-camada-silver/">ADR 0020</a>; responsabilidades das camadas estão no <a href="../../adr/0015-arquitetura-de-dados-em-medalhao/">ADR 0015</a>.</p>
 <p>Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket <code>silver</code>. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são <strong>candidatas</strong>: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.</p>
+<h2 id="emendas">Emendas<a class="headerlink" href="#emendas" title="Permanent link">&para;</a></h2>
+<p>A fonte Raw <code>emendas</code> tem dois contratos sem associação entre si: <code>emendas-cgu</code> em <a href="../../crates/refino/sql/silver/emendas_cgu.sql"><code>emendas_cgu.sql</code></a> mantém os identificadores de emenda/autor, valores e <code>localidade_do_gasto</code> textual; <code>emendas-tesouro</code> em <a href="../../crates/refino/sql/silver/emendas_tesouro.sql"><code>emendas_tesouro.sql</code></a> mantém pagamento, UF, código IBGE, OB e favorecido. Ambos projetam a linhagem original. O Tesouro não informa autor e a CGU não publica código IBGE nem UF estruturada. Logo, nenhuma chave município+ano ou ligação entre as duas tabelas é afirmada aqui.</p>
+<p><code>refinar silver emendas --filtro ano=AAAA</code> aplica o ano às duas relações. <code>--filtro uf=XX</code> só pode ser usado no Tesouro; o comando combinado ignora a CGU com uma mensagem explícita, e <code>emendas-cgu --filtro uf=XX</code> falha. Quando há filtro, a saída vai para um recurso próprio <code>.../filtros/ano=.../uf=...</code>, preservando a publicação integral. O código da OB é mantido, mas as linhas não são deduplicadas nem validadas como únicas até a estabilidade e as colisões do identificador serem demonstradas. O detalhe operacional e os comandos de Bronze estão em <a href="../../fontes/emendas/">fontes/emendas</a>.</p>
 <h2 id="contribuir-com-uma-transformacao-sql">Contribuir com uma transformação SQL<a class="headerlink" href="#contribuir-com-uma-transformacao-sql" title="Permanent link">&para;</a></h2>
 <p>Contratos SQL ficam versionados em <code>crates/refino/sql/silver/</code> e entram no binário com <code>include_str!</code>. A consulta lê a tabela <code>bronze</code>, preparada somente com as partes do manifesto fixado. Além das colunas Bronze, há quatro colunas internas de linhagem: <code>_tdoa_origem_manifesto</code>, <code>_tdoa_origem_parte</code>, <code>_tdoa_origem_url</code> (nome/tabela da parte) e <code>_tdoa_origem_ordinal</code>. A URL permite que contratos selecionem uma tabela específica dentro de um recurso ZIP, como a parte consolidada <code>BRASIL</code> do TSE. Para contratos que preservam colunas de origem dinâmicas, o executor também pode fornecer <code>_tdoa_json_original</code>, serializado pelo adaptador; os casts, validações e projeções continuam no SQL. A consulta deve projetar explicitamente as colunas Silver definidas pelo schema do contrato. Valores externos nunca são interpolados no SQL; em <code>senado_processos.sql</code>, o ano é validado como número no caminho do recurso antes de ser inserido na consulta; detalhes usam a coluna Bronze <code>ano</code>.</p>
 <p>O adaptador <code>TarefaDeSilverSql</code> associa a consulta embutida, nome/versionamento da regra e schema de saída ao publicador comum. A execução transmite batches para Parquet temporário; não use coleta integral do resultado. O limite inicial é 512 MiB de memória, 2 GiB de spill, 100 GiB de entrada, uma partição por consulta e batches de 8.192 linhas. Esses limites são configuráveis por tarefa e devem ser medidos antes de ampliar uma família de fontes.</p>
-<p>O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra <code>tdoa_json_get(json, chave)</code> para leitura de campos escalares/objetos e <code>tdoa_json_expand_votos(json)</code> para normalizar as listas atuais e legadas do Senado em uma lista SQL que <code>UNNEST</code> expande. São funções genéricas de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. <code>UNNEST</code> descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.</p>
+<p>O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra <code>tdoa_json_get(json, chave)</code> para leitura de campos escalares/objetos e <code>tdoa_json_expand_votos(json)</code> para normalizar as listas atuais e legadas do Senado em uma lista SQL que <code>UNNEST</code> expande. Também registra <code>tdoa_emendas_corresponde_filtro(ano, uf)</code>, que recebe os recortes validados pela CLI como valores tipados, sem interpolá-los no SQL. São funções de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. <code>UNNEST</code> descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.</p>
 <p>O smoke e benchmark sintético reproduzível do executor está em <a href="../benchmark-datafusion/"><code>benchmark-datafusion.md</code></a>. Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.</p>
 <h3 id="estrutura-de-arquivos">Estrutura de arquivos<a class="headerlink" href="#estrutura-de-arquivos" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>crates/refino/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── sql/silver/              # 64 consultas SQL versionadas
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── sql/silver/              # consultas SQL versionadas
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── bcb_sgs.sql
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── camara_deputados.sql
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── ...

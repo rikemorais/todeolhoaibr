@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SQL_EMENDAS_CGU","SQL_EMENDAS_TESOURO"]};

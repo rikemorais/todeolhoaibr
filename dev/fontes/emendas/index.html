@@ -1806,6 +1806,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#refino-silver" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refino Silver
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1864,11 +1873,26 @@
 <p>Para baixar somente o CSV integral do Tesouro:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>emendas<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">origem</span><span class="o">=</span>tesouro
 </code></pre></div>
-<p><code>--filtro ano=...</code> seleciona as tarefas CGU; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU contêm <code>localidadeDoGasto</code> como texto; filtros geográficos e uma eventual associação devem acontecer no refino, após validar o contrato dos dados. A Raw preserva respostas completas conforme o <a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>.</p>
+<p><code>--filtro ano=...</code> seleciona as tarefas CGU; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU contêm <code>localidadeDoGasto</code> como texto. Os filtros são aplicados nos contratos Silver documentados abaixo; associação entre autoria e pagamentos depende de uma chave ainda não identificada. A Raw preserva respostas completas conforme o <a href="../../adr/0014-raw-opaca-e-refino-em-estagio-separado/">ADR 0014</a>.</p>
 <h2 id="campos-e-idempotencia">Campos e idempotência<a class="headerlink" href="#campos-e-idempotencia" title="Permanent link">&para;</a></h2>
 <p>O CSV do Tesouro vem delimitado por ponto e vírgula em Latin-1. Entre os campos originais estão <code>Código IBGE</code>, <code>UF</code>, <code>Ano</code>, <code>Mês</code>, <code>OB</code>, <code>CNPJ do Favorecido</code> e <code>Valor</code>. <code>Data</code> vem como serial numérico do Excel no arquivo consultado. O CSV integral permanece como recebido; decodificação e conversão ficam para Bronze.</p>
 <p>Na CGU, os recursos são separados por ano, com páginas dentro do manifesto <code>cgu/ano=AAAA</code>. O <code>codigoEmenda</code> identifica a emenda, mas pode haver mais de uma localidade por emenda; ele não é tratado como chave única da linha. Na Raw, os manifestos e validadores HTTP tornam cada página idempotente e permitem reaproveitar páginas que não mudaram. Repetições no conteúdo são preservadas.</p>
 <p>Consulte a <a href="../pesquisa-emendas/">pesquisa das fontes e seus limites</a>, que registra os endpoints oficiais, os campos e as limitações de filtragem e relacionamento.</p>
+<h2 id="refino-silver">Refino Silver<a class="headerlink" href="#refino-silver" title="Permanent link">&para;</a></h2>
+<p>O Bronze decodifica <code>emendas</code> para <code>emendas-cgu</code> e <code>emendas-tesouro</code>. A Silver publica contratos independentes, sem unir linhas entre as origens:</p>
+<ul>
+<li><code>emendas-cgu</code>: autor, código e número da emenda, localidade textual e valores reportados pela CGU.</li>
+<li><code>emendas-tesouro</code>: repasses com UF, código IBGE, OB, favorecido e valor. A origem não identifica o parlamentar.</li>
+</ul>
+<p>Para publicar os dois contratos e aplicar filtro anual:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>bronze<span class="w"> </span>emendas-cgu
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>bronze<span class="w"> </span>emendas-tesouro
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>emendas<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2025</span>
+</code></pre></div>
+<p>Para filtrar por UF, use o contrato do Tesouro, que tem coluna estruturada para isso:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>emendas-tesouro<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">ano</span><span class="o">=</span><span class="m">2025</span><span class="w"> </span>--filtro<span class="w"> </span><span class="nv">uf</span><span class="o">=</span>MG
+</code></pre></div>
+<p>O comando combinado <code>silver emendas --filtro uf=MG</code> processa somente o Tesouro e informa que a CGU foi ignorada, pois <code>localidadeDoGasto</code> não fornece uma UF estruturada confiável. Recortes são publicados em recursos próprios sob <code>filtros/</code>, sem substituir a publicação integral. As ocorrências e as OB são preservadas; OB não foi declarada chave única nem usada para remover linhas, pois colisões e estabilidade ainda não foram validadas em toda a série.</p>
 
 
 
