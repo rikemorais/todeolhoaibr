@@ -19,6 +19,8 @@ pub mod ibge_regioes;
 pub mod ibge_renda_per_capita;
 /// Esquema Silver para as séries históricas do Ipeadata.
 pub mod ipeadata;
+/// Contrato Silver para as estatísticas mensais do Mapa de Empresas por UF.
+pub mod mapa_empresas;
 mod publicacao;
 pub mod remuneracao_estadual_go;
 pub mod remuneracao_estadual_mg;
@@ -141,6 +143,7 @@ pub use ibge_estados::esquema_ibge_estados;
 pub use ibge_municipios::esquema_ibge_municipios;
 pub use ibge_regioes::esquema_ibge_regioes;
 pub use ipeadata::esquema_ipeadata;
+pub use mapa_empresas::esquema_mapa_empresas;
 pub use remuneracao_estadual_go::publicar_remuneracao_estadual_go;
 pub use remuneracao_estadual_mg::publicar_remuneracao_estadual_mg;
 pub use remuneracao_municipal_tce_ce::publicar_remuneracao_municipal_tce_ce;

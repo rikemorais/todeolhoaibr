@@ -28,6 +28,7 @@ SILVER = Path(os.environ.get("TODEOLHO_SILVER_DIR", "/dados/silver"))
 CHAVES_CANDIDATAS: dict[tuple[str, str], tuple[str, ...]] = {
     ("ana", "estacoes-fluviometricas"): ("codigo_estacao",),
     ("ana", "estacoes-pluviometricas"): ("codigo_estacao",),
+    ("mapa_empresas", "movimentacao"): ("periodo", "uf"),
     ("b3", "cotahist"): (
         "data_pregao",
         "codigo_negociacao",

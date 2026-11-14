@@ -1,6 +1,6 @@
 # Camada silver — contrato inicial
 
-**Estado:** as 63 consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+**Estado:** as 64 consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 
 Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket `silver`. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são **candidatas**: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.
 
@@ -18,7 +18,7 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ```
 crates/refino/
-├── sql/silver/              # 63 consultas SQL versionadas
+├── sql/silver/              # 64 consultas SQL versionadas
 │   ├── bcb_sgs.sql
 │   ├── camara_deputados.sql
 │   ├── ...
@@ -117,6 +117,7 @@ cargo test --lib silver
 todeolho refinar silver bcb
 todeolho refinar silver senado-votacoes
 todeolho refinar silver tse-candidaturas
+todeolho refinar silver mapa_empresas
 
 # Todas as famílias (exceto tse-votacao-secao pelo volume)
 todeolho refinar silver --todas
@@ -155,7 +156,7 @@ O código Rust dos adaptadores (`tarefa_*.rs`) contém apenas:
 
 As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) são funções genéricas do executor, não transformações por contrato.
 
-### Inventário dos 25 contratos SQL centrais
+### Inventário dos 26 contratos SQL centrais
 
 | # | Arquivo SQL | Adaptador Rust | Regra | Família |
 | --- | --- | --- | --- | --- |
@@ -184,6 +185,7 @@ As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) sã
 | 23 | `tse_bens.sql` | `tarefa_tse_bens.rs` | `tse-bem-candidato-v2` | TSE |
 | 24 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
 | 25 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
+| 26 | `mapa_empresas.sql` | `mapa_empresas.rs` | `mapa-empresas-estatistica-uf-v1` | Mapa de Empresas |
 
 O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) garante em CI que esta lista permanece sincronizada com o código.
 
@@ -196,7 +198,7 @@ As quatro famílias Silver já existentes do TSE usam SQL versionado executado p
 Os perfis operacionais de qualidade no console DuckDB são gerados para cada view Silver apontada pelos manifestos vigentes. Eles mostram contagem de linhas, nulos por coluna e linhagem incompleta; para chaves candidatas declaradas nesta matriz, também mostram chaves incompletas e linhas excedentes por duplicidade. A lista de chaves usada pelo gerador é explícita e fica em `docker/consulta/gerar_views.py`: chaves não configuradas ou sem todas as colunas permanecem como “não validadas”. O perfil é uma consulta lazy sobre uma tabela selecionada, não altera nem deduplica dados e não substitui os smokes documentados por família abaixo. Assim, snapshots antigos não entram na medição operacional da view vigente.
 
 
-O [catálogo](../../crates/refino/src/catalogo.rs) tem 35 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada relação interna precisa de contrato próprio ou de exclusão com justificativa explícita. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
+O [catálogo](../../crates/refino/src/catalogo.rs) tem 36 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada relação interna precisa de contrato próprio ou de exclusão com justificativa explícita. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
 
 A [especificação de contratos da fase 0](contratos-silver-fase0.md) detalha tipos,
 nulos, normalização, deduplicação e tabelas internas para cada família. Esta
@@ -229,6 +231,7 @@ linhas nem ativar uma relação sem validação do recorte.
 | `transparencia-servidores-ativos` | Silver ativo | Servidores federais | servidor por linha do CSV | passthrough com linhagem; schema herdado do Bronze, identificadores não são chave validada |
 | `ana` | Silver ativo | Recursos hídricos | estação × recurso (fluviométrico ou pluviométrico) | `codigo_estacao` é candidata; validação de unicidade ainda limitada ao recurso |
 | `b3` | Silver ativo | Mercado financeiro | ativo × pregão × mercado | candidata composta por data, ticker, BDI e mercado; conservar repetições até validação |
+| `mapa_empresas` | Silver ativo | Registro empresarial | estatística mensal × UF | (`periodo`, `uf`); obrigatoriedade, contagens não negativas e unicidade são validadas pelo contrato SQL |
 | `bcb` | Silver ativo | Série | observação SGS | série (do recurso) e `data`; `valor` decimal; data no formato `DD/MM/AAAA` no fixture |
 | `ipeadata` | Silver ativo | Série | observação OData | `SERCODIGO`, `TERCODIGO` e `VALDATA` candidatos; `NIVNOME` distingue Brasil, estados, municípios e regiões |
 | `ibge-estados` | Silver ativo | Território | UF | código IBGE e vigência |
@@ -333,7 +336,7 @@ O console DuckDB cria views `bronze_*` e `silver_*` a partir dos ponteiros vigen
 
 ## Evidência disponível no repositório
 
-Os nove contratos acima ampliam o inventário do catálogo de 26 para 35 entradas. Os cinco contratos com schema inferido (remuneração MG/GO, TCE-CE e Portal da Transparência) são uma etapa operacional de passthrough: preservam colunas e linhagem, mas não afirmam ainda uma chave de negócio nem normalização semântica. Não os usar como dimensões/fatos conformados até que a inspeção dos dados reais fixe esses contratos. Os quatro contratos tipados (World Bank, UNDP, ANA e B3) declaram colunas no SQL e schemas Arrow e validam chaves conforme o próprio SQL; a unicidade de domínio continua condicionada à execução nos snapshots locais.
+Os dez contratos acima ampliam o inventário do catálogo de 26 para 36 entradas. Os cinco contratos com schema inferido (remuneração MG/GO, TCE-CE e Portal da Transparência) são uma etapa operacional de passthrough: preservam colunas e linhagem, mas não afirmam ainda uma chave de negócio nem normalização semântica. Não os usar como dimensões/fatos conformados até que a inspeção dos dados reais fixe esses contratos. Os cinco contratos tipados (World Bank, UNDP, ANA, B3 e Mapa de Empresas) declaram colunas no SQL e schemas Arrow e validam chaves conforme o próprio SQL; a unicidade de domínio continua condicionada à execução nos snapshots locais.
 
 O catálogo completo está acima. A prestação de contas do TSE é a única família que deliberadamente mantém tabelas internas sem contrato nesta fase: os contratos ativos e os anos atendidos estão enumerados na seção de prestação de contas; os demais conjuntos/anos permanecem Bronze, pois sondagens documentadas não encontraram uma chave composta única e não há política de deduplicação aprovada. Essa exclusão preserva todas as linhas e sua linhagem no Bronze. As tabelas internas de ZIPs de outras famílias são descritas junto ao respectivo contrato; ausência de uma relação publicada deve ser tratada como limitação explícita, não como dado descartado.
 
