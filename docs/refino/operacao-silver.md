@@ -30,7 +30,7 @@ docker compose up -d consulta
 docker compose run --rm consulta sql
 ```
 
-As views têm o formato `silver_<fonte>_<recurso>`. Os segmentos particionados são consolidados na view, mas execuções antigas não são globbed. Troque os identificadores de exemplo pelos que aparecem no catálogo do console:
+As views têm o formato `silver_<fonte>_<recurso>`. Os segmentos particionados são consolidados na view, mas execuções antigas não são globbed. A camada `Qualidade` lista perfis `qualidade_silver_<fonte>_<recurso>` gerados a partir dos mesmos manifestos vigentes. Selecione uma tabela no console ou consulte seu perfil em SQL. Troque os identificadores de exemplo pelos que aparecem no catálogo:
 
 ```sql
 -- Schema e contagem corrente
@@ -51,11 +51,14 @@ SELECT serie, data, count(*) AS ocorrencias
 FROM silver_bcb_series
 GROUP BY serie, data
 HAVING count(*) > 1;
+
+-- Perfil atual com nulos por coluna, linhagem e chave candidata
+SELECT * FROM qualidade_silver_bcb_series;
 ```
 
-Use a chave candidata e suas ressalvas da matriz em [silver.md](silver.md#cobertura-do-catálogo-bronze). `DESCRIBE`, total de linhas, agregações de nulos, duplicatas e linhagem constituem o smoke por tabela. Para relações sem chave validada, registre duplicatas como observação e não remova linhas.
+O perfil calcula contagem de linhas, nulos por coluna, linhas com linhagem incompleta e, para chaves candidatas registradas, linhas com chave incompleta e linhas excedentes por duplicidade. Chaves não registradas aparecem como não validadas; use a matriz em [silver.md](silver.md#cobertura-do-catálogo-bronze) para a política por tabela. O perfil é lazy: executar uma view faz a varredura da tabela atual selecionada e pode levar mais tempo em recursos volumosos. Ele nunca remove linhas. `DESCRIBE`, o perfil, a verificação de unicidade pela chave e a conferência da linhagem constituem o smoke por tabela.
 
-O painel mostra estado, duração, partes e bytes da execução; a view DuckDB é a consulta de qualidade com contagens de linhas/nulos/duplicatas. O painel não calcula hoje contagens por coluna nem a distribuição de rejeições. As consultas SQL dos contratos falham antes da troca do ponteiro quando uma asserção obrigatória não é satisfeita.
+O painel de execução mostra estado, duração, partes e bytes; o console DuckDB expõe os perfis das tabelas vigentes. A distribuição de rejeições ainda não é emitida: as consultas SQL dos contratos falham antes da troca do ponteiro quando uma asserção obrigatória não é satisfeita.
 
 ## Reprocessar
 

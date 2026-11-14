@@ -140,7 +140,7 @@ function grupoDaTabela(tabela) {
 }
 
 function rotuloCamada(camada) {
-  return ({ bronze: "Bronze", silver: "Silver", outros: "Outras tabelas" })[camada] || camada;
+  return ({ bronze: "Bronze", silver: "Silver", qualidade: "Qualidade", outros: "Outras tabelas" })[camada] || camada;
 }
 
 function rotuloFonte(fonte) {
