@@ -2,6 +2,7 @@ pub mod ana;
 pub mod b3;
 pub mod bcb;
 pub mod camara;
+pub mod emendas;
 pub mod ibge;
 pub mod ipeadata;
 pub mod mapa_empresas;
