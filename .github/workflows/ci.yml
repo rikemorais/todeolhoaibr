@@ -62,7 +62,7 @@ jobs:
           echo "rust=$rust" >> "$GITHUB_OUTPUT"
 
           consulta=false
-          if grep -Eq '^(docker/consulta/|docker-compose\.yml$)' "$arquivos"; then
+          if grep -Eq '^(docker/consulta/|docker-compose.*\.yml$)' "$arquivos"; then
             consulta=true
           fi
           echo "consulta=$consulta" >> "$GITHUB_OUTPUT"
