@@ -449,6 +449,12 @@ async fn refinar(
         if fonte.as_deref() == Some("tse-votacao-secao") {
             return refinar_tse_votacao_secao_silver(fonte, todas, intervalo, filtros).await;
         }
+        if fonte.as_deref() == Some("mapa_empresas") {
+            if !filtros.is_empty() {
+                bail!("--filtro não está disponível para `silver mapa_empresas`");
+            }
+            return refinar_mapa_empresas_silver(intervalo).await;
+        }
         if !filtros.is_empty() {
             bail!("--filtro só vale para `silver tse-votacao-secao`");
         }
@@ -1237,6 +1243,7 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             let undp = refinar_undp_silver(None).await?;
             let ana = refinar_ana_silver(None).await?;
             let b3 = refinar_b3_silver(None).await?;
+            let mapa_empresas = refinar_mapa_empresas_silver(None).await?;
             let mg = refinar_remuneracao_estadual_mg_silver(None).await?;
             let go = refinar_remuneracao_estadual_go_silver(None).await?;
             let tce_ce = refinar_tce_ce_silver(None).await?;
@@ -1266,6 +1273,7 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && undp
                 && ana
                 && b3
+                && mapa_empresas
                 && mg
                 && go
                 && tce_ce
@@ -1394,6 +1402,9 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                     eprintln!(
                         "Atenção: falha na reconciliação Silver IBGE renda per capita: {erro:#}"
                     );
+                }
+                if let Err(erro) = refinar_mapa_empresas_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver Mapa de Empresas: {erro:#}");
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
@@ -3019,6 +3030,16 @@ async fn refinar_b3_silver(intervalo: Option<u64>) -> Result<bool> {
         "b3",
         "b3-cotahist-v1",
         include_str!("../../refino/sql/silver/b3.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_mapa_empresas_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "mapa_empresas",
+        "mapa-empresas-estatistica-uf-v1",
+        include_str!("../../refino/sql/silver/mapa_empresas.sql"),
         intervalo,
     )
     .await
