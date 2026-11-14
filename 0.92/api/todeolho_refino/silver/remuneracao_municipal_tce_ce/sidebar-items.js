@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_remuneracao_municipal_tce_ce"]};
