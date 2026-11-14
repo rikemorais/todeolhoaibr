@@ -1,8 +1,14 @@
 # Camada silver — contrato inicial
 
-**Estado:** as 64 consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
+**Estado:** as consultas SQL versionadas do crate estão embutidas no binário; as transformações Arrow migradas vivem somente em `#[cfg(test)]` para paridade ([issue #244](https://github.com/rikemorais/todeolhoaibr/issues/244), PR #306). O binário de produção não compila mais essas transformações Arrow. A arquitetura aceita está no [ADR 0020](../adr/0020-contrato-da-camada-silver.md); responsabilidades das camadas estão no [ADR 0015](../adr/0015-arquitetura-de-dados-em-medalhao.md).
 
 Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parquet tipado no bucket `silver`. O contrato deve declarar grão, chave, tipos, nulos, duplicatas, qualidade e procedência. Chaves nesta matriz são **candidatas**: sua validação depende de amostras reais de cada tabela e de anos antigos/recentes. Identificadores, inclusive códigos IBGE, são texto; datas e valores devem ter tipos próprios. Nenhuma fonte sem município receberá um município inventado.
+
+## Emendas
+
+A fonte Raw `emendas` tem dois contratos sem associação entre si: `emendas-cgu` em [`emendas_cgu.sql`](../../crates/refino/sql/silver/emendas_cgu.sql) mantém os identificadores de emenda/autor, valores e `localidade_do_gasto` textual; `emendas-tesouro` em [`emendas_tesouro.sql`](../../crates/refino/sql/silver/emendas_tesouro.sql) mantém pagamento, UF, código IBGE, OB e favorecido. Ambos projetam a linhagem original. O Tesouro não informa autor e a CGU não publica código IBGE nem UF estruturada. Logo, nenhuma chave município+ano ou ligação entre as duas tabelas é afirmada aqui.
+
+`refinar silver emendas --filtro ano=AAAA` aplica o ano às duas relações. `--filtro uf=XX` só pode ser usado no Tesouro; o comando combinado ignora a CGU com uma mensagem explícita, e `emendas-cgu --filtro uf=XX` falha. Quando há filtro, a saída vai para um recurso próprio `.../filtros/ano=.../uf=...`, preservando a publicação integral. O código da OB é mantido, mas as linhas não são deduplicadas nem validadas como únicas até a estabilidade e as colisões do identificador serem demonstradas. O detalhe operacional e os comandos de Bronze estão em [fontes/emendas](../fontes/emendas.md).
 
 ## Contribuir com uma transformação SQL
 
@@ -10,7 +16,7 @@ Contratos SQL ficam versionados em `crates/refino/sql/silver/` e entram no biná
 
 O adaptador `TarefaDeSilverSql` associa a consulta embutida, nome/versionamento da regra e schema de saída ao publicador comum. A execução transmite batches para Parquet temporário; não use coleta integral do resultado. O limite inicial é 512 MiB de memória, 2 GiB de spill, 100 GiB de entrada, uma partição por consulta e batches de 8.192 linhas. Esses limites são configuráveis por tarefa e devem ser medidos antes de ampliar uma família de fontes.
 
-O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra `tdoa_json_get(json, chave)` para leitura de campos escalares/objetos e `tdoa_json_expand_votos(json)` para normalizar as listas atuais e legadas do Senado em uma lista SQL que `UNNEST` expande. São funções genéricas de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. `UNNEST` descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.
+O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra `tdoa_json_get(json, chave)` para leitura de campos escalares/objetos e `tdoa_json_expand_votos(json)` para normalizar as listas atuais e legadas do Senado em uma lista SQL que `UNNEST` expande. Também registra `tdoa_emendas_corresponde_filtro(ano, uf)`, que recebe os recortes validados pela CLI como valores tipados, sem interpolá-los no SQL. São funções de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. `UNNEST` descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.
 
 O smoke e benchmark sintético reproduzível do executor está em [`benchmark-datafusion.md`](benchmark-datafusion.md). Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.
 
@@ -18,7 +24,7 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ```
 crates/refino/
-├── sql/silver/              # 64 consultas SQL versionadas
+├── sql/silver/              # consultas SQL versionadas
 │   ├── bcb_sgs.sql
 │   ├── camara_deputados.sql
 │   ├── ...
