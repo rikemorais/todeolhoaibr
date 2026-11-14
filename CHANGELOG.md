@@ -5,6 +5,14 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.93.0] - 2026-11-14
+
+### Adicionado
+
+- Contratos Silver separados para autoria/localidade textual da CGU e pagamentos municipais do Tesouro, com filtros por ano e, no Tesouro, por UF (issue #33).
+- Recortes Silver publicados em recursos próprios, preservando a relação integral e a linhagem das linhas de origem.
+- Comandos de refino Bronze e Silver para as duas relações de emendas.
+
 ## [0.92.0] - 2026-11-14
 
 ### Adicionado
