@@ -16,11 +16,72 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 BRONZE = Path(os.environ.get("TODEOLHO_BRONZE_DIR", "/dados/bronze"))
 SILVER = Path(os.environ.get("TODEOLHO_SILVER_DIR", "/dados/silver"))
+
+# Chaves candidatas declaradas na matriz Silver. A consulta mede duplicatas,
+# mas nunca elimina linhas. Chaves ausentes ficam explicitamente sem validação.
+CHAVES_CANDIDATAS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("ana", "estacoes-fluviometricas"): ("codigo_estacao",),
+    ("ana", "estacoes-pluviometricas"): ("codigo_estacao",),
+    ("b3", "cotahist"): (
+        "data_pregao",
+        "codigo_negociacao",
+        "codigo_bdi",
+        "tipo_mercado",
+    ),
+    ("undp", "indices-compostos"): ("iso3",),
+    ("world-bank", "indicadores/desemprego"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/alfabetizacao"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/expectativa-vida"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/gini"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/pib"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/pib-per-capita"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/pobreza-extrema"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+    ("world-bank", "indicadores/populacao"): (
+        "codigo_pais",
+        "codigo_indicador",
+        "ano",
+    ),
+}
+
+COLUNAS_LINHAGEM = (
+    "_tdoa_origem_manifesto",
+    "_tdoa_origem_parte",
+    "_tdoa_origem_ordinal",
+)
 
 
 def sanitizar(nome: str) -> str:
@@ -28,12 +89,29 @@ def sanitizar(nome: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in nome)
 
 
+def citar_identificador(nome: str) -> str:
+    """Escapa um identificador DuckDB, inclusive nomes vindos de leiautes externos."""
+    return '"' + nome.replace('"', '""') + '"'
+
+
+def chave_candidata(fonte: str, recurso: str) -> tuple[str, ...] | None:
+    """Resolve chaves candidatas sem inferi-las de nomes arbitrários de colunas."""
+    if fonte == "bcb" and recurso.startswith("series/"):
+        # O identificador da série já faz parte do recurso; cada view cobre uma série.
+        return ("data",)
+    return CHAVES_CANDIDATAS.get((fonte, recurso))
+
+
 def base_recurso(recurso: str) -> str:
     """Remove os segmentos de partição (``chave=valor``) do recurso."""
     return "/".join(p for p in recurso.split("/") if "=" not in p)
 
 
-def coletar(raiz: Path, camada: str, catalogo: dict[str, dict[str, str]] | None = None) -> dict[str, list[str]]:
+def coletar(
+    raiz: Path,
+    camada: str,
+    catalogo: dict[str, dict[str, str]] | None = None,
+) -> dict[str, list[str]]:
     """Mapeia as views de uma camada para os Parquets da versão vigente."""
     tabelas: dict[str, list[str]] = {}
     if not raiz.is_dir():
@@ -50,7 +128,11 @@ def coletar(raiz: Path, camada: str, catalogo: dict[str, dict[str, str]] | None 
             continue
         nome = sanitizar(f"{camada}_{fonte}_{recurso}")
         if catalogo is not None:
-            catalogo[nome] = {"camada": camada, "fonte": fonte}
+            catalogo[nome] = {
+                "camada": camada,
+                "fonte": fonte,
+                "recurso": recurso,
+            }
         for parte in manifesto.get("partes", []):
             chave = parte.get("chave")
             if chave:
@@ -58,11 +140,112 @@ def coletar(raiz: Path, camada: str, catalogo: dict[str, dict[str, str]] | None 
     return tabelas
 
 
+def inspecionar_colunas(arquivos: list[str]) -> list[str]:
+    """Lê somente o schema Parquet para produzir expressões de qualidade."""
+    lista = ", ".join("'" + arquivo.replace("'", "''") + "'" for arquivo in arquivos)
+    sql = (
+        "DESCRIBE SELECT * FROM read_parquet(["
+        f"{lista}], union_by_name = true, hive_partitioning = true);"
+    )
+    processo = subprocess.run(
+        ["duckdb", "-json", "-c", sql],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if processo.returncode != 0 or not processo.stdout.strip():
+        return []
+    try:
+        return [linha["column_name"] for linha in json.loads(processo.stdout)]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return []
+
+
+def sql_qualidade(
+    nome_view: str,
+    colunas: list[str],
+    chave: tuple[str, ...] | None,
+) -> str:
+    """Gera uma view de perfil lazy sobre uma única tabela Silver vigente."""
+    expressoes = ["count(*) AS linhas"]
+    for coluna in colunas:
+        expressoes.append(
+            "count(*) FILTER (WHERE "
+            f"{citar_identificador(coluna)} IS NULL) AS "
+            f"{citar_identificador('nulos__' + coluna)}"
+        )
+
+    linhagem_disponivel = [coluna for coluna in COLUNAS_LINHAGEM if coluna in colunas]
+    if linhagem_disponivel:
+        nulos_linhagem = " OR ".join(
+            f"{citar_identificador(coluna)} IS NULL" for coluna in linhagem_disponivel
+        )
+        expressoes.append(
+            f"count(*) FILTER (WHERE {nulos_linhagem}) AS linhas_linhagem_incompleta"
+        )
+    else:
+        expressoes.append("CAST(NULL AS BIGINT) AS linhas_linhagem_incompleta")
+
+    if chave and all(coluna in colunas for coluna in chave):
+        colunas_chave = ", ".join(citar_identificador(coluna) for coluna in chave)
+        incompleta = " OR ".join(
+            f"{citar_identificador(coluna)} IS NULL" for coluna in chave
+        )
+        completa = " AND ".join(
+            f"{citar_identificador(coluna)} IS NOT NULL" for coluna in chave
+        )
+        expressoes.extend(
+            [
+                f"'{', '.join(chave)}' AS chave_candidata",
+                f"count(*) FILTER (WHERE {incompleta}) AS linhas_chave_incompleta",
+                "count(*) FILTER (WHERE "
+                f"{completa}) - count(DISTINCT ({colunas_chave})) "
+                f"FILTER (WHERE {completa}) AS linhas_chave_duplicada",
+                "'candidata; medir, não deduplicar' AS status_chave",
+            ]
+        )
+    else:
+        expressoes.extend(
+            [
+                "CAST(NULL AS VARCHAR) AS chave_candidata",
+                "CAST(NULL AS BIGINT) AS linhas_chave_incompleta",
+                "CAST(NULL AS BIGINT) AS linhas_chave_duplicada",
+                "'não validada; consulte a matriz Silver' AS status_chave",
+            ]
+        )
+
+    return (
+        f"CREATE OR REPLACE VIEW qualidade_{nome_view} AS\n"
+        f"SELECT {', '.join(expressoes)}\nFROM {nome_view};"
+    )
+
+
 def main() -> int:
     catalogo: dict[str, dict[str, str]] = {}
-    tabelas = coletar(BRONZE, "bronze", catalogo) | coletar(SILVER, "silver", catalogo)
+    tabelas_bronze = coletar(BRONZE, "bronze", catalogo)
+    tabelas_silver = coletar(SILVER, "silver", catalogo)
+    tabelas = tabelas_bronze | tabelas_silver
+    for nome_view, metadados in list(catalogo.items()):
+        if metadados["camada"] != "silver" or nome_view not in tabelas_silver:
+            continue
+        nome_qualidade = f"qualidade_{nome_view}"
+        catalogo[nome_qualidade] = {
+            "camada": "qualidade",
+            "fonte": metadados["fonte"],
+            "recurso": metadados["recurso"],
+        }
     if sys.argv[1:] == ["--catalogo-json"]:
-        print(json.dumps([{"nome": nome, **catalogo[nome]} for nome in sorted(catalogo)]))
+        print(
+            json.dumps(
+                [
+                    {
+                        "nome": nome,
+                        **{k: v for k, v in catalogo[nome].items() if k != "recurso"},
+                    }
+                    for nome in sorted(catalogo)
+                ]
+            )
+        )
         return 0
     for nome in sorted(tabelas):
         arquivos = sorted(set(tabelas[nome]))
@@ -72,6 +255,13 @@ def main() -> int:
             f"  SELECT * FROM read_parquet([{lista}], "
             "union_by_name = true, hive_partitioning = true);"
         )
+    for nome in sorted(tabelas_silver):
+        metadados = catalogo[nome]
+        recurso = metadados["recurso"]
+        chave = chave_candidata(metadados["fonte"], recurso)
+        colunas = inspecionar_colunas(sorted(set(tabelas_silver[nome])))
+        if colunas:
+            print(sql_qualidade(nome, colunas, chave))
     print(f"-- {len(tabelas)} view(s) Bronze/Silver geradas", file=sys.stderr)
     return 0
 
