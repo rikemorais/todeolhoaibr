@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.92.0] - 2026-11-14
+
+### Adicionado
+
+- Fonte sob demanda `emendas`: repasses municipais mensais do Tesouro e consultas anuais de autoria, localidade e valores da CGU na Raw (issue #33, filtro de UF e associação entre os conjuntos pendentes).
+
 ## [0.91.0] - 2026-11-14
 
 ### Adicionado
