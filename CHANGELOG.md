@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.91.0] - 2026-11-14
+
+### Adicionado
+
+- Contrato SQL tipado e publicação Silver das estatísticas mensais do Mapa de Empresas por UF, com datas e métricas normalizadas, saldo derivado e validação da chave período/UF.
+
 ## [0.90.0] - 2026-11-14
 
 ### Adicionado
