@@ -70,6 +70,7 @@ O catálogo de refino cresce por fonte. Hoje:
 
 | Fonte (bronze) | Lê do raw | Formato de entrada |
 | --- | --- | --- |
+| `mapa_empresas` | `mapa_empresas/movimentacao/*` | XLSX (bloco agregado por UF) |
 | `camara-despesas` | `camara/despesas/*` | ZIP + CSV (`;`) |
 | `senado-despesas` | `senado/despesas/*` | CSV solto (`;`, Latin-1, 1 linha de preâmbulo) |
 | `camara-votacoes` | `camara/votacoes/*` | CSV solto (`;`, UTF-8 com BOM) |
