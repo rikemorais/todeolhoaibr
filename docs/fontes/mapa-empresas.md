@@ -63,6 +63,23 @@ FROM bronze_mapa_empresas_movimentacao
 WHERE periodo = '2026-08' AND "UF" = 'MG';
 ```
 
+Para publicar a camada Silver tipada, rode:
+
+```bash
+docker compose run --rm refino refinar silver mapa_empresas
+```
+
+A Silver mantém uma linha por mês e UF, converte as datas seriais do Excel para `DATE`,
+as contagens para `BIGINT` e calcula `saldo = empresas_abertas - empresas_fechadas`.
+Ela valida período, campos obrigatórios, contagens não negativas e a chave (`periodo`,
+`uf`) antes de publicar. No DuckDB, a view é `silver_mapa_empresas_movimentacao`:
+
+```sql
+SELECT periodo, uf, estado, empresas_abertas, empresas_fechadas, saldo, empresas_ativas
+FROM silver_mapa_empresas_movimentacao
+WHERE periodo = '2026-08' AND uf = 'MG';
+```
+
 Isso preserva o arquivo-fonte e evita duplicá-lo 27 vezes. Os arquivos quadrimestrais do
 Mapa continuam sendo PDFs analíticos, não tabelas completas por UF; a pesquisa da origem
 e as limitações estão em [pesquisa do Mapa de Empresas](pesquisa-mapa-empresas.md).

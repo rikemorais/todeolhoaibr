@@ -58,6 +58,12 @@ class TesteViewsVigentes(unittest.TestCase):
 
 
 class TesteRelatorioQualidade(unittest.TestCase):
+    def test_chave_mensal_de_uf_do_mapa_de_empresas(self) -> None:
+        self.assertEqual(
+            GERADOR.chave_candidata("mapa_empresas", "movimentacao"),
+            ("periodo", "uf"),
+        )
+
     def test_mede_nulos_linhagem_e_chave_candidata_sem_apagar_linhas(self) -> None:
         sql = GERADOR.sql_qualidade(
             "silver_ana_estacoes",
