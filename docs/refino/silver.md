@@ -193,6 +193,9 @@ As quatro famílias Silver já existentes do TSE usam SQL versionado executado p
 
 ## Cobertura do catálogo Bronze
 
+Os perfis operacionais de qualidade no console DuckDB são gerados para cada view Silver apontada pelos manifestos vigentes. Eles mostram contagem de linhas, nulos por coluna e linhagem incompleta; para chaves candidatas declaradas nesta matriz, também mostram chaves incompletas e linhas excedentes por duplicidade. A lista de chaves usada pelo gerador é explícita e fica em `docker/consulta/gerar_views.py`: chaves não configuradas ou sem todas as colunas permanecem como “não validadas”. O perfil é uma consulta lazy sobre uma tabela selecionada, não altera nem deduplica dados e não substitui os smokes documentados por família abaixo. Assim, snapshots antigos não entram na medição operacional da view vigente.
+
+
 O [catálogo](../../crates/refino/src/catalogo.rs) tem 35 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada relação interna precisa de contrato próprio ou de exclusão com justificativa explícita. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
 
 A [especificação de contratos da fase 0](contratos-silver-fase0.md) detalha tipos,
