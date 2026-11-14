@@ -19,6 +19,7 @@ pub use fontes::bcb::FonteBcb;
 pub use fontes::camara::{
     FonteCamara, FonteCamaraDespesas, FonteCamaraTramitacoes, FonteCamaraVotacoes,
 };
+pub use fontes::emendas::FonteEmendas;
 pub use fontes::ibge::{FonteIbge, FonteIbgePibMunicipios, FonteIbgeRendaPerCapita};
 pub use fontes::ipeadata::FonteIpeadata;
 pub use fontes::mapa_empresas::FonteMapaEmpresas;
@@ -54,6 +55,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteRemuneracaoEstadualMg),
         Box::new(FonteRemuneracaoEstadualGo),
         Box::new(FonteBcb),
+        Box::new(FonteEmendas),
         Box::new(FonteIpeadata),
         Box::new(FonteCamara),
         Box::new(FonteCamaraDespesas),
