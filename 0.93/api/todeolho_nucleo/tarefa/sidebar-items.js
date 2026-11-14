@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PrecisaoDaEstimativa"],"struct":["ResumoDaTarefa","TarefaPlanejada"],"trait":["Tarefa"]};
