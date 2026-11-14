@@ -14,50 +14,154 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      cobertura: ${{ steps.filter.outputs.cobertura }}
+      consulta: ${{ steps.filter.outputs.consulta }}
+    steps:
+      - name: Detecta os arquivos alterados
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files || 0 }}
+        run: |
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "cobertura=true" >> "$GITHUB_OUTPUT"
+            echo "consulta=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A API limita a listagem de arquivos a 3.000; acima disso, valide tudo.
+          if (( PR_CHANGED_FILES >= 3000 )); then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "cobertura=true" >> "$GITHUB_OUTPUT"
+            echo "consulta=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          arquivos="$RUNNER_TEMP/arquivos-alterados.txt"
+          if ! gh api --paginate \
+              "repos/$REPOSITORY/pulls/$PR_NUMBER/files" \
+              --jq '.[].filename' > "$arquivos"; then
+            echo "::warning::Não foi possível filtrar os arquivos; executando todas as verificações."
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "cobertura=true" >> "$GITHUB_OUTPUT"
+            echo "consulta=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          entradas_rust='^(Cargo\.toml|Cargo\.lock|\.cargo/|crates/|rust-toolchain(\.toml)?$)'
+          rust=false
+          cobertura=false
+          if grep -Eq "$entradas_rust" "$arquivos"; then
+            rust=true
+            cobertura=true
+          elif grep -Eq '^\.github/workflows/' "$arquivos"; then
+            rust=true
+          fi
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          echo "cobertura=$cobertura" >> "$GITHUB_OUTPUT"
+
+          consulta=false
+          if grep -Eq '^(docker/consulta/|docker-compose.*\.yml$)' "$arquivos"; then
+            consulta=true
+          fi
+          echo "consulta=$consulta" >> "$GITHUB_OUTPUT"
+
   testes:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.rust == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # Cache de ~/.cargo e target/ entre runs, para o CI não compilar do zero.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      # O ubuntu-latest já traz o toolchain Rust stable (edition 2024 exige
-      # >= 1.85). --locked garante que o Cargo.lock está em dia; --workspace
-      # roda os testes de todos os crates.
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Ativa cache de compilação Rust
+        run: |
+          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+      # --locked garante que Cargo.lock está em dia; --workspace roda todos os crates.
       - run: cargo test --workspace --locked
+      - name: Estatísticas do cache de compilação
+        run: ${SCCACHE_PATH} --show-stats
 
   # Gate de cobertura: o limite começa na cobertura atual (77,90%) e impede
   # regressões. cargo-llvm-cov publica o resumo por arquivo no log do job.
   cobertura:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.cobertura == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Ativa cache de compilação Rust
+        run: |
+          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
       - run: rustup component add llvm-tools-preview
       - run: cargo install cargo-llvm-cov --version 0.9.1 --locked
       - run: cargo llvm-cov --workspace --locked --fail-under-lines 77.9
+      - name: Estatísticas do cache de compilação
+        run: ${SCCACHE_PATH} --show-stats
 
   # Formatação e lint: barra PR com código fora do rustfmt ou com qualquer aviso
   # do clippy. `--all-targets` cobre também testes e exemplos.
   lint:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.rust == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # Cache de ~/.cargo e target/ entre runs, para o CI não compilar do zero.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Ativa cache de compilação Rust
+        run: |
+          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Estatísticas do cache de compilação
+        run: ${SCCACHE_PATH} --show-stats
 
   # Gate de documentação: com `#![warn(missing_docs)]` nas bibliotecas, tratar
   # warnings como erro faz o CI falhar quando falta doc em item público ou há
   # link intra-doc quebrado. Mantém a cobertura de docstring sem regredir.
   docs:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.rust == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # Cache de ~/.cargo e target/ entre runs, para o CI não compilar do zero.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Ativa cache de compilação Rust
+        run: |
+          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
       - run: cargo doc --no-deps --workspace --locked
         env:
           RUSTDOCFLAGS: "-D warnings"
+      - name: Estatísticas do cache de compilação
+        run: ${SCCACHE_PATH} --show-stats
+
+  consulta:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.consulta == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Testes Python do console DuckDB
+        run: python3 -m unittest discover -s docker/consulta -p 'test_*.py' -v

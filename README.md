@@ -375,6 +375,15 @@ cargo llvm-cov --workspace --locked --fail-under-lines 77.9
 O resumo por arquivo é exibido no terminal. O limite inicial é 77,9% de linhas,
 medido em 2 de novembro de 2026; aumente-o quando a cobertura crescer.
 
+No CI, mudanças em Rust, Cargo ou configuração de toolchain executam testes,
+cobertura, Clippy e documentação Rust. Mudanças nos workflows executam testes,
+Clippy e documentação, sem recompilar a cobertura instrumentada. Alterações em
+`docker/consulta/` ou nos arquivos `docker-compose*.yml` executam os testes
+Python do console. Mudanças sem impacto nesses caminhos mantêm o check de
+roteamento, mas pulam os jobs de compilação Rust. O CI usa
+`sccache` para reaproveitar resultados de compilação compatíveis; cada job
+registra as estatísticas do cache nos logs.
+
 Os testes de integração do adaptador S3 (`armazenamento_s3`) são marcados com `#[ignore]` — o `cargo test` padrão os reporta como *ignored*, não como aprovados. Para rodá-los contra o versitygw local, suba-o e passe o endpoint:
 
 ```bash
