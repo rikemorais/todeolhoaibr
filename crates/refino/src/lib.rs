@@ -30,7 +30,7 @@ pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
 pub use fontes::{
-    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
