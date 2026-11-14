@@ -27,6 +27,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | Fonte | Recursos ingeridos | Documentação |
 | --- | --- | --- |
 | `ibge` | regiões, estados, municípios | [API de Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) |
+| `mapa_empresas` | empresas abertas, fechadas e ativas por município e UF (snapshots mensais desde maio de 2026) | [doc da fonte](docs/fontes/mapa-empresas.md) |
 | `transparencia-beneficios` | Bolsa Família, Auxílio Brasil e BPC/LOAS por município e competência (sob demanda; requer token) | [doc da fonte](docs/fontes/beneficios-sociais.md) |
 | `transparencia-servidores-ativos` | remuneração mensal de servidores civis ativos do Executivo Federal, SIAPE e BACEN (sob demanda) | [doc da fonte](docs/fontes/servidores-federais-ativos.md) |
 | `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
