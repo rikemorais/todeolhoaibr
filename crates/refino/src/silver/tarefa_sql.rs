@@ -8,7 +8,10 @@ use todeolho_nucleo::{
     ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, ResumoDaTarefa, Tarefa, estado_na_raw,
 };
 
-use crate::{SnapshotBronze, executor_sql::ConfiguracaoExecutorSql};
+use crate::{
+    SnapshotBronze,
+    executor_sql::{ConfiguracaoExecutorSql, FiltrosSqlEmendas},
+};
 
 use super::publicacao::{ConfiguracaoDePublicacao, publicar_transformacao_sql};
 
@@ -24,6 +27,7 @@ pub struct TarefaDeSilverSql {
     sql: &'static str,
     esquema: Option<SchemaRef>,
     executor: ConfiguracaoExecutorSql,
+    filtros_emendas: Option<FiltrosSqlEmendas>,
 }
 
 impl TarefaDeSilverSql {
@@ -50,6 +54,7 @@ impl TarefaDeSilverSql {
             sql,
             esquema: Some(esquema),
             executor: ConfiguracaoExecutorSql::default(),
+            filtros_emendas: None,
         }
     }
 
@@ -85,6 +90,7 @@ impl TarefaDeSilverSql {
             sql,
             esquema,
             executor: ConfiguracaoExecutorSql::default(),
+            filtros_emendas: None,
         }
     }
 
@@ -97,6 +103,12 @@ impl TarefaDeSilverSql {
     /// Substitui os limites operacionais desta tarefa.
     pub fn com_executor(mut self, executor: ConfiguracaoExecutorSql) -> Self {
         self.executor = executor;
+        self
+    }
+
+    /// Define filtros de linha tipados para uma relação de emendas.
+    pub fn com_filtros_emendas(mut self, filtros: FiltrosSqlEmendas) -> Self {
+        self.filtros_emendas = Some(filtros);
         self
     }
 
@@ -144,6 +156,17 @@ impl Tarefa for TarefaDeSilverSql {
                 configuracao,
                 self.sql,
                 &self.executor,
+            )
+            .await
+        } else if let Some(filtros) = self.filtros_emendas.as_ref() {
+            super::publicacao::publicar_transformacao_sql_com_filtros_emendas(
+                self.bronze.as_ref(),
+                contexto.armazenamento.as_ref(),
+                &self.snapshot,
+                configuracao,
+                self.sql,
+                &self.executor,
+                filtros,
             )
             .await
         } else {

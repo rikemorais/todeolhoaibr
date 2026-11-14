@@ -15,8 +15,8 @@ use crate::{
     EscritorParquetTipado, SnapshotBronze,
     executor_sql::{
         COL_MANIFESTO, COL_ORDINAL, COL_PARTE, ConfiguracaoExecutorSql, ErroExecutorSql,
-        executar_sql, preparar_snapshot, preparar_snapshot_com_json_original,
-        preparar_snapshot_com_json_string_original,
+        FiltrosSqlEmendas, executar_sql_com_filtros, preparar_snapshot,
+        preparar_snapshot_com_json_original, preparar_snapshot_com_json_string_original,
     },
 };
 
@@ -37,6 +37,7 @@ pub(crate) struct ConfiguracaoDePublicacao<'a> {
 struct OpcoesDeTransformacao<'a> {
     json_original_aninhado: Option<bool>,
     fonte_bronze: Option<&'a str>,
+    filtros_emendas: Option<&'a FiltrosSqlEmendas>,
 }
 
 /// Executa um contrato SQL sobre o snapshot inteiro e publica sua saída em fluxo.
@@ -58,6 +59,7 @@ pub(crate) async fn publicar_transformacao_sql(
         OpcoesDeTransformacao {
             json_original_aninhado: None,
             fonte_bronze: None,
+            filtros_emendas: None,
         },
     )
     .await
@@ -83,6 +85,7 @@ pub(crate) async fn publicar_transformacao_sql_com_fonte_bronze(
         OpcoesDeTransformacao {
             json_original_aninhado: None,
             fonte_bronze: Some(fonte_bronze),
+            filtros_emendas: None,
         },
     )
     .await
@@ -107,6 +110,7 @@ pub(crate) async fn publicar_transformacao_sql_com_json_original(
         OpcoesDeTransformacao {
             json_original_aninhado: Some(true),
             fonte_bronze: None,
+            filtros_emendas: None,
         },
     )
     .await
@@ -131,6 +135,33 @@ pub(crate) async fn publicar_transformacao_sql_com_json_string_original(
         OpcoesDeTransformacao {
             json_original_aninhado: Some(false),
             fonte_bronze: None,
+            filtros_emendas: None,
+        },
+    )
+    .await
+}
+
+/// Executa um contrato SQL de emendas com filtros de ano/UF tipados.
+pub(crate) async fn publicar_transformacao_sql_com_filtros_emendas(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+    filtros: &FiltrosSqlEmendas,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        OpcoesDeTransformacao {
+            json_original_aninhado: None,
+            fonte_bronze: None,
+            filtros_emendas: Some(filtros),
         },
     )
     .await
@@ -213,14 +244,20 @@ async fn publicar_transformacao_sql_interno(
     let sql = entrada
         .expandir_placeholders_sql(sql)
         .map_err(|erro| erro_manifesto(recurso, erro))?;
-    let mut fluxo = executar_sql(entrada.diretorio_bronze(), &diretorio_spill, &sql, executor)
-        .await
-        .map_err(|erro| {
-            erro_manifesto(
-                recurso,
-                format!("falha ao planejar contrato SQL Silver: {erro}"),
-            )
-        })?;
+    let mut fluxo = executar_sql_com_filtros(
+        entrada.diretorio_bronze(),
+        &diretorio_spill,
+        &sql,
+        executor,
+        opcoes.filtros_emendas,
+    )
+    .await
+    .map_err(|erro| {
+        erro_manifesto(
+            recurso,
+            format!("falha ao planejar contrato SQL Silver: {erro}"),
+        )
+    })?;
     let esquema_saida = fluxo.schema();
     validar_linhagem(&esquema_saida).map_err(|detalhe| erro_manifesto(recurso, detalhe))?;
     if esquema

@@ -29,6 +29,7 @@ pub mod tarefa;
 pub use catalogo::{FonteDeRefino, catalogo_refino};
 pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
+pub use executor_sql::FiltrosSqlEmendas;
 pub use fontes::{
     DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
     DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
@@ -56,6 +57,7 @@ pub use silver::camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes}
 pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
 #[cfg(test)]
 pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
+pub use silver::emendas::{SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO};
 pub use silver::publicar_bcb_sgs;
 pub use silver::publicar_remuneracao_estadual_go;
 pub use silver::publicar_remuneracao_estadual_mg;
