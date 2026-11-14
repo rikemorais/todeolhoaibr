@@ -1983,6 +1983,17 @@ O caminho acrescenta a coluna de partição <code>periodo</code>, que pode ser c
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="k">FROM</span><span class="w"> </span><span class="n">bronze_mapa_empresas_movimentacao</span>
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">periodo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2026-08'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="ss">"UF"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'MG'</span><span class="p">;</span>
 </code></pre></div>
+<p>Para publicar a camada Silver tipada, rode:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>mapa_empresas
+</code></pre></div>
+<p>A Silver mantém uma linha por mês e UF, converte as datas seriais do Excel para <code>DATE</code>,
+as contagens para <code>BIGINT</code> e calcula <code>saldo = empresas_abertas - empresas_fechadas</code>.
+Ela valida período, campos obrigatórios, contagens não negativas e a chave (<code>periodo</code>,
+<code>uf</code>) antes de publicar. No DuckDB, a view é <code>silver_mapa_empresas_movimentacao</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">periodo</span><span class="p">,</span><span class="w"> </span><span class="n">uf</span><span class="p">,</span><span class="w"> </span><span class="n">estado</span><span class="p">,</span><span class="w"> </span><span class="n">empresas_abertas</span><span class="p">,</span><span class="w"> </span><span class="n">empresas_fechadas</span><span class="p">,</span><span class="w"> </span><span class="n">saldo</span><span class="p">,</span><span class="w"> </span><span class="n">empresas_ativas</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">silver_mapa_empresas_movimentacao</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">periodo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2026-08'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">uf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'MG'</span><span class="p">;</span>
+</code></pre></div>
 <p>Isso preserva o arquivo-fonte e evita duplicá-lo 27 vezes. Os arquivos quadrimestrais do
 Mapa continuam sendo PDFs analíticos, não tabelas completas por UF; a pesquisa da origem
 e as limitações estão em <a href="../pesquisa-mapa-empresas/">pesquisa do Mapa de Empresas</a>.</p>
