@@ -1,4 +1,4 @@
--- Contrato emendas-transferegov.beneficiario-programa.v1.
+-- Contrato emendas-transferegov.beneficiario-programa.v2.
 -- Uma linha por registro beneficiário-programa da origem. Valores conservam os nomes
 -- e o significado publicados pelo Transferegov; não são classificados como pagamentos.
 WITH entrada AS (
@@ -9,6 +9,18 @@ WITH entrada AS (
         {{EXPR_OPCIONAL:nm_beneficiario_emenda}} AS nome_beneficiario_origem,
         {{EXPR_OPCIONAL:nm_municipio_beneficiario_emenda}} AS municipio_origem,
         {{EXPR_OPCIONAL:sg_uf_beneficiario_emenda}} AS uf_origem,
+        tdoa_municipio_ibge_codigo(
+            {{EXPR_OPCIONAL:sg_uf_beneficiario_emenda}},
+            {{EXPR_OPCIONAL:nm_municipio_beneficiario_emenda}}
+        ) AS codigo_municipio_ibge,
+        tdoa_municipio_ibge_nome(
+            {{EXPR_OPCIONAL:sg_uf_beneficiario_emenda}},
+            {{EXPR_OPCIONAL:nm_municipio_beneficiario_emenda}}
+        ) AS nome_municipio_ibge,
+        tdoa_municipio_ibge_metodo(
+            {{EXPR_OPCIONAL:sg_uf_beneficiario_emenda}},
+            {{EXPR_OPCIONAL:nm_municipio_beneficiario_emenda}}
+        ) AS metodo_mapeamento_municipio,
         {{EXPR_OPCIONAL:nm_natureza_juridica_beneficiario_emenda}} AS natureza_juridica_beneficiario_origem,
         {{EXPR_OPCIONAL:aa_emenda}} AS ano_origem,
         {{EXPR_OPCIONAL:cd_parlamentar}} AS codigo_parlamentar_origem,
@@ -31,6 +43,9 @@ WITH entrada AS (
         NULLIF(TRIM(nome_beneficiario_origem), '') AS nome_beneficiario,
         NULLIF(TRIM(municipio_origem), '') AS municipio,
         UPPER(NULLIF(TRIM(uf_origem), '')) AS uf,
+        codigo_municipio_ibge,
+        nome_municipio_ibge,
+        metodo_mapeamento_municipio,
         NULLIF(TRIM(natureza_juridica_beneficiario_origem), '') AS natureza_juridica_beneficiario,
         TRY_CAST(NULLIF(TRIM(ano_origem), '') AS SMALLINT) AS ano,
         NULLIF(TRIM(codigo_parlamentar_origem), '') AS codigo_parlamentar,
@@ -55,6 +70,9 @@ SELECT
     nome_beneficiario,
     municipio,
     uf,
+    codigo_municipio_ibge,
+    nome_municipio_ibge,
+    metodo_mapeamento_municipio,
     natureza_juridica_beneficiario,
     ano,
     codigo_parlamentar,
