@@ -3182,7 +3182,7 @@ async fn refinar_emendas_transferegov_silver(
     let filtros = filtros_sql_emendas(&filtros)?;
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-transferegov",
-        "emendas-transferegov-beneficiario-programa-v1",
+        "emendas-transferegov-beneficiario-programa-v2",
         SQL_EMENDAS_TRANSFEREGOV,
         intervalo,
         &filtros,
