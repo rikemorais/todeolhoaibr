@@ -37,12 +37,11 @@ impl Decodificador for DecodificadorXmlDataset {
         let mut coluna_atual: Option<String> = None;
         let mut texto_atual = String::new();
         let mut linha_atual: Vec<(String, String)> = Vec::new();
-        let mut buf = Vec::new();
 
         loop {
-            match reader.read_event_into(&mut buf) {
+            match reader.read_event() {
                 Ok(Event::Start(e)) => {
-                    let nome_local = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+                    let nome_local = e.local_name().as_ref().to_string();
                     if nome_local == "Table" {
                         dentro_de_table = true;
                         linha_atual.clear();
@@ -52,14 +51,12 @@ impl Decodificador for DecodificadorXmlDataset {
                     }
                 }
                 Ok(Event::Text(e)) => {
-                    if coluna_atual.is_some()
-                        && let Ok(t) = e.decode()
-                    {
-                        texto_atual.push_str(&t);
+                    if coluna_atual.is_some() {
+                        texto_atual.push_str(e.as_ref());
                     }
                 }
                 Ok(Event::End(e)) => {
-                    let nome_local = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+                    let nome_local = e.local_name().as_ref().to_string();
                     if nome_local == "Table" && dentro_de_table {
                         dentro_de_table = false;
                         for (col, _) in &linha_atual {
@@ -84,7 +81,7 @@ impl Decodificador for DecodificadorXmlDataset {
                     }
                 }
                 Ok(Event::Empty(e)) => {
-                    let nome_local = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+                    let nome_local = e.local_name().as_ref().to_string();
                     if dentro_de_table {
                         linha_atual.push((nome_local, String::new()));
                     }
@@ -95,7 +92,6 @@ impl Decodificador for DecodificadorXmlDataset {
                 }
                 _ => {}
             }
-            buf.clear();
         }
 
         if colunas.is_empty() {
