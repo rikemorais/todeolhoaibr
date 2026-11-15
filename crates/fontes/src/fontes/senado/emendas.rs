@@ -587,6 +587,36 @@ mod testes {
         assert_eq!(sessao.cabecalho_cookie(), "a=1; b=2");
     }
 
+    #[test]
+    fn guarda_cookies_da_sessao_e_ignora_headers_sem_par_nome_valor() {
+        let mut sessao = SessaoAnonima {
+            cookies: BTreeMap::new(),
+            url_painel: Url::parse(URL_PAINEL).unwrap(),
+        };
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.append(
+            SET_COOKIE,
+            HeaderValue::from_static("sessao=abc123; Path=/"),
+        );
+        headers.append(
+            SET_COOKIE,
+            HeaderValue::from_static("preferencia=pt-BR; Path=/"),
+        );
+        headers.append(SET_COOKIE, HeaderValue::from_static("header-invalido"));
+
+        sessao.guardar_cookies(&headers);
+
+        assert_eq!(sessao.cookies.len(), 2);
+        assert_eq!(
+            sessao.cookies.get("sessao").map(String::as_str),
+            Some("abc123")
+        );
+        assert_eq!(
+            sessao.cookies.get("preferencia").map(String::as_str),
+            Some("pt-BR")
+        );
+    }
+
     #[tokio::test]
     #[ignore = "integração opcional com o painel público do Senado; faz download do snapshot"]
     async fn captura_anônima_publica_o_xlsx_com_manifesto_sem_ticket() {
