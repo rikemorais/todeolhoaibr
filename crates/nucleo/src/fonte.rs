@@ -29,6 +29,16 @@ pub struct LimiteHttp {
     pub intervalo: std::time::Duration,
 }
 
+/// Comportamento permitido ao cliente diante de respostas HTTP de redirecionamento.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RedirecionamentoHttp {
+    /// Segue redirecionamentos conforme a política padrão do cliente.
+    #[default]
+    Seguir,
+    /// Retorna a resposta sem fazer uma segunda requisição.
+    Bloquear,
+}
+
 /// Requisitos HTTP de uma fonte. O padrão é acesso anônimo sem limite.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PerfilHttp {
@@ -38,6 +48,8 @@ pub struct PerfilHttp {
     pub limite: Option<LimiteHttp>,
     /// User-Agent alternativo; quando `Some`, sobrescreve o padrão do projeto.
     pub agente: Option<&'static str>,
+    /// Política de redirecionamento HTTP.
+    pub redirecionamento: RedirecionamentoHttp,
 }
 
 /// Uma API pública ingerida pelo projeto (o "criador" do Factory Method).
@@ -62,6 +74,15 @@ pub trait FonteDeDados: Send + Sync {
     /// Declara autenticação e limite de taxa sem carregar o segredo no domínio.
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp::default()
+    }
+
+    /// Declara o perfil HTTP necessário pelas tarefas selecionadas.
+    ///
+    /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
+    /// tarefas com requisitos HTTP diferentes podem ajustar o perfil após os
+    /// filtros, por exemplo quando uma tarefa local não acessa a API autenticada.
+    fn perfil_http_das_tarefas(&self, _tarefas: &[TarefaPlanejada]) -> PerfilHttp {
+        self.perfil_http()
     }
 
     /// Factory Method: cria as tarefas concretas desta fonte.

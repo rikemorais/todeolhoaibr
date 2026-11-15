@@ -19,6 +19,7 @@ const AGENTE: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 F
 
 const fn perfil_http_cgu() -> PerfilHttp {
     PerfilHttp {
+        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
         credencial: None,
         limite: Some(LimiteHttp {
             host: "portaldatransparencia.gov.br",

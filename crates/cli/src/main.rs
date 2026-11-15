@@ -216,17 +216,7 @@ async fn selecionar() -> Result<bool> {
             async move {
                 let tarefas = fonte.criar_tarefas();
                 montar_opcao_de_menu(fonte.as_ref(), &tarefas, async {
-                    match contexto_para_fonte(contexto, fonte.perfil_http()) {
-                        Ok(contexto_da_fonte) => {
-                            estimar(
-                                &tarefas_de(&tarefas),
-                                &contexto_da_fonte,
-                                PrecisaoDaEstimativa::Rapida,
-                            )
-                            .await
-                        }
-                        Err(_) => vec![None; tarefas.len()],
-                    }
+                    estimar_tarefas_por_perfil(fonte.as_ref(), &tarefas, contexto).await
                 })
                 .await
             }
@@ -245,13 +235,56 @@ async fn selecionar() -> Result<bool> {
     let mut selecionadas = Vec::with_capacity(escolha.len());
     for (indice, filtro) in escolha {
         let fonte = &fontes[indice];
+        let tarefas = filtro.aplicar(fonte.criar_tarefas())?;
         selecionadas.push(FonteSelecionada {
             nome: fonte.nome().to_owned(),
-            tarefas: filtro.aplicar(fonte.criar_tarefas())?,
-            perfil_http: fonte.perfil_http(),
+            perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+            tarefas,
         });
     }
     executar(selecionadas, contexto, false).await
+}
+
+async fn estimar_tarefas_por_perfil(
+    fonte: &dyn FonteDeDados,
+    tarefas: &[TarefaPlanejada],
+    contexto: &ContextoDeExecucao,
+) -> Vec<Option<u64>> {
+    type GrupoDeEstimativas = (PerfilHttp, Vec<(usize, Arc<dyn Tarefa>)>);
+
+    let mut grupos: Vec<GrupoDeEstimativas> = Vec::new();
+    for (indice, tarefa) in tarefas.iter().enumerate() {
+        let perfil = fonte.perfil_http_das_tarefas(std::slice::from_ref(tarefa));
+        let indice_grupo = grupos
+            .iter()
+            .position(|(existente, _)| *existente == perfil);
+        let grupo = match indice_grupo {
+            Some(indice) => &mut grupos[indice].1,
+            None => {
+                grupos.push((perfil, Vec::new()));
+                &mut grupos.last_mut().expect("grupo inserido").1
+            }
+        };
+        grupo.push((indice, Arc::clone(&tarefa.tarefa)));
+    }
+
+    let mut estimativas = vec![None; tarefas.len()];
+    for (perfil, grupo) in grupos {
+        let Ok(contexto_da_fonte) = contexto_para_fonte(contexto, perfil) else {
+            continue;
+        };
+        let tarefas_do_grupo: Vec<_> = grupo.iter().map(|(_, tarefa)| Arc::clone(tarefa)).collect();
+        let resultado = estimar(
+            &tarefas_do_grupo,
+            &contexto_da_fonte,
+            PrecisaoDaEstimativa::Rapida,
+        )
+        .await;
+        for ((indice, _), bytes) in grupo.into_iter().zip(resultado) {
+            estimativas[indice] = bytes;
+        }
+    }
+    estimativas
 }
 
 async fn montar_opcao_de_menu(
@@ -287,20 +320,24 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
             catalogo()
                 .into_iter()
                 .filter(|fonte| !fonte.sob_demanda())
-                .map(|fonte| FonteSelecionada {
-                    nome: fonte.nome().to_owned(),
-                    tarefas: fonte.criar_tarefas(),
-                    perfil_http: fonte.perfil_http(),
+                .map(|fonte| {
+                    let tarefas = fonte.criar_tarefas();
+                    FonteSelecionada {
+                        nome: fonte.nome().to_owned(),
+                        perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                        tarefas,
+                    }
                 })
                 .collect()
         }
         (Some(nome), false) => {
             let fonte = buscar_fonte(&nome)?;
             let filtro = FiltroDeTarefas::a_partir_de(&argumentos.filtros)?;
+            let tarefas = filtro.aplicar(fonte.criar_tarefas())?;
             vec![FonteSelecionada {
                 nome,
-                tarefas: filtro.aplicar(fonte.criar_tarefas())?,
-                perfil_http: fonte.perfil_http(),
+                perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                tarefas,
             }]
         }
     };
@@ -3126,7 +3163,7 @@ async fn refinar_emendas_tesouro_silver(
     let filtros = filtros_sql_emendas(&filtros)?;
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-tesouro",
-        "emendas-tesouro-pagamento-municipal-v1",
+        "emendas-tesouro-pagamento-municipal-v3",
         SQL_EMENDAS_TESOURO,
         intervalo,
         &filtros,

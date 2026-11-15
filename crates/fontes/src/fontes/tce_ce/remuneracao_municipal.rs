@@ -85,6 +85,7 @@ impl FonteDeDados for FonteRemuneracaoMunicipalTceCe {
 
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
             credencial: None,
             limite: Some(LimiteHttp {
                 host: "api-dados-abertos.tce.ce.gov.br",

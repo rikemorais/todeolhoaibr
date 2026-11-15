@@ -86,6 +86,7 @@ impl FonteDeDados for FonteIbgePibMunicipios {
     fn perfil_http(&self) -> PerfilHttp {
         // Dezenas de consultas pesadas ao mesmo host; um ritmo modesto evita sufocá-lo.
         PerfilHttp {
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
             credencial: None,
             limite: Some(LimiteHttp {
                 host: "servicodados.ibge.gov.br",
