@@ -7,9 +7,7 @@ SELECT
     NULLIF(TRIM(cnpj_cpf_socio), '')        AS cnpj_cpf_socio,
     NULLIF(TRIM(qualificacao), '')          AS qualificacao,
     CASE WHEN LENGTH(TRIM(data_entrada)) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(TRIM(data_entrada),1,4),'-',SUBSTR(TRIM(data_entrada),5,2),'-',SUBSTR(TRIM(data_entrada),7,2))
-           AS DATE)
+         THEN to_date(TRIM(data_entrada), '%Y%m%d')
          ELSE NULL END                      AS data_entrada,
     NULLIF(TRIM(pais), '')                  AS pais,
     NULLIF(TRIM(representante_legal), '')   AS representante_legal,

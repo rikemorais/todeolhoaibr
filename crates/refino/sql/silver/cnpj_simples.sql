@@ -4,25 +4,17 @@ SELECT
     NULLIF(TRIM(cnpj_basico), '')           AS cnpj_basico,
     NULLIF(TRIM(opcao_simples), '')         AS opcao_simples,
     CASE WHEN LENGTH(TRIM(data_opcao_simples)) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(TRIM(data_opcao_simples),1,4),'-',SUBSTR(TRIM(data_opcao_simples),5,2),'-',SUBSTR(TRIM(data_opcao_simples),7,2))
-           AS DATE)
+         THEN to_date(TRIM(data_opcao_simples), '%Y%m%d')
          ELSE NULL END                      AS data_opcao_simples,
     CASE WHEN LENGTH(TRIM(data_exclusao_simples)) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(TRIM(data_exclusao_simples),1,4),'-',SUBSTR(TRIM(data_exclusao_simples),5,2),'-',SUBSTR(TRIM(data_exclusao_simples),7,2))
-           AS DATE)
+         THEN to_date(TRIM(data_exclusao_simples), '%Y%m%d')
          ELSE NULL END                      AS data_exclusao_simples,
     NULLIF(TRIM(opcao_mei), '')             AS opcao_mei,
     CASE WHEN LENGTH(TRIM(data_opcao_mei)) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(TRIM(data_opcao_mei),1,4),'-',SUBSTR(TRIM(data_opcao_mei),5,2),'-',SUBSTR(TRIM(data_opcao_mei),7,2))
-           AS DATE)
+         THEN to_date(TRIM(data_opcao_mei), '%Y%m%d')
          ELSE NULL END                      AS data_opcao_mei,
     CASE WHEN LENGTH(TRIM(data_exclusao_mei)) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(TRIM(data_exclusao_mei),1,4),'-',SUBSTR(TRIM(data_exclusao_mei),5,2),'-',SUBSTR(TRIM(data_exclusao_mei),7,2))
-           AS DATE)
+         THEN to_date(TRIM(data_exclusao_mei), '%Y%m%d')
          ELSE NULL END                      AS data_exclusao_mei,
     _tdoa_origem_manifesto,
     _tdoa_origem_parte,
