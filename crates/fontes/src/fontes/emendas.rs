@@ -1,9 +1,10 @@
-//! Emendas parlamentares da CGU e repasses mensais do Tesouro Nacional na Raw.
+//! Emendas da CGU, repasses do Tesouro e beneficiários do Transferegov na Raw.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use chrono::Datelike;
+use serde::Deserialize;
 use serde_json::Value;
 use todeolho_nucleo::{
     CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp, RedirecionamentoHttp, TarefaPlanejada,
@@ -17,10 +18,14 @@ const NOME: &str = "emendas";
 const FONTE_RAW: &str = "emendas";
 const HOST_CGU: &str = "api.portaldatransparencia.gov.br";
 const BASE_CGU: &str = "https://api.portaldatransparencia.gov.br/api-de-dados/emendas";
+const BASE_TRANSFEREGOV: &str =
+    "https://api-publica.transferegov.gestao.gov.br/parcerias/beneficiario_emenda_parlamentar";
 const URL_TESOURO: &str = "https://www.tesourotransparente.gov.br/ckan/dataset/83e419da-1552-46bf-bfc3-05160b2c46c9/resource/66d69917-a5d8-4500-b4b2-ef1f5d062430/download/emendas-parlamentares.csv";
 const PRIMEIRO_ANO: i32 = 2015;
+const PRIMEIRO_ANO_TRANSFEREGOV: i32 = 2025;
 const LIMITE_PAGINAS: usize = 10_000;
 const TAMANHO_TIPICO: u64 = 64 * 1024;
+const TAMANHO_PAGINA_TRANSFEREGOV: usize = 200;
 
 fn ano_corrente() -> i32 {
     chrono::Utc::now().year()
@@ -28,6 +33,12 @@ fn ano_corrente() -> i32 {
 
 fn url_cgu(ano: i32, pagina: usize) -> String {
     format!("{BASE_CGU}?ano={ano}&pagina={pagina}")
+}
+
+fn url_transferegov(ano: i32) -> String {
+    format!(
+        "{BASE_TRANSFEREGOV}?aa_emenda={ano}&pagina=1&tamanho_da_pagina={TAMANHO_PAGINA_TRANSFEREGOV}"
+    )
 }
 
 fn tarefas() -> Vec<TarefaPlanejada> {
@@ -40,6 +51,19 @@ fn tarefas() -> Vec<TarefaPlanejada> {
     .com_etiquetas([("origem", "tesouro")]);
 
     std::iter::once(repasses)
+        .chain((PRIMEIRO_ANO_TRANSFEREGOV..=ano_corrente()).map(|ano| {
+            let url = url_transferegov(ano);
+            TarefaPlanejada::nova(TarefaDeIngestaoHttp::paginada(
+                FONTE_RAW,
+                &format!("transferegov/beneficiario-emenda/ano={ano}"),
+                url.clone(),
+                PaginaBeneficiarioTransferegov::nova(url),
+            ))
+            .com_etiquetas([
+                ("ano", ano.to_string().as_str()),
+                ("origem", "transferegov"),
+            ])
+        }))
         .chain((PRIMEIRO_ANO..=ano_corrente()).map(|ano| {
             let url = url_cgu(ano, 1);
             TarefaPlanejada::nova(
@@ -87,11 +111,45 @@ impl EstrategiaDePaginacao for PaginaEmendas {
     }
 }
 
+#[derive(Deserialize)]
+struct RespostaPaginadaTransferegov {
+    total_pages: usize,
+}
+
+/// Paginação do Transferegov: o envelope informa o total de páginas.
+struct PaginaBeneficiarioTransferegov {
+    url_base: String,
+    proxima: AtomicUsize,
+}
+
+impl PaginaBeneficiarioTransferegov {
+    fn nova(url_base: String) -> Self {
+        Self {
+            url_base,
+            proxima: AtomicUsize::new(2),
+        }
+    }
+}
+
+impl EstrategiaDePaginacao for PaginaBeneficiarioTransferegov {
+    fn proxima_url(&self, corpo: &[u8]) -> Result<Option<String>, String> {
+        let resposta: RespostaPaginadaTransferegov = serde_json::from_slice(corpo)
+            .map_err(|erro| format!("resposta do Transferegov não é paginada em JSON: {erro}"))?;
+        let pagina = self.proxima.fetch_add(1, Ordering::Relaxed);
+        if pagina > resposta.total_pages {
+            return Ok(None);
+        }
+        Ok(Some(
+            self.url_base
+                .replace("pagina=1", &format!("pagina={pagina}")),
+        ))
+    }
+}
+
 /// Emendas parlamentares e pagamentos municipais disponíveis na Raw.
 ///
-/// A API da CGU requer uma chave pessoal gratuita. O CSV do Tesouro é público e
-/// é ingerido como um único arquivo histórico; as consultas à CGU são particionadas
-/// por exercício para permitir `--filtro ano=...`.
+/// A API da CGU requer uma chave pessoal gratuita. Tesouro e Transferegov são
+/// públicos; este último é particionado por exercício e por página.
 pub struct FonteEmendas;
 
 impl FonteDeDados for FonteEmendas {
@@ -100,7 +158,7 @@ impl FonteDeDados for FonteEmendas {
     }
 
     fn descricao(&self) -> &str {
-        "Emendas - autoria e localidade na CGU, e repasses por município no Tesouro Nacional"
+        "Emendas - CGU, repasses municipais do Tesouro e beneficiários por emenda no Transferegov"
     }
 
     fn sob_demanda(&self) -> bool {
