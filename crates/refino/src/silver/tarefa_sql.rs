@@ -74,6 +74,12 @@ impl TarefaDeSilverSql {
         let esquema = match fonte.as_str() {
             "ana" => Some(super::ana::esquema_ana()),
             "b3" => Some(super::b3::esquema_b3()),
+            "cnpj-empresas" => Some(super::cnpj_empresas::esquema_cnpj_empresas()),
+            "cnpj-estabelecimentos" => {
+                Some(super::cnpj_estabelecimentos::esquema_cnpj_estabelecimentos())
+            }
+            "cnpj-simples" => Some(super::cnpj_simples::esquema_cnpj_simples()),
+            "cnpj-socios" => Some(super::cnpj_socios::esquema_cnpj_socios()),
             "mapa_empresas" => Some(super::mapa_empresas::esquema_mapa_empresas()),
             "undp" => Some(super::undp::esquema_undp()),
             "world-bank" => Some(super::world_bank::esquema_world_bank()),
