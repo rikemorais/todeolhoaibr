@@ -8,11 +8,13 @@ A fonte `emendas` preserva três conjuntos oficiais na Raw, sem transformar os b
 | Tesouro Transparente | `repasses/tesouro` | CSV completo de repasses mensais desde janeiro de 2015, com município, UF, código IBGE, ordem bancária, favorecido, categoria e valor |
 | Transferegov — Gestão de Parcerias | `transferegov/beneficiario-emenda/ano=AAAA` | Beneficiário/programa por emenda, com autor, município/UF e GND3, GND4 e valor total; API pública paginada, cobertura observada desde 2025 |
 
+O painel público do Senado é uma fonte Raw independente, `emendas-siga-brasil`, com o recurso `favorecidos-pagamento/`. Ele exporta a relação de favorecidos sem credenciais. Seu grão e a medida “Pago + RP” não são equivalentes aos repasses individualizados do Tesouro.
+
 Os conjuntos têm grãos e semânticas diferentes. A API CGU reporta valores por emenda e localidade, o Tesouro registra pagamentos por ordem bancária e favorecido, e o Transferegov traz beneficiários associados a programas de emenda. Não associe uma ordem bancária a um autor ou código de emenda sem uma chave documentada pela origem. Nenhum conjunto é deduplicado na Raw.
 
 ## Acesso e atualização
 
-O CSV do Tesouro é público e tem cerca de 67 MiB. É baixado como um arquivo integral e atualizado mensalmente. A CGU exige uma chave gratuita da API, obtida pelo [cadastro do Portal da Transparência](https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email). Configure `PORTAL_TRANSPARENCIA_TOKEN` no `.env` para consultar a CGU; o cliente envia o segredo somente ao host `api.portaldatransparencia.gov.br`, no cabeçalho `chave-api-dados`. A origem tem limite configurado de 90 requisições por minuto. As páginas CGU terminam quando a API retorna um array vazio; a ingestão impõe um limite de segurança de páginas. Tesouro e Transferegov são públicos e não exigem esse token.
+O CSV do Tesouro é público e tem cerca de 67 MiB. É baixado como um arquivo integral e atualizado mensalmente. A CGU exige uma chave gratuita da API, obtida pelo [cadastro do Portal da Transparência](https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email). Configure `PORTAL_TRANSPARENCIA_TOKEN` no `.env` para consultar a CGU; o cliente envia o segredo somente ao host `api.portaldatransparencia.gov.br`, no cabeçalho `chave-api-dados`. A origem tem limite configurado de 90 requisições por minuto. As páginas CGU terminam quando a API retorna um array vazio; a ingestão impõe um limite de segurança de páginas. Tesouro, Transferegov e SIGA Brasil são públicos e não exigem esse token.
 
 Para baixar tudo (CSV do Tesouro, Transferegov e anos disponíveis da CGU), rode:
 
@@ -38,6 +40,12 @@ Para baixar somente o CSV integral do Tesouro:
 docker compose run --rm --build ingestao executar emendas --filtro origem=tesouro
 ```
 
+Para capturar o snapshot público de favorecidos do SIGA Brasil:
+
+```bash
+docker compose run --rm --build ingestao executar emendas-siga-brasil --sim
+```
+
 `--filtro ano=...` seleciona as tarefas CGU e Transferegov; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU e Transferegov contêm município como texto. A API Transferegov observada cobre exercícios desde 2025 e devolve linhas no grão beneficiário/programa; nenhuma linha é deduplicada por município, parlamentar ou número de emenda. A Silver publica contratos separados para CGU, Tesouro e Transferegov; o último mantém município/UF textual enquanto o cruzamento IBGE das localidades divergentes e a semântica dos valores são validados. A Raw preserva respostas completas conforme o [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md).
 
 ## Campos e idempotência
@@ -50,11 +58,12 @@ Consulte a [pesquisa das fontes e seus limites](pesquisa-emendas.md), que regist
 
 ## Refino Silver
 
-O Bronze decodifica `emendas` para `emendas-cgu`, `emendas-tesouro` e `emendas-transferegov`. A Silver publica contratos independentes, sem unir linhas entre essas origens:
+O Bronze decodifica `emendas` para `emendas-cgu`, `emendas-tesouro` e `emendas-transferegov`. `emendas-siga-brasil` tem captura e decodificação próprias. A Silver publica contratos independentes, sem unir linhas entre essas origens:
 
 - `emendas-cgu`: autor, código e número da emenda, localidade textual e valores reportados pela CGU.
 - `emendas-tesouro`: repasses com UF, código IBGE, OB, favorecido e valor. A origem não identifica o parlamentar nem publica uma coluna separada de tipo de emenda; `tipo_emenda` fica nulo em vez de ser inferido de `Nome Emenda`.
 - `emendas-transferegov`: uma linha por beneficiário-programa, com autor e emenda, município/UF originais, código e nome IBGE quando o crosswalk versionado reconhece a localidade, valores GND3/GND4/total da API e indicações preservadas como JSON. O contrato não agrega linhas nem classifica os valores como pagamentos executados.
+- `emendas-siga-brasil`: uma linha por registro publicado na tabela de favorecidos, com autor, emenda, localidade, UF, natureza, tipo e “Pago + RP”. O ano filtrado é o ano da emenda; não há IBGE, identificador de OB ou chave comprovada para união com Tesouro. CPF/CNPJ é preservado em Raw e Bronze, mas omitido da Silver.
 
 Para gerar Bronze nas três origens e publicar os contratos Silver já disponíveis:
 
@@ -62,9 +71,13 @@ Para gerar Bronze nas três origens e publicar os contratos Silver já disponív
 docker compose run --rm refino refinar bronze emendas-cgu
 docker compose run --rm refino refinar bronze emendas-tesouro
 docker compose run --rm refino refinar bronze emendas-transferegov
+docker compose run --rm refino refinar bronze emendas-siga-brasil
 docker compose run --rm refino refinar silver emendas --filtro ano=2025
 docker compose run --rm refino refinar silver emendas-transferegov --filtro ano=2025 --filtro uf=MG
+docker compose run --rm refino refinar silver emendas-siga-brasil --filtro ano=2025 --filtro uf=MG
 ```
+
+Os filtros SIGA usam o exercício de `Emenda (Número/Ano)` e a UF publicada pelo painel. O decoder Bronze valida o schema de oito colunas e mantém os campos originais, inclusive CPF/CNPJ; a consulta Silver não projeta esse identificador. A captura rejeita schema inesperado, arquivo acima de 128 MiB ou exportação sinalizada como truncada.
 
 O contrato `emendas-transferegov-beneficiario-programa-v2` preserva `municipio` e `uf` como recebidos e acrescenta `codigo_municipio_ibge`, `nome_municipio_ibge` e `metodo_mapeamento_municipio`. O crosswalk está em [`transferegov-municipios-ibge-v1.csv`](../../crates/refino/dados/transferegov-municipios-ibge-v1.csv): contém o catálogo oficial do IBGE consultado em 15/11/2026 e aliases revisados, sempre com UF. Na captura desse dia, 78.740 de 79.044 registros corresponderam por nome normalizado e 304 por 22 aliases explícitos; os 79.044 receberam código. Nomes futuros ausentes do crosswalk permanecem sem código, sem fallback aproximado. Os valores são publicados como `valor_gnd3`, `valor_gnd4` e `valor_total_emenda`, conforme os campos da API, sem afirmar que representam pagamentos executados. Não some nem deduplique as linhas: preserve a granularidade `id_beneficiario_programa` + `id_programa`.
 
