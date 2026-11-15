@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
 use crate::fontes::{
-    DecodificadorCotahist, DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson,
-    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset,
-    DecodificadorZipCsv,
+    DecodificadorCnpj, DecodificadorCotahist, DecodificadorCsv, DecodificadorIbgeAgregados,
+    DecodificadorJson, DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes,
+    DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -327,6 +327,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "b3",
             prefixo_recurso: "cotahist/",
             cria_decodificador: || Arc::new(DecodificadorCotahist),
+        },
+        // --- CNPJ Receita Federal: ZIP de CSV sem cabeçalho, Latin-1, separador `;` ---
+        FonteDeRefino {
+            nome: "cnpj",
+            fonte_raw: "cnpj",
+            prefixo_recurso: "",
+            cria_decodificador: || Arc::new(DecodificadorCnpj),
         },
     ]
 }
