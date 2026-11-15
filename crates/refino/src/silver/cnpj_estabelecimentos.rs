@@ -8,40 +8,6 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 pub const SQL_CNPJ_ESTABELECIMENTOS: &str =
     include_str!("../../sql/silver/cnpj_estabelecimentos.sql");
 
-/// Colunas Bronze (all-string) da tabela estabelecimentos.
-pub(crate) const COLUNAS_BRONZE: &[&str] = &[
-    "cnpj_basico",
-    "cnpj_ordem",
-    "cnpj_dv",
-    "matriz_filial",
-    "nome_fantasia",
-    "situacao_cadastral",
-    "data_situacao",
-    "motivo_situacao",
-    "cidade_exterior",
-    "pais",
-    "data_inicio",
-    "cnae_principal",
-    "cnae_secundaria",
-    "tipo_logradouro",
-    "logradouro",
-    "numero",
-    "complemento",
-    "bairro",
-    "cep",
-    "uf",
-    "municipio",
-    "ddd1",
-    "telefone1",
-    "ddd2",
-    "telefone2",
-    "ddd_fax",
-    "fax",
-    "email",
-    "situacao_especial",
-    "data_situacao_especial",
-];
-
 /// Schema `cnpj.estabelecimentos.v1`.
 pub fn esquema_cnpj_estabelecimentos() -> SchemaRef {
     Arc::new(Schema::new(vec![
@@ -97,6 +63,39 @@ mod testes {
 
     use super::*;
     use crate::executor_sql::{ConfiguracaoExecutorSql, executar_sql};
+
+    const COLUNAS_BRONZE: &[&str] = &[
+        "cnpj_basico",
+        "cnpj_ordem",
+        "cnpj_dv",
+        "matriz_filial",
+        "nome_fantasia",
+        "situacao_cadastral",
+        "data_situacao",
+        "motivo_situacao",
+        "cidade_exterior",
+        "pais",
+        "data_inicio",
+        "cnae_principal",
+        "cnae_secundaria",
+        "tipo_logradouro",
+        "logradouro",
+        "numero",
+        "complemento",
+        "bairro",
+        "cep",
+        "uf",
+        "municipio",
+        "ddd1",
+        "telefone1",
+        "ddd2",
+        "telefone2",
+        "ddd_fax",
+        "fax",
+        "email",
+        "situacao_especial",
+        "data_situacao_especial",
+    ];
 
     fn parquet_bronze(linhas: &[Vec<&str>]) -> Vec<u8> {
         let mut campos: Vec<Field> = COLUNAS_BRONZE
