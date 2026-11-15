@@ -122,6 +122,17 @@ impl FonteDeDados for FonteEmendas {
         }
     }
 
+    fn perfil_http_das_tarefas(&self, tarefas: &[TarefaPlanejada]) -> PerfilHttp {
+        if tarefas
+            .iter()
+            .any(|tarefa| tarefa.etiquetas.get("origem").map(String::as_str) == Some("cgu"))
+        {
+            self.perfil_http()
+        } else {
+            PerfilHttp::default()
+        }
+    }
+
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
         tarefas()
     }
@@ -183,5 +194,31 @@ mod testes {
         assert_eq!(credencial.variavel, "PORTAL_TRANSPARENCIA_TOKEN");
         assert_eq!(credencial.cabecalho, "chave-api-dados");
         assert_eq!(perfil.limite.unwrap().requisicoes, 90);
+    }
+
+    #[test]
+    fn tarefas_somente_tesouro_nao_exigem_token_cgu() {
+        let fonte = FonteEmendas;
+        let tarefas = FiltroDeTarefas::a_partir_de(&["origem=tesouro".to_owned()])
+            .unwrap()
+            .aplicar(fonte.criar_tarefas())
+            .unwrap();
+
+        assert!(fonte.perfil_http_das_tarefas(&tarefas).credencial.is_none());
+    }
+
+    #[test]
+    fn tarefas_cgu_mantem_requisito_de_token() {
+        let fonte = FonteEmendas;
+        let tarefas = FiltroDeTarefas::a_partir_de(&["ano=2020".to_owned()])
+            .unwrap()
+            .aplicar(fonte.criar_tarefas())
+            .unwrap();
+
+        let credencial = fonte
+            .perfil_http_das_tarefas(&tarefas)
+            .credencial
+            .expect("tarefas CGU precisam do token");
+        assert_eq!(credencial.variavel, "PORTAL_TRANSPARENCIA_TOKEN");
     }
 }

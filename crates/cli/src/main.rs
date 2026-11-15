@@ -245,10 +245,11 @@ async fn selecionar() -> Result<bool> {
     let mut selecionadas = Vec::with_capacity(escolha.len());
     for (indice, filtro) in escolha {
         let fonte = &fontes[indice];
+        let tarefas = filtro.aplicar(fonte.criar_tarefas())?;
         selecionadas.push(FonteSelecionada {
             nome: fonte.nome().to_owned(),
-            tarefas: filtro.aplicar(fonte.criar_tarefas())?,
-            perfil_http: fonte.perfil_http(),
+            perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+            tarefas,
         });
     }
     executar(selecionadas, contexto, false).await
@@ -287,20 +288,24 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
             catalogo()
                 .into_iter()
                 .filter(|fonte| !fonte.sob_demanda())
-                .map(|fonte| FonteSelecionada {
-                    nome: fonte.nome().to_owned(),
-                    tarefas: fonte.criar_tarefas(),
-                    perfil_http: fonte.perfil_http(),
+                .map(|fonte| {
+                    let tarefas = fonte.criar_tarefas();
+                    FonteSelecionada {
+                        nome: fonte.nome().to_owned(),
+                        perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                        tarefas,
+                    }
                 })
                 .collect()
         }
         (Some(nome), false) => {
             let fonte = buscar_fonte(&nome)?;
             let filtro = FiltroDeTarefas::a_partir_de(&argumentos.filtros)?;
+            let tarefas = filtro.aplicar(fonte.criar_tarefas())?;
             vec![FonteSelecionada {
                 nome,
-                tarefas: filtro.aplicar(fonte.criar_tarefas())?,
-                perfil_http: fonte.perfil_http(),
+                perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                tarefas,
             }]
         }
     };
@@ -3126,7 +3131,7 @@ async fn refinar_emendas_tesouro_silver(
     let filtros = filtros_sql_emendas(&filtros)?;
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-tesouro",
-        "emendas-tesouro-pagamento-municipal-v1",
+        "emendas-tesouro-pagamento-municipal-v2",
         SQL_EMENDAS_TESOURO,
         intervalo,
         &filtros,

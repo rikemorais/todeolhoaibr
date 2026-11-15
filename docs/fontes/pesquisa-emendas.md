@@ -1,6 +1,6 @@
 # Pesquisa de fontes de emendas parlamentares
 
-Pesquisa para a [issue #33](https://github.com/rikemorais/todeolhoaibr/issues/33). Consulta feita em 14/11/2026, usando documentação e catálogos oficiais do Tesouro Nacional, SIOP e CGU.
+Pesquisa para a [issue #33](https://github.com/rikemorais/todeolhoaibr/issues/33). Consulta feita em 15/11/2026, usando documentação e catálogos oficiais do Tesouro Nacional, SIOP e CGU.
 
 ## Achados
 
@@ -8,9 +8,11 @@ Pesquisa para a [issue #33](https://github.com/rikemorais/todeolhoaibr/issues/33
 
 O conjunto oficial [Emendas Parlamentares Individuais e de Bancada](https://www.tesourotransparente.gov.br/ckan/dataset/emendas-parlamentares-individuais-e-de-bancada) fornece um CSV agregado em um arquivo, atualizado mensalmente, com início em janeiro de 2015. A página lista um CSV de 67,1 MiB e licença ODbL. O recurso atual está descrito no [CKAN](https://www.tesourotransparente.gov.br/ckan/dataset/emendas-parlamentares-individuais-e-de-bancada/resource/66d69917-a5d8-4500-b4b2-ef1f5d062430); a URL de download e a URL da API CKAN `package_show` estão na página.
 
-O [metadado oficial em PDF](https://www.tesourotransparente.gov.br/ckan/dataset/83e419da-1552-46bf-bfc3-05160b2c46c9/resource/cb87c4ee-7c3e-4e38-89ef-6413bc4cc45b/download/Metadados-Emendas.pdf) define a cobertura como transferências de emendas individuais e de bancada para estados, municípios e DF, em competência mensal e regime de caixa. A inspeção do CSV oficial atual confirmou 15 colunas: nome do ente, UF, código SIAFI, código IBGE, data, ano, mês, tipo de ente, ordem bancária (OB), CNPJ e nome do favorecido, nome/tipo da emenda, transferência especial, categoria econômica e valor. O arquivo é Latin-1, delimitado por `;`.
+O [metadado oficial em PDF](https://www.tesourotransparente.gov.br/ckan/dataset/83e419da-1552-46bf-bfc3-05160b2c46c9/resource/cb87c4ee-7c3e-4e38-89ef-6413bc4cc45b/download/Metadados-Emendas.pdf) define a cobertura como transferências de emendas individuais e de bancada para estados, municípios e DF, em competência mensal e regime de caixa. A inspeção do CSV vigente confirmou 15 colunas: `Nome Ente`, `UF`, `Código Siafi`, `Código IBGE`, `Data`, `Ano`, `Mês`, `Tipo Ente`, `OB`, `CNPJ do Favorecido`, `Nome Favorecido`, `Nome Emenda`, `Transferência Especial`, `Categoria Econômica Despesa` e `Valor`. Não há coluna separada de tipo de emenda; a Silver mantém `tipo_emenda` nulo, sem inferi-lo do nome. O campo `Mês` vem por extenso em português e é convertido para o número do mês na Silver. O arquivo é Latin-1, delimitado por `;`.
 
 **Limite para o objetivo da issue:** esse CSV contém código IBGE municipal e permite acompanhar repasses por OB e favorecido, mas não identifica o autor parlamentar. A OB é um identificador candidato de transferência; antes de tratá-la como chave global, é necessário verificar colisões e estabilidade nos dados reais. O manifesto Raw e a idempotência por URL/versão do arquivo continuam aplicáveis mesmo se houver repetição de linhas no conteúdo.
+
+Na validação do snapshot publicado em 04/11/2026 e ingerido em 15/11/2026, o CSV tinha 397.755 linhas e 272.478 OBs distintas. Havia 16.899 OBs repetidas (125.277 ocorrências além da primeira); 15.104 apareciam em mais de um código IBGE. Não houve OB repetida entre exercícios, mas `(ano, OB)` ainda repetiu em 16.899 grupos, e `(ano, OB, código IBGE)` em 16.837. Logo, OB não é chave de linha nem pode deduplicar pagamentos; estes números descrevem somente esse snapshot e não validam estabilidade entre versões.
 
 ### SIOP: autoria e beneficiários indicados
 

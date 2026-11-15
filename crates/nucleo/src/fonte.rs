@@ -64,6 +64,15 @@ pub trait FonteDeDados: Send + Sync {
         PerfilHttp::default()
     }
 
+    /// Declara o perfil HTTP necessário pelas tarefas selecionadas.
+    ///
+    /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
+    /// tarefas com requisitos HTTP diferentes podem ajustar o perfil após os
+    /// filtros, por exemplo quando uma tarefa local não acessa a API autenticada.
+    fn perfil_http_das_tarefas(&self, _tarefas: &[TarefaPlanejada]) -> PerfilHttp {
+        self.perfil_http()
+    }
+
     /// Factory Method: cria as tarefas concretas desta fonte.
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada>;
 
