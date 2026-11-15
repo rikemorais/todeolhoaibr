@@ -6,10 +6,8 @@ use crate::ingestao_arquivo::TarefaDeArquivo;
 
 const NOME: &str = "cvm";
 
-const BASE_DFP: &str =
-    "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS";
-const BASE_ITR: &str =
-    "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS";
+const BASE_DFP: &str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS";
+const BASE_ITR: &str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS";
 
 const PRIMEIRO_ANO_DFP: u16 = 2010;
 const PRIMEIRO_ANO_ITR: u16 = 2011;
@@ -116,14 +114,8 @@ mod testes {
             .iter()
             .find(|t| t.tarefa.nome() == "dfp_2024")
             .unwrap();
-        assert_eq!(
-            t.etiquetas.get("tipo").map(String::as_str),
-            Some("dfp")
-        );
-        assert_eq!(
-            t.etiquetas.get("ano").map(String::as_str),
-            Some("2024")
-        );
+        assert_eq!(t.etiquetas.get("tipo").map(String::as_str), Some("dfp"));
+        assert_eq!(t.etiquetas.get("ano").map(String::as_str), Some("2024"));
     }
 
     #[test]
@@ -133,10 +125,7 @@ mod testes {
             .iter()
             .find(|t| t.tarefa.nome() == "itr_2024")
             .unwrap();
-        assert_eq!(
-            t.etiquetas.get("tipo").map(String::as_str),
-            Some("itr")
-        );
+        assert_eq!(t.etiquetas.get("tipo").map(String::as_str), Some("itr"));
     }
 
     #[test]
