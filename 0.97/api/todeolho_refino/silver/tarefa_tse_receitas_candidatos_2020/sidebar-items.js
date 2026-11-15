@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_tse_receitas_candidatos_2020"],"struct":["TarefaDeSilverTseReceitasCandidatos2020"]};

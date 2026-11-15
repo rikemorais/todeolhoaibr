@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErroDeSelecao"],"fn":["dimensoes"],"struct":["FiltroDeTarefas"]};
