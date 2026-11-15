@@ -186,7 +186,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "municipios/",
             cria_decodificador: || Arc::new(DecodificadorJson::novo("municipios")),
         },
-        // IBGE SIDRA (Censos): array flat de objetos com colunas codificadas.
+        // IBGE SIDRA: array flat de objetos com colunas codificadas.
+        FonteDeRefino {
+            nome: "ibge-demografia-empresas",
+            fonte_raw: "ibge",
+            prefixo_recurso: "demografia-empresas/",
+            cria_decodificador: || Arc::new(DecodificadorJson::novo("demografia-empresas")),
+        },
         FonteDeRefino {
             nome: "ibge-renda-per-capita",
             fonte_raw: "ibge",
