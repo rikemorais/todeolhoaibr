@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.102.0] - 2026-11-15
+
+### Adicionado
+
+- Ingestão da Demografia das Empresas (IBGE/SIDRA): natalidade, mortalidade e sobrevivência de empresas empregadoras em 4 tabelas (9925, 9950, 9924, 9949) por UF e por porte, com catálogo Bronze e documentação (issue #36).
+
 ## [0.101.0] - 2026-11-15
 
 ### Adicionado
