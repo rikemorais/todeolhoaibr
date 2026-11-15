@@ -27,7 +27,7 @@
 <a href=#27 id=27 data-nosnippet>27</a><span class="kw">pub use </span>fontes::remuneracao_estadual_go::FonteRemuneracaoEstadualGo;
 <a href=#28 id=28 data-nosnippet>28</a><span class="kw">pub use </span>fontes::remuneracao_estadual_mg::FonteRemuneracaoEstadualMg;
 <a href=#29 id=29 data-nosnippet>29</a><span class="kw">pub use </span>fontes::senado::{
-<a href=#30 id=30 data-nosnippet>30</a>    FonteSenadoDespesas, FonteSenadoParlamentares, FonteSenadoProcessos,
+<a href=#30 id=30 data-nosnippet>30</a>    FonteSenadoDespesas, FonteSenadoEmendas, FonteSenadoParlamentares, FonteSenadoProcessos,
 <a href=#31 id=31 data-nosnippet>31</a>    FonteSenadoProcessosDetalhes, FonteSenadoVotacoes,
 <a href=#32 id=32 data-nosnippet>32</a>};
 <a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub use </span>fontes::tce_ce::FonteRemuneracaoMunicipalTceCe;
@@ -64,40 +64,41 @@
 <a href=#64 id=64 data-nosnippet>64</a>        Box::new(FonteCamaraTramitacoes),
 <a href=#65 id=65 data-nosnippet>65</a>        Box::new(FonteCamaraVotacoes),
 <a href=#66 id=66 data-nosnippet>66</a>        Box::new(FonteSenadoDespesas),
-<a href=#67 id=67 data-nosnippet>67</a>        Box::new(FonteSenadoVotacoes),
-<a href=#68 id=68 data-nosnippet>68</a>        Box::new(FonteSenadoProcessos),
-<a href=#69 id=69 data-nosnippet>69</a>        Box::new(FonteSenadoProcessosDetalhes),
-<a href=#70 id=70 data-nosnippet>70</a>        Box::new(FonteSenadoParlamentares),
-<a href=#71 id=71 data-nosnippet>71</a>        Box::new(FonteRemuneracaoMunicipalTceCe),
-<a href=#72 id=72 data-nosnippet>72</a>        Box::new(FonteTransparenciaBeneficios),
-<a href=#73 id=73 data-nosnippet>73</a>        Box::new(FonteTransparenciaServidoresAtivos),
-<a href=#74 id=74 data-nosnippet>74</a>        Box::new(FonteTse),
-<a href=#75 id=75 data-nosnippet>75</a>        Box::new(FonteTsePrestacaoContas),
-<a href=#76 id=76 data-nosnippet>76</a>        Box::new(FonteTseCandidaturas),
-<a href=#77 id=77 data-nosnippet>77</a>        Box::new(FonteUndp),
-<a href=#78 id=78 data-nosnippet>78</a>        Box::new(FonteWorldBank),
-<a href=#79 id=79 data-nosnippet>79</a>    ]
-<a href=#80 id=80 data-nosnippet>80</a>}
-<a href=#81 id=81 data-nosnippet>81</a>
-<a href=#82 id=82 data-nosnippet>82</a><span class="attr">#[cfg(test)]
-<a href=#83 id=83 data-nosnippet>83</a></span><span class="kw">mod </span>testes {
-<a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">use </span>std::collections::HashSet;
-<a href=#85 id=85 data-nosnippet>85</a>
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#87 id=87 data-nosnippet>87</a>
-<a href=#88 id=88 data-nosnippet>88</a>    <span class="attr">#[test]
-<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">fn </span>toda_fonte_monta_uma_dag_valida() {
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">for </span>fonte <span class="kw">in </span>catalogo() {
-<a href=#91 id=91 data-nosnippet>91</a>            <span class="kw">let </span>dag = fonte.montar_dag().unwrap_or_else(|erro| <span class="macro">panic!</span>(<span class="string">"{erro}"</span>));
-<a href=#92 id=92 data-nosnippet>92</a>            <span class="macro">assert!</span>(!dag.niveis().unwrap().is_empty(), <span class="string">"{}"</span>, fonte.nome());
-<a href=#93 id=93 data-nosnippet>93</a>        }
-<a href=#94 id=94 data-nosnippet>94</a>    }
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>    <span class="attr">#[test]
-<a href=#97 id=97 data-nosnippet>97</a>    </span><span class="kw">fn </span>nomes_das_fontes_sao_unicos() {
-<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>fontes = catalogo();
-<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>nomes: HashSet&lt;<span class="kw">_</span>&gt; = fontes.iter().map(|f| f.nome()).collect();
-<a href=#100 id=100 data-nosnippet>100</a>        <span class="macro">assert_eq!</span>(nomes.len(), fontes.len());
-<a href=#101 id=101 data-nosnippet>101</a>    }
-<a href=#102 id=102 data-nosnippet>102</a>}
+<a href=#67 id=67 data-nosnippet>67</a>        Box::new(FonteSenadoEmendas),
+<a href=#68 id=68 data-nosnippet>68</a>        Box::new(FonteSenadoVotacoes),
+<a href=#69 id=69 data-nosnippet>69</a>        Box::new(FonteSenadoProcessos),
+<a href=#70 id=70 data-nosnippet>70</a>        Box::new(FonteSenadoProcessosDetalhes),
+<a href=#71 id=71 data-nosnippet>71</a>        Box::new(FonteSenadoParlamentares),
+<a href=#72 id=72 data-nosnippet>72</a>        Box::new(FonteRemuneracaoMunicipalTceCe),
+<a href=#73 id=73 data-nosnippet>73</a>        Box::new(FonteTransparenciaBeneficios),
+<a href=#74 id=74 data-nosnippet>74</a>        Box::new(FonteTransparenciaServidoresAtivos),
+<a href=#75 id=75 data-nosnippet>75</a>        Box::new(FonteTse),
+<a href=#76 id=76 data-nosnippet>76</a>        Box::new(FonteTsePrestacaoContas),
+<a href=#77 id=77 data-nosnippet>77</a>        Box::new(FonteTseCandidaturas),
+<a href=#78 id=78 data-nosnippet>78</a>        Box::new(FonteUndp),
+<a href=#79 id=79 data-nosnippet>79</a>        Box::new(FonteWorldBank),
+<a href=#80 id=80 data-nosnippet>80</a>    ]
+<a href=#81 id=81 data-nosnippet>81</a>}
+<a href=#82 id=82 data-nosnippet>82</a>
+<a href=#83 id=83 data-nosnippet>83</a><span class="attr">#[cfg(test)]
+<a href=#84 id=84 data-nosnippet>84</a></span><span class="kw">mod </span>testes {
+<a href=#85 id=85 data-nosnippet>85</a>    <span class="kw">use </span>std::collections::HashSet;
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="attr">#[test]
+<a href=#90 id=90 data-nosnippet>90</a>    </span><span class="kw">fn </span>toda_fonte_monta_uma_dag_valida() {
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">for </span>fonte <span class="kw">in </span>catalogo() {
+<a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">let </span>dag = fonte.montar_dag().unwrap_or_else(|erro| <span class="macro">panic!</span>(<span class="string">"{erro}"</span>));
+<a href=#93 id=93 data-nosnippet>93</a>            <span class="macro">assert!</span>(!dag.niveis().unwrap().is_empty(), <span class="string">"{}"</span>, fonte.nome());
+<a href=#94 id=94 data-nosnippet>94</a>        }
+<a href=#95 id=95 data-nosnippet>95</a>    }
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="attr">#[test]
+<a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">fn </span>nomes_das_fontes_sao_unicos() {
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>fontes = catalogo();
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>nomes: HashSet&lt;<span class="kw">_</span>&gt; = fontes.iter().map(|f| f.nome()).collect();
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="macro">assert_eq!</span>(nomes.len(), fontes.len());
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>}
 </code></pre></div></section></main></body></html>
