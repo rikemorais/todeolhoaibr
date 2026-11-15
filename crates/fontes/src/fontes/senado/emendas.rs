@@ -102,6 +102,51 @@ fn erro_http(detalhe: impl Into<String>) -> ErroDeIngestao {
     }
 }
 
+fn url_segura_do_senado(base: &Url, destino: &str) -> Result<Url, ErroDeIngestao> {
+    let url = base
+        .join(destino)
+        .map_err(|_| erro_http("URL de destino do SIGA Brasil inválida"))?;
+    if url.scheme() != "https" || url.host_str() != Some(HOST) {
+        return Err(erro_http(
+            "URL do SIGA Brasil saiu do host público do Senado",
+        ));
+    }
+    Ok(url)
+}
+
+fn validar_conteudo_xlsx(
+    tamanho_esperado: Option<u64>,
+    bytes: &[u8],
+) -> Result<(), ErroDeIngestao> {
+    if tamanho_esperado.is_some_and(|esperado| esperado != bytes.len() as u64) {
+        return Err(erro_http("corpo XLSX do SIGA Brasil incompleto"));
+    }
+    if !bytes.starts_with(b"PK\x03\x04") {
+        return Err(erro_http("arquivo do SIGA Brasil não tem assinatura XLSX"));
+    }
+    Ok(())
+}
+
+fn interpretar_resposta_engine(
+    texto: &str,
+    id: u64,
+    metodo: &str,
+) -> Result<Option<Value>, ErroDeIngestao> {
+    let resposta: Value =
+        serde_json::from_str(texto).map_err(|_| erro_http("Engine Qlik devolveu JSON inválido"))?;
+    if resposta.get("id").and_then(Value::as_u64) != Some(id) {
+        return Ok(None);
+    }
+    if resposta.get("error").is_some() {
+        return Err(erro_http(format!("Engine Qlik recusou o método {metodo}")));
+    }
+    resposta
+        .get("result")
+        .cloned()
+        .map(Some)
+        .ok_or_else(|| erro_http(format!("resposta Qlik sem resultado para {metodo}")))
+}
+
 async fn abrir_sessao(cliente: &reqwest::Client) -> Result<SessaoAnonima, ErroDeIngestao> {
     let mut sessao = SessaoAnonima {
         cookies: BTreeMap::new(),
@@ -129,16 +174,7 @@ async fn abrir_sessao(cliente: &reqwest::Client) -> Result<SessaoAnonima, ErroDe
                 .get(LOCATION)
                 .and_then(|valor| valor.to_str().ok())
                 .ok_or_else(|| erro_http("redirecionamento do painel sem destino"))?;
-            let destino = sessao
-                .url_painel
-                .join(destino)
-                .map_err(|_| erro_http("destino de redirecionamento inválido"))?;
-            if destino.scheme() != "https" || destino.host_str() != Some(HOST) {
-                return Err(erro_http(
-                    "redirecionamento do painel saiu do host público do Senado",
-                ));
-            }
-            sessao.url_painel = destino;
+            sessao.url_painel = url_segura_do_senado(&sessao.url_painel, destino)?;
             continue;
         }
         if !resposta.status().is_success() {
@@ -219,17 +255,11 @@ async fn chamar_engine(
         };
         match mensagem.map_err(|_| erro_http("conexão com o Engine Qlik interrompida"))? {
             Message::Text(texto) => {
-                let resposta: Value = serde_json::from_str(texto.as_str())
-                    .map_err(|_| erro_http("Engine Qlik devolveu JSON inválido"))?;
-                if resposta.get("id").and_then(Value::as_u64) != Some(id) {
+                let Some(resultado) = interpretar_resposta_engine(texto.as_str(), id, metodo)?
+                else {
                     continue;
-                }
-                if resposta.get("error").is_some() {
-                    return Err(erro_http(format!("Engine Qlik recusou o método {metodo}")));
-                }
-                return resposta.get("result").cloned().ok_or_else(|| {
-                    erro_http(format!("resposta Qlik sem resultado para {metodo}"))
-                });
+                };
+                return Ok(resultado);
             }
             Message::Ping(bytes) => socket
                 .send(Message::Pong(bytes))
@@ -322,15 +352,7 @@ async fn exportar_xlsx(
         .get("qUrl")
         .and_then(Value::as_str)
         .ok_or_else(|| erro_http("Engine Qlik não devolveu a URL temporária do XLSX"))?;
-    let url_exportacao = sessao
-        .url_painel
-        .join(url_exportacao)
-        .map_err(|_| erro_http("URL temporária de exportação do Qlik inválida"))?;
-    if url_exportacao.scheme() != "https" || url_exportacao.host_str() != Some(HOST) {
-        return Err(erro_http(
-            "URL temporária de exportação saiu do host público do Senado",
-        ));
-    }
+    let url_exportacao = url_segura_do_senado(&sessao.url_painel, url_exportacao)?;
     let resposta = cliente
         .get(url_exportacao)
         .header(COOKIE, sessao.cabecalho_cookie())
@@ -365,14 +387,93 @@ async fn exportar_xlsx(
         }
         bytes.extend_from_slice(&lote);
     }
-    if tamanho_esperado.is_some_and(|esperado| esperado != bytes.len() as u64) {
-        return Err(erro_http("corpo XLSX do SIGA Brasil incompleto"));
-    }
-    if !bytes.starts_with(b"PK\x03\x04") {
-        return Err(erro_http("arquivo do SIGA Brasil não tem assinatura XLSX"));
-    }
+    validar_conteudo_xlsx(tamanho_esperado, &bytes)?;
     let _ = socket.close(None).await;
     Ok(bytes)
+}
+
+async fn publicar_snapshot(
+    contexto: &ContextoDeExecucao,
+    bytes: Vec<u8>,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    let hash = hex::encode(Sha256::digest(&bytes));
+    if let Some(manifesto) =
+        manifesto_vigente(contexto.armazenamento.as_ref(), NOME_FONTE, RECURSO).await?
+        && manifesto
+            .partes
+            .iter()
+            .any(|parte| parte.sha256 == hash && parte.bytes == bytes.len() as u64)
+    {
+        return Ok(ResumoDaTarefa {
+            reaproveitada: true,
+            ..ResumoDaTarefa::default()
+        });
+    }
+
+    let local = LocalizacaoRaw::nova(
+        NOME_FONTE,
+        RECURSO,
+        contexto.iniciada_em,
+        &contexto.id_execucao,
+    );
+    let chave = local.parte(1, "xlsx");
+    let tamanho = bytes.len() as u64;
+    contexto
+        .armazenamento
+        .gravar(ObjetoRaw {
+            chave: chave.clone(),
+            conteudo: bytes,
+            tipo_de_conteudo: TIPO_XLSX.to_owned(),
+        })
+        .await?;
+
+    let manifesto = ManifestoRaw {
+        fonte: NOME_FONTE.to_owned(),
+        recurso: RECURSO.to_owned(),
+        id_execucao: contexto.id_execucao.clone(),
+        url_inicial: URL_PAINEL.to_owned(),
+        iniciada_em: contexto.iniciada_em,
+        concluida_em: Utc::now(),
+        partes: vec![ParteRaw {
+            chave,
+            url: URL_PAINEL.to_owned(),
+            bytes: tamanho,
+            sha256: hash,
+            tipo_de_conteudo: TIPO_XLSX.to_owned(),
+            versao: None,
+        }],
+    };
+    let bytes_manifesto =
+        serde_json::to_vec_pretty(&manifesto).map_err(|erro| ErroDeIngestao::Manifesto {
+            recurso: RECURSO.to_owned(),
+            detalhe: erro.to_string(),
+        })?;
+    contexto
+        .armazenamento
+        .gravar(ObjetoRaw {
+            chave: local.manifesto(),
+            conteudo: bytes_manifesto,
+            tipo_de_conteudo: "application/json".to_owned(),
+        })
+        .await?;
+    publicar_ponteiro(
+        contexto.armazenamento.as_ref(),
+        NOME_FONTE,
+        RECURSO,
+        &UltimaVersao {
+            versao: None,
+            manifesto: local.manifesto(),
+            iniciada_em: Some(contexto.iniciada_em),
+        },
+    )
+    .await?;
+
+    Ok(ResumoDaTarefa {
+        partes: 1,
+        bytes: tamanho,
+        reaproveitada: false,
+        motivo: None,
+    })
 }
 
 #[async_trait]
@@ -402,85 +503,7 @@ impl Tarefa for TarefaSigaBrasil {
             .map_err(|_| erro_http("falha ao preparar cliente HTTP do SIGA Brasil"))?;
         let sessao = abrir_sessao(&cliente).await?;
         let bytes = exportar_xlsx(&cliente, &sessao).await?;
-        let hash = hex::encode(Sha256::digest(&bytes));
-
-        if let Some(manifesto) =
-            manifesto_vigente(contexto.armazenamento.as_ref(), NOME_FONTE, RECURSO).await?
-            && manifesto
-                .partes
-                .iter()
-                .any(|parte| parte.sha256 == hash && parte.bytes == bytes.len() as u64)
-        {
-            return Ok(ResumoDaTarefa {
-                reaproveitada: true,
-                ..ResumoDaTarefa::default()
-            });
-        }
-
-        let local = LocalizacaoRaw::nova(
-            NOME_FONTE,
-            RECURSO,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        );
-        let chave = local.parte(1, "xlsx");
-        let tamanho = bytes.len() as u64;
-        contexto
-            .armazenamento
-            .gravar(ObjetoRaw {
-                chave: chave.clone(),
-                conteudo: bytes,
-                tipo_de_conteudo: TIPO_XLSX.to_owned(),
-            })
-            .await?;
-
-        let manifesto = ManifestoRaw {
-            fonte: NOME_FONTE.to_owned(),
-            recurso: RECURSO.to_owned(),
-            id_execucao: contexto.id_execucao.clone(),
-            url_inicial: URL_PAINEL.to_owned(),
-            iniciada_em: contexto.iniciada_em,
-            concluida_em: Utc::now(),
-            partes: vec![ParteRaw {
-                chave,
-                url: URL_PAINEL.to_owned(),
-                bytes: tamanho,
-                sha256: hash,
-                tipo_de_conteudo: TIPO_XLSX.to_owned(),
-                versao: None,
-            }],
-        };
-        let bytes_manifesto =
-            serde_json::to_vec_pretty(&manifesto).map_err(|erro| ErroDeIngestao::Manifesto {
-                recurso: RECURSO.to_owned(),
-                detalhe: erro.to_string(),
-            })?;
-        contexto
-            .armazenamento
-            .gravar(ObjetoRaw {
-                chave: local.manifesto(),
-                conteudo: bytes_manifesto,
-                tipo_de_conteudo: "application/json".to_owned(),
-            })
-            .await?;
-        publicar_ponteiro(
-            contexto.armazenamento.as_ref(),
-            NOME_FONTE,
-            RECURSO,
-            &UltimaVersao {
-                versao: None,
-                manifesto: local.manifesto(),
-                iniciada_em: Some(contexto.iniciada_em),
-            },
-        )
-        .await?;
-
-        Ok(ResumoDaTarefa {
-            partes: 1,
-            bytes: tamanho,
-            reaproveitada: false,
-            motivo: None,
-        })
+        publicar_snapshot(contexto, bytes).await
     }
 }
 
@@ -615,6 +638,156 @@ mod testes {
             sessao.cookies.get("preferencia").map(String::as_str),
             Some("pt-BR")
         );
+    }
+
+    #[test]
+    fn valida_urls_do_host_senado_e_conteudo_xlsx() {
+        let base = Url::parse(URL_PAINEL).unwrap();
+        assert_eq!(
+            url_segura_do_senado(&base, "/qrs/app/temporary.xlsx")
+                .unwrap()
+                .host_str(),
+            Some(HOST)
+        );
+        assert!(url_segura_do_senado(&base, "https://example.com/export.xlsx").is_err());
+        assert!(url_segura_do_senado(&base, "http://www9qs.senado.leg.br/export.xlsx").is_err());
+        assert!(url_segura_do_senado(&base, "http://[").is_err());
+
+        validar_conteudo_xlsx(Some(6), b"PK\x03\x04ok").unwrap();
+        assert!(validar_conteudo_xlsx(Some(7), b"PK\x03\x04ok").is_err());
+        assert!(validar_conteudo_xlsx(None, b"nao-e-xlsx").is_err());
+    }
+
+    #[test]
+    fn interpreta_resultados_erros_e_respostas_fora_de_ordem_do_engine() {
+        assert_eq!(
+            interpretar_resposta_engine(r#"{"id":7,"result":{"ok":true}}"#, 7, "OpenDoc").unwrap(),
+            Some(json!({"ok": true}))
+        );
+        assert_eq!(
+            interpretar_resposta_engine(r#"{"id":8,"result":{}}"#, 7, "OpenDoc").unwrap(),
+            None
+        );
+        assert!(
+            interpretar_resposta_engine(r#"{"id":7,"error":{"code":1}}"#, 7, "OpenDoc")
+                .unwrap_err()
+                .to_string()
+                .contains("OpenDoc")
+        );
+        assert!(interpretar_resposta_engine(r#"{"id":7}"#, 7, "OpenDoc").is_err());
+        assert!(interpretar_resposta_engine("nao-json", 7, "OpenDoc").is_err());
+    }
+
+    async fn cliente_engine_local(
+        respostas: Vec<Value>,
+    ) -> (
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endereco = listener.local_addr().unwrap();
+        let servidor = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+            let requisicao = socket.next().await.unwrap().unwrap();
+            let Message::Text(requisicao) = requisicao else {
+                panic!("Engine deveria receber uma chamada JSON-RPC em texto");
+            };
+            let requisicao: Value = serde_json::from_str(requisicao.as_str()).unwrap();
+            assert_eq!(requisicao["method"], "GetObject");
+            assert_eq!(requisicao["handle"], 12);
+            for resposta in respostas {
+                socket
+                    .send(Message::Text(resposta.to_string().into()))
+                    .await
+                    .unwrap();
+            }
+        });
+        let (cliente, _) = tokio_tungstenite::connect_async(format!("ws://{endereco}"))
+            .await
+            .unwrap();
+        (cliente, servidor)
+    }
+
+    #[tokio::test]
+    async fn chama_engine_e_ignora_resposta_de_outra_chamada() {
+        let (mut socket, servidor) = cliente_engine_local(vec![
+            json!({"id": 99, "result": {"ignorar": true}}),
+            json!({"id": 1, "result": {"qReturn": {"qHandle": 42}}}),
+        ])
+        .await;
+        let resultado = chamar_engine(&mut socket, &mut 0, 12, "GetObject", json!(["objeto"]))
+            .await
+            .unwrap();
+        servidor.await.unwrap();
+        assert_eq!(resultado.pointer("/qReturn/qHandle"), Some(&json!(42)));
+    }
+
+    #[tokio::test]
+    async fn chamada_engine_retorna_erro_do_servidor() {
+        let (mut socket, servidor) =
+            cliente_engine_local(vec![json!({"id": 1, "error": {"code": 403}})]).await;
+        let erro = chamar_engine(&mut socket, &mut 0, 12, "GetObject", json!(["objeto"]))
+            .await
+            .unwrap_err();
+        servidor.await.unwrap();
+        assert!(erro.to_string().contains("GetObject"));
+    }
+
+    #[tokio::test]
+    async fn publica_snapshot_sem_ticket_e_reaproveita_hash_inalterado() {
+        let armazenamento = Arc::new(ArmazenamentoEmMemoria::default());
+        let contexto = ContextoDeExecucao {
+            id_execucao: "primeira-captura".to_owned(),
+            iniciada_em: Utc::now(),
+            armazenamento: armazenamento.clone(),
+            http: Arc::new(ClienteHttpInerte),
+            progresso: None,
+        };
+        let xlsx = b"PK\x03\x04conteudo-de-teste".to_vec();
+
+        let primeira = publicar_snapshot(&contexto, xlsx.clone()).await.unwrap();
+        assert!(!primeira.reaproveitada);
+        assert_eq!(primeira.partes, 1);
+        assert_eq!(primeira.bytes, xlsx.len() as u64);
+
+        let manifesto_json = armazenamento
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|(chave, _)| chave.ends_with("_manifesto.json"))
+            .map(|(_, bytes)| bytes.clone())
+            .unwrap();
+        let manifesto: ManifestoRaw = serde_json::from_slice(&manifesto_json).unwrap();
+        assert_eq!(manifesto.url_inicial, URL_PAINEL);
+        assert_eq!(manifesto.partes[0].url, URL_PAINEL);
+        assert!(
+            !manifesto_json
+                .windows(b"qlikTicket".len())
+                .any(|janela| janela == b"qlikTicket")
+        );
+        assert!(
+            armazenamento
+                .0
+                .lock()
+                .unwrap()
+                .keys()
+                .any(|chave| chave.ends_with("_ultima_versao.json"))
+        );
+
+        let contexto_seguinte = ContextoDeExecucao {
+            id_execucao: "segunda-captura".to_owned(),
+            iniciada_em: Utc::now(),
+            armazenamento,
+            http: Arc::new(ClienteHttpInerte),
+            progresso: None,
+        };
+        let segunda = publicar_snapshot(&contexto_seguinte, xlsx).await.unwrap();
+        assert!(segunda.reaproveitada);
+        assert_eq!(segunda.partes, 0);
     }
 
     #[tokio::test]
