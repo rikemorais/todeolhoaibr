@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_ibge_renda_per_capita"],"struct":["TarefaDeSilverIbgeRendaPerCapita"]};
