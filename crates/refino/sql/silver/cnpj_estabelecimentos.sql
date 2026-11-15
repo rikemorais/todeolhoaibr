@@ -45,17 +45,13 @@ SELECT
     nome_fantasia,
     situacao_cadastral,
     CASE WHEN LENGTH(data_situacao_raw) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(data_situacao_raw,1,4),'-',SUBSTR(data_situacao_raw,5,2),'-',SUBSTR(data_situacao_raw,7,2))
-           AS DATE)
+         THEN to_date(data_situacao_raw, '%Y%m%d')
          ELSE NULL END                     AS data_situacao,
     motivo_situacao,
     cidade_exterior,
     pais,
     CASE WHEN LENGTH(data_inicio_raw) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(data_inicio_raw,1,4),'-',SUBSTR(data_inicio_raw,5,2),'-',SUBSTR(data_inicio_raw,7,2))
-           AS DATE)
+         THEN to_date(data_inicio_raw, '%Y%m%d')
          ELSE NULL END                     AS data_inicio,
     cnae_principal,
     cnae_secundaria,
@@ -76,9 +72,7 @@ SELECT
     email,
     situacao_especial,
     CASE WHEN LENGTH(data_situacao_especial_raw) = 8
-         THEN TRY_CAST(
-           CONCAT(SUBSTR(data_situacao_especial_raw,1,4),'-',SUBSTR(data_situacao_especial_raw,5,2),'-',SUBSTR(data_situacao_especial_raw,7,2))
-           AS DATE)
+         THEN to_date(data_situacao_especial_raw, '%Y%m%d')
          ELSE NULL END                     AS data_situacao_especial,
     _tdoa_origem_manifesto,
     _tdoa_origem_parte,
