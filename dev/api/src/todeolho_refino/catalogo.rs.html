@@ -354,67 +354,80 @@
 <a href=#354 id=354 data-nosnippet>354</a>            prefixo_recurso: <span class="string">""</span>,
 <a href=#355 id=355 data-nosnippet>355</a>            cria_decodificador: || Arc::new(DecodificadorCnpj),
 <a href=#356 id=356 data-nosnippet>356</a>        },
-<a href=#357 id=357 data-nosnippet>357</a>    ]
-<a href=#358 id=358 data-nosnippet>358</a>}
-<a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a><span class="attr">#[cfg(test)]
-<a href=#361 id=361 data-nosnippet>361</a></span><span class="kw">mod </span>testes {
-<a href=#362 id=362 data-nosnippet>362</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#363 id=363 data-nosnippet>363</a>
-<a href=#364 id=364 data-nosnippet>364</a>    <span class="attr">#[test]
-<a href=#365 id=365 data-nosnippet>365</a>    </span><span class="kw">fn </span>o_catalogo_tem_a_camara_despesas_apontando_para_o_raw_camara() {
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">let </span>fonte = catalogo_refino()
-<a href=#367 id=367 data-nosnippet>367</a>            .into_iter()
-<a href=#368 id=368 data-nosnippet>368</a>            .find(|f| f.nome == <span class="string">"camara-despesas"</span>)
-<a href=#369 id=369 data-nosnippet>369</a>            .expect(<span class="string">"camara-despesas no catálogo"</span>);
-<a href=#370 id=370 data-nosnippet>370</a>        <span class="macro">assert_eq!</span>(fonte.fonte_raw, <span class="string">"camara"</span>);
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, <span class="string">"despesas/"</span>);
-<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let _ </span>= fonte.decodificador();
-<a href=#373 id=373 data-nosnippet>373</a>    }
-<a href=#374 id=374 data-nosnippet>374</a>
-<a href=#375 id=375 data-nosnippet>375</a>    <span class="attr">#[test]
-<a href=#376 id=376 data-nosnippet>376</a>    </span><span class="kw">fn </span>nomes_do_catalogo_sao_unicos() {
-<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">let </span>catalogo = catalogo_refino();
-<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">let </span><span class="kw-2">mut </span>nomes: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = catalogo.iter().map(|f| f.nome).collect();
-<a href=#379 id=379 data-nosnippet>379</a>        nomes.sort();
-<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>antes = nomes.len();
-<a href=#381 id=381 data-nosnippet>381</a>        nomes.dedup();
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="macro">assert_eq!</span>(antes, nomes.len(), <span class="string">"nomes duplicados no catálogo de refino"</span>);
-<a href=#383 id=383 data-nosnippet>383</a>    }
-<a href=#384 id=384 data-nosnippet>384</a>
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="attr">#[test]
-<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">fn </span>novas_fontes_apontam_para_o_raw_correto() {
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>catalogo = catalogo_refino();
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>casos = [
-<a href=#389 id=389 data-nosnippet>389</a>            (<span class="string">"undp"</span>, <span class="string">"undp"</span>, <span class="string">"indices-compostos"</span>),
-<a href=#390 id=390 data-nosnippet>390</a>            (<span class="string">"remuneracao-estadual-mg"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=MG/"</span>),
-<a href=#391 id=391 data-nosnippet>391</a>            (<span class="string">"remuneracao-estadual-go"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=GO/"</span>),
-<a href=#392 id=392 data-nosnippet>392</a>            (<span class="string">"world-bank"</span>, <span class="string">"world-bank"</span>, <span class="string">"indicadores/"</span>),
-<a href=#393 id=393 data-nosnippet>393</a>            (
-<a href=#394 id=394 data-nosnippet>394</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
-<a href=#395 id=395 data-nosnippet>395</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
-<a href=#396 id=396 data-nosnippet>396</a>                <span class="string">"folhas-pagamentos/"</span>,
-<a href=#397 id=397 data-nosnippet>397</a>            ),
-<a href=#398 id=398 data-nosnippet>398</a>            (<span class="string">"transparencia-beneficios"</span>, <span class="string">"transparencia"</span>, <span class="string">"beneficios/"</span>),
-<a href=#399 id=399 data-nosnippet>399</a>            (
-<a href=#400 id=400 data-nosnippet>400</a>                <span class="string">"transparencia-servidores-ativos"</span>,
-<a href=#401 id=401 data-nosnippet>401</a>                <span class="string">"transparencia"</span>,
-<a href=#402 id=402 data-nosnippet>402</a>                <span class="string">"servidores-ativos/"</span>,
-<a href=#403 id=403 data-nosnippet>403</a>            ),
-<a href=#404 id=404 data-nosnippet>404</a>            (<span class="string">"ana"</span>, <span class="string">"ana"</span>, <span class="string">"estacoes-"</span>),
-<a href=#405 id=405 data-nosnippet>405</a>            (<span class="string">"b3"</span>, <span class="string">"b3"</span>, <span class="string">"cotahist/"</span>),
-<a href=#406 id=406 data-nosnippet>406</a>            (<span class="string">"emendas-cgu"</span>, <span class="string">"emendas"</span>, <span class="string">"cgu/"</span>),
-<a href=#407 id=407 data-nosnippet>407</a>            (<span class="string">"emendas-tesouro"</span>, <span class="string">"emendas"</span>, <span class="string">"repasses/"</span>),
-<a href=#408 id=408 data-nosnippet>408</a>        ];
-<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">for </span>(nome, raw, prefixo) <span class="kw">in </span>casos {
-<a href=#410 id=410 data-nosnippet>410</a>            <span class="kw">let </span>fonte = catalogo
-<a href=#411 id=411 data-nosnippet>411</a>                .iter()
-<a href=#412 id=412 data-nosnippet>412</a>                .find(|f| f.nome == nome)
-<a href=#413 id=413 data-nosnippet>413</a>                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"{nome} ausente no catálogo"</span>));
-<a href=#414 id=414 data-nosnippet>414</a>            <span class="macro">assert_eq!</span>(fonte.fonte_raw, raw, <span class="string">"raw errado para {nome}"</span>);
-<a href=#415 id=415 data-nosnippet>415</a>            <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, prefixo, <span class="string">"prefixo errado para {nome}"</span>);
-<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let _ </span>= fonte.decodificador();
-<a href=#417 id=417 data-nosnippet>417</a>        }
-<a href=#418 id=418 data-nosnippet>418</a>    }
-<a href=#419 id=419 data-nosnippet>419</a>}
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="comment">// --- CVM: DFP (anual) e ITR (trimestral), ZIP de CSVs Latin-1 com `;` ---
+<a href=#358 id=358 data-nosnippet>358</a>        </span>FonteDeRefino {
+<a href=#359 id=359 data-nosnippet>359</a>            nome: <span class="string">"cvm-dfp"</span>,
+<a href=#360 id=360 data-nosnippet>360</a>            fonte_raw: <span class="string">"cvm"</span>,
+<a href=#361 id=361 data-nosnippet>361</a>            prefixo_recurso: <span class="string">"dfp/"</span>,
+<a href=#362 id=362 data-nosnippet>362</a>            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(<span class="string">b';'</span>)),
+<a href=#363 id=363 data-nosnippet>363</a>        },
+<a href=#364 id=364 data-nosnippet>364</a>        FonteDeRefino {
+<a href=#365 id=365 data-nosnippet>365</a>            nome: <span class="string">"cvm-itr"</span>,
+<a href=#366 id=366 data-nosnippet>366</a>            fonte_raw: <span class="string">"cvm"</span>,
+<a href=#367 id=367 data-nosnippet>367</a>            prefixo_recurso: <span class="string">"itr/"</span>,
+<a href=#368 id=368 data-nosnippet>368</a>            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(<span class="string">b';'</span>)),
+<a href=#369 id=369 data-nosnippet>369</a>        },
+<a href=#370 id=370 data-nosnippet>370</a>    ]
+<a href=#371 id=371 data-nosnippet>371</a>}
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a><span class="attr">#[cfg(test)]
+<a href=#374 id=374 data-nosnippet>374</a></span><span class="kw">mod </span>testes {
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#376 id=376 data-nosnippet>376</a>
+<a href=#377 id=377 data-nosnippet>377</a>    <span class="attr">#[test]
+<a href=#378 id=378 data-nosnippet>378</a>    </span><span class="kw">fn </span>o_catalogo_tem_a_camara_despesas_apontando_para_o_raw_camara() {
+<a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">let </span>fonte = catalogo_refino()
+<a href=#380 id=380 data-nosnippet>380</a>            .into_iter()
+<a href=#381 id=381 data-nosnippet>381</a>            .find(|f| f.nome == <span class="string">"camara-despesas"</span>)
+<a href=#382 id=382 data-nosnippet>382</a>            .expect(<span class="string">"camara-despesas no catálogo"</span>);
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="macro">assert_eq!</span>(fonte.fonte_raw, <span class="string">"camara"</span>);
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, <span class="string">"despesas/"</span>);
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let _ </span>= fonte.decodificador();
+<a href=#386 id=386 data-nosnippet>386</a>    }
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>    <span class="attr">#[test]
+<a href=#389 id=389 data-nosnippet>389</a>    </span><span class="kw">fn </span>nomes_do_catalogo_sao_unicos() {
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="kw">let </span>catalogo = catalogo_refino();
+<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">let </span><span class="kw-2">mut </span>nomes: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = catalogo.iter().map(|f| f.nome).collect();
+<a href=#392 id=392 data-nosnippet>392</a>        nomes.sort();
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>antes = nomes.len();
+<a href=#394 id=394 data-nosnippet>394</a>        nomes.dedup();
+<a href=#395 id=395 data-nosnippet>395</a>        <span class="macro">assert_eq!</span>(antes, nomes.len(), <span class="string">"nomes duplicados no catálogo de refino"</span>);
+<a href=#396 id=396 data-nosnippet>396</a>    }
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="attr">#[test]
+<a href=#399 id=399 data-nosnippet>399</a>    </span><span class="kw">fn </span>novas_fontes_apontam_para_o_raw_correto() {
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span>catalogo = catalogo_refino();
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span>casos = [
+<a href=#402 id=402 data-nosnippet>402</a>            (<span class="string">"undp"</span>, <span class="string">"undp"</span>, <span class="string">"indices-compostos"</span>),
+<a href=#403 id=403 data-nosnippet>403</a>            (<span class="string">"remuneracao-estadual-mg"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=MG/"</span>),
+<a href=#404 id=404 data-nosnippet>404</a>            (<span class="string">"remuneracao-estadual-go"</span>, <span class="string">"remuneracao-estadual"</span>, <span class="string">"uf=GO/"</span>),
+<a href=#405 id=405 data-nosnippet>405</a>            (<span class="string">"world-bank"</span>, <span class="string">"world-bank"</span>, <span class="string">"indicadores/"</span>),
+<a href=#406 id=406 data-nosnippet>406</a>            (
+<a href=#407 id=407 data-nosnippet>407</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
+<a href=#408 id=408 data-nosnippet>408</a>                <span class="string">"remuneracao-municipal-tce-ce"</span>,
+<a href=#409 id=409 data-nosnippet>409</a>                <span class="string">"folhas-pagamentos/"</span>,
+<a href=#410 id=410 data-nosnippet>410</a>            ),
+<a href=#411 id=411 data-nosnippet>411</a>            (<span class="string">"transparencia-beneficios"</span>, <span class="string">"transparencia"</span>, <span class="string">"beneficios/"</span>),
+<a href=#412 id=412 data-nosnippet>412</a>            (
+<a href=#413 id=413 data-nosnippet>413</a>                <span class="string">"transparencia-servidores-ativos"</span>,
+<a href=#414 id=414 data-nosnippet>414</a>                <span class="string">"transparencia"</span>,
+<a href=#415 id=415 data-nosnippet>415</a>                <span class="string">"servidores-ativos/"</span>,
+<a href=#416 id=416 data-nosnippet>416</a>            ),
+<a href=#417 id=417 data-nosnippet>417</a>            (<span class="string">"ana"</span>, <span class="string">"ana"</span>, <span class="string">"estacoes-"</span>),
+<a href=#418 id=418 data-nosnippet>418</a>            (<span class="string">"b3"</span>, <span class="string">"b3"</span>, <span class="string">"cotahist/"</span>),
+<a href=#419 id=419 data-nosnippet>419</a>            (<span class="string">"emendas-cgu"</span>, <span class="string">"emendas"</span>, <span class="string">"cgu/"</span>),
+<a href=#420 id=420 data-nosnippet>420</a>            (<span class="string">"emendas-tesouro"</span>, <span class="string">"emendas"</span>, <span class="string">"repasses/"</span>),
+<a href=#421 id=421 data-nosnippet>421</a>        ];
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="kw">for </span>(nome, raw, prefixo) <span class="kw">in </span>casos {
+<a href=#423 id=423 data-nosnippet>423</a>            <span class="kw">let </span>fonte = catalogo
+<a href=#424 id=424 data-nosnippet>424</a>                .iter()
+<a href=#425 id=425 data-nosnippet>425</a>                .find(|f| f.nome == nome)
+<a href=#426 id=426 data-nosnippet>426</a>                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"{nome} ausente no catálogo"</span>));
+<a href=#427 id=427 data-nosnippet>427</a>            <span class="macro">assert_eq!</span>(fonte.fonte_raw, raw, <span class="string">"raw errado para {nome}"</span>);
+<a href=#428 id=428 data-nosnippet>428</a>            <span class="macro">assert_eq!</span>(fonte.prefixo_recurso, prefixo, <span class="string">"prefixo errado para {nome}"</span>);
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="kw">let _ </span>= fonte.decodificador();
+<a href=#430 id=430 data-nosnippet>430</a>        }
+<a href=#431 id=431 data-nosnippet>431</a>    }
+<a href=#432 id=432 data-nosnippet>432</a>}
 </code></pre></div></section></main></body></html>
