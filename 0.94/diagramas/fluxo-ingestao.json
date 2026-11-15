@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Tô De Olho Aí — Fluxo da ingestão idempotente",
+    "output": "docs/diagramas/fluxo-ingestao.html",
+    "viewBox": [920, 520],
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    { "label": "Entrada" },
+    { "label": "Pré-checagem + decisão" },
+    { "label": "Ingestão" },
+    { "label": "Camada Raw (S3)" }
+  ],
+  "nodes": [
+    { "id": "api", "type": "cloud", "label": "API pública", "sublabel": "IBGE · Câmara · TSE", "stage": 0, "row": 0, "tag": "ETag" },
+    { "id": "vigente", "type": "database", "label": "Raw vigente", "sublabel": "ponteiro + manifesto", "stage": 0, "row": 2, "tag": "versão atual" },
+    { "id": "info", "type": "backend", "label": "informacoes", "sublabel": "HEAD: ETag + tamanho", "stage": 1, "row": 0 },
+    { "id": "estado", "type": "backend", "label": "estado_na_raw", "sublabel": "completude + integridade", "stage": 1, "row": 2 },
+    { "id": "decidir", "type": "backend", "label": "decidir", "sublabel": "regra pura", "stage": 1, "row": 1, "tag": "reaproveitar / ingerir" },
+    { "id": "tarefa", "type": "backend", "label": "Tarefa", "sublabel": "arquivo ou HTTP paginado", "stage": 2, "row": 1, "tag": "só o necessário" },
+    { "id": "partes", "type": "database", "label": "Partes + manifesto", "sublabel": "objetos imutáveis", "stage": 3, "row": 0, "tag": "sha256" },
+    { "id": "ponteiro", "type": "database", "label": "_ultima_versao.json", "sublabel": "gravado por último", "stage": 3, "row": 2, "tag": "próxima rodada" }
+  ],
+  "flows": [
+    { "id": "api-info", "from": "api", "to": "info", "label": "HEAD / condicional", "classification": "metadados", "variant": "default" },
+    { "id": "vigente-estado", "from": "vigente", "to": "estado", "label": "lê manifesto", "classification": "estado anterior", "variant": "default" },
+    { "id": "info-decidir", "from": "info", "to": "decidir", "label": "versão / tamanho", "classification": "origem", "variant": "emphasis" },
+    { "id": "estado-decidir", "from": "estado", "to": "decidir", "label": "íntegra?", "classification": "raw", "variant": "emphasis", "labelDx": 46, "labelDy": -16 },
+    { "id": "decidir-tarefa", "from": "decidir", "to": "tarefa", "label": "Ingerir(motivo)", "classification": "reingestão", "variant": "emphasis" },
+    { "id": "tarefa-partes", "from": "tarefa", "to": "partes", "label": "grava o que mudou", "classification": "escrita", "variant": "emphasis" },
+    { "id": "tarefa-ponteiro", "from": "tarefa", "to": "ponteiro", "label": "publica a versão", "classification": "escrita", "variant": "default" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Caminho principal", "items": ["A pré-checagem decide antes de baixar: origem (informacoes) + estado na Raw (estado_na_raw)", "decidir é regra pura, sem I/O; a ordem é ausência → integridade → validador → tamanho", "Motivos de reingestão: ausente, menor, desatualizada ou incompleta/corrompida"] },
+    { "dot": "cyan", "title": "Idempotência", "items": ["Requisição condicional por página: 304 reaproveita, 200 reingere", "Páginas inalteradas reaproveitam a chave; nada é reescrito à toa (sha256)"] },
+    { "dot": "rose", "title": "Procedência", "items": ["Partes e manifesto são imutáveis; o manifesto marca a ingestão completa", "_ultima_versao.json é gravado por último e guia a próxima rodada (ADR 0010/0012)"] }
+  ]
+}

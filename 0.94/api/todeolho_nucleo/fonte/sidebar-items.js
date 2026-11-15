@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RedirecionamentoHttp"],"struct":["CredencialHttp","LimiteHttp","PerfilHttp"],"trait":["FonteDeDados"]};
