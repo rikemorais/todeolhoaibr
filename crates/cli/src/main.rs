@@ -26,7 +26,8 @@ use todeolho_nucleo::{
     TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{
-    FiltrosSqlEmendas, FonteDeRefino, SQL_EMENDAS_CGU, SQL_EMENDAS_SIGA_BRASIL,
+    FiltrosSqlEmendas, FonteDeRefino, SQL_CNPJ_EMPRESAS, SQL_CNPJ_ESTABELECIMENTOS,
+    SQL_CNPJ_SIMPLES, SQL_CNPJ_SOCIOS, SQL_EMENDAS_CGU, SQL_EMENDAS_SIGA_BRASIL,
     SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV, SnapshotBronze, TarefaDeBronze,
     TarefaDeSilverBcb, TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas,
     TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
@@ -616,6 +617,12 @@ async fn refinar(
         }
         if fonte.as_deref() == Some("b3") {
             return refinar_b3_silver(intervalo).await;
+        }
+        if let Some(tabela) = fonte.as_deref().and_then(|f| f.strip_prefix("cnpj-")) {
+            if !filtros.is_empty() {
+                bail!("--filtro não está disponível para `silver cnpj-*`");
+            }
+            return refinar_cnpj_silver(intervalo, tabela).await;
         }
         if fonte.as_deref() == Some("remuneracao-estadual-mg") {
             return refinar_remuneracao_estadual_mg_silver(intervalo).await;
@@ -3304,6 +3311,163 @@ async fn refinar_b3_silver(intervalo: Option<u64>) -> Result<bool> {
         intervalo,
     )
     .await
+}
+
+async fn refinar_cnpj_silver(intervalo: Option<u64>, tabela: &str) -> Result<bool> {
+    let (nome_catalogo, regra, sql): (&str, &str, &str) = match tabela {
+        "empresas" => ("cnpj-empresas", "cnpj-empresas-v1", SQL_CNPJ_EMPRESAS),
+        "estabelecimentos" => (
+            "cnpj-estabelecimentos",
+            "cnpj-estabelecimentos-v1",
+            SQL_CNPJ_ESTABELECIMENTOS,
+        ),
+        "socios" => ("cnpj-socios", "cnpj-socios-v1", SQL_CNPJ_SOCIOS),
+        "simples" => ("cnpj-simples", "cnpj-simples-v1", SQL_CNPJ_SIMPLES),
+        _ => bail!(
+            "tabela CNPJ desconhecida: {tabela}. Disponíveis: empresas, estabelecimentos, socios, simples"
+        ),
+    };
+
+    let filtro_tabela = format!("/{tabela}/");
+
+    let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+    let bronze: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+    let silver: Arc<dyn ArmazenamentoRaw> =
+        Arc::new(ArmazenamentoS3::novo(configuracao_s3("silver")?)?);
+    bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    silver.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+
+    let catalogo = catalogo_refino();
+    let item_cnpj = catalogo
+        .iter()
+        .find(|f| f.nome == "cnpj")
+        .context("fonte cnpj não encontrada no catálogo")?;
+
+    match intervalo.filter(|s| *s > 0) {
+        None => {
+            passada_cnpj_silver(
+                nome_catalogo,
+                regra,
+                sql,
+                &filtro_tabela,
+                item_cnpj,
+                &raw_s3,
+                &bronze,
+                &silver,
+                false,
+            )
+            .await
+        }
+        Some(segundos) => {
+            println!(
+                "Agendador Silver {nome_catalogo}: reconciliando a cada {segundos}s. Ctrl+C para sair."
+            );
+            loop {
+                if let Err(erro) = passada_cnpj_silver(
+                    nome_catalogo,
+                    regra,
+                    sql,
+                    &filtro_tabela,
+                    item_cnpj,
+                    &raw_s3,
+                    &bronze,
+                    &silver,
+                    true,
+                )
+                .await
+                {
+                    eprintln!("Atenção: falha na reconciliação Silver {nome_catalogo}: {erro:#}");
+                }
+                tokio::time::sleep(Duration::from_secs(segundos)).await;
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn passada_cnpj_silver(
+    nome_catalogo: &str,
+    regra: &str,
+    sql: &'static str,
+    filtro_tabela: &str,
+    item_cnpj: &FonteDeRefino,
+    raw_s3: &ArmazenamentoS3,
+    bronze: &Arc<dyn ArmazenamentoRaw>,
+    silver: &Arc<dyn ArmazenamentoRaw>,
+    somente_pendentes: bool,
+) -> Result<bool> {
+    let todos_recursos = recursos_no_raw(raw_s3, item_cnpj).await?;
+    let recursos: Vec<&str> = todos_recursos
+        .iter()
+        .filter(|r| r.contains(filtro_tabela))
+        .map(String::as_str)
+        .collect();
+
+    let mut tarefas = Vec::new();
+    for recurso in recursos {
+        let Some(snapshot) = SnapshotBronze::vigente(bronze.as_ref(), item_cnpj.fonte_raw, recurso)
+            .await
+            .context("não foi possível ler o snapshot Bronze")?
+        else {
+            continue;
+        };
+        let mut tarefa = TarefaDeSilverSql::nova_para_contrato(
+            Arc::clone(bronze),
+            Arc::new(snapshot),
+            nome_catalogo,
+            recurso,
+            None,
+            regra,
+            sql,
+        );
+        if item_cnpj.fonte_raw != nome_catalogo {
+            tarefa = tarefa.com_fonte_bronze(item_cnpj.fonte_raw);
+        }
+        if !somente_pendentes || tarefa.pendente(silver.as_ref()).await? {
+            tarefas.push(TarefaPlanejada::nova(tarefa));
+        }
+    }
+
+    if tarefas.is_empty() {
+        println!("Nada a refinar na Silver {nome_catalogo} (em dia ou não ingerido).");
+        return Ok(true);
+    }
+
+    let iniciada_em = Utc::now();
+    let contexto = ContextoDeExecucao {
+        id_execucao: format!(
+            "{}-{}",
+            iniciada_em.format("%Y%m%dT%H%M%SZ"),
+            Uuid::new_v4().simple()
+        ),
+        iniciada_em,
+        armazenamento: Arc::clone(silver),
+        http: Arc::new(ClienteHttpComRetentativas::novo(
+            PoliticaDeRetentativas::default(),
+        )?),
+        progresso: None,
+    };
+    let historico = Arc::new(historico()?);
+    historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+    let dag = DagDeIngestao::construir(nome_catalogo, tarefas)?;
+    let dags = vec![dag];
+    let registrador = Arc::new(RegistradorDeExecucao::novo(
+        RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
+        historico,
+    ));
+    registrador.publicar().await;
+    tokio::spawn({
+        let registrador = Arc::clone(&registrador);
+        async move { registrador.manter_batimento().await }
+    });
+    let relatorio = ExecutorDeDag::novo(concorrencia()?)
+        .executar(&dags[0], &contexto, registrador.as_ref())
+        .await?;
+    imprimir(&relatorio);
+    registrador.concluir().await;
+    println!("\nexecução Silver: {}", contexto.id_execucao);
+    Ok(relatorio.sucesso())
 }
 
 async fn refinar_mapa_empresas_silver(intervalo: Option<u64>) -> Result<bool> {

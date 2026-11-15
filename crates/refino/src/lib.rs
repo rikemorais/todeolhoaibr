@@ -57,6 +57,10 @@ pub use silver::camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes}
 pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
 #[cfg(test)]
 pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
+pub use silver::cnpj_empresas::{SQL_CNPJ_EMPRESAS, esquema_cnpj_empresas};
+pub use silver::cnpj_estabelecimentos::{SQL_CNPJ_ESTABELECIMENTOS, esquema_cnpj_estabelecimentos};
+pub use silver::cnpj_simples::{SQL_CNPJ_SIMPLES, esquema_cnpj_simples};
+pub use silver::cnpj_socios::{SQL_CNPJ_SOCIOS, esquema_cnpj_socios};
 pub use silver::emendas::{
     SQL_EMENDAS_CGU, SQL_EMENDAS_SIGA_BRASIL, SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV,
 };

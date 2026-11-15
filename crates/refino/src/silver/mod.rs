@@ -9,6 +9,14 @@ pub mod camara_legislaturas;
 pub mod camara_partidos;
 pub mod camara_tramitacoes;
 pub mod camara_votacoes;
+/// Contrato Silver para o cadastro de empresas da Receita Federal (CNPJ).
+pub mod cnpj_empresas;
+/// Contrato Silver para o cadastro de estabelecimentos da Receita Federal (CNPJ).
+pub mod cnpj_estabelecimentos;
+/// Contrato Silver para opção pelo Simples/MEI da Receita Federal (CNPJ).
+pub mod cnpj_simples;
+/// Contrato Silver para o quadro societário da Receita Federal (CNPJ).
+pub mod cnpj_socios;
 /// Contratos SQL Silver para os dois conjuntos de emendas parlamentares.
 pub mod emendas;
 pub mod ibge_agregados;
@@ -138,6 +146,10 @@ pub use camara_partidos::{ErroCamaraPartidosSilver, transformar_camara_partidos}
 #[cfg(test)]
 pub use camara_tramitacoes::{ErroCamaraTramitacoesSilver, transformar_camara_tramitacoes};
 pub use camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
+pub use cnpj_empresas::{SQL_CNPJ_EMPRESAS, esquema_cnpj_empresas};
+pub use cnpj_estabelecimentos::{SQL_CNPJ_ESTABELECIMENTOS, esquema_cnpj_estabelecimentos};
+pub use cnpj_simples::{SQL_CNPJ_SIMPLES, esquema_cnpj_simples};
+pub use cnpj_socios::{SQL_CNPJ_SOCIOS, esquema_cnpj_socios};
 pub use ibge_agregados::esquema_ibge_agregados;
 #[cfg(test)]
 pub use ibge_agregados::{ErroIbgeSilver, transformar_ibge_agregados};
