@@ -3202,7 +3202,7 @@ async fn refinar_emendas_siga_brasil_silver(
     let filtros = filtros_sql_emendas(&filtros)?;
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-siga-brasil",
-        "emendas-siga-brasil-favorecido-pagamento-v1",
+        "emendas-siga-brasil-favorecido-pagamento-v2",
         SQL_EMENDAS_SIGA_BRASIL,
         intervalo,
         &filtros,
