@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Unreleased]
+
+### Melhorado
+
+- Acrescenta ao contrato Silver Transferegov o código municipal IBGE via crosswalk versionado por UF, preservando a localidade original e os aliases usados.
+
 ## [0.96.0] - 2026-11-15
 
 ### Adicionado

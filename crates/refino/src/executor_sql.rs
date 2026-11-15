@@ -13,10 +13,10 @@ use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::logical_expr::{ColumnarValue, Volatility, create_udf};
 use datafusion::prelude::{ParquetReadOptions, SessionConfig};
 use datafusion::{error::DataFusionError, physical_plan::SendableRecordBatchStream};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use thiserror::Error;
 use todeolho_nucleo::ArmazenamentoRaw;
 
@@ -507,6 +507,19 @@ pub async fn executar_sql_com_filtros(
         Volatility::Immutable,
         Arc::new(json_get),
     ));
+    for (nome, campo) in [
+        ("tdoa_municipio_ibge_codigo", CampoMunicipioIbge::Codigo),
+        ("tdoa_municipio_ibge_nome", CampoMunicipioIbge::Nome),
+        ("tdoa_municipio_ibge_metodo", CampoMunicipioIbge::Metodo),
+    ] {
+        contexto.register_udf(create_udf(
+            nome,
+            vec![DataType::Utf8, DataType::Utf8],
+            DataType::Utf8,
+            Volatility::Immutable,
+            Arc::new(move |argumentos| municipio_ibge(argumentos, campo)),
+        ));
+    }
     contexto.register_udf(create_udf(
         "tdoa_json_expand_votos",
         vec![DataType::Utf8],
@@ -607,6 +620,155 @@ fn json_get(argumentos: &[ColumnarValue]) -> datafusion::common::Result<Columnar
         }
     }
     Ok(ColumnarValue::Array(Arc::new(saida.finish())))
+}
+
+#[derive(Clone)]
+struct MunicipioIbge {
+    nome: String,
+    codigo: String,
+    metodo: String,
+}
+
+#[derive(Clone, Copy)]
+enum CampoMunicipioIbge {
+    Codigo,
+    Nome,
+    Metodo,
+}
+
+static CROSSWALK_MUNICIPIOS_IBGE: LazyLock<
+    Result<HashMap<(String, String), MunicipioIbge>, String>,
+> = LazyLock::new(carregar_crosswalk_municipios_ibge);
+
+fn carregar_crosswalk_municipios_ibge() -> Result<HashMap<(String, String), MunicipioIbge>, String>
+{
+    let mut leitor = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(include_bytes!("../dados/transferegov-municipios-ibge-v1.csv").as_slice());
+    let mut municipios = HashMap::new();
+    for registro in leitor.records() {
+        let registro = registro.map_err(|erro| format!("CSV de localidades inválido: {erro}"))?;
+        let uf = registro
+            .get(0)
+            .ok_or_else(|| "UF ausente no crosswalk de localidades".to_owned())?
+            .trim()
+            .to_ascii_uppercase();
+        let municipio_origem = registro
+            .get(1)
+            .ok_or_else(|| "nome de origem ausente no crosswalk de localidades".to_owned())?;
+        let nome = registro
+            .get(2)
+            .ok_or_else(|| "nome IBGE ausente no crosswalk de localidades".to_owned())?
+            .to_owned();
+        let codigo = registro
+            .get(3)
+            .ok_or_else(|| "código IBGE ausente no crosswalk de localidades".to_owned())?
+            .to_owned();
+        let metodo = registro
+            .get(4)
+            .ok_or_else(|| "método ausente no crosswalk de localidades".to_owned())?
+            .to_owned();
+        if uf.len() != 2
+            || codigo.len() != 7
+            || !codigo.bytes().all(|byte| byte.is_ascii_digit())
+            || !matches!(metodo.as_str(), "normalizacao_exata" | "alias_manual")
+        {
+            return Err(format!(
+                "registro inválido no crosswalk de localidades: {uf}, {municipio_origem}, {codigo}, {metodo}"
+            ));
+        }
+        let chave = (uf, normalizar_nome_municipio(municipio_origem));
+        let municipio = MunicipioIbge {
+            nome,
+            codigo,
+            metodo,
+        };
+        if municipios.insert(chave.clone(), municipio).is_some() {
+            return Err(format!(
+                "localidade duplicada no crosswalk IBGE: {} / {}",
+                chave.0, chave.1
+            ));
+        }
+    }
+    Ok(municipios)
+}
+
+fn normalizar_nome_municipio(nome: &str) -> String {
+    let mut normalizado = String::with_capacity(nome.len());
+    let mut espaco_pendente = false;
+    for caractere in nome.chars().flat_map(char::to_lowercase) {
+        let base = match caractere {
+            'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ç' => 'c',
+            'ñ' => 'n',
+            'ý' | 'ÿ' => 'y',
+            outro => outro,
+        };
+        if base.is_ascii_alphanumeric() {
+            if espaco_pendente && !normalizado.is_empty() {
+                normalizado.push(' ');
+            }
+            normalizado.push(base.to_ascii_uppercase());
+            espaco_pendente = false;
+        } else {
+            espaco_pendente = true;
+        }
+    }
+    normalizado
+}
+
+fn municipio_ibge(
+    argumentos: &[ColumnarValue],
+    campo: CampoMunicipioIbge,
+) -> datafusion::common::Result<ColumnarValue> {
+    let quantidade = argumentos
+        .iter()
+        .filter_map(|valor| match valor {
+            ColumnarValue::Array(array) => Some(array.len()),
+            ColumnarValue::Scalar(_) => None,
+        })
+        .max()
+        .unwrap_or(1);
+    let valores = argumentos
+        .iter()
+        .map(|valor| valor.clone().into_array(quantidade))
+        .collect::<datafusion::common::Result<Vec<_>>>()?;
+    let [ufs, municipios] = valores.as_slice() else {
+        return Err(DataFusionError::Execution(
+            "mapeamento IBGE requer município e UF".into(),
+        ));
+    };
+    let crosswalk = CROSSWALK_MUNICIPIOS_IBGE
+        .as_ref()
+        .map_err(|erro| DataFusionError::Execution(erro.clone()))?;
+    let ufs = ufs.as_string::<i32>();
+    let municipios_origem = municipios.as_string::<i32>();
+    let mut resultado = StringBuilder::new();
+    for indice in 0..quantidade {
+        if ufs.is_null(indice) || municipios_origem.is_null(indice) {
+            resultado.append_null();
+            continue;
+        }
+        let chave = (
+            ufs.value(indice).trim().to_ascii_uppercase(),
+            normalizar_nome_municipio(municipios_origem.value(indice)),
+        );
+        let mapeamento = crosswalk.get(&chave);
+        let valor = mapeamento.map(|mapeamento| match campo {
+            CampoMunicipioIbge::Codigo => &mapeamento.codigo,
+            CampoMunicipioIbge::Nome => &mapeamento.nome,
+            CampoMunicipioIbge::Metodo => &mapeamento.metodo,
+        });
+        match valor {
+            Some(valor) => resultado.append_value(valor),
+            None => resultado.append_null(),
+        }
+    }
+    Ok(ColumnarValue::Array(Arc::new(resultado.finish())))
 }
 
 /// Normaliza as duas formas do envelope do Senado para uma lista de votos JSON.
