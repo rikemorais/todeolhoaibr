@@ -5,6 +5,30 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.100.0] - 2026-11-15
+
+### Adicionado
+
+- Ingestão de demonstrações financeiras da CVM (DFP anual e ITR trimestral) das companhias abertas, com 33 recursos (2010–2026), catálogo Bronze e documentação (issue #37).
+
+## [0.99.0] - 2026-11-15
+
+### Adicionado
+
+- Mapeamento municipal IBGE parcial na Silver do SIGA Brasil, mantendo nulos os casos ambíguos ou não reconhecidos (PR #433).
+
+## [0.98.0] - 2026-11-15
+
+### Adicionado
+
+- Captura pública do SIGA Brasil com contratos Bronze e Silver independentes; a Silver omite CPF/CNPJ e preserva a semântica da fonte (issue #33).
+
+## [0.97.0] - 2026-11-15
+
+### Melhorado
+
+- Acrescenta ao contrato Silver Transferegov o código municipal IBGE via crosswalk versionado por UF, preservando a localidade original e os aliases usados.
+
 ## [0.96.0] - 2026-11-15
 
 ### Adicionado

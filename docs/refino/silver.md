@@ -6,9 +6,11 @@ Silver lê somente o bronze vigente, aplica contratos por tabela e publica Parqu
 
 ## Emendas
 
-A fonte Raw `emendas` tem três contratos sem associação entre si: `emendas-cgu` em [`emendas_cgu.sql`](../../crates/refino/sql/silver/emendas_cgu.sql) mantém os identificadores de emenda/autor, valores e `localidade_do_gasto` textual; `emendas-tesouro` em [`emendas_tesouro.sql`](../../crates/refino/sql/silver/emendas_tesouro.sql) mantém pagamentos, UF, código IBGE, OB e favorecido; `emendas-transferegov` em [`emendas_transferegov.sql`](../../crates/refino/sql/silver/emendas_transferegov.sql) mantém uma linha por beneficiário-programa, autoria, emenda, município/UF textual, valores publicados pela API e indicações aninhadas. Os três projetam a linhagem original. O Transferegov e a CGU não publicam código IBGE estruturado; não se presume join entre os contratos nem que os valores do Transferegov sejam pagamentos executados.
+A fonte Raw `emendas` tem três contratos sem associação entre si: `emendas-cgu` em [`emendas_cgu.sql`](../../crates/refino/sql/silver/emendas_cgu.sql) mantém os identificadores de emenda/autor, valores e `localidade_do_gasto` textual; `emendas-tesouro` em [`emendas_tesouro.sql`](../../crates/refino/sql/silver/emendas_tesouro.sql) mantém pagamentos, UF, código IBGE, OB e favorecido; `emendas-transferegov` em [`emendas_transferegov.sql`](../../crates/refino/sql/silver/emendas_transferegov.sql) mantém uma linha por beneficiário-programa, autoria, emenda, localidade recebida, valores da API, indicações aninhadas e o código IBGE obtido pelo crosswalk versionado. O Transferegov e a CGU não publicam esse código estruturado; a correspondência Transferegov não une contratos nem classifica seus valores como pagamentos executados.
 
 `refinar silver emendas --filtro ano=AAAA` aplica o ano à CGU e ao Tesouro. `--filtro uf=XX` só pode ser usado no Tesouro; o comando combinado ignora a CGU com uma mensagem explícita, e `emendas-cgu --filtro uf=XX` falha. O contrato Transferegov é executado separadamente com `refinar silver emendas-transferegov --filtro ano=AAAA --filtro uf=XX`; nele ano e UF são filtros de linha. Quando há filtro, a saída vai para um recurso próprio `.../filtros/ano=.../uf=...`, preservando a publicação integral. O código da OB é mantido, mas as linhas não são deduplicadas nem validadas como únicas até a estabilidade e as colisões do identificador serem demonstradas. O detalhe operacional e os comandos de Bronze estão em [fontes/emendas](../fontes/emendas.md).
+
+`emendas-siga-brasil` é um contrato independente para o snapshot público da tabela de favorecidos do painel do Senado. O grão é a linha publicada, sem chave única demonstrada; localidade e UF são preservadas, e `codigo_municipio_ibge`/`nome_municipio_ibge` só são preenchidos quando a localidade inteira ou seus componentes completos identificam um único município no crosswalk e na UF informada. As categorias agregadas documentadas de folha e benefícios do INSS, colisões, UF divergente e valores não reconhecidos ficam nulos; “Pago + RP” mantém o rótulo semântico da origem. O filtro `ano` usa o exercício da emenda. CPF/CNPJ existe na origem e no Bronze, mas não integra o schema Silver. Não há associação com o Tesouro por favorecido ou localidade.
 
 ## Contribuir com uma transformação SQL
 
@@ -16,7 +18,7 @@ Contratos SQL ficam versionados em `crates/refino/sql/silver/` e entram no biná
 
 O adaptador `TarefaDeSilverSql` associa a consulta embutida, nome/versionamento da regra e schema de saída ao publicador comum. A execução transmite batches para Parquet temporário; não use coleta integral do resultado. O limite inicial é 512 MiB de memória, 2 GiB de spill, 100 GiB de entrada, uma partição por consulta e batches de 8.192 linhas. Esses limites são configuráveis por tarefa e devem ser medidos antes de ampliar uma família de fontes.
 
-O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra `tdoa_json_get(json, chave)` para leitura de campos escalares/objetos e `tdoa_json_expand_votos(json)` para normalizar as listas atuais e legadas do Senado em uma lista SQL que `UNNEST` expande. Também registra `tdoa_emendas_corresponde_filtro(ano, uf)`, que recebe os recortes validados pela CLI como valores tipados, sem interpolá-los no SQL. São funções de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. `UNNEST` descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.
+O DataFusion 55.2 usado pelo projeto não inclui funções escalares centrais para extrair valores de JSON textual. O executor registra `tdoa_json_get(json, chave)` para leitura de campos escalares/objetos e `tdoa_json_expand_votos(json)` para normalizar as listas atuais e legadas do Senado em uma lista SQL que `UNNEST` expande. Também registra `tdoa_emendas_corresponde_filtro(ano, uf)`, que recebe os recortes validados pela CLI como valores tipados, sem interpolá-los no SQL, e `tdoa_municipio_ibge_* (uf, municipio)`, que consulta o crosswalk versionado e retorna nulos para localidades não reconhecidas. O arquivo de dados registra os nomes/códigos oficiais e aliases; nenhuma distância textual é calculada na execução. São funções de compatibilidade; aliases, validações, projeções e relacionamento permanecem declarados nos arquivos SQL. `UNNEST` descarta listas nulas ou vazias, que é a semântica desejada para votos: uma sessão sem voto continua na tabela de sessões e não cria linha filha.
 
 O smoke e benchmark sintético reproduzível do executor está em [`benchmark-datafusion.md`](benchmark-datafusion.md). Ele mede o pipeline SQL local com schema e linhagem Bronze e registra claramente quando os dados são sintéticos; a validação semântica com arquivos reais continua nos issues de migração por fonte.
 
@@ -24,6 +26,8 @@ O smoke e benchmark sintético reproduzível do executor está em [`benchmark-da
 
 ```
 crates/refino/
+├── dados/                   # crosswalks versionados de dados externos
+│   └── transferegov-municipios-ibge-v1.csv
 ├── sql/silver/              # consultas SQL versionadas
 │   ├── bcb_sgs.sql
 │   ├── camara_deputados.sql
@@ -162,7 +166,7 @@ O código Rust dos adaptadores (`tarefa_*.rs`) contém apenas:
 
 As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) são funções genéricas do executor, não transformações por contrato.
 
-### Inventário dos 26 contratos SQL centrais
+### Inventário dos 27 contratos SQL centrais
 
 | # | Arquivo SQL | Adaptador Rust | Regra | Família |
 | --- | --- | --- | --- | --- |
@@ -192,6 +196,7 @@ As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) sã
 | 24 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
 | 25 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
 | 26 | `mapa_empresas.sql` | `mapa_empresas.rs` | `mapa-empresas-estatistica-uf-v1` | Mapa de Empresas |
+| 27 | `emendas_siga_brasil.sql` | `emendas.rs` | `emendas-siga-brasil.favorecido-pagamento.v2` | SIGA Brasil |
 
 O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) garante em CI que esta lista permanece sincronizada com o código.
 

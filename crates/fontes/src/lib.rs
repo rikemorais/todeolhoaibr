@@ -20,6 +20,7 @@ pub use fontes::camara::{
     FonteCamara, FonteCamaraDespesas, FonteCamaraTramitacoes, FonteCamaraVotacoes,
 };
 pub use fontes::cnpj::FonteCnpj;
+pub use fontes::cvm::FonteCvm;
 pub use fontes::emendas::FonteEmendas;
 pub use fontes::ibge::{FonteIbge, FonteIbgePibMunicipios, FonteIbgeRendaPerCapita};
 pub use fontes::ipeadata::FonteIpeadata;
@@ -27,7 +28,7 @@ pub use fontes::mapa_empresas::FonteMapaEmpresas;
 pub use fontes::remuneracao_estadual_go::FonteRemuneracaoEstadualGo;
 pub use fontes::remuneracao_estadual_mg::FonteRemuneracaoEstadualMg;
 pub use fontes::senado::{
-    FonteSenadoDespesas, FonteSenadoParlamentares, FonteSenadoProcessos,
+    FonteSenadoDespesas, FonteSenadoEmendas, FonteSenadoParlamentares, FonteSenadoProcessos,
     FonteSenadoProcessosDetalhes, FonteSenadoVotacoes,
 };
 pub use fontes::tce_ce::FonteRemuneracaoMunicipalTceCe;
@@ -57,6 +58,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteRemuneracaoEstadualGo),
         Box::new(FonteBcb),
         Box::new(FonteCnpj),
+        Box::new(FonteCvm),
         Box::new(FonteEmendas),
         Box::new(FonteIpeadata),
         Box::new(FonteCamara),
@@ -64,6 +66,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteCamaraTramitacoes),
         Box::new(FonteCamaraVotacoes),
         Box::new(FonteSenadoDespesas),
+        Box::new(FonteSenadoEmendas),
         Box::new(FonteSenadoVotacoes),
         Box::new(FonteSenadoProcessos),
         Box::new(FonteSenadoProcessosDetalhes),

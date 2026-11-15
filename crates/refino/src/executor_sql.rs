@@ -13,10 +13,10 @@ use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::logical_expr::{ColumnarValue, Volatility, create_udf};
 use datafusion::prelude::{ParquetReadOptions, SessionConfig};
 use datafusion::{error::DataFusionError, physical_plan::SendableRecordBatchStream};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use thiserror::Error;
 use todeolho_nucleo::ArmazenamentoRaw;
 
@@ -507,6 +507,31 @@ pub async fn executar_sql_com_filtros(
         Volatility::Immutable,
         Arc::new(json_get),
     ));
+    for (nome, campo) in [
+        ("tdoa_municipio_ibge_codigo", CampoMunicipioIbge::Codigo),
+        ("tdoa_municipio_ibge_nome", CampoMunicipioIbge::Nome),
+        ("tdoa_municipio_ibge_metodo", CampoMunicipioIbge::Metodo),
+        (
+            "tdoa_municipio_ibge_siga_codigo",
+            CampoMunicipioIbge::SigaCodigo,
+        ),
+        (
+            "tdoa_municipio_ibge_siga_nome",
+            CampoMunicipioIbge::SigaNome,
+        ),
+        (
+            "tdoa_municipio_ibge_siga_metodo",
+            CampoMunicipioIbge::SigaMetodo,
+        ),
+    ] {
+        contexto.register_udf(create_udf(
+            nome,
+            vec![DataType::Utf8, DataType::Utf8],
+            DataType::Utf8,
+            Volatility::Immutable,
+            Arc::new(move |argumentos| municipio_ibge(argumentos, campo)),
+        ));
+    }
     contexto.register_udf(create_udf(
         "tdoa_json_expand_votos",
         vec![DataType::Utf8],
@@ -607,6 +632,227 @@ fn json_get(argumentos: &[ColumnarValue]) -> datafusion::common::Result<Columnar
         }
     }
     Ok(ColumnarValue::Array(Arc::new(saida.finish())))
+}
+
+#[derive(Clone)]
+struct MunicipioIbge {
+    nome: String,
+    codigo: String,
+    metodo: String,
+}
+
+type CrosswalkMunicipiosIbge = HashMap<(String, String), MunicipioIbge>;
+
+#[derive(Clone, Copy)]
+enum CampoMunicipioIbge {
+    Codigo,
+    Nome,
+    Metodo,
+    SigaCodigo,
+    SigaNome,
+    SigaMetodo,
+}
+
+static CROSSWALK_MUNICIPIOS_IBGE: LazyLock<Result<CrosswalkMunicipiosIbge, String>> =
+    LazyLock::new(carregar_crosswalk_municipios_ibge);
+
+fn carregar_crosswalk_municipios_ibge() -> Result<CrosswalkMunicipiosIbge, String> {
+    let mut leitor = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(include_bytes!("../dados/transferegov-municipios-ibge-v1.csv").as_slice());
+    let mut municipios = HashMap::new();
+    for registro in leitor.records() {
+        let registro = registro.map_err(|erro| format!("CSV de localidades inválido: {erro}"))?;
+        let uf = registro
+            .get(0)
+            .ok_or_else(|| "UF ausente no crosswalk de localidades".to_owned())?
+            .trim()
+            .to_ascii_uppercase();
+        let municipio_origem = registro
+            .get(1)
+            .ok_or_else(|| "nome de origem ausente no crosswalk de localidades".to_owned())?;
+        let nome = registro
+            .get(2)
+            .ok_or_else(|| "nome IBGE ausente no crosswalk de localidades".to_owned())?
+            .to_owned();
+        let codigo = registro
+            .get(3)
+            .ok_or_else(|| "código IBGE ausente no crosswalk de localidades".to_owned())?
+            .to_owned();
+        let metodo = registro
+            .get(4)
+            .ok_or_else(|| "método ausente no crosswalk de localidades".to_owned())?
+            .to_owned();
+        if uf.len() != 2
+            || codigo.len() != 7
+            || !codigo.bytes().all(|byte| byte.is_ascii_digit())
+            || !matches!(metodo.as_str(), "normalizacao_exata" | "alias_manual")
+        {
+            return Err(format!(
+                "registro inválido no crosswalk de localidades: {uf}, {municipio_origem}, {codigo}, {metodo}"
+            ));
+        }
+        let chave = (uf, normalizar_nome_municipio(municipio_origem));
+        let municipio = MunicipioIbge {
+            nome,
+            codigo,
+            metodo,
+        };
+        if municipios.insert(chave.clone(), municipio).is_some() {
+            return Err(format!(
+                "localidade duplicada no crosswalk IBGE: {} / {}",
+                chave.0, chave.1
+            ));
+        }
+    }
+    Ok(municipios)
+}
+
+fn normalizar_nome_municipio(nome: &str) -> String {
+    let mut normalizado = String::with_capacity(nome.len());
+    let mut espaco_pendente = false;
+    for caractere in nome.chars().flat_map(char::to_lowercase) {
+        let base = match caractere {
+            'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ç' => 'c',
+            'ñ' => 'n',
+            'ý' | 'ÿ' => 'y',
+            outro => outro,
+        };
+        if base.is_ascii_alphanumeric() {
+            if espaco_pendente && !normalizado.is_empty() {
+                normalizado.push(' ');
+            }
+            normalizado.push(base.to_ascii_uppercase());
+            espaco_pendente = false;
+        } else {
+            espaco_pendente = true;
+        }
+    }
+    normalizado
+}
+
+fn municipio_ibge(
+    argumentos: &[ColumnarValue],
+    campo: CampoMunicipioIbge,
+) -> datafusion::common::Result<ColumnarValue> {
+    let quantidade = argumentos
+        .iter()
+        .filter_map(|valor| match valor {
+            ColumnarValue::Array(array) => Some(array.len()),
+            ColumnarValue::Scalar(_) => None,
+        })
+        .max()
+        .unwrap_or(1);
+    let valores = argumentos
+        .iter()
+        .map(|valor| valor.clone().into_array(quantidade))
+        .collect::<datafusion::common::Result<Vec<_>>>()?;
+    let [ufs, municipios] = valores.as_slice() else {
+        return Err(DataFusionError::Execution(
+            "mapeamento IBGE requer município e UF".into(),
+        ));
+    };
+    let crosswalk = CROSSWALK_MUNICIPIOS_IBGE
+        .as_ref()
+        .map_err(|erro| DataFusionError::Execution(erro.clone()))?;
+    let ufs = ufs.as_string::<i32>();
+    let municipios_origem = municipios.as_string::<i32>();
+    let mut resultado = StringBuilder::new();
+    for indice in 0..quantidade {
+        if ufs.is_null(indice) || municipios_origem.is_null(indice) {
+            resultado.append_null();
+            continue;
+        }
+        let uf = ufs.value(indice).trim().to_ascii_uppercase();
+        let localidade = municipios_origem.value(indice);
+        let mapeamento = match campo {
+            CampoMunicipioIbge::Codigo | CampoMunicipioIbge::Nome | CampoMunicipioIbge::Metodo => {
+                crosswalk.get(&(uf.clone(), normalizar_nome_municipio(localidade)))
+            }
+            CampoMunicipioIbge::SigaCodigo
+            | CampoMunicipioIbge::SigaNome
+            | CampoMunicipioIbge::SigaMetodo => {
+                municipio_siga_por_componentes(crosswalk, &uf, localidade)
+            }
+        };
+        let valor = mapeamento.map(|mapeamento| match campo {
+            CampoMunicipioIbge::Codigo | CampoMunicipioIbge::SigaCodigo => {
+                mapeamento.codigo.as_str()
+            }
+            CampoMunicipioIbge::Nome | CampoMunicipioIbge::SigaNome => mapeamento.nome.as_str(),
+            CampoMunicipioIbge::Metodo => mapeamento.metodo.as_str(),
+            CampoMunicipioIbge::SigaMetodo if mapeamento.metodo == "alias_manual" => "alias_manual",
+            CampoMunicipioIbge::SigaMetodo => "componente_exato",
+        });
+        match valor {
+            Some(valor) => resultado.append_value(valor),
+            None => resultado.append_null(),
+        }
+    }
+    Ok(ColumnarValue::Array(Arc::new(resultado.finish())))
+}
+
+/// Resolve somente componentes completos separados por hífen na dimensão pública
+/// `Município/UF` do SIGA. Múltiplos componentes só são aceitos quando apontam
+/// para o mesmo município; colisões entre municípios diferentes permanecem nulas.
+fn municipio_siga_por_componentes<'a>(
+    crosswalk: &'a CrosswalkMunicipiosIbge,
+    uf: &str,
+    localidade: &str,
+) -> Option<&'a MunicipioIbge> {
+    let localidade_completa = normalizar_nome_municipio(localidade);
+    if localidade_completa.starts_with("FOLHA DE PAGAMENTO")
+        || localidade_completa.starts_with("PAGAMENTO DE BENEFICIOS INSS FRGPS")
+    {
+        return None;
+    }
+
+    let mut componentes = HashSet::new();
+    let mut texto = localidade.trim();
+    if let Some((antes_da_uf, sufixo)) = texto.rsplit_once('-')
+        && sufixo.len() == 2
+        && sufixo.bytes().all(|byte| byte.is_ascii_alphabetic())
+    {
+        if !sufixo.eq_ignore_ascii_case(uf) {
+            return None;
+        }
+        texto = antes_da_uf.trim_end();
+    }
+
+    let localidade_normalizada = normalizar_nome_municipio(texto);
+    if !localidade_normalizada.is_empty() {
+        componentes.insert(localidade_normalizada);
+    }
+
+    for componente in texto.split('-') {
+        let normalizado = normalizar_nome_municipio(componente);
+        if !normalizado.is_empty() {
+            componentes.insert(normalizado.clone());
+        }
+        for prefixo in ["MUNICIPIO DE ", "MUNICIPIO DO ", "MUNICIPIO DA "] {
+            if let Some(nome) = normalizado.strip_prefix(prefixo)
+                && !nome.is_empty()
+            {
+                componentes.insert(nome.to_owned());
+            }
+        }
+    }
+
+    let mut encontrados = HashMap::<&str, &MunicipioIbge>::new();
+    for componente in componentes {
+        if let Some(municipio) = crosswalk.get(&(uf.to_owned(), componente)) {
+            encontrados.insert(&municipio.codigo, municipio);
+            if encontrados.len() > 1 {
+                return None;
+            }
+        }
+    }
+    encontrados.into_values().next()
 }
 
 /// Normaliza as duas formas do envelope do Senado para uma lista de votos JSON.
@@ -792,5 +1038,278 @@ mod testes_json_original {
         assert_eq!(original["despachos"][0]["ordem"], 1);
         assert_eq!(original["ementa"], "Aspas: \"sim\" e acento é");
         assert_eq!(original["campo_ausente"], serde_json::Value::Null);
+    }
+}
+
+#[cfg(test)]
+mod testes_crosswalk_municipios_ibge {
+    use super::*;
+    use futures::StreamExt;
+    use parquet::arrow::ArrowWriter;
+
+    #[test]
+    fn mapeia_componente_exato_do_siga_e_rejeita_colisao_ou_uf_incorreta() {
+        let crosswalk = carregar_crosswalk_municipios_ibge().unwrap();
+
+        let bonfim =
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DE BONFIM-BONFIM-RR")
+                .unwrap();
+        assert_eq!(bonfim.codigo, "1400159");
+        assert_eq!(bonfim.nome, "Bonfim");
+        assert!(municipio_siga_por_componentes(&crosswalk, "RR", "").is_none());
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "DF", "FOLHA DE PAGAMENTO-BRASILIA-DF",)
+                .is_none()
+        );
+        assert!(
+            municipio_siga_por_componentes(
+                &crosswalk,
+                "DF",
+                "PAGAMENTO DE BENEFICIOS - INSS/FRGPS-BRASILIA-DF",
+            )
+            .is_none()
+        );
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DO BONFIM-BONFIM")
+                .is_some()
+        );
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DA BONFIM-BONFIM")
+                .is_some()
+        );
+
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "SP", "MUNICIPIO DE BONFIM-BONFIM-RR",)
+                .is_none()
+        );
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DE BONFIM-BONFIM-MG",)
+                .is_none()
+        );
+        assert!(municipio_siga_por_componentes(&crosswalk, "RR", "BONFIM-BOA VISTA-RR",).is_none());
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "LOCALIDADE DESCONHECIDA").is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn executor_sql_mapeia_localidades_preserva_aliases_e_retorna_nulos() {
+        let diretorio = tempfile::tempdir().unwrap();
+        let bronze = diretorio.path().join("bronze");
+        let spill = diretorio.path().join("spill");
+        std::fs::create_dir(&bronze).unwrap();
+        std::fs::create_dir(&spill).unwrap();
+
+        let esquema = Arc::new(Schema::new(vec![
+            Field::new("uf", DataType::Utf8, true),
+            Field::new("municipio", DataType::Utf8, true),
+        ]));
+        let lote = RecordBatch::try_new(
+            Arc::clone(&esquema),
+            vec![
+                Arc::new(StringArray::from(vec![
+                    Some("mg"),
+                    Some("RN"),
+                    Some("SP"),
+                    None,
+                ])),
+                Arc::new(StringArray::from(vec![
+                    Some("Belo-Horizonte"),
+                    Some("Presidente Juscelino"),
+                    Some("Município inexistente"),
+                    Some("Belo Horizonte"),
+                ])),
+            ],
+        )
+        .unwrap();
+        let mut bytes = Vec::new();
+        let mut writer = ArrowWriter::try_new(&mut bytes, esquema, None).unwrap();
+        writer.write(&lote).unwrap();
+        writer.close().unwrap();
+        std::fs::write(bronze.join("parte.parquet"), bytes).unwrap();
+
+        let sql = r#"
+            SELECT
+                tdoa_municipio_ibge_codigo(uf, municipio) AS codigo,
+                tdoa_municipio_ibge_nome(uf, municipio) AS nome,
+                tdoa_municipio_ibge_metodo(uf, municipio) AS metodo,
+                tdoa_municipio_ibge_siga_codigo(uf, municipio) AS codigo_siga,
+                tdoa_municipio_ibge_siga_metodo(uf, municipio) AS metodo_siga
+            FROM bronze
+            ORDER BY CASE uf
+                WHEN 'mg' THEN 1
+                WHEN 'RN' THEN 2
+                WHEN 'SP' THEN 3
+                ELSE 4
+            END
+        "#;
+        let mut fluxo = executar_sql(&bronze, &spill, sql, &ConfiguracaoExecutorSql::default())
+            .await
+            .unwrap();
+        let mut lotes = Vec::new();
+        while let Some(lote) = fluxo.next().await {
+            lotes.push(lote.unwrap());
+        }
+        let saida = arrow::compute::concat_batches(&lotes[0].schema(), &lotes).unwrap();
+
+        let codigo = saida.column(0).as_string::<i32>();
+        let nome = saida.column(1).as_string::<i32>();
+        let metodo = saida.column(2).as_string::<i32>();
+        let codigo_siga = saida.column(3).as_string::<i32>();
+        let metodo_siga = saida.column(4).as_string::<i32>();
+        assert_eq!(codigo.value(0), "3106200");
+        assert_eq!(nome.value(0), "Belo Horizonte");
+        assert_eq!(metodo.value(0), "normalizacao_exata");
+        assert_eq!(codigo_siga.value(0), "3106200");
+        assert_eq!(metodo_siga.value(0), "componente_exato");
+        assert_eq!(codigo.value(1), "2410306");
+        assert_eq!(nome.value(1), "Serra Caiada");
+        assert_eq!(metodo.value(1), "alias_manual");
+        assert_eq!(codigo_siga.value(1), "2410306");
+        assert_eq!(metodo_siga.value(1), "alias_manual");
+        assert!(codigo.is_null(2));
+        assert!(nome.is_null(2));
+        assert!(metodo.is_null(2));
+        assert!(codigo_siga.is_null(2));
+        assert!(metodo_siga.is_null(2));
+        assert!(codigo.is_null(3));
+        assert!(nome.is_null(3));
+        assert!(metodo.is_null(3));
+        assert!(codigo_siga.is_null(3));
+        assert!(metodo_siga.is_null(3));
+    }
+}
+
+#[cfg(test)]
+mod testes_emendas_siga_brasil {
+    use super::*;
+    use arrow::array::ArrayRef;
+    use futures::StreamExt;
+    use parquet::arrow::ArrowWriter;
+
+    #[tokio::test]
+    async fn silver_filtra_ano_uf_e_omite_cpf_cnpj() {
+        let diretorio = tempfile::tempdir().unwrap();
+        let bronze = diretorio.path().join("bronze");
+        let spill = diretorio.path().join("spill");
+        std::fs::create_dir(&bronze).unwrap();
+        std::fs::create_dir(&spill).unwrap();
+
+        let colunas = [
+            "Favorecido do Pagamento - Município/UF",
+            "Favorecido do Pagamento (CPF/CNPJ)",
+            "Favorecido do Pagamento (Natureza Subgrupo)",
+            "Favorecido do Pagamento (Tipo)",
+            "Favorecido do Pagamento (UF)",
+            "Autor",
+            "Emenda (Número/Ano)",
+            "Pago + RP (Favorecido lista OB)",
+            "_tdoa_origem_manifesto",
+            "_tdoa_origem_parte",
+            "_tdoa_origem_ordinal",
+        ];
+        let esquema = Arc::new(Schema::new(
+            colunas
+                .iter()
+                .map(|coluna| Field::new(*coluna, DataType::Utf8, true))
+                .collect::<Vec<_>>(),
+        ));
+        let valores = [
+            vec![
+                Some("MUNICIPIO DE BONFIM-BONFIM-RR"),
+                Some("DADO_PESSOAL_NAO_PUBLICAR"),
+                Some("ÓRGÃO PÚBLICO MUNICIPAL"),
+                Some("PESSOA JURIDICA"),
+                Some("RR"),
+                Some("AUTOR DE TESTE"),
+                Some("30300001-2016"),
+                Some("2157073"),
+                Some("manifesto"),
+                Some("parte"),
+                Some("0"),
+            ],
+            vec![
+                Some("MUNICIPIO DE TESTE-TESTE-SP"),
+                Some("OUTRO_DADO_PESSOAL"),
+                Some("ÓRGÃO PÚBLICO MUNICIPAL"),
+                Some("PESSOA JURIDICA"),
+                Some("SP"),
+                Some("OUTRO AUTOR"),
+                Some("12345678-2017"),
+                Some("99"),
+                Some("manifesto"),
+                Some("parte"),
+                Some("1"),
+            ],
+        ];
+        let arrays = (0..colunas.len())
+            .map(|indice| {
+                Arc::new(StringArray::from(
+                    valores
+                        .iter()
+                        .map(|linha| linha[indice])
+                        .collect::<Vec<_>>(),
+                )) as ArrayRef
+            })
+            .collect();
+        let lote = RecordBatch::try_new(Arc::clone(&esquema), arrays).unwrap();
+        let mut bytes = Vec::new();
+        let mut writer = ArrowWriter::try_new(&mut bytes, esquema, None).unwrap();
+        writer.write(&lote).unwrap();
+        writer.close().unwrap();
+        std::fs::write(bronze.join("parte.parquet"), bytes).unwrap();
+
+        let filtros = FiltrosSqlEmendas {
+            anos: vec!["2016".to_owned()],
+            ufs: vec!["RR".to_owned()],
+        };
+        let mut fluxo = executar_sql_com_filtros(
+            &bronze,
+            &spill,
+            crate::silver::emendas::SQL_EMENDAS_SIGA_BRASIL,
+            &ConfiguracaoExecutorSql::default(),
+            Some(&filtros),
+        )
+        .await
+        .unwrap();
+        let mut lotes = Vec::new();
+        while let Some(lote) = fluxo.next().await {
+            lotes.push(lote.unwrap());
+        }
+        let saida = arrow::compute::concat_batches(&lotes[0].schema(), &lotes).unwrap();
+
+        assert_eq!(saida.num_rows(), 1);
+        assert!(
+            !saida
+                .schema()
+                .fields()
+                .iter()
+                .any(|campo| campo.name().contains("CPF/CNPJ"))
+        );
+        assert_eq!(
+            saida.column(0).as_string::<i32>().value(0),
+            "MUNICIPIO DE BONFIM-BONFIM-RR"
+        );
+        assert_eq!(saida.column(4).as_string::<i32>().value(0), "1400159");
+        assert_eq!(saida.column(5).as_string::<i32>().value(0), "Bonfim");
+        assert_eq!(
+            saida.column(6).as_string::<i32>().value(0),
+            "componente_exato"
+        );
+        assert_eq!(saida.column(8).as_string::<i32>().value(0), "30300001");
+        assert_eq!(
+            saida
+                .column(9)
+                .as_primitive::<arrow::datatypes::Int16Type>()
+                .value(0),
+            2016
+        );
+        assert_eq!(
+            saida
+                .column(10)
+                .as_primitive::<arrow::datatypes::Decimal128Type>()
+                .value(0),
+            215_707_300
+        );
     }
 }

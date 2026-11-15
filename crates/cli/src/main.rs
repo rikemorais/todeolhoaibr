@@ -27,15 +27,15 @@ use todeolho_nucleo::{
 };
 use todeolho_refino::{
     FiltrosSqlEmendas, FonteDeRefino, SQL_CNPJ_EMPRESAS, SQL_CNPJ_ESTABELECIMENTOS,
-    SQL_CNPJ_SIMPLES, SQL_CNPJ_SOCIOS, SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO,
-    SQL_EMENDAS_TRANSFEREGOV, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
-    TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
-    TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
-    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita,
-    TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
-    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
-    TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql, TarefaDeSilverTseBens,
-    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
+    SQL_CNPJ_SIMPLES, SQL_CNPJ_SOCIOS, SQL_EMENDAS_CGU, SQL_EMENDAS_SIGA_BRASIL,
+    SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV, SnapshotBronze, TarefaDeBronze,
+    TarefaDeSilverBcb, TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas,
+    TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
+    TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes, TarefaDeSilverIbge,
+    TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita, TarefaDeSilverIpeadata,
+    TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
+    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql,
+    TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
     TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasComites2014,
     TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
     TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
@@ -505,6 +505,9 @@ async fn refinar(
         }
         if fonte.as_deref() == Some("emendas-transferegov") {
             return refinar_emendas_transferegov_silver(intervalo, filtros).await;
+        }
+        if fonte.as_deref() == Some("emendas-siga-brasil") {
+            return refinar_emendas_siga_brasil_silver(intervalo, filtros).await;
         }
         if !filtros.is_empty() {
             bail!("--filtro só vale para fontes com filtros Silver implementados");
@@ -3147,6 +3150,8 @@ async fn refinar_emendas_silver(intervalo: Option<u64>, filtros: Vec<String>) ->
         println!("CGU ignorada: a localidade publicada pela API não tem UF estruturada.");
     }
     sucesso &= refinar_emendas_tesouro_silver(intervalo, filtros_para_tesouro(&filtros)).await?;
+    sucesso &=
+        refinar_emendas_siga_brasil_silver(intervalo, filtros_para_tesouro(&filtros)).await?;
     Ok(sucesso)
 }
 
@@ -3189,8 +3194,23 @@ async fn refinar_emendas_transferegov_silver(
     let filtros = filtros_sql_emendas(&filtros)?;
     refinar_fonte_silver_com_filtros_emendas(
         "emendas-transferegov",
-        "emendas-transferegov-beneficiario-programa-v1",
+        "emendas-transferegov-beneficiario-programa-v2",
         SQL_EMENDAS_TRANSFEREGOV,
+        intervalo,
+        &filtros,
+    )
+    .await
+}
+
+async fn refinar_emendas_siga_brasil_silver(
+    intervalo: Option<u64>,
+    filtros: Vec<String>,
+) -> Result<bool> {
+    let filtros = filtros_sql_emendas(&filtros)?;
+    refinar_fonte_silver_com_filtros_emendas(
+        "emendas-siga-brasil",
+        "emendas-siga-brasil-favorecido-pagamento-v2",
+        SQL_EMENDAS_SIGA_BRASIL,
         intervalo,
         &filtros,
     )

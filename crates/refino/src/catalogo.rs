@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
 use crate::fontes::{
-    DecodificadorCnpj, DecodificadorCotahist, DecodificadorCsv, DecodificadorIbgeAgregados,
-    DecodificadorJson, DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes,
-    DecodificadorXmlDataset, DecodificadorZipCsv,
+    DecodificadorCnpj, DecodificadorCotahist, DecodificadorCsv, DecodificadorEmendasSiga,
+    DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
+    DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -114,6 +114,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
                     &["data"],
                 ))
             },
+        },
+        // SIGA Brasil: uma planilha XLSX completa, com uma linha por favorecido agregado.
+        FonteDeRefino {
+            nome: "emendas-siga-brasil",
+            fonte_raw: "emendas-siga-brasil",
+            prefixo_recurso: "favorecidos-pagamento/",
+            cria_decodificador: || Arc::new(DecodificadorEmendasSiga),
         },
         // BCB (SGS): array no topo [{data, valor}].
         FonteDeRefino {
@@ -346,6 +353,19 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "cnpj",
             prefixo_recurso: "",
             cria_decodificador: || Arc::new(DecodificadorCnpj),
+        },
+        // --- CVM: DFP (anual) e ITR (trimestral), ZIP de CSVs Latin-1 com `;` ---
+        FonteDeRefino {
+            nome: "cvm-dfp",
+            fonte_raw: "cvm",
+            prefixo_recurso: "dfp/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
+        FonteDeRefino {
+            nome: "cvm-itr",
+            fonte_raw: "cvm",
+            prefixo_recurso: "itr/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
         },
     ]
 }
