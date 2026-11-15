@@ -103,6 +103,18 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "repasses/",
             cria_decodificador: || Arc::new(DecodificadorCsv::novo("emendas-tesouro", b';', 0)),
         },
+        // Transferegov: beneficiários por emenda em envelope paginado sob `data`.
+        FonteDeRefino {
+            nome: "emendas-transferegov",
+            fonte_raw: "emendas",
+            prefixo_recurso: "transferegov/beneficiario-emenda/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho(
+                    "beneficiarios-emenda",
+                    &["data"],
+                ))
+            },
+        },
         // BCB (SGS): array no topo [{data, valor}].
         FonteDeRefino {
             nome: "bcb",

@@ -1,28 +1,35 @@
 # Emendas parlamentares
 
-A fonte `emendas` preserva dois conjuntos oficiais na Raw, sem transformar os bytes:
+A fonte `emendas` preserva três conjuntos oficiais na Raw, sem transformar os bytes:
 
 | Origem | Recurso Raw | Grão e conteúdo |
 | --- | --- | --- |
 | Portal da Transparência (CGU) | `cgu/ano=AAAA` | Emenda, autor, localidade de gasto e valores empenhado, liquidado, pago e restos a pagar; páginas JSON por exercício desde 2015 |
 | Tesouro Transparente | `repasses/tesouro` | CSV completo de repasses mensais desde janeiro de 2015, com município, UF, código IBGE, ordem bancária, favorecido, categoria e valor |
+| Transferegov — Gestão de Parcerias | `transferegov/beneficiario-emenda/ano=AAAA` | Beneficiário/programa por emenda, com autor, município/UF e GND3, GND4 e valor total; API pública paginada, cobertura observada desde 2025 |
 
-Os conjuntos têm grãos e semânticas diferentes. A API CGU reporta valores por emenda e localidade, enquanto o Tesouro registra pagamentos por ordem bancária e favorecido. Não associe uma ordem bancária a um autor ou código de emenda sem uma chave documentada pela origem. Nenhum conjunto é deduplicado na Raw.
+Os conjuntos têm grãos e semânticas diferentes. A API CGU reporta valores por emenda e localidade, o Tesouro registra pagamentos por ordem bancária e favorecido, e o Transferegov traz beneficiários associados a programas de emenda. Não associe uma ordem bancária a um autor ou código de emenda sem uma chave documentada pela origem. Nenhum conjunto é deduplicado na Raw.
 
 ## Acesso e atualização
 
-O CSV do Tesouro é público e tem cerca de 67 MiB. É baixado como um arquivo integral e atualizado mensalmente. A CGU exige uma chave gratuita da API, obtida pelo [cadastro do Portal da Transparência](https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email). Configure `PORTAL_TRANSPARENCIA_TOKEN` no `.env` para consultar a CGU; o cliente envia o segredo somente ao host `api.portaldatransparencia.gov.br`, no cabeçalho `chave-api-dados`. A origem tem limite configurado de 90 requisições por minuto. As páginas CGU terminam quando a API retorna um array vazio; a ingestão impõe um limite de segurança de páginas. O filtro `origem=tesouro` seleciona apenas a tarefa pública e não exige esse token.
+O CSV do Tesouro é público e tem cerca de 67 MiB. É baixado como um arquivo integral e atualizado mensalmente. A CGU exige uma chave gratuita da API, obtida pelo [cadastro do Portal da Transparência](https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email). Configure `PORTAL_TRANSPARENCIA_TOKEN` no `.env` para consultar a CGU; o cliente envia o segredo somente ao host `api.portaldatransparencia.gov.br`, no cabeçalho `chave-api-dados`. A origem tem limite configurado de 90 requisições por minuto. As páginas CGU terminam quando a API retorna um array vazio; a ingestão impõe um limite de segurança de páginas. Tesouro e Transferegov são públicos e não exigem esse token.
 
-Para baixar tudo (CSV do Tesouro e todos os anos da CGU), rode:
+Para baixar tudo (CSV do Tesouro, Transferegov e anos disponíveis da CGU), rode:
 
 ```bash
 docker compose run --rm --build ingestao executar emendas
 ```
 
-A fonte é sob demanda e fica fora de `executar --todas`. Para selecionar apenas um ano CGU:
+A fonte é sob demanda e fica fora de `executar --todas`. Para selecionar um ano CGU e Transferegov:
 
 ```bash
 docker compose run --rm --build ingestao executar emendas --filtro ano=2025
+```
+
+Para baixar somente os beneficiários do Transferegov, sem token:
+
+```bash
+docker compose run --rm --build ingestao executar emendas --filtro origem=transferegov
 ```
 
 Para baixar somente o CSV integral do Tesouro:
@@ -31,7 +38,7 @@ Para baixar somente o CSV integral do Tesouro:
 docker compose run --rm --build ingestao executar emendas --filtro origem=tesouro
 ```
 
-`--filtro ano=...` seleciona as tarefas CGU; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU contêm `localidadeDoGasto` como texto. Os filtros são aplicados nos contratos Silver documentados abaixo; associação entre autoria e pagamentos depende de uma chave ainda não identificada. A Raw preserva respostas completas conforme o [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md).
+`--filtro ano=...` seleciona as tarefas CGU e Transferegov; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU e Transferegov contêm município como texto. A API Transferegov observada cobre exercícios desde 2025 e devolve linhas no grão beneficiário/programa; nenhuma linha é deduplicada por município, parlamentar ou número de emenda. Os filtros Silver já existentes aplicam-se à CGU e ao Tesouro; Transferegov ainda não tem contrato Silver enquanto o cruzamento IBGE e a semântica dos valores são validados. A Raw preserva respostas completas conforme o [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md).
 
 ## Campos e idempotência
 
@@ -43,18 +50,21 @@ Consulte a [pesquisa das fontes e seus limites](pesquisa-emendas.md), que regist
 
 ## Refino Silver
 
-O Bronze decodifica `emendas` para `emendas-cgu` e `emendas-tesouro`. A Silver publica contratos independentes, sem unir linhas entre as origens:
+O Bronze decodifica `emendas` para `emendas-cgu`, `emendas-tesouro` e `emendas-transferegov`. A Silver publica contratos independentes da CGU e do Tesouro, sem unir linhas entre essas origens:
 
 - `emendas-cgu`: autor, código e número da emenda, localidade textual e valores reportados pela CGU.
 - `emendas-tesouro`: repasses com UF, código IBGE, OB, favorecido e valor. A origem não identifica o parlamentar nem publica uma coluna separada de tipo de emenda; `tipo_emenda` fica nulo em vez de ser inferido de `Nome Emenda`.
 
-Para publicar os dois contratos e aplicar filtro anual:
+Para gerar Bronze nas três origens e publicar os contratos Silver já disponíveis:
 
 ```bash
 docker compose run --rm refino refinar bronze emendas-cgu
 docker compose run --rm refino refinar bronze emendas-tesouro
+docker compose run --rm refino refinar bronze emendas-transferegov
 docker compose run --rm refino refinar silver emendas --filtro ano=2025
 ```
+
+O contrato Silver Transferegov ainda não foi publicado: a API não fornece código IBGE, 22 grafias municipais do snapshot precisam de cruzamento validado, e o valor do registro ainda requer confirmação de semântica antes de agregação.
 
 Para filtrar por UF, use o contrato do Tesouro, que tem coluna estruturada para isso:
 
