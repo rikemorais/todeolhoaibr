@@ -6,13 +6,14 @@
 <a href=#6 id=6 data-nosnippet>6</a>/// de 100 itens por página, mas não documenta uma quota fixa por segundo.
 <a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const fn </span>perfil_http() -&gt; PerfilHttp {
 <a href=#8 id=8 data-nosnippet>8</a>    PerfilHttp {
-<a href=#9 id=9 data-nosnippet>9</a>        credencial: <span class="prelude-val">None</span>,
-<a href=#10 id=10 data-nosnippet>10</a>        limite: <span class="prelude-val">Some</span>(LimiteHttp {
-<a href=#11 id=11 data-nosnippet>11</a>            host: <span class="string">"dadosabertos.camara.leg.br"</span>,
-<a href=#12 id=12 data-nosnippet>12</a>            requisicoes: <span class="number">5</span>,
-<a href=#13 id=13 data-nosnippet>13</a>            intervalo: Duration::from_secs(<span class="number">1</span>),
-<a href=#14 id=14 data-nosnippet>14</a>        }),
-<a href=#15 id=15 data-nosnippet>15</a>        agente: <span class="prelude-val">None</span>,
-<a href=#16 id=16 data-nosnippet>16</a>    }
-<a href=#17 id=17 data-nosnippet>17</a>}
+<a href=#9 id=9 data-nosnippet>9</a>        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
+<a href=#10 id=10 data-nosnippet>10</a>        credencial: <span class="prelude-val">None</span>,
+<a href=#11 id=11 data-nosnippet>11</a>        limite: <span class="prelude-val">Some</span>(LimiteHttp {
+<a href=#12 id=12 data-nosnippet>12</a>            host: <span class="string">"dadosabertos.camara.leg.br"</span>,
+<a href=#13 id=13 data-nosnippet>13</a>            requisicoes: <span class="number">5</span>,
+<a href=#14 id=14 data-nosnippet>14</a>            intervalo: Duration::from_secs(<span class="number">1</span>),
+<a href=#15 id=15 data-nosnippet>15</a>        }),
+<a href=#16 id=16 data-nosnippet>16</a>        agente: <span class="prelude-val">None</span>,
+<a href=#17 id=17 data-nosnippet>17</a>    }
+<a href=#18 id=18 data-nosnippet>18</a>}
 </code></pre></div></section></main></body></html>

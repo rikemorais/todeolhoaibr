@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["CredencialHttp","LimiteHttp","PerfilHttp"],"trait":["FonteDeDados"]};
+window.SIDEBAR_ITEMS = {"enum":["RedirecionamentoHttp"],"struct":["CredencialHttp","LimiteHttp","PerfilHttp"],"trait":["FonteDeDados"]};
