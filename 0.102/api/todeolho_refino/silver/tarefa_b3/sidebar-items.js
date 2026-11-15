@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_b3"],"struct":["TarefaDeSilverB3"]};
