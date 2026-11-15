@@ -38,7 +38,7 @@ Para baixar somente o CSV integral do Tesouro:
 docker compose run --rm --build ingestao executar emendas --filtro origem=tesouro
 ```
 
-`--filtro ano=...` seleciona as tarefas CGU e Transferegov; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU e Transferegov contêm município como texto. A API Transferegov observada cobre exercícios desde 2025 e devolve linhas no grão beneficiário/programa; nenhuma linha é deduplicada por município, parlamentar ou número de emenda. Os filtros Silver já existentes aplicam-se à CGU e ao Tesouro; Transferegov ainda não tem contrato Silver enquanto o cruzamento IBGE e a semântica dos valores são validados. A Raw preserva respostas completas conforme o [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md).
+`--filtro ano=...` seleciona as tarefas CGU e Transferegov; o CSV do Tesouro é um único arquivo histórico, portanto não é fragmentado por ano ou UF na Raw. A API CGU não oferece filtro de UF. O CSV do Tesouro contém UF e código IBGE, e as respostas CGU e Transferegov contêm município como texto. A API Transferegov observada cobre exercícios desde 2025 e devolve linhas no grão beneficiário/programa; nenhuma linha é deduplicada por município, parlamentar ou número de emenda. A Silver publica contratos separados para CGU, Tesouro e Transferegov; o último mantém município/UF textual enquanto o cruzamento IBGE das localidades divergentes e a semântica dos valores são validados. A Raw preserva respostas completas conforme o [ADR 0014](../adr/0014-raw-opaca-e-refino-em-estagio-separado.md).
 
 ## Campos e idempotência
 
