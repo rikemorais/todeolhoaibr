@@ -1038,3 +1038,131 @@ mod testes_crosswalk_municipios_ibge {
         assert!(metodo.is_null(3));
     }
 }
+
+#[cfg(test)]
+mod testes_emendas_siga_brasil {
+    use super::*;
+    use arrow::array::ArrayRef;
+    use futures::StreamExt;
+    use parquet::arrow::ArrowWriter;
+
+    #[tokio::test]
+    async fn silver_filtra_ano_uf_e_omite_cpf_cnpj() {
+        let diretorio = tempfile::tempdir().unwrap();
+        let bronze = diretorio.path().join("bronze");
+        let spill = diretorio.path().join("spill");
+        std::fs::create_dir(&bronze).unwrap();
+        std::fs::create_dir(&spill).unwrap();
+
+        let colunas = [
+            "Favorecido do Pagamento - Município/UF",
+            "Favorecido do Pagamento (CPF/CNPJ)",
+            "Favorecido do Pagamento (Natureza Subgrupo)",
+            "Favorecido do Pagamento (Tipo)",
+            "Favorecido do Pagamento (UF)",
+            "Autor",
+            "Emenda (Número/Ano)",
+            "Pago + RP (Favorecido lista OB)",
+            "_tdoa_origem_manifesto",
+            "_tdoa_origem_parte",
+            "_tdoa_origem_ordinal",
+        ];
+        let esquema = Arc::new(Schema::new(
+            colunas
+                .iter()
+                .map(|coluna| Field::new(*coluna, DataType::Utf8, true))
+                .collect::<Vec<_>>(),
+        ));
+        let valores = [
+            vec![
+                Some("MUNICIPIO DE BONFIM-BONFIM-RR"),
+                Some("DADO_PESSOAL_NAO_PUBLICAR"),
+                Some("ÓRGÃO PÚBLICO MUNICIPAL"),
+                Some("PESSOA JURIDICA"),
+                Some("RR"),
+                Some("AUTOR DE TESTE"),
+                Some("30300001-2016"),
+                Some("2157073"),
+                Some("manifesto"),
+                Some("parte"),
+                Some("0"),
+            ],
+            vec![
+                Some("MUNICIPIO DE TESTE-TESTE-SP"),
+                Some("OUTRO_DADO_PESSOAL"),
+                Some("ÓRGÃO PÚBLICO MUNICIPAL"),
+                Some("PESSOA JURIDICA"),
+                Some("SP"),
+                Some("OUTRO AUTOR"),
+                Some("12345678-2017"),
+                Some("99"),
+                Some("manifesto"),
+                Some("parte"),
+                Some("1"),
+            ],
+        ];
+        let arrays = (0..colunas.len())
+            .map(|indice| {
+                Arc::new(StringArray::from(
+                    valores
+                        .iter()
+                        .map(|linha| linha[indice])
+                        .collect::<Vec<_>>(),
+                )) as ArrayRef
+            })
+            .collect();
+        let lote = RecordBatch::try_new(Arc::clone(&esquema), arrays).unwrap();
+        let mut bytes = Vec::new();
+        let mut writer = ArrowWriter::try_new(&mut bytes, esquema, None).unwrap();
+        writer.write(&lote).unwrap();
+        writer.close().unwrap();
+        std::fs::write(bronze.join("parte.parquet"), bytes).unwrap();
+
+        let filtros = FiltrosSqlEmendas {
+            anos: vec!["2016".to_owned()],
+            ufs: vec!["RR".to_owned()],
+        };
+        let mut fluxo = executar_sql_com_filtros(
+            &bronze,
+            &spill,
+            crate::silver::emendas::SQL_EMENDAS_SIGA_BRASIL,
+            &ConfiguracaoExecutorSql::default(),
+            Some(&filtros),
+        )
+        .await
+        .unwrap();
+        let mut lotes = Vec::new();
+        while let Some(lote) = fluxo.next().await {
+            lotes.push(lote.unwrap());
+        }
+        let saida = arrow::compute::concat_batches(&lotes[0].schema(), &lotes).unwrap();
+
+        assert_eq!(saida.num_rows(), 1);
+        assert!(
+            !saida
+                .schema()
+                .fields()
+                .iter()
+                .any(|campo| campo.name().contains("CPF/CNPJ"))
+        );
+        assert_eq!(
+            saida.column(0).as_string::<i32>().value(0),
+            "MUNICIPIO DE BONFIM-BONFIM-RR"
+        );
+        assert_eq!(saida.column(5).as_string::<i32>().value(0), "30300001");
+        assert_eq!(
+            saida
+                .column(6)
+                .as_primitive::<arrow::datatypes::Int16Type>()
+                .value(0),
+            2016
+        );
+        assert_eq!(
+            saida
+                .column(7)
+                .as_primitive::<arrow::datatypes::Decimal128Type>()
+                .value(0),
+            215_707_300
+        );
+    }
+}

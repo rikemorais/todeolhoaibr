@@ -10,6 +10,8 @@ A fonte Raw `emendas` tem três contratos sem associação entre si: `emendas-cg
 
 `refinar silver emendas --filtro ano=AAAA` aplica o ano à CGU e ao Tesouro. `--filtro uf=XX` só pode ser usado no Tesouro; o comando combinado ignora a CGU com uma mensagem explícita, e `emendas-cgu --filtro uf=XX` falha. O contrato Transferegov é executado separadamente com `refinar silver emendas-transferegov --filtro ano=AAAA --filtro uf=XX`; nele ano e UF são filtros de linha. Quando há filtro, a saída vai para um recurso próprio `.../filtros/ano=.../uf=...`, preservando a publicação integral. O código da OB é mantido, mas as linhas não são deduplicadas nem validadas como únicas até a estabilidade e as colisões do identificador serem demonstradas. O detalhe operacional e os comandos de Bronze estão em [fontes/emendas](../fontes/emendas.md).
 
+`emendas-siga-brasil` é um contrato independente para o snapshot público da tabela de favorecidos do painel do Senado. O grão é a linha publicada, sem chave única demonstrada; localidade e UF são preservadas sem inferência de IBGE, e “Pago + RP” mantém o rótulo semântico da origem. O filtro `ano` usa o exercício da emenda. CPF/CNPJ existe na origem e no Bronze, mas não integra o schema Silver. Não há associação com o Tesouro por favorecido ou localidade.
+
 ## Contribuir com uma transformação SQL
 
 Contratos SQL ficam versionados em `crates/refino/sql/silver/` e entram no binário com `include_str!`. A consulta lê a tabela `bronze`, preparada somente com as partes do manifesto fixado. Além das colunas Bronze, há quatro colunas internas de linhagem: `_tdoa_origem_manifesto`, `_tdoa_origem_parte`, `_tdoa_origem_url` (nome/tabela da parte) e `_tdoa_origem_ordinal`. A URL permite que contratos selecionem uma tabela específica dentro de um recurso ZIP, como a parte consolidada `BRASIL` do TSE. Para contratos que preservam colunas de origem dinâmicas, o executor também pode fornecer `_tdoa_json_original`, serializado pelo adaptador; os casts, validações e projeções continuam no SQL. A consulta deve projetar explicitamente as colunas Silver definidas pelo schema do contrato. Valores externos nunca são interpolados no SQL; em `senado_processos.sql`, o ano é validado como número no caminho do recurso antes de ser inserido na consulta; detalhes usam a coluna Bronze `ano`.
@@ -164,7 +166,7 @@ O código Rust dos adaptadores (`tarefa_*.rs`) contém apenas:
 
 As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) são funções genéricas do executor, não transformações por contrato.
 
-### Inventário dos 26 contratos SQL centrais
+### Inventário dos 27 contratos SQL centrais
 
 | # | Arquivo SQL | Adaptador Rust | Regra | Família |
 | --- | --- | --- | --- | --- |
@@ -194,6 +196,7 @@ As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) sã
 | 24 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
 | 25 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
 | 26 | `mapa_empresas.sql` | `mapa_empresas.rs` | `mapa-empresas-estatistica-uf-v1` | Mapa de Empresas |
+| 27 | `emendas_siga_brasil.sql` | `emendas.rs` | `emendas-siga-brasil.favorecido-pagamento.v1` | SIGA Brasil |
 
 O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) garante em CI que esta lista permanece sincronizada com o código.
 

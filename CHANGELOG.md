@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Não lançado]
+
+### Adicionado
+
+- Captura pública do SIGA Brasil com contratos Bronze e Silver independentes; a Silver omite CPF/CNPJ e preserva a semântica da fonte (issue #33).
+
 ## [0.97.0] - 2026-11-15
 
 ### Melhorado
