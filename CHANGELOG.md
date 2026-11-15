@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.95.0] - 2026-11-15
+
+### Adicionado
+
+- Decodificador Bronze do CNPJ: converte ZIPs da Receita Federal (CSV `;`, Latin-1, sem cabeçalho) em Parquet com colunas nomeadas pelo layout oficial — Empresas (7), Estabelecimentos (30), Sócios (11), Simples (7) e 6 tabelas auxiliares (issue #414).
+
 ## [0.94.0] - 2026-11-15
 
 ### Adicionado
