@@ -629,6 +629,8 @@ struct MunicipioIbge {
     metodo: String,
 }
 
+type CrosswalkMunicipiosIbge = HashMap<(String, String), MunicipioIbge>;
+
 #[derive(Clone, Copy)]
 enum CampoMunicipioIbge {
     Codigo,
@@ -636,12 +638,10 @@ enum CampoMunicipioIbge {
     Metodo,
 }
 
-static CROSSWALK_MUNICIPIOS_IBGE: LazyLock<
-    Result<HashMap<(String, String), MunicipioIbge>, String>,
-> = LazyLock::new(carregar_crosswalk_municipios_ibge);
+static CROSSWALK_MUNICIPIOS_IBGE: LazyLock<Result<CrosswalkMunicipiosIbge, String>> =
+    LazyLock::new(carregar_crosswalk_municipios_ibge);
 
-fn carregar_crosswalk_municipios_ibge() -> Result<HashMap<(String, String), MunicipioIbge>, String>
-{
+fn carregar_crosswalk_municipios_ibge() -> Result<CrosswalkMunicipiosIbge, String> {
     let mut leitor = csv::ReaderBuilder::new()
         .has_headers(true)
         .from_reader(include_bytes!("../dados/transferegov-municipios-ibge-v1.csv").as_slice());
