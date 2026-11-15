@@ -1825,6 +1825,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#siga-brasil-senado-pagamentos-regionalizados-sem-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      SIGA Brasil (Senado): pagamentos regionalizados sem login
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transferegov-api-publica-de-transferencias-especiais" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transferegov: API pública de Transferências Especiais
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1888,14 +1906,22 @@
 <h3 id="portal-da-transparencia-cgu">Portal da Transparência (CGU)<a class="headerlink" href="#portal-da-transparencia-cgu" title="Permanent link">&para;</a></h3>
 <p>A <a href="https://api.portaldatransparencia.gov.br/swagger-ui/index.html">documentação oficial Swagger da API do Portal da Transparência</a> publica <code>GET /api-de-dados/emendas</code> (“Consulta as emendas parlamentares”) e <code>GET /api-de-dados/emendas/documentos/{codigo}</code> (documentos por código de emenda). O <a href="https://www.gov.br/conecta/catalogo/apis/portal-da-transparencia-do-governo-federal">catálogo de APIs do Conecta gov.br</a> confirma que a API publica dados sobre emendas e aponta para o Swagger de produção.</p>
 <p>O endpoint é uma alternativa para enriquecer a série: o schema <code>ConsultaEmendasDTO</code> da especificação OpenAPI lista <code>codigoEmenda</code>, <code>ano</code>, <code>tipoEmenda</code>, <code>autor</code>, <code>nomeAutor</code>, <code>numeroEmenda</code>, <code>localidadeDoGasto</code> e valores empenhado, liquidado, pago e restos a pagar. A especificação não define <code>localidadeDoGasto</code> como código municipal IBGE; tratá-lo como texto, sem inferir código. O endpoint exige a chave no cabeçalho <code>chave-api-dados</code>, obtida no <a href="https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email">cadastro da API</a>. Os parâmetros documentados incluem ano e página, mas não UF.</p>
+<h3 id="siga-brasil-senado-pagamentos-regionalizados-sem-login">SIGA Brasil (Senado): pagamentos regionalizados sem login<a class="headerlink" href="#siga-brasil-senado-pagamentos-regionalizados-sem-login" title="Permanent link">&para;</a></h3>
+<p>Há uma alternativa federal pública além de Tesouro, CGU e SIOP: o <a href="https://www12.senado.leg.br/orcamento/sigabrasil">Painel Emendas do SIGA Brasil</a>, do Senado. A página institucional declara que o acesso aos dados do SIGA é público; o acesso livre aos relatórios usa a mesma base do acesso especialista, cuja diferença declarada é poder salvar pesquisas. O painel interativo atual contém a seção “Regionalização do Pagamento” e apresenta uma etapa de confirmação para exportar dados, com a exigência de atribuição da fonte. A consulta pública não pede usuário ou senha. A documentação consultada não informa quais formatos são oferecidos no exportador do Painel Emendas nem publica um endpoint de dados estável para extração automatizada.</p>
+<p>O <a href="https://www12.senado.leg.br/noticias/materias/2025/12/01/como-monitorar-os-pagamentos-das-emendas-parlamentares">roteiro oficial do Senado para monitorar pagamentos</a> descreve uma ligação em duas consultas: pesquisar uma emenda por autor e exercício, registrar “Emenda (Número/Ano)” e seu valor “Pago (inclui RP)”; em seguida, pesquisar essa emenda na caixa “Favorecido do pagamento”, que apresenta “Favorecido do Pagamento - Município/UF”. A <a href="https://www12.senado.leg.br/noticias/materias/2023/08/23/nova-ferramenta-da-transparencia-a-emendas-parlamentares">descrição oficial de lançamento do painel</a> diz que o painel cobre emendas individuais, de bancada e de comissão, regionaliza o pagamento e relaciona favorecido da ordem bancária, empenho e programação orçamentária. A mesma notícia informou que 99,8% das programações listadas em ordens bancárias haviam sido identificadas naquele momento; essa proporção histórica não deve ser tratada como garantia para outras versões ou exercícios.</p>
+<p><strong>Avaliação para a Issue #33:</strong> SIGA é o primeiro caminho oficial sem credenciais encontrado que documenta, no mesmo produto, autoria/emenda, valor pago e favorecido com município/UF. Isso torna plausível substituir ou complementar a dependência de credenciais SIOP/CGU para uma relação federal de pagamentos por autor e município. Ainda é necessário testar uma exportação real, conferir colunas, formato, cobertura temporal, paginação/limites e estabilidade dos identificadores antes de implementá-la. O identificador “Emenda (Número/Ano)” serve para navegar entre os painéis segundo o roteiro; a documentação consultada não o declara chave de pagamento nem comprova correspondência linha a linha com as OBs do CSV do Tesouro. Não inferir código IBGE a partir do texto Município/UF.</p>
+<h3 id="transferegov-api-publica-de-transferencias-especiais">Transferegov: API pública de Transferências Especiais<a class="headerlink" href="#transferegov-api-publica-de-transferencias-especiais" title="Permanent link">&para;</a></h3>
+<p>A <a href="https://api-publica.transferegov.gestao.gov.br/especiais/docs">API de Dados Abertos do Transferegov</a> está disponível sem autenticação para consultas GET e publica OpenAPI em <code>/especiais/openapi.json</code>. O <a href="https://api-publica.transferegov.gestao.gov.br/">portal oficial</a> delimita esse módulo às emendas individuais da modalidade <strong>Transferência Especial</strong>, destinadas a estados e municípios, e anuncia dados de emendas, pagamentos e execução, com filtros por localidade, parlamentar, ano e situação. O <a href="https://www.gov.br/transferegov/pt-br/ferramentas-gestao/api-de-dados-abertos-transferegov.br">aviso oficial de migração</a> recomenda o novo host público e informa que as APIs e áreas antigas deixariam de funcionar após 31/08/2026.</p>
+<p>Na verificação sem credenciais em 15/11/2026, <code>GET /especiais/data-atualizacao</code> respondeu com a data de atualização do dia, e <code>GET /especiais/planos-acao-especiais?tamanho_da_pagina=1</code> retornou paginação e identificadores da emenda, ano, modalidade, parlamentar, plano de ação e beneficiário. A resposta relaciona plano de ação e emenda por campos próprios (<code>id_plano_acao</code>, <code>numero_emenda</code>, <code>codigo_emenda_parlamentar_formatado_plano_acao</code>, <code>nome_parlamentar_emenda_plano_acao</code>) e traz <code>id_beneficiario</code>. O schema publicado de beneficiários contém UF, nome e CNPJ do ente, além de <code>id_ente</code>; ainda não foi comprovado na documentação acessada que <code>id_ente</code> seja código IBGE. Portanto, uma amostra paginada e o modelo de dados devem ser inspecionados antes de definir o grão, a chave municipal e a ligação com pagamentos.</p>
+<p><strong>Avaliação para a Issue #33:</strong> é o caminho mais pronto para ingestão automatizada sem credenciais, mas cobre somente Transferências Especiais. A resposta consultada prova a ligação emenda-parlamentar-plano-beneficiário, não necessariamente pagamento realizado por município: é preciso validar o endpoint/modelo de execução e o significado de cada valor antes de incluí-lo numa série de pagamentos. Não generalizar o resultado para emendas de bancada, comissão ou finalidade definida, nem unir suas chaves às OBs do Tesouro sem semântica comum documentada. O Senado SIGA continua mais promissor para cobertura de modalidades mais ampla, embora sua automação dependa de validar o exportador do painel.</p>
 <h2 id="integracao-e-limites-restantes">Integração e limites restantes<a class="headerlink" href="#integracao-e-limites-restantes" title="Permanent link">&para;</a></h2>
 <ol>
 <li>A fonte <code>emendas</code> ingere o CSV completo do Tesouro em <code>repasses/tesouro</code> e as respostas da API CGU em recursos anuais <code>cgu/ano=AAAA</code>; ambas preservam conteúdo e manifesto na Raw.</li>
 <li>A consulta CGU usa o filtro <code>ano</code>, páginas até array vazio, o token <code>PORTAL_TRANSPARENCIA_TOKEN</code> e o limite de 90 requisições por minuto existente no cliente.</li>
 <li>A inspeção do CSV confirmou UF e código IBGE, além de ordem bancária e favorecido. A API CGU fornece autoria, localidade como texto e valores. Os grãos não são unidos nem deduplicados na ingestão.</li>
-<li>A API SIOP não foi integrada: a API GraphQL requer usuário SIOP com as permissões adequadas e token Bearer temporário; o Web Service SOAP é um mecanismo separado com credencial/perfil próprios. A estrutura de beneficiários ainda precisa de inspeção de amostra.</li>
+<li>A API SIOP não foi integrada: a API GraphQL requer usuário SIOP com as permissões adequadas e token Bearer temporário; o Web Service SOAP é um mecanismo separado com credencial/perfil próprios. A estrutura de beneficiários ainda precisa de inspeção de amostra. O SIGA Brasil tem consulta pública, sem login, para autoria, pagamentos e favorecidos regionalizados, mas exportação e schema ainda precisam de validação. O Transferegov oferece API pública pronta para ingestão de Transferências Especiais; falta validar os dados de execução/pagamento e a chave municipal.</li>
 <li>A Silver oferece contratos separados para CGU (<code>emendas-cgu</code>) e Tesouro (<code>emendas-tesouro</code>), sem cruzamento. Os filtros Silver de ano valem para ambos; UF só vale para o Tesouro. As saídas filtradas usam recursos próprios e preservam a publicação integral. Veja <a href="../emendas/#refino-silver">contratos e comandos</a>.</li>
-<li>A Issue #33 não está totalmente atendida: o Tesouro não identifica o autor parlamentar, a CGU não fornece código IBGE/UF estruturada e a SIOP ainda não foi integrada. Sem acesso SIOP, permanecem pendentes a integração GraphQL e a inspeção de uma resposta real de beneficiários. A validação de colisões/estabilidade da OB pode avançar independentemente de SIOP usando o CSV público do Tesouro. Nenhum relacionamento autor-pagamento ou município+ano é presumido.</li>
+<li>A Issue #33 não está totalmente atendida: o Tesouro não identifica o autor parlamentar, e a CGU não fornece código IBGE/UF estruturada. Duas fontes públicas sem credenciais podem avançar: o SIGA, cuja cobertura anunciada é mais ampla mas exportação requer validação, e o Transferegov, com API estruturada restrita a Transferências Especiais, cuja execução e chave municipal precisam de amostra/modelo verificados. A integração SIOP permanece dependente de conta/permissões. Não se deve juntar OB do Tesouro a identificadores do SIGA ou Transferegov sem semântica comum documentada; nenhum relacionamento autor-pagamento ou município+ano é presumido.</li>
 </ol>
 <h2 id="fontes-primarias">Fontes primárias<a class="headerlink" href="#fontes-primarias" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1907,6 +1933,14 @@
 <li><a href="https://www1.siop.planejamento.gov.br/siopdoc/doku.php/consulta_de_emendas_e_autores_via_web_service">Manual SIOP: consulta de emendas e autores via Web Service</a></li>
 <li><a href="https://api.portaldatransparencia.gov.br/swagger-ui/index.html">Swagger da API do Portal da Transparência (CGU)</a></li>
 <li><a href="https://www.gov.br/conecta/catalogo/apis/portal-da-transparencia-do-governo-federal">API do Portal da Transparência no Conecta gov.br</a></li>
+<li><a href="https://www12.senado.leg.br/orcamento/sigabrasil">SIGA Brasil: acesso e modalidades públicas</a></li>
+<li><a href="https://www9qs.senado.leg.br/extensions/Siga_Brasil_Emendas/Siga_Brasil_Emendas.html">Painel Emendas SIGA Brasil (consulta pública)</a></li>
+<li><a href="https://www12.senado.leg.br/noticias/materias/2025/12/01/como-monitorar-os-pagamentos-das-emendas-parlamentares">SIGA Brasil: como monitorar pagamentos de emendas</a></li>
+<li><a href="https://www12.senado.leg.br/noticias/materias/2023/08/23/nova-ferramenta-da-transparencia-a-emendas-parlamentares">Senado: lançamento e ligação de favorecidos, empenhos e programação no Painel Emendas</a></li>
+<li><a href="https://api-publica.transferegov.gestao.gov.br/">API pública do Transferegov: descrição dos módulos e escopo de Transferências Especiais</a></li>
+<li><a href="https://api-publica.transferegov.gestao.gov.br/especiais/docs">Documentação da API de Transferências Especiais</a></li>
+<li><a href="https://api-publica.transferegov.gestao.gov.br/especiais/openapi.json">OpenAPI de Transferências Especiais</a></li>
+<li><a href="https://www.gov.br/transferegov/pt-br/ferramentas-gestao/api-de-dados-abertos-transferegov.br">Transferegov: novo ambiente de APIs e cronograma dos módulos</a></li>
 </ul>
 
 
