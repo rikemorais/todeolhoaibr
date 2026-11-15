@@ -6,6 +6,7 @@ use todeolho_nucleo::{LimiteHttp, PerfilHttp};
 /// de 100 itens por página, mas não documenta uma quota fixa por segundo.
 pub(super) const fn perfil_http() -> PerfilHttp {
     PerfilHttp {
+        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
         credencial: None,
         limite: Some(LimiteHttp {
             host: "dadosabertos.camara.leg.br",

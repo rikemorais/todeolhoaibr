@@ -30,7 +30,7 @@ WITH entrada AS (
         codigo_ibge,
         data_origem,
         TRY_CAST(ano_origem AS SMALLINT) AS ano,
-        COALESCE(
+        CAST(COALESCE(
             TRY_CAST(mes_origem AS TINYINT),
             CASE LOWER(mes_origem)
                 WHEN 'janeiro' THEN 1
@@ -46,7 +46,7 @@ WITH entrada AS (
                 WHEN 'novembro' THEN 11
                 WHEN 'dezembro' THEN 12
             END
-        ) AS mes,
+        ) AS TINYINT) AS mes,
         tipo_ente,
         ordem_bancaria,
         cnpj_favorecido,

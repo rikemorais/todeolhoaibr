@@ -4,6 +4,7 @@ use todeolho_nucleo::{LimiteHttp, PerfilHttp};
 
 pub(super) const fn perfil_http() -> PerfilHttp {
     PerfilHttp {
+        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
         credencial: None,
         limite: Some(LimiteHttp {
             host: "api.worldbank.org",

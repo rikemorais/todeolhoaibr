@@ -276,6 +276,7 @@ impl FonteDeDados for FonteTransparenciaBeneficios {
 
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
             credencial: Some(CredencialHttp {
                 host: HOST_API,
                 variavel: "PORTAL_TRANSPARENCIA_TOKEN",

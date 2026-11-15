@@ -5,7 +5,9 @@ use std::time::Duration;
 
 use chrono::Datelike;
 use serde_json::Value;
-use todeolho_nucleo::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp, TarefaPlanejada};
+use todeolho_nucleo::{
+    CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp, RedirecionamentoHttp, TarefaPlanejada,
+};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
 use crate::ingestao_http::TarefaDeIngestaoHttp;
@@ -107,6 +109,7 @@ impl FonteDeDados for FonteEmendas {
 
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
             credencial: Some(CredencialHttp {
                 host: HOST_CGU,
                 variavel: "PORTAL_TRANSPARENCIA_TOKEN",
@@ -129,7 +132,10 @@ impl FonteDeDados for FonteEmendas {
         {
             self.perfil_http()
         } else {
-            PerfilHttp::default()
+            PerfilHttp {
+                redirecionamento: RedirecionamentoHttp::Bloquear,
+                ..PerfilHttp::default()
+            }
         }
     }
 
