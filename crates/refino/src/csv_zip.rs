@@ -18,7 +18,7 @@ const LINHAS_POR_LOTE: usize = 50_000;
 /// Leitor que auto-detecta encoding: UTF-8 passa direto (sem BOM), senão transcodifica
 /// de Latin-1. Usa `encoding_rs_io` em ambos os caminhos para garantir remoção de BOM e
 /// tratamento correto na fronteira de buffer.
-enum LeitorAutoEncoding<R> {
+pub(crate) enum LeitorAutoEncoding<R> {
     Utf8(encoding_rs_io::DecodeReaderBytes<BufReader<R>, Vec<u8>>),
     Latin1(encoding_rs_io::DecodeReaderBytes<BufReader<R>, Vec<u8>>),
 }
@@ -45,7 +45,7 @@ fn amostra_e_utf8(amostra: &[u8]) -> bool {
 /// buffered. Se o conteúdo disponível no buffer for UTF-8 válido, os bytes passam direto
 /// (BOM removido); senão, são transcodificados de Windows-1252 — o mesmo critério de
 /// [`para_utf8`], mas em fluxo.
-fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
+pub(crate) fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
     let mut buf = BufReader::with_capacity(16_384, fonte);
     let e_utf8 = buf.fill_buf().map_or(true, amostra_e_utf8);
     if e_utf8 {
@@ -189,6 +189,28 @@ fn parte_em_arquivo<R: Read>(
     let arquivo = tempfile::NamedTempFile::new()?;
     let mut escritor = EscritorParquet::novo_em(arquivo.reopen()?, &colunas)?;
     alimentar(registros, &mut escritor, colunas.len())?;
+    escritor.fechar()?;
+    Ok(ParteBronze::de_arquivo(nome, arquivo.into_temp_path()))
+}
+
+/// Lê um CSV **sem cabeçalho** usando colunas fornecidas externamente e devolve uma
+/// `ParteBronze` gravada em disco. Útil para fontes cujo layout é fixo e documentado fora
+/// do arquivo (ex.: CNPJ da Receita Federal).
+pub(crate) fn parte_de_csv_com_colunas<R: Read>(
+    nome: &str,
+    leitor: R,
+    delimitador: u8,
+    colunas: &[&str],
+) -> Result<ParteBronze, ErroDeRefino> {
+    let colunas_owned: Vec<String> = colunas.iter().map(|c| (*c).to_owned()).collect();
+    let csv_leitor = csv::ReaderBuilder::new()
+        .delimiter(delimitador)
+        .flexible(true)
+        .has_headers(false)
+        .from_reader(leitor);
+    let arquivo = tempfile::NamedTempFile::new()?;
+    let mut escritor = EscritorParquet::novo_em(arquivo.reopen()?, &colunas_owned)?;
+    alimentar(csv_leitor, &mut escritor, colunas_owned.len())?;
     escritor.fechar()?;
     Ok(ParteBronze::de_arquivo(nome, arquivo.into_temp_path()))
 }
