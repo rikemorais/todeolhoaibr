@@ -26,14 +26,15 @@ use todeolho_nucleo::{
     TarefaPlanejada, estimar, formatar_bytes,
 };
 use todeolho_refino::{
-    FiltrosSqlEmendas, FonteDeRefino, SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO, SnapshotBronze,
-    TarefaDeBronze, TarefaDeSilverBcb, TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas,
-    TarefaDeSilverCamaraLegislaturas, TarefaDeSilverCamaraPartidos,
-    TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes, TarefaDeSilverIbge,
-    TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita, TarefaDeSilverIpeadata,
-    TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares, TarefaDeSilverSenadoProcessos,
-    TarefaDeSilverSenadoProcessosDetalhes, TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql,
-    TarefaDeSilverTseBens, TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
+    FiltrosSqlEmendas, FonteDeRefino, SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO,
+    SQL_EMENDAS_TRANSFEREGOV, SnapshotBronze, TarefaDeBronze, TarefaDeSilverBcb,
+    TarefaDeSilverCamaraDeputados, TarefaDeSilverCamaraDespesas, TarefaDeSilverCamaraLegislaturas,
+    TarefaDeSilverCamaraPartidos, TarefaDeSilverCamaraTramitacoes, TarefaDeSilverCamaraVotacoes,
+    TarefaDeSilverIbge, TarefaDeSilverIbgeLocalidades, TarefaDeSilverIbgeRendaPerCapita,
+    TarefaDeSilverIpeadata, TarefaDeSilverSenadoDespesas, TarefaDeSilverSenadoParlamentares,
+    TarefaDeSilverSenadoProcessos, TarefaDeSilverSenadoProcessosDetalhes,
+    TarefaDeSilverSenadoVotacoes, TarefaDeSilverSql, TarefaDeSilverTseBens,
+    TarefaDeSilverTseCandidaturas, TarefaDeSilverTseDespesasCandidatos2014,
     TarefaDeSilverTseDespesasCandidatos2016, TarefaDeSilverTseDespesasComites2014,
     TarefaDeSilverTseDespesasContratadas, TarefaDeSilverTseDespesasContratadas2018,
     TarefaDeSilverTseDespesasContratadas2020, TarefaDeSilverTseDespesasContratadas2022,
@@ -500,6 +501,9 @@ async fn refinar(
         }
         if fonte.as_deref() == Some("emendas-tesouro") {
             return refinar_emendas_tesouro_silver(intervalo, filtros).await;
+        }
+        if fonte.as_deref() == Some("emendas-transferegov") {
+            return refinar_emendas_transferegov_silver(intervalo, filtros).await;
         }
         if !filtros.is_empty() {
             bail!("--filtro só vale para fontes com filtros Silver implementados");
@@ -3165,6 +3169,21 @@ async fn refinar_emendas_tesouro_silver(
         "emendas-tesouro",
         "emendas-tesouro-pagamento-municipal-v3",
         SQL_EMENDAS_TESOURO,
+        intervalo,
+        &filtros,
+    )
+    .await
+}
+
+async fn refinar_emendas_transferegov_silver(
+    intervalo: Option<u64>,
+    filtros: Vec<String>,
+) -> Result<bool> {
+    let filtros = filtros_sql_emendas(&filtros)?;
+    refinar_fonte_silver_com_filtros_emendas(
+        "emendas-transferegov",
+        "emendas-transferegov-beneficiario-programa-v1",
+        SQL_EMENDAS_TRANSFEREGOV,
         intervalo,
         &filtros,
     )
