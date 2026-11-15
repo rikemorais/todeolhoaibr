@@ -50,10 +50,11 @@ Consulte a [pesquisa das fontes e seus limites](pesquisa-emendas.md), que regist
 
 ## Refino Silver
 
-O Bronze decodifica `emendas` para `emendas-cgu`, `emendas-tesouro` e `emendas-transferegov`. A Silver publica contratos independentes da CGU e do Tesouro, sem unir linhas entre essas origens:
+O Bronze decodifica `emendas` para `emendas-cgu`, `emendas-tesouro` e `emendas-transferegov`. A Silver publica contratos independentes, sem unir linhas entre essas origens:
 
 - `emendas-cgu`: autor, código e número da emenda, localidade textual e valores reportados pela CGU.
 - `emendas-tesouro`: repasses com UF, código IBGE, OB, favorecido e valor. A origem não identifica o parlamentar nem publica uma coluna separada de tipo de emenda; `tipo_emenda` fica nulo em vez de ser inferido de `Nome Emenda`.
+- `emendas-transferegov`: uma linha por beneficiário-programa, com autor, emenda, município e UF textuais, valores GND3/GND4/total informados pela API e indicações preservadas como JSON. O contrato não agrega as linhas nem classifica os valores como pagamentos executados.
 
 Para gerar Bronze nas três origens e publicar os contratos Silver já disponíveis:
 
@@ -62,9 +63,10 @@ docker compose run --rm refino refinar bronze emendas-cgu
 docker compose run --rm refino refinar bronze emendas-tesouro
 docker compose run --rm refino refinar bronze emendas-transferegov
 docker compose run --rm refino refinar silver emendas --filtro ano=2025
+docker compose run --rm refino refinar silver emendas-transferegov --filtro ano=2025 --filtro uf=MG
 ```
 
-O contrato Silver Transferegov ainda não foi publicado: a API não fornece código IBGE, 22 grafias municipais do snapshot precisam de cruzamento validado, e o valor do registro ainda requer confirmação de semântica antes de agregação.
+O contrato `emendas-transferegov-beneficiario-programa-v1` mantém a localidade como município/UF textual porque a API não fornece código IBGE. Na captura de 15/11/2026, 78.740 de 79.044 registros corresponderam ao IBGE após normalização de caixa, acentos e pontuação; as 304 linhas restantes usam 22 grafias ainda sem código confirmado. A coluna `municipio` não deve ser usada como chave IBGE. Os valores são publicados como `valor_gnd3`, `valor_gnd4` e `valor_total_emenda`, conforme os campos da API, sem afirmar que representam pagamentos executados. Não some nem deduplique as linhas: preserve a granularidade `id_beneficiario_programa` + `id_programa`.
 
 Para filtrar por UF, use o contrato do Tesouro, que tem coluna estruturada para isso:
 
