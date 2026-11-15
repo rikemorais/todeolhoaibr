@@ -31,8 +31,8 @@ pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
 pub use executor_sql::FiltrosSqlEmendas;
 pub use fontes::{
-    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
-    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
+    DecodificadorCsv, DecodificadorEmendasSiga, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
 pub use silver::TarefaDeSilverIpeadata;
@@ -61,7 +61,9 @@ pub use silver::cnpj_empresas::{SQL_CNPJ_EMPRESAS, esquema_cnpj_empresas};
 pub use silver::cnpj_estabelecimentos::{SQL_CNPJ_ESTABELECIMENTOS, esquema_cnpj_estabelecimentos};
 pub use silver::cnpj_simples::{SQL_CNPJ_SIMPLES, esquema_cnpj_simples};
 pub use silver::cnpj_socios::{SQL_CNPJ_SOCIOS, esquema_cnpj_socios};
-pub use silver::emendas::{SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV};
+pub use silver::emendas::{
+    SQL_EMENDAS_CGU, SQL_EMENDAS_SIGA_BRASIL, SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV,
+};
 pub use silver::publicar_bcb_sgs;
 pub use silver::publicar_remuneracao_estadual_go;
 pub use silver::publicar_remuneracao_estadual_mg;

@@ -3,6 +3,7 @@
 pub mod cnpj;
 pub mod cotahist;
 pub mod csv;
+pub mod emendas_siga;
 pub mod ibge_agregados;
 pub mod json;
 pub mod mapa_empresas;
@@ -13,6 +14,7 @@ pub mod zip_csv;
 pub use cnpj::DecodificadorCnpj;
 pub use cotahist::DecodificadorCotahist;
 pub use csv::DecodificadorCsv;
+pub use emendas_siga::DecodificadorEmendasSiga;
 pub use ibge_agregados::DecodificadorIbgeAgregados;
 pub use json::DecodificadorJson;
 pub use mapa_empresas::DecodificadorMapaEmpresas;
