@@ -7,17 +7,6 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 /// SQL do contrato `cnpj.empresas.v1`.
 pub const SQL_CNPJ_EMPRESAS: &str = include_str!("../../sql/silver/cnpj_empresas.sql");
 
-/// Colunas Bronze (all-string) da tabela empresas.
-pub(crate) const COLUNAS_BRONZE: &[&str] = &[
-    "cnpj_basico",
-    "razao_social",
-    "natureza_juridica",
-    "qualificacao_responsavel",
-    "capital_social",
-    "porte_empresa",
-    "ente_federativo",
-];
-
 /// Schema `cnpj.empresas.v1`.
 pub fn esquema_cnpj_empresas() -> SchemaRef {
     Arc::new(Schema::new(vec![
@@ -49,6 +38,16 @@ mod testes {
 
     use super::*;
     use crate::executor_sql::{ConfiguracaoExecutorSql, executar_sql};
+
+    const COLUNAS_BRONZE: &[&str] = &[
+        "cnpj_basico",
+        "razao_social",
+        "natureza_juridica",
+        "qualificacao_responsavel",
+        "capital_social",
+        "porte_empresa",
+        "ente_federativo",
+    ];
 
     fn parquet_bronze(linhas: &[Vec<&str>]) -> Vec<u8> {
         let mut campos: Vec<Field> = COLUNAS_BRONZE
