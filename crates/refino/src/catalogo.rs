@@ -354,6 +354,19 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "",
             cria_decodificador: || Arc::new(DecodificadorCnpj),
         },
+        // --- CVM: DFP (anual) e ITR (trimestral), ZIP de CSVs Latin-1 com `;` ---
+        FonteDeRefino {
+            nome: "cvm-dfp",
+            fonte_raw: "cvm",
+            prefixo_recurso: "dfp/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
+        FonteDeRefino {
+            nome: "cvm-itr",
+            fonte_raw: "cvm",
+            prefixo_recurso: "itr/",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
     ]
 }
 
