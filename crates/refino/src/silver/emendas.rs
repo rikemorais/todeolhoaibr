@@ -9,3 +9,6 @@ pub const SQL_EMENDAS_TESOURO: &str = include_str!("../../sql/silver/emendas_tes
 /// Consulta os beneficiários de emendas associados a programas no Transferegov.
 pub const SQL_EMENDAS_TRANSFEREGOV: &str =
     include_str!("../../sql/silver/emendas_transferegov.sql");
+
+/// Consulta os favorecidos e valores publicados no painel do SIGA Brasil.
+pub const SQL_EMENDAS_SIGA_BRASIL: &str = include_str!("../../sql/silver/emendas_siga_brasil.sql");

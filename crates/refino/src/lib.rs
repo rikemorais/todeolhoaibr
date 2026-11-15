@@ -31,8 +31,8 @@ pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
 pub use executor_sql::FiltrosSqlEmendas;
 pub use fontes::{
-    DecodificadorCsv, DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
-    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
+    DecodificadorCsv, DecodificadorEmendasSiga, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
 pub use silver::TarefaDeSilverIpeadata;
@@ -57,7 +57,9 @@ pub use silver::camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes}
 pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
 #[cfg(test)]
 pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
-pub use silver::emendas::{SQL_EMENDAS_CGU, SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV};
+pub use silver::emendas::{
+    SQL_EMENDAS_CGU, SQL_EMENDAS_SIGA_BRASIL, SQL_EMENDAS_TESOURO, SQL_EMENDAS_TRANSFEREGOV,
+};
 pub use silver::publicar_bcb_sgs;
 pub use silver::publicar_remuneracao_estadual_go;
 pub use silver::publicar_remuneracao_estadual_mg;
