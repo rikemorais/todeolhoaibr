@@ -956,3 +956,85 @@ mod testes_json_original {
         assert_eq!(original["campo_ausente"], serde_json::Value::Null);
     }
 }
+
+#[cfg(test)]
+mod testes_crosswalk_municipios_ibge {
+    use super::*;
+    use futures::StreamExt;
+    use parquet::arrow::ArrowWriter;
+
+    #[tokio::test]
+    async fn executor_sql_mapeia_localidades_preserva_aliases_e_retorna_nulos() {
+        let diretorio = tempfile::tempdir().unwrap();
+        let bronze = diretorio.path().join("bronze");
+        let spill = diretorio.path().join("spill");
+        std::fs::create_dir(&bronze).unwrap();
+        std::fs::create_dir(&spill).unwrap();
+
+        let esquema = Arc::new(Schema::new(vec![
+            Field::new("uf", DataType::Utf8, true),
+            Field::new("municipio", DataType::Utf8, true),
+        ]));
+        let lote = RecordBatch::try_new(
+            Arc::clone(&esquema),
+            vec![
+                Arc::new(StringArray::from(vec![
+                    Some("mg"),
+                    Some("RN"),
+                    Some("SP"),
+                    None,
+                ])),
+                Arc::new(StringArray::from(vec![
+                    Some("Belo-Horizonte"),
+                    Some("Presidente Juscelino"),
+                    Some("Município inexistente"),
+                    Some("Belo Horizonte"),
+                ])),
+            ],
+        )
+        .unwrap();
+        let mut bytes = Vec::new();
+        let mut writer = ArrowWriter::try_new(&mut bytes, esquema, None).unwrap();
+        writer.write(&lote).unwrap();
+        writer.close().unwrap();
+        std::fs::write(bronze.join("parte.parquet"), bytes).unwrap();
+
+        let sql = r#"
+            SELECT
+                tdoa_municipio_ibge_codigo(uf, municipio) AS codigo,
+                tdoa_municipio_ibge_nome(uf, municipio) AS nome,
+                tdoa_municipio_ibge_metodo(uf, municipio) AS metodo
+            FROM bronze
+            ORDER BY CASE uf
+                WHEN 'mg' THEN 1
+                WHEN 'RN' THEN 2
+                WHEN 'SP' THEN 3
+                ELSE 4
+            END
+        "#;
+        let mut fluxo = executar_sql(&bronze, &spill, sql, &ConfiguracaoExecutorSql::default())
+            .await
+            .unwrap();
+        let mut lotes = Vec::new();
+        while let Some(lote) = fluxo.next().await {
+            lotes.push(lote.unwrap());
+        }
+        let saida = arrow::compute::concat_batches(&lotes[0].schema(), &lotes).unwrap();
+
+        let codigo = saida.column(0).as_string::<i32>();
+        let nome = saida.column(1).as_string::<i32>();
+        let metodo = saida.column(2).as_string::<i32>();
+        assert_eq!(codigo.value(0), "3106200");
+        assert_eq!(nome.value(0), "Belo Horizonte");
+        assert_eq!(metodo.value(0), "normalizacao_exata");
+        assert_eq!(codigo.value(1), "2410306");
+        assert_eq!(nome.value(1), "Serra Caiada");
+        assert_eq!(metodo.value(1), "alias_manual");
+        assert!(codigo.is_null(2));
+        assert!(nome.is_null(2));
+        assert!(metodo.is_null(2));
+        assert!(codigo.is_null(3));
+        assert!(nome.is_null(3));
+        assert!(metodo.is_null(3));
+    }
+}
