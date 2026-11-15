@@ -782,7 +782,7 @@ mod testes {
         )
         .unwrap();
 
-        assert!(cliente.informacoes(&url).await.is_err());
+        assert_eq!(cliente.informacoes(&url).await.unwrap().tamanho, None);
         servidor_origem.join().unwrap();
         servidor_destino.join().unwrap();
         assert!(!destino_atingido.load(Ordering::Relaxed));

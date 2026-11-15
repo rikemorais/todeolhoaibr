@@ -250,7 +250,9 @@ async fn estimar_tarefas_por_perfil(
     tarefas: &[TarefaPlanejada],
     contexto: &ContextoDeExecucao,
 ) -> Vec<Option<u64>> {
-    let mut grupos: Vec<(PerfilHttp, Vec<(usize, Arc<dyn Tarefa>)>)> = Vec::new();
+    type GrupoDeEstimativas = (PerfilHttp, Vec<(usize, Arc<dyn Tarefa>)>);
+
+    let mut grupos: Vec<GrupoDeEstimativas> = Vec::new();
     for (indice, tarefa) in tarefas.iter().enumerate() {
         let perfil = fonte.perfil_http_das_tarefas(std::slice::from_ref(tarefa));
         let indice_grupo = grupos
