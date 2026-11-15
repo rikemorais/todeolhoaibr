@@ -511,6 +511,18 @@ pub async fn executar_sql_com_filtros(
         ("tdoa_municipio_ibge_codigo", CampoMunicipioIbge::Codigo),
         ("tdoa_municipio_ibge_nome", CampoMunicipioIbge::Nome),
         ("tdoa_municipio_ibge_metodo", CampoMunicipioIbge::Metodo),
+        (
+            "tdoa_municipio_ibge_siga_codigo",
+            CampoMunicipioIbge::SigaCodigo,
+        ),
+        (
+            "tdoa_municipio_ibge_siga_nome",
+            CampoMunicipioIbge::SigaNome,
+        ),
+        (
+            "tdoa_municipio_ibge_siga_metodo",
+            CampoMunicipioIbge::SigaMetodo,
+        ),
     ] {
         contexto.register_udf(create_udf(
             nome,
@@ -636,6 +648,9 @@ enum CampoMunicipioIbge {
     Codigo,
     Nome,
     Metodo,
+    SigaCodigo,
+    SigaNome,
+    SigaMetodo,
 }
 
 static CROSSWALK_MUNICIPIOS_IBGE: LazyLock<Result<CrosswalkMunicipiosIbge, String>> =
@@ -753,15 +768,26 @@ fn municipio_ibge(
             resultado.append_null();
             continue;
         }
-        let chave = (
-            ufs.value(indice).trim().to_ascii_uppercase(),
-            normalizar_nome_municipio(municipios_origem.value(indice)),
-        );
-        let mapeamento = crosswalk.get(&chave);
+        let uf = ufs.value(indice).trim().to_ascii_uppercase();
+        let localidade = municipios_origem.value(indice);
+        let mapeamento = match campo {
+            CampoMunicipioIbge::Codigo | CampoMunicipioIbge::Nome | CampoMunicipioIbge::Metodo => {
+                crosswalk.get(&(uf.clone(), normalizar_nome_municipio(localidade)))
+            }
+            CampoMunicipioIbge::SigaCodigo
+            | CampoMunicipioIbge::SigaNome
+            | CampoMunicipioIbge::SigaMetodo => {
+                municipio_siga_por_componentes(crosswalk, &uf, localidade)
+            }
+        };
         let valor = mapeamento.map(|mapeamento| match campo {
-            CampoMunicipioIbge::Codigo => &mapeamento.codigo,
-            CampoMunicipioIbge::Nome => &mapeamento.nome,
-            CampoMunicipioIbge::Metodo => &mapeamento.metodo,
+            CampoMunicipioIbge::Codigo | CampoMunicipioIbge::SigaCodigo => {
+                mapeamento.codigo.as_str()
+            }
+            CampoMunicipioIbge::Nome | CampoMunicipioIbge::SigaNome => mapeamento.nome.as_str(),
+            CampoMunicipioIbge::Metodo => mapeamento.metodo.as_str(),
+            CampoMunicipioIbge::SigaMetodo if mapeamento.metodo == "alias_manual" => "alias_manual",
+            CampoMunicipioIbge::SigaMetodo => "componente_exato",
         });
         match valor {
             Some(valor) => resultado.append_value(valor),
@@ -769,6 +795,64 @@ fn municipio_ibge(
         }
     }
     Ok(ColumnarValue::Array(Arc::new(resultado.finish())))
+}
+
+/// Resolve somente componentes completos separados por hífen na dimensão pública
+/// `Município/UF` do SIGA. Múltiplos componentes só são aceitos quando apontam
+/// para o mesmo município; colisões entre municípios diferentes permanecem nulas.
+fn municipio_siga_por_componentes<'a>(
+    crosswalk: &'a CrosswalkMunicipiosIbge,
+    uf: &str,
+    localidade: &str,
+) -> Option<&'a MunicipioIbge> {
+    let localidade_completa = normalizar_nome_municipio(localidade);
+    if localidade_completa.starts_with("FOLHA DE PAGAMENTO")
+        || localidade_completa.starts_with("PAGAMENTO DE BENEFICIOS INSS FRGPS")
+    {
+        return None;
+    }
+
+    let mut componentes = HashSet::new();
+    let mut texto = localidade.trim();
+    if let Some((antes_da_uf, sufixo)) = texto.rsplit_once('-')
+        && sufixo.len() == 2
+        && sufixo.bytes().all(|byte| byte.is_ascii_alphabetic())
+    {
+        if !sufixo.eq_ignore_ascii_case(uf) {
+            return None;
+        }
+        texto = antes_da_uf.trim_end();
+    }
+
+    let localidade_normalizada = normalizar_nome_municipio(texto);
+    if !localidade_normalizada.is_empty() {
+        componentes.insert(localidade_normalizada);
+    }
+
+    for componente in texto.split('-') {
+        let normalizado = normalizar_nome_municipio(componente);
+        if !normalizado.is_empty() {
+            componentes.insert(normalizado.clone());
+        }
+        for prefixo in ["MUNICIPIO DE ", "MUNICIPIO DO ", "MUNICIPIO DA "] {
+            if let Some(nome) = normalizado.strip_prefix(prefixo)
+                && !nome.is_empty()
+            {
+                componentes.insert(nome.to_owned());
+            }
+        }
+    }
+
+    let mut encontrados = HashMap::<&str, &MunicipioIbge>::new();
+    for componente in componentes {
+        if let Some(municipio) = crosswalk.get(&(uf.to_owned(), componente)) {
+            encontrados.insert(&municipio.codigo, municipio);
+            if encontrados.len() > 1 {
+                return None;
+            }
+        }
+    }
+    encontrados.into_values().next()
 }
 
 /// Normaliza as duas formas do envelope do Senado para uma lista de votos JSON.
@@ -963,6 +1047,51 @@ mod testes_crosswalk_municipios_ibge {
     use futures::StreamExt;
     use parquet::arrow::ArrowWriter;
 
+    #[test]
+    fn mapeia_componente_exato_do_siga_e_rejeita_colisao_ou_uf_incorreta() {
+        let crosswalk = carregar_crosswalk_municipios_ibge().unwrap();
+
+        let bonfim =
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DE BONFIM-BONFIM-RR")
+                .unwrap();
+        assert_eq!(bonfim.codigo, "1400159");
+        assert_eq!(bonfim.nome, "Bonfim");
+        assert!(municipio_siga_por_componentes(&crosswalk, "RR", "").is_none());
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "DF", "FOLHA DE PAGAMENTO-BRASILIA-DF",)
+                .is_none()
+        );
+        assert!(
+            municipio_siga_por_componentes(
+                &crosswalk,
+                "DF",
+                "PAGAMENTO DE BENEFICIOS - INSS/FRGPS-BRASILIA-DF",
+            )
+            .is_none()
+        );
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DO BONFIM-BONFIM")
+                .is_some()
+        );
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DA BONFIM-BONFIM")
+                .is_some()
+        );
+
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "SP", "MUNICIPIO DE BONFIM-BONFIM-RR",)
+                .is_none()
+        );
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "MUNICIPIO DE BONFIM-BONFIM-MG",)
+                .is_none()
+        );
+        assert!(municipio_siga_por_componentes(&crosswalk, "RR", "BONFIM-BOA VISTA-RR",).is_none());
+        assert!(
+            municipio_siga_por_componentes(&crosswalk, "RR", "LOCALIDADE DESCONHECIDA").is_none()
+        );
+    }
+
     #[tokio::test]
     async fn executor_sql_mapeia_localidades_preserva_aliases_e_retorna_nulos() {
         let diretorio = tempfile::tempdir().unwrap();
@@ -1003,7 +1132,9 @@ mod testes_crosswalk_municipios_ibge {
             SELECT
                 tdoa_municipio_ibge_codigo(uf, municipio) AS codigo,
                 tdoa_municipio_ibge_nome(uf, municipio) AS nome,
-                tdoa_municipio_ibge_metodo(uf, municipio) AS metodo
+                tdoa_municipio_ibge_metodo(uf, municipio) AS metodo,
+                tdoa_municipio_ibge_siga_codigo(uf, municipio) AS codigo_siga,
+                tdoa_municipio_ibge_siga_metodo(uf, municipio) AS metodo_siga
             FROM bronze
             ORDER BY CASE uf
                 WHEN 'mg' THEN 1
@@ -1024,18 +1155,28 @@ mod testes_crosswalk_municipios_ibge {
         let codigo = saida.column(0).as_string::<i32>();
         let nome = saida.column(1).as_string::<i32>();
         let metodo = saida.column(2).as_string::<i32>();
+        let codigo_siga = saida.column(3).as_string::<i32>();
+        let metodo_siga = saida.column(4).as_string::<i32>();
         assert_eq!(codigo.value(0), "3106200");
         assert_eq!(nome.value(0), "Belo Horizonte");
         assert_eq!(metodo.value(0), "normalizacao_exata");
+        assert_eq!(codigo_siga.value(0), "3106200");
+        assert_eq!(metodo_siga.value(0), "componente_exato");
         assert_eq!(codigo.value(1), "2410306");
         assert_eq!(nome.value(1), "Serra Caiada");
         assert_eq!(metodo.value(1), "alias_manual");
+        assert_eq!(codigo_siga.value(1), "2410306");
+        assert_eq!(metodo_siga.value(1), "alias_manual");
         assert!(codigo.is_null(2));
         assert!(nome.is_null(2));
         assert!(metodo.is_null(2));
+        assert!(codigo_siga.is_null(2));
+        assert!(metodo_siga.is_null(2));
         assert!(codigo.is_null(3));
         assert!(nome.is_null(3));
         assert!(metodo.is_null(3));
+        assert!(codigo_siga.is_null(3));
+        assert!(metodo_siga.is_null(3));
     }
 }
 
@@ -1149,17 +1290,23 @@ mod testes_emendas_siga_brasil {
             saida.column(0).as_string::<i32>().value(0),
             "MUNICIPIO DE BONFIM-BONFIM-RR"
         );
-        assert_eq!(saida.column(5).as_string::<i32>().value(0), "30300001");
+        assert_eq!(saida.column(4).as_string::<i32>().value(0), "1400159");
+        assert_eq!(saida.column(5).as_string::<i32>().value(0), "Bonfim");
+        assert_eq!(
+            saida.column(6).as_string::<i32>().value(0),
+            "componente_exato"
+        );
+        assert_eq!(saida.column(8).as_string::<i32>().value(0), "30300001");
         assert_eq!(
             saida
-                .column(6)
+                .column(9)
                 .as_primitive::<arrow::datatypes::Int16Type>()
                 .value(0),
             2016
         );
         assert_eq!(
             saida
-                .column(7)
+                .column(10)
                 .as_primitive::<arrow::datatypes::Decimal128Type>()
                 .value(0),
             215_707_300

@@ -1,5 +1,5 @@
--- Contrato emendas-siga-brasil.favorecido-pagamento.v1.
--- Preserva a localidade tal como publicada; a origem não fornece código IBGE nem OB.
+-- Contrato emendas-siga-brasil.favorecido-pagamento.v2.
+-- Preserva a localidade e acrescenta IBGE por componente exato e UF; a origem não fornece OB.
 -- CPF/CNPJ permanece fora da Silver para limitar a exposição de dados pessoais.
 WITH entrada AS (
     SELECT
@@ -7,6 +7,18 @@ WITH entrada AS (
         NULLIF(TRIM("Favorecido do Pagamento (Natureza Subgrupo)"), '') AS natureza_origem,
         NULLIF(TRIM("Favorecido do Pagamento (Tipo)"), '') AS tipo_favorecido_origem,
         UPPER(NULLIF(TRIM("Favorecido do Pagamento (UF)"), '')) AS uf_origem,
+        tdoa_municipio_ibge_siga_codigo(
+            "Favorecido do Pagamento (UF)",
+            "Favorecido do Pagamento - Município/UF"
+        ) AS codigo_municipio_ibge,
+        tdoa_municipio_ibge_siga_nome(
+            "Favorecido do Pagamento (UF)",
+            "Favorecido do Pagamento - Município/UF"
+        ) AS nome_municipio_ibge,
+        tdoa_municipio_ibge_siga_metodo(
+            "Favorecido do Pagamento (UF)",
+            "Favorecido do Pagamento - Município/UF"
+        ) AS metodo_mapeamento_municipio,
         NULLIF(TRIM("Autor"), '') AS autor_origem,
         NULLIF(TRIM("Emenda (Número/Ano)"), '') AS emenda_origem,
         NULLIF(TRIM("Pago + RP (Favorecido lista OB)"), '') AS valor_origem,
@@ -20,6 +32,9 @@ WITH entrada AS (
         natureza_origem AS natureza_subgrupo_favorecido,
         tipo_favorecido_origem AS tipo_favorecido,
         uf_origem AS uf,
+        codigo_municipio_ibge,
+        nome_municipio_ibge,
+        metodo_mapeamento_municipio,
         autor_origem AS autor,
         regexp_replace(emenda_origem, '-[0-9]{4}$', '') AS numero_emenda_origem,
         TRY_CAST(regexp_replace(emenda_origem, '^.*-([0-9]{4})$', '$1') AS SMALLINT) AS ano_emenda,
@@ -36,6 +51,9 @@ SELECT
     natureza_subgrupo_favorecido,
     tipo_favorecido,
     uf,
+    codigo_municipio_ibge,
+    nome_municipio_ibge,
+    metodo_mapeamento_municipio,
     autor,
     numero_emenda_origem AS numero_emenda,
     ano_emenda,

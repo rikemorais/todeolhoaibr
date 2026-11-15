@@ -63,7 +63,7 @@ O Bronze decodifica `emendas` para `emendas-cgu`, `emendas-tesouro` e `emendas-t
 - `emendas-cgu`: autor, código e número da emenda, localidade textual e valores reportados pela CGU.
 - `emendas-tesouro`: repasses com UF, código IBGE, OB, favorecido e valor. A origem não identifica o parlamentar nem publica uma coluna separada de tipo de emenda; `tipo_emenda` fica nulo em vez de ser inferido de `Nome Emenda`.
 - `emendas-transferegov`: uma linha por beneficiário-programa, com autor e emenda, município/UF originais, código e nome IBGE quando o crosswalk versionado reconhece a localidade, valores GND3/GND4/total da API e indicações preservadas como JSON. O contrato não agrega linhas nem classifica os valores como pagamentos executados.
-- `emendas-siga-brasil`: uma linha por registro publicado na tabela de favorecidos, com autor, emenda, localidade, UF, natureza, tipo e “Pago + RP”. O ano filtrado é o ano da emenda; não há IBGE, identificador de OB ou chave comprovada para união com Tesouro. CPF/CNPJ é preservado em Raw e Bronze, mas omitido da Silver.
+- `emendas-siga-brasil`: uma linha por registro publicado na tabela de favorecidos, com autor, emenda, localidade, UF, natureza, tipo e “Pago + RP”. O contrato tenta obter código e nome IBGE quando a localidade ou um componente completo corresponde exatamente a um município da mesma UF; as categorias agregadas documentadas, ambiguidades, UF divergente e localidades não reconhecidas ficam sem código. O ano filtrado é o ano da emenda; não há identificador de OB ou chave comprovada para união com Tesouro. CPF/CNPJ é preservado em Raw e Bronze, mas omitido da Silver.
 
 Para gerar Bronze nas três origens e publicar os contratos Silver já disponíveis:
 

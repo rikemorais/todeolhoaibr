@@ -10,7 +10,7 @@ A fonte Raw `emendas` tem três contratos sem associação entre si: `emendas-cg
 
 `refinar silver emendas --filtro ano=AAAA` aplica o ano à CGU e ao Tesouro. `--filtro uf=XX` só pode ser usado no Tesouro; o comando combinado ignora a CGU com uma mensagem explícita, e `emendas-cgu --filtro uf=XX` falha. O contrato Transferegov é executado separadamente com `refinar silver emendas-transferegov --filtro ano=AAAA --filtro uf=XX`; nele ano e UF são filtros de linha. Quando há filtro, a saída vai para um recurso próprio `.../filtros/ano=.../uf=...`, preservando a publicação integral. O código da OB é mantido, mas as linhas não são deduplicadas nem validadas como únicas até a estabilidade e as colisões do identificador serem demonstradas. O detalhe operacional e os comandos de Bronze estão em [fontes/emendas](../fontes/emendas.md).
 
-`emendas-siga-brasil` é um contrato independente para o snapshot público da tabela de favorecidos do painel do Senado. O grão é a linha publicada, sem chave única demonstrada; localidade e UF são preservadas sem inferência de IBGE, e “Pago + RP” mantém o rótulo semântico da origem. O filtro `ano` usa o exercício da emenda. CPF/CNPJ existe na origem e no Bronze, mas não integra o schema Silver. Não há associação com o Tesouro por favorecido ou localidade.
+`emendas-siga-brasil` é um contrato independente para o snapshot público da tabela de favorecidos do painel do Senado. O grão é a linha publicada, sem chave única demonstrada; localidade e UF são preservadas, e `codigo_municipio_ibge`/`nome_municipio_ibge` só são preenchidos quando a localidade inteira ou seus componentes completos identificam um único município no crosswalk e na UF informada. As categorias agregadas documentadas de folha e benefícios do INSS, colisões, UF divergente e valores não reconhecidos ficam nulos; “Pago + RP” mantém o rótulo semântico da origem. O filtro `ano` usa o exercício da emenda. CPF/CNPJ existe na origem e no Bronze, mas não integra o schema Silver. Não há associação com o Tesouro por favorecido ou localidade.
 
 ## Contribuir com uma transformação SQL
 
@@ -196,7 +196,7 @@ As UDFs Rust (`tdoa_assert_true`, `tdoa_json_get`, `tdoa_json_expand_votos`) sã
 | 24 | `tse_despesas_pagas.sql` | `tarefa_tse_despesas_pagas.rs` | `tse-despesa-paga-2024-v2` | TSE |
 | 25 | `tse_votacao_secao.sql` | `tarefa_tse_votacao_secao.rs` | `tse-votacao-secao-v2` | TSE |
 | 26 | `mapa_empresas.sql` | `mapa_empresas.rs` | `mapa-empresas-estatistica-uf-v1` | Mapa de Empresas |
-| 27 | `emendas_siga_brasil.sql` | `emendas.rs` | `emendas-siga-brasil.favorecido-pagamento.v1` | SIGA Brasil |
+| 27 | `emendas_siga_brasil.sql` | `emendas.rs` | `emendas-siga-brasil.favorecido-pagamento.v2` | SIGA Brasil |
 
 O teste de inventário (`nenhum_sql_silver_orfao_nem_contrato_sem_consulta`) garante em CI que esta lista permanece sincronizada com o código.
 
