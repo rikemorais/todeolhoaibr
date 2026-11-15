@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.100.0] - 2026-11-15
+
+### Adicionado
+
+- Ingestão sob demanda das demonstrações financeiras DFP e ITR da CVM na Raw, com decodificação Bronze e cobertura histórica desde 2010/2011 (PR #435).
+
 ## [0.99.0] - 2026-11-15
 
 ### Adicionado
