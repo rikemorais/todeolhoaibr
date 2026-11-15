@@ -175,6 +175,7 @@ impl FonteDeDados for FonteRemuneracaoEstadualGo {
 
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
             credencial: None,
             limite: Some(LimiteHttp {
                 host: HOST,

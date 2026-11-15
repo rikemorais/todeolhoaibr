@@ -9,7 +9,7 @@ use futures::TryStreamExt;
 use reqwest::{RequestBuilder, Response, StatusCode, Version, header};
 use todeolho_nucleo::{
     ClienteHttp, DownloadHttp, ErroDeIngestao, InformacoesDoArquivo, PerfilHttp,
-    RespostaCondicional, RespostaHttp,
+    RedirecionamentoHttp, RespostaCondicional, RespostaHttp,
 };
 use tokio_util::io::StreamReader;
 use tracing::warn;
@@ -111,6 +111,9 @@ impl ClienteHttpComRetentativas {
                 .redirect(reqwest::redirect::Policy::none());
             Some(credencial.host.to_ascii_lowercase())
         } else {
+            if perfil.redirecionamento == RedirecionamentoHttp::Bloquear {
+                construtor = construtor.redirect(reqwest::redirect::Policy::none());
+            }
             None
         };
 
@@ -558,6 +561,7 @@ mod testes {
     use todeolho_nucleo::{CredencialHttp, LimiteHttp};
 
     const PERFIL_DE_TESTE: PerfilHttp = PerfilHttp {
+        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
         credencial: Some(CredencialHttp {
             host: "127.0.0.1",
             variavel: "TESTE_TOKEN",
@@ -710,6 +714,7 @@ mod testes {
     #[test]
     fn perfil_com_limite_invalido_e_recusado() {
         let perfil = PerfilHttp {
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
             credencial: None,
             limite: Some(LimiteHttp {
                 host: "example.org",
@@ -722,6 +727,65 @@ mod testes {
             ClienteHttpComRetentativas::com_perfil(PoliticaDeRetentativas::default(), perfil, None)
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn perfil_publico_pode_bloquear_redirecionamento_para_outro_host() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let destino = TcpListener::bind("127.0.0.1:0").unwrap();
+        let porta_destino = destino.local_addr().unwrap().port();
+        destino.set_nonblocking(true).unwrap();
+        let destino_atingido = Arc::new(AtomicBool::new(false));
+        let destino_atingido_worker = Arc::clone(&destino_atingido);
+        let servidor_destino = std::thread::spawn(move || {
+            let limite = std::time::Instant::now() + Duration::from_millis(200);
+            while std::time::Instant::now() < limite {
+                match destino.accept() {
+                    Ok(_) => {
+                        destino_atingido_worker.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                    Err(erro) if erro.kind() == io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(erro) => panic!("falha no listener de destino: {erro}"),
+                }
+            }
+        });
+
+        let origem = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/arquivo", origem.local_addr().unwrap());
+        let servidor_origem = std::thread::spawn(move || {
+            let (mut conexao, _) = origem.accept().unwrap();
+            let mut pedido = [0u8; 1024];
+            assert!(conexao.read(&mut pedido).unwrap() > 0);
+            write!(
+                conexao,
+                "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:{porta_destino}/interno\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+        });
+        let cliente = ClienteHttpComRetentativas::com_perfil(
+            PoliticaDeRetentativas {
+                tentativas: 1,
+                espera_inicial: Duration::ZERO,
+            },
+            PerfilHttp {
+                redirecionamento: RedirecionamentoHttp::Bloquear,
+                ..PerfilHttp::default()
+            },
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(cliente.informacoes(&url).await.unwrap().tamanho, None);
+        servidor_origem.join().unwrap();
+        servidor_destino.join().unwrap();
+        assert!(!destino_atingido.load(Ordering::Relaxed));
     }
 
     #[tokio::test]

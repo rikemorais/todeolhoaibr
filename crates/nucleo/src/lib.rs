@@ -32,7 +32,7 @@ pub use estado_raw::{
 pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
 };
-pub use fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp};
+pub use fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp, RedirecionamentoHttp};
 pub use historico::{
     Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
     RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,

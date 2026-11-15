@@ -6,6 +6,7 @@ use todeolho_nucleo::{LimiteHttp, PerfilHttp};
 /// todas as fontes que consultam `legis.senado.leg.br`.
 pub(super) const fn perfil_http() -> PerfilHttp {
     PerfilHttp {
+        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
         credencial: None,
         limite: Some(LimiteHttp {
             host: "legis.senado.leg.br",
