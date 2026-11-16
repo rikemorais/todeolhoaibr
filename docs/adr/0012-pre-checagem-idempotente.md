@@ -23,7 +23,7 @@ Uma pré-checagem comum às tarefas decide, **antes de buscar**, se o recurso pr
 **Validador autoritativo, com requisição condicional**
 
 - O validador da origem (ETag ou `Last-Modified`) é autoritativo: se bate com o guardado, reaproveita; se difere, reingere.
-- Em tarefas de arquivo, a URL do manifesto vigente também participa da pré-checagem. Se a URL de origem muda, o arquivo é reingerido mesmo que o novo host reutilize o mesmo ETag opaco.
+- Em tarefas de arquivo, `estado_na_raw_com_origem` também retorna a URL do manifesto vigente, sem alterar o contrato público de `EstadoNaRaw`. Se a URL de origem muda, o arquivo é reingerido mesmo que o novo host reutilize o mesmo ETag opaco.
 - Para APIs paginadas, a releitura usa **requisição condicional** (`If-None-Match`/`If-Modified-Since`) por página: 304 reaproveita a parte já gravada, 200 reingere aquela página. O manifesto novo é remontado a partir das partes reaproveitadas e reingeridas.
 
 **Fallback onde não há validador**
@@ -44,6 +44,7 @@ Uma pré-checagem comum às tarefas decide, **antes de buscar**, se o recurso pr
 - APIs paginadas por **cursor**, cujas URLs mudam a cada rodada, não casam página a página; esses recursos caem no fallback por assinatura, com menos economia de banda.
 - Como no [ADR 0010](0010-selecao-e-arquivos-grandes.md), o validador indica mudança no arquivo, não no conteúdo: uma republicação idêntica com novo ETag é reingerida.
 - `_ultima_versao.json` guarda o `iniciada_em` da execução e é publicado por `publicar_ponteiro`, que não deixa uma rodada mais antiga sobrescrever uma mais nova (ver issue #16). A atomicidade sob escritas estritamente simultâneas exigiria escrita condicional (CAS) no porto, ainda não disponível no cliente S3; o guard por recência resolve o caso sequencial sem introduzir regressão.
+- Ao trocar uma URL configurada no código, o rollout precisa encerrar execuções iniciadas por imagens antigas antes de iniciar ingestões com a nova imagem. Um processo antigo não conhece a identidade de origem adotada após sua compilação e, se iniciado posteriormente, poderia publicar novamente dados da URL antiga.
 
 ## Alternativas consideradas
 

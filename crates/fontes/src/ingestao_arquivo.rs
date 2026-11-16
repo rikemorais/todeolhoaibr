@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
     LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa,
-    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw,
+    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw_com_origem,
     publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
@@ -77,11 +77,9 @@ impl TarefaDeArquivo {
         &self,
         informacoes: &todeolho_nucleo::InformacoesDoArquivo,
         estado: Option<&todeolho_nucleo::EstadoNaRaw>,
+        origem_na_raw: Option<&str>,
     ) -> DecisaoDeIngestao {
-        if estado
-            .and_then(|estado| estado.origem.as_deref())
-            .is_some_and(|origem| origem != self.url)
-        {
+        if origem_na_raw.is_some_and(|origem| origem != self.url) {
             DecisaoDeIngestao::Ingerir(MotivoDeIngestao::Desatualizada)
         } else {
             decidir(informacoes, estado)
@@ -255,21 +253,27 @@ impl Tarefa for TarefaDeArquivo {
         precisao: PrecisaoDaEstimativa,
     ) -> Result<Option<u64>, ErroDeIngestao> {
         let estado =
-            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
+            estado_na_raw_com_origem(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
+                .await?;
+        let (estado, origem_na_raw) = estado
+            .map(|(estado, origem)| (Some(estado), origem))
+            .unwrap_or((None, None));
         // No modo rápido (menu), uma cópia completa e íntegra na Raw quase sempre é
         // reaproveitada, então evitamos o HEAD na origem — custoso quando são centenas
         // de arquivos num host limitado a 5 req/s. A rodada real ainda faz a pré-checagem
         // condicional, então nada é baixado indevidamente.
         if precisao == PrecisaoDaEstimativa::Rapida {
             return Ok(match estado.as_ref() {
-                Some(e) if e.completa && e.integra && e.origem.as_deref() == Some(&self.url) => {
+                Some(e)
+                    if e.completa && e.integra && origem_na_raw.as_deref() == Some(&self.url) =>
+                {
                     Some(0)
                 }
                 _ => None,
             });
         }
         let informacoes = contexto.http.informacoes(&self.url).await?;
-        match self.decidir_com_origem(&informacoes, estado.as_ref()) {
+        match self.decidir_com_origem(&informacoes, estado.as_ref(), origem_na_raw.as_deref()) {
             DecisaoDeIngestao::Reaproveitar => Ok(Some(0)),
             DecisaoDeIngestao::Ingerir(_) => Ok(informacoes.tamanho),
         }
@@ -287,8 +291,16 @@ impl Tarefa for TarefaDeArquivo {
         );
         let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
-            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
-        let motivo = match self.decidir_com_origem(&informacoes, estado.as_ref()) {
+            estado_na_raw_com_origem(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
+                .await?;
+        let (estado, origem_na_raw) = estado
+            .map(|(estado, origem)| (Some(estado), origem))
+            .unwrap_or((None, None));
+        let motivo = match self.decidir_com_origem(
+            &informacoes,
+            estado.as_ref(),
+            origem_na_raw.as_deref(),
+        ) {
             DecisaoDeIngestao::Reaproveitar => {
                 return Ok(ResumoDaTarefa {
                     reaproveitada: true,
