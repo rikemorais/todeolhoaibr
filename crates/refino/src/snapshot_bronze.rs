@@ -49,7 +49,7 @@ impl SnapshotBronze {
         recurso: &str,
     ) -> Result<Option<Self>, ErroDeSnapshotBronze> {
         let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-        let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+        let Some(bytes) = armazenamento.ler_controle(&chave_ponteiro).await? else {
             return Ok(None);
         };
         let ponteiro: UltimaVersao = serde_json::from_slice(&bytes)
@@ -106,7 +106,7 @@ impl SnapshotBronze {
         recurso: &str,
     ) -> Result<bool, ErroDeSnapshotBronze> {
         let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-        let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+        let Some(bytes) = armazenamento.ler_controle(&chave_ponteiro).await? else {
             return Ok(false);
         };
         let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes) else {

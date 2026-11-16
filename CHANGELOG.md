@@ -11,7 +11,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 - Atualiza o endpoint de download dos arquivos CNPJ para a pasta pública atual da Receita Federal.
 - Reingere arquivos quando a URL de origem muda, mesmo se o novo host reutilizar o mesmo ETag opaco.
-- Torna condicional e atômica a publicação do ponteiro Raw no backend S3, rejeitando gravações baseadas em estado obsoleto.
+- Torna condicional e atômica a publicação do ponteiro Raw no backend S3, confirma commits com resposta ambígua e mantém adaptadores legados serializados dentro do processo.
+- Reavalia conflitos CAS persistentes, remove arquivos e manifestos de snapshots que perderam a publicação e usa timeout curto ao ler ponteiros Bronze.
 
 ## [0.104.0] - 2026-11-16
 

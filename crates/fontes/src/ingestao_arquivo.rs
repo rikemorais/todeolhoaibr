@@ -16,7 +16,7 @@ use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
     LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa,
     ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw_com_origem,
-    publicar_ponteiro,
+    manifesto_vigente, publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::SyncIoBridge;
@@ -343,6 +343,8 @@ impl Tarefa for TarefaDeArquivo {
             reaproveitada: false,
             motivo: Some(motivo),
         };
+        let chave_parte = arquivo.parte.chave.clone();
+        let chave_manifesto = local.manifesto();
 
         let manifesto = ManifestoRaw {
             fonte: self.fonte.clone(),
@@ -355,7 +357,7 @@ impl Tarefa for TarefaDeArquivo {
         };
         gravar_json(
             contexto,
-            local.manifesto(),
+            chave_manifesto.clone(),
             serde_json::to_vec_pretty(&manifesto).map_err(|e| self.erro_de_manifesto(e))?,
         )
         .await?;
@@ -377,6 +379,29 @@ impl Tarefa for TarefaDeArquivo {
         )
         .await?;
         if !publicou {
+            let manifesto_atual =
+                manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
+                    .await?;
+            if manifesto_atual
+                .as_ref()
+                .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+            {
+                return Ok(resumo);
+            }
+
+            let chaves = vec![chave_manifesto, chave_parte];
+            let falhas = contexto
+                .armazenamento
+                .remover_lote(&chaves, 2, Duration::from_secs(15))
+                .await;
+            for falha in falhas {
+                warn!(
+                    chave = %falha.chave,
+                    detalhe = %falha.detalhe,
+                    recurso = %self.recurso,
+                    "snapshot não publicado deixou objeto Raw órfão; pendente de recuperação"
+                );
+            }
             return Err(ErroDeIngestao::Manifesto {
                 recurso: self.recurso.clone(),
                 detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada"
@@ -639,6 +664,7 @@ mod testes {
     struct ArmazenamentoEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
         limitar_fluxo: Mutex<bool>,
+        concorrer_publicacao: Mutex<bool>,
     }
 
     #[async_trait]
@@ -665,6 +691,17 @@ mod testes {
             conteudo_vigente: Option<&[u8]>,
         ) -> Result<bool, ErroDeIngestao> {
             let mut objetos = self.objetos.lock().unwrap();
+            if objeto.chave.ends_with("_ultima_versao.json")
+                && std::mem::replace(&mut *self.concorrer_publicacao.lock().unwrap(), false)
+            {
+                let concorrente = todeolho_nucleo::UltimaVersao {
+                    versao: None,
+                    manifesto: "concorrente".into(),
+                    iniciada_em: Some(Utc::now() + chrono::TimeDelta::minutes(1)),
+                };
+                objetos.insert(objeto.chave, serde_json::to_vec(&concorrente).unwrap());
+                return Ok(false);
+            }
             if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
                 return Ok(false);
             }
@@ -1132,6 +1169,27 @@ mod testes {
             cenario.http.urls_baixadas.lock().unwrap().as_slice(),
             ["https://origem/arquivo.zip", nova_url]
         );
+    }
+
+    #[tokio::test]
+    async fn remove_arquivo_e_manifesto_quando_uma_execucao_concorrente_vence() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")));
+        *cenario.armazenamento.concorrer_publicacao.lock().unwrap() = true;
+        let local = LocalizacaoRaw::nova(
+            "tse",
+            "votacao_secao/ano=2024/uf=AC",
+            cenario.contexto.iniciada_em,
+            &cenario.contexto.id_execucao,
+        );
+        let chave_parte = local.parte(1, "zip");
+        let chave_manifesto = local.manifesto();
+
+        let erro = tarefa().executar(&cenario.contexto).await.unwrap_err();
+
+        assert!(erro.to_string().contains("mais recente preservado"));
+        let objetos = cenario.armazenamento.objetos.lock().unwrap();
+        assert!(!objetos.contains_key(&chave_parte));
+        assert!(!objetos.contains_key(&chave_manifesto));
     }
 
     #[tokio::test]
