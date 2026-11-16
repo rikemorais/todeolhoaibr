@@ -8,6 +8,7 @@ pub mod conab;
 pub mod cvm;
 pub mod emendas;
 pub mod ibge;
+pub mod incra;
 pub mod ipeadata;
 pub mod mapa_empresas;
 pub mod remuneracao_estadual_go;

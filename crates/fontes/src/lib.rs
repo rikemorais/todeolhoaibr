@@ -27,6 +27,7 @@ pub use fontes::emendas::FonteEmendas;
 pub use fontes::ibge::{
     FonteIbge, FonteIbgeDemografiaEmpresas, FonteIbgePibMunicipios, FonteIbgeRendaPerCapita,
 };
+pub use fontes::incra::FonteIncra;
 pub use fontes::ipeadata::FonteIpeadata;
 pub use fontes::mapa_empresas::FonteMapaEmpresas;
 pub use fontes::remuneracao_estadual_go::FonteRemuneracaoEstadualGo;
@@ -65,6 +66,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteCnpj),
         Box::new(FonteComex),
         Box::new(FonteConab),
+        Box::new(FonteIncra),
         Box::new(FonteCvm),
         Box::new(FonteEmendas),
         Box::new(FonteIpeadata),
