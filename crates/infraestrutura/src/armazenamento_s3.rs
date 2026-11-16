@@ -44,8 +44,23 @@ impl ArmazenamentoS3 {
         &self,
         chave: &str,
         rotulo: &str,
-        mut operacao: F,
+        operacao: F,
     ) -> Result<T, ErroDeIngestao>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = Result<T, S3Error>>,
+    {
+        self.repetir_s3(chave, rotulo, operacao)
+            .await
+            .map_err(|erro| self.erro(chave, erro))
+    }
+
+    async fn repetir_s3<T, F, Fut>(
+        &self,
+        chave: &str,
+        rotulo: &str,
+        mut operacao: F,
+    ) -> Result<T, S3Error>
     where
         F: FnMut() -> Fut,
         Fut: Future<Output = Result<T, S3Error>>,
@@ -59,7 +74,7 @@ impl ArmazenamentoS3 {
                     warn!(%chave, %erro, tentativa, ?espera, %rotulo, "operação S3 falhou; tentando novamente");
                     tokio::time::sleep(espera).await;
                 }
-                Err(erro) => return Err(self.erro(chave, erro)),
+                Err(erro) => return Err(erro),
             }
         }
         unreachable!("ao menos uma tentativa é feita")
@@ -170,7 +185,12 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         objeto: ObjetoRaw,
         conteudo_vigente: Option<&[u8]>,
     ) -> Result<bool, ErroDeIngestao> {
-        let (nome_cabecalho, valor_cabecalho) = match self.bucket.get_object(&objeto.chave).await {
+        let atual = self
+            .repetir_s3(&objeto.chave, "GET condicional", || {
+                self.bucket.get_object(&objeto.chave)
+            })
+            .await;
+        let (nome_cabecalho, valor_cabecalho) = match atual {
             Ok(atual) => {
                 let Some(esperado) = conteudo_vigente else {
                     return Ok(false);
@@ -197,12 +217,14 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         };
 
         let resultado = self
-            .bucket
-            .put_object_builder(&objeto.chave, &objeto.conteudo)
-            .with_content_type(&objeto.tipo_de_conteudo)
-            .with_header(nome_cabecalho, valor_cabecalho)
-            .map_err(|erro| self.erro(&objeto.chave, erro))?
-            .execute()
+            .repetir_s3(&objeto.chave, "PUT condicional", || async {
+                self.bucket
+                    .put_object_builder(&objeto.chave, &objeto.conteudo)
+                    .with_content_type(&objeto.tipo_de_conteudo)
+                    .with_header(nome_cabecalho, valor_cabecalho.clone())?
+                    .execute()
+                    .await
+            })
             .await;
 
         match resultado {
@@ -596,6 +618,15 @@ mod testes {
         Ok(texto)
     }
 
+    fn valor_do_cabecalho<'a>(requisicao: &'a str, nome: &str) -> Option<&'a str> {
+        requisicao.lines().find_map(|linha| {
+            let (nome_cabecalho, valor) = linha.split_once(':')?;
+            nome_cabecalho
+                .eq_ignore_ascii_case(nome)
+                .then_some(valor.trim())
+        })
+    }
+
     /// Conecta a um **bucket dedicado e único** por teste, para que um teste não
     /// interfira em outro nem em dados reais — `descartar_envios_incompletos`, por
     /// exemplo, cancela todos os multiparts do bucket. Devolve `None` (pula) quando
@@ -671,10 +702,9 @@ mod testes {
         let requisicoes = servidor.join().unwrap();
         assert!(requisicoes[0].starts_with("GET /teste-raw-79/ultima-versao.json "));
         assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
-        assert!(
-            requisicoes[1]
-                .to_ascii_lowercase()
-                .contains("if-match: \"ponteiro-v1\"")
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[1], "if-match"),
+            Some("\"ponteiro-v1\"")
         );
     }
 
@@ -694,11 +724,38 @@ mod testes {
         assert!(s3.gravar_condicional(objeto, None).await.unwrap());
         let requisicoes = servidor.join().unwrap();
         assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
-        assert!(
-            requisicoes[1]
-                .to_ascii_lowercase()
-                .contains("if-none-match: *")
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[1], "if-none-match"),
+            Some("*")
         );
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_repete_put_transitorio() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(503, "", "indisponível"),
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(503, "", "indisponível"),
+            resposta_s3(200, "ETag: \"ponteiro-v2\"\r\n", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 4);
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[1].starts_with("GET /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[2].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[3].starts_with("PUT /teste-raw-79/ultima-versao.json "));
     }
 
     #[tokio::test]
@@ -877,9 +934,9 @@ mod testes {
     #[tokio::test]
     #[ignore = "requer versitygw: defina TODEOLHO_TESTE_S3_ENDPOINT e rode com --ignored"]
     async fn gravar_condicional_no_versitygw_rejeita_ponteiro_desatualizado() {
-        let Some(s3) = s3_em_bucket_novo("cas") else {
-            return;
-        };
+        std::env::var("TODEOLHO_TESTE_S3_ENDPOINT")
+            .expect("defina TODEOLHO_TESTE_S3_ENDPOINT para o teste de integração S3");
+        let s3 = s3_em_bucket_novo("cas").expect("endpoint S3 já validado acima");
         s3.preparar().await.unwrap();
         let objeto = |conteudo: &[u8]| ObjetoRaw {
             chave: "_ultima_versao.json".to_owned(),

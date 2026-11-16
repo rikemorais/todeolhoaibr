@@ -158,32 +158,46 @@ pub async fn publicar_ponteiro_sob_guarda(
     _guarda: &GuardaPublicacao,
 ) -> Result<bool, ErroDeIngestao> {
     let chave = LocalizacaoRaw::ultima_versao(fonte, recurso);
-    let bytes_vigente = armazenamento.ler(&chave).await?;
-
-    if let Some(ref bytes) = bytes_vigente
-        && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
-        && (vigente.iniciada_em > nova.iniciada_em
-            || (vigente.iniciada_em.is_some()
-                && vigente.iniciada_em == nova.iniciada_em
-                && vigente.manifesto != nova.manifesto))
-    {
-        return Ok(false);
-    }
-
     let conteudo = serde_json::to_vec_pretty(nova).map_err(|erro| ErroDeIngestao::Manifesto {
         recurso: recurso.to_owned(),
         detalhe: erro.to_string(),
     })?;
-    armazenamento
-        .gravar_condicional(
-            ObjetoRaw {
-                chave,
-                conteudo,
-                tipo_de_conteudo: "application/json".to_owned(),
-            },
-            bytes_vigente.as_deref(),
-        )
-        .await
+
+    // Um CAS pode perder para outra execução que publicou depois da leitura.
+    // Releia e reavalie a recência: se o concorrente publicou uma versão mais
+    // antiga, ainda publicamos esta; se publicou uma mais nova, a preservamos.
+    const TENTATIVAS_CAS: u8 = 3;
+    for tentativa in 0..TENTATIVAS_CAS {
+        let bytes_vigente = armazenamento.ler(&chave).await?;
+        if let Some(ref bytes) = bytes_vigente
+            && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
+            && (vigente.iniciada_em > nova.iniciada_em
+                || (vigente.iniciada_em.is_some()
+                    && vigente.iniciada_em == nova.iniciada_em
+                    && vigente.manifesto != nova.manifesto))
+        {
+            return Ok(false);
+        }
+
+        let gravou = armazenamento
+            .gravar_condicional(
+                ObjetoRaw {
+                    chave: chave.clone(),
+                    conteudo: conteudo.clone(),
+                    tipo_de_conteudo: "application/json".to_owned(),
+                },
+                bytes_vigente.as_deref(),
+            )
+            .await?;
+        if gravou {
+            return Ok(true);
+        }
+        if tentativa + 1 == TENTATIVAS_CAS {
+            return Ok(false);
+        }
+    }
+
+    Ok(false)
 }
 
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
@@ -638,6 +652,83 @@ mod testes {
         .unwrap();
         assert!(!gravou, "CAS deve rejeitar quando o ponteiro mudou");
         assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "intruso");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_tenta_de_novo_se_cas_perdeu_para_uma_rodada_antiga() {
+        use std::sync::atomic::{AtomicBool, Ordering as AtOrd};
+
+        struct CasComRodadaAntiga {
+            inner: ArmazenamentoEmMemoria,
+            intruso: AtomicBool,
+        }
+
+        #[async_trait]
+        impl ArmazenamentoRaw for CasComRodadaAntiga {
+            async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+                self.inner.gravar(objeto).await
+            }
+            async fn gravar_fluxo(
+                &self,
+                _: &str,
+                _: &str,
+                _: &mut (dyn AsyncRead + Send + Unpin),
+            ) -> Result<(), ErroDeIngestao> {
+                unreachable!()
+            }
+            async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+                self.inner.ler(chave).await
+            }
+            async fn gravar_condicional(
+                &self,
+                objeto: ObjetoRaw,
+                conteudo_vigente: Option<&[u8]>,
+            ) -> Result<bool, ErroDeIngestao> {
+                if self.intruso.swap(false, AtOrd::Relaxed) {
+                    let intruso = UltimaVersao {
+                        versao: None,
+                        manifesto: "rodada-antiga".to_owned(),
+                        iniciada_em: Some(Utc::now() - chrono::TimeDelta::seconds(600)),
+                    };
+                    self.inner
+                        .gravar(ObjetoRaw {
+                            chave: objeto.chave.clone(),
+                            conteudo: serde_json::to_vec_pretty(&intruso).unwrap(),
+                            tipo_de_conteudo: "application/json".into(),
+                        })
+                        .await?;
+                }
+                let atual = self.inner.ler(&objeto.chave).await?;
+                if atual.as_deref() == conteudo_vigente {
+                    self.inner.gravar(objeto).await?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+        }
+
+        let armazenamento = CasComRodadaAntiga {
+            inner: ArmazenamentoEmMemoria::default(),
+            intruso: AtomicBool::new(true),
+        };
+        let gravou = publicar_ponteiro(
+            &armazenamento,
+            FONTE,
+            RECURSO,
+            &ponteiro("nova", Utc::now()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            gravou,
+            "a rodada atual deve tentar publicar após o conflito"
+        );
+        assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "nova");
     }
 
     #[tokio::test]
