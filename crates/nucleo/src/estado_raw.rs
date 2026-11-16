@@ -79,6 +79,7 @@ pub async fn estado_na_raw(
         completa: true,
         integra,
         versao: ponteiro.versao,
+        origem: Some(manifesto.url_inicial.clone()),
         tamanho: Some(tamanho),
     }))
 }
