@@ -50,47 +50,49 @@
 <a href=#50 id=50 data-nosnippet>50</a>    </span><span class="kw">pub </span>agente: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;,
 <a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// Política de redirecionamento HTTP.
 <a href=#52 id=52 data-nosnippet>52</a>    </span><span class="kw">pub </span>redirecionamento: RedirecionamentoHttp,
-<a href=#53 id=53 data-nosnippet>53</a>}
-<a href=#54 id=54 data-nosnippet>54</a>
-<a href=#55 id=55 data-nosnippet>55</a><span class="doccomment">/// Uma API pública ingerida pelo projeto (o "criador" do Factory Method).
-<a href=#56 id=56 data-nosnippet>56</a>///
-<a href=#57 id=57 data-nosnippet>57</a>/// Cada fonte concreta só decide *quais* tarefas existem, em [`criar_tarefas`].
-<a href=#58 id=58 data-nosnippet>58</a>/// Validar o grafo e executá-lo é igual para todas, então novas fontes entram sem
-<a href=#59 id=59 data-nosnippet>59</a>/// alterar o executor. Ver `docs/adr/0004`.
-<a href=#60 id=60 data-nosnippet>60</a>///
-<a href=#61 id=61 data-nosnippet>61</a>/// [`criar_tarefas`]: FonteDeDados::criar_tarefas
-<a href=#62 id=62 data-nosnippet>62</a></span><span class="kw">pub trait </span>FonteDeDados: Send + Sync {
-<a href=#63 id=63 data-nosnippet>63</a>    <span class="doccomment">/// Identificador estável: é usado na CLI e no caminho dos dados na camada Raw.
-<a href=#64 id=64 data-nosnippet>64</a>    </span><span class="kw">fn </span>nome(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
-<a href=#65 id=65 data-nosnippet>65</a>
-<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// Texto curto que descreve a fonte, exibido na CLI e no menu de seleção.
-<a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">fn </span>descricao(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
-<a href=#68 id=68 data-nosnippet>68</a>
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="doccomment">/// Fontes muito grandes só rodam quando pedidas pelo nome, nunca em `--todas`.
-<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">fn </span>sob_demanda(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#71 id=71 data-nosnippet>71</a>        <span class="bool-val">false
-<a href=#72 id=72 data-nosnippet>72</a>    </span>}
-<a href=#73 id=73 data-nosnippet>73</a>
-<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// Declara autenticação e limite de taxa sem carregar o segredo no domínio.
-<a href=#75 id=75 data-nosnippet>75</a>    </span><span class="kw">fn </span>perfil_http(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PerfilHttp {
-<a href=#76 id=76 data-nosnippet>76</a>        PerfilHttp::default()
-<a href=#77 id=77 data-nosnippet>77</a>    }
-<a href=#78 id=78 data-nosnippet>78</a>
-<a href=#79 id=79 data-nosnippet>79</a>    <span class="doccomment">/// Declara o perfil HTTP necessário pelas tarefas selecionadas.
-<a href=#80 id=80 data-nosnippet>80</a>    ///
-<a href=#81 id=81 data-nosnippet>81</a>    /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
-<a href=#82 id=82 data-nosnippet>82</a>    /// tarefas com requisitos HTTP diferentes podem ajustar o perfil após os
-<a href=#83 id=83 data-nosnippet>83</a>    /// filtros, por exemplo quando uma tarefa local não acessa a API autenticada.
-<a href=#84 id=84 data-nosnippet>84</a>    </span><span class="kw">fn </span>perfil_http_das_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>, _tarefas: <span class="kw-2">&amp;</span>[TarefaPlanejada]) -&gt; PerfilHttp {
-<a href=#85 id=85 data-nosnippet>85</a>        <span class="self">self</span>.perfil_http()
-<a href=#86 id=86 data-nosnippet>86</a>    }
-<a href=#87 id=87 data-nosnippet>87</a>
-<a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// Factory Method: cria as tarefas concretas desta fonte.
-<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt;;
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Operação comum do criador: monta a DAG validada a partir do Factory Method.
-<a href=#92 id=92 data-nosnippet>92</a>    </span><span class="kw">fn </span>montar_dag(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DagDeIngestao, ErroDeDag&gt; {
-<a href=#93 id=93 data-nosnippet>93</a>        DagDeIngestao::construir(<span class="self">self</span>.nome(), <span class="self">self</span>.criar_tarefas())
-<a href=#94 id=94 data-nosnippet>94</a>    }
-<a href=#95 id=95 data-nosnippet>95</a>}
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// Aceita certificados TLS inválidos (CAs governamentais fora do bundle).
+<a href=#54 id=54 data-nosnippet>54</a>    </span><span class="kw">pub </span>aceitar_certificado_invalido: bool,
+<a href=#55 id=55 data-nosnippet>55</a>}
+<a href=#56 id=56 data-nosnippet>56</a>
+<a href=#57 id=57 data-nosnippet>57</a><span class="doccomment">/// Uma API pública ingerida pelo projeto (o "criador" do Factory Method).
+<a href=#58 id=58 data-nosnippet>58</a>///
+<a href=#59 id=59 data-nosnippet>59</a>/// Cada fonte concreta só decide *quais* tarefas existem, em [`criar_tarefas`].
+<a href=#60 id=60 data-nosnippet>60</a>/// Validar o grafo e executá-lo é igual para todas, então novas fontes entram sem
+<a href=#61 id=61 data-nosnippet>61</a>/// alterar o executor. Ver `docs/adr/0004`.
+<a href=#62 id=62 data-nosnippet>62</a>///
+<a href=#63 id=63 data-nosnippet>63</a>/// [`criar_tarefas`]: FonteDeDados::criar_tarefas
+<a href=#64 id=64 data-nosnippet>64</a></span><span class="kw">pub trait </span>FonteDeDados: Send + Sync {
+<a href=#65 id=65 data-nosnippet>65</a>    <span class="doccomment">/// Identificador estável: é usado na CLI e no caminho dos dados na camada Raw.
+<a href=#66 id=66 data-nosnippet>66</a>    </span><span class="kw">fn </span>nome(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
+<a href=#67 id=67 data-nosnippet>67</a>
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="doccomment">/// Texto curto que descreve a fonte, exibido na CLI e no menu de seleção.
+<a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">fn </span>descricao(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
+<a href=#70 id=70 data-nosnippet>70</a>
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// Fontes muito grandes só rodam quando pedidas pelo nome, nunca em `--todas`.
+<a href=#72 id=72 data-nosnippet>72</a>    </span><span class="kw">fn </span>sob_demanda(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="bool-val">false
+<a href=#74 id=74 data-nosnippet>74</a>    </span>}
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="doccomment">/// Declara autenticação e limite de taxa sem carregar o segredo no domínio.
+<a href=#77 id=77 data-nosnippet>77</a>    </span><span class="kw">fn </span>perfil_http(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PerfilHttp {
+<a href=#78 id=78 data-nosnippet>78</a>        PerfilHttp::default()
+<a href=#79 id=79 data-nosnippet>79</a>    }
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Declara o perfil HTTP necessário pelas tarefas selecionadas.
+<a href=#82 id=82 data-nosnippet>82</a>    ///
+<a href=#83 id=83 data-nosnippet>83</a>    /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
+<a href=#84 id=84 data-nosnippet>84</a>    /// tarefas com requisitos HTTP diferentes podem ajustar o perfil após os
+<a href=#85 id=85 data-nosnippet>85</a>    /// filtros, por exemplo quando uma tarefa local não acessa a API autenticada.
+<a href=#86 id=86 data-nosnippet>86</a>    </span><span class="kw">fn </span>perfil_http_das_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>, _tarefas: <span class="kw-2">&amp;</span>[TarefaPlanejada]) -&gt; PerfilHttp {
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="self">self</span>.perfil_http()
+<a href=#88 id=88 data-nosnippet>88</a>    }
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// Factory Method: cria as tarefas concretas desta fonte.
+<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt;;
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Operação comum do criador: monta a DAG validada a partir do Factory Method.
+<a href=#94 id=94 data-nosnippet>94</a>    </span><span class="kw">fn </span>montar_dag(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DagDeIngestao, ErroDeDag&gt; {
+<a href=#95 id=95 data-nosnippet>95</a>        DagDeIngestao::construir(<span class="self">self</span>.nome(), <span class="self">self</span>.criar_tarefas())
+<a href=#96 id=96 data-nosnippet>96</a>    }
+<a href=#97 id=97 data-nosnippet>97</a>}
 </code></pre></div></section></main></body></html>
