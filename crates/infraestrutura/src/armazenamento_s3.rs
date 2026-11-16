@@ -165,6 +165,53 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         Ok(())
     }
 
+    async fn gravar_condicional(
+        &self,
+        objeto: ObjetoRaw,
+        conteudo_vigente: Option<&[u8]>,
+    ) -> Result<bool, ErroDeIngestao> {
+        let (nome_cabecalho, valor_cabecalho) = match self.bucket.get_object(&objeto.chave).await {
+            Ok(atual) => {
+                let Some(esperado) = conteudo_vigente else {
+                    return Ok(false);
+                };
+                if atual.as_slice() != esperado {
+                    return Ok(false);
+                }
+                let etag = atual
+                    .headers()
+                    .into_iter()
+                    .find(|(nome, _)| nome.eq_ignore_ascii_case("etag"))
+                    .map(|(_, valor)| valor)
+                    .ok_or_else(|| ErroDeIngestao::Armazenamento {
+                        chave: objeto.chave.clone(),
+                        detalhe: "resposta S3 sem ETag para gravação condicional".into(),
+                    })?;
+                ("if-match", etag)
+            }
+            Err(S3Error::HttpFailWithBody(404, _)) if conteudo_vigente.is_none() => {
+                ("if-none-match", "*".to_owned())
+            }
+            Err(S3Error::HttpFailWithBody(404, _)) => return Ok(false),
+            Err(erro) => return Err(self.erro(&objeto.chave, erro)),
+        };
+
+        let resultado = self
+            .bucket
+            .put_object_builder(&objeto.chave, &objeto.conteudo)
+            .with_content_type(&objeto.tipo_de_conteudo)
+            .with_header(nome_cabecalho, valor_cabecalho)
+            .map_err(|erro| self.erro(&objeto.chave, erro))?
+            .execute()
+            .await;
+
+        match resultado {
+            Ok(_) => Ok(true),
+            Err(S3Error::HttpFailWithBody(409 | 412, _)) => Ok(false),
+            Err(erro) => Err(self.erro(&objeto.chave, erro)),
+        }
+    }
+
     async fn listar_prefixo(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
         self.listar_chaves(prefixo).await
     }
@@ -453,6 +500,7 @@ mod testes {
                     200 => "OK",
                     204 => "No Content",
                     404 => "Not Found",
+                    412 => "Precondition Failed",
                     503 => "Service Unavailable",
                     status => panic!("status de mock não previsto: {status}"),
                 };
@@ -596,6 +644,61 @@ mod testes {
         let requisicoes = servidor.join().unwrap();
         assert!(requisicoes[0].starts_with("GET /teste-raw-79/presente "));
         assert!(requisicoes[1].starts_with("HEAD /teste-raw-79/presente "));
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_usa_if_match_e_retorna_conflito() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(
+                412,
+                "Content-Type: application/xml\r\n",
+                "precondition failed",
+            ),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            !s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert!(
+            requisicoes[1]
+                .to_ascii_lowercase()
+                .contains("if-match: \"ponteiro-v1\"")
+        );
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_cria_com_if_none_match() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(404, "Content-Type: application/xml\r\n", "ausente"),
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro inicial".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(s3.gravar_condicional(objeto, None).await.unwrap());
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert!(
+            requisicoes[1]
+                .to_ascii_lowercase()
+                .contains("if-none-match: *")
+        );
     }
 
     #[tokio::test]
@@ -769,6 +872,42 @@ mod testes {
         // Não deixa o objeto acumulando a cada rodada.
         s3.bucket.delete_object(chave).await.unwrap();
         assert_eq!(s3.ler(chave).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    #[ignore = "requer versitygw: defina TODEOLHO_TESTE_S3_ENDPOINT e rode com --ignored"]
+    async fn gravar_condicional_no_versitygw_rejeita_ponteiro_desatualizado() {
+        let Some(s3) = s3_em_bucket_novo("cas") else {
+            return;
+        };
+        s3.preparar().await.unwrap();
+        let objeto = |conteudo: &[u8]| ObjetoRaw {
+            chave: "_ultima_versao.json".to_owned(),
+            conteudo: conteudo.to_vec(),
+            tipo_de_conteudo: "application/json".to_owned(),
+        };
+
+        assert!(s3.gravar_condicional(objeto(b"v1"), None).await.unwrap());
+        assert!(!s3.gravar_condicional(objeto(b"v2"), None).await.unwrap());
+        assert!(
+            s3.gravar_condicional(objeto(b"v2"), Some(b"v1"))
+                .await
+                .unwrap()
+        );
+        assert!(
+            !s3.gravar_condicional(objeto(b"v3"), Some(b"v1"))
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            s3.ler("_ultima_versao.json").await.unwrap(),
+            Some(b"v2".to_vec())
+        );
+
+        s3.bucket
+            .delete_object("_ultima_versao.json")
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
