@@ -48,7 +48,7 @@ impl FonteDeDados for FonteIncra {
                 intervalo: std::time::Duration::from_secs(1),
             }),
             agente: None,
-            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Bloquear,
             aceitar_certificado_invalido: true,
         }
     }
@@ -118,7 +118,7 @@ impl FonteDeDados for FonteIncra {
             TarefaPlanejada::nova(TarefaDeArquivo::nova(
                 "assentamentos-csv".into(),
                 NOME,
-                "assentamentos-csv".into(),
+                "assentamentos-csv/projetos".into(),
                 BASE_CSV.into(),
             ))
             .com_etiquetas([("camada", "assentamentos-csv")]),
