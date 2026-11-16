@@ -30,10 +30,11 @@ fn e_linha_de_dados(linha: &str) -> bool {
         && !primeiro.starts_with('\t')
 }
 
-fn limpar_csv(bytes: &[u8]) -> Vec<u8> {
+fn limpar_csv(bytes: &[u8]) -> Result<Vec<u8>, ErroDeRefino> {
     let texto = encoding_rs::WINDOWS_1252.decode(bytes).0;
     let mut saida = CABECALHO.to_owned();
     saida.push('\n');
+    let mut registros = 0usize;
 
     for linha in texto.lines() {
         let linha = linha.trim_end();
@@ -46,10 +47,17 @@ fn limpar_csv(bytes: &[u8]) -> Vec<u8> {
                 saida.push_str(campo.trim());
             }
             saida.push('\n');
+            registros += 1;
         }
     }
 
-    saida.into_bytes()
+    if registros == 0 {
+        return Err(ErroDeRefino::Decodificacao(
+            "nenhum registro de assentamento encontrado após filtrar metadados".into(),
+        ));
+    }
+
+    Ok(saida.into_bytes())
 }
 
 /// Decodifica o CSV de assentamentos do INCRA (SIPRA), filtrando linhas de
@@ -62,7 +70,7 @@ impl Decodificador for DecodificadorAssentamentosIncra {
         bytes: &[u8],
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        let csv_limpo = limpar_csv(bytes);
+        let csv_limpo = limpar_csv(bytes)?;
         partes_de_csv(&csv_limpo, "assentamentos", b';', 0)
     }
 
@@ -127,12 +135,47 @@ mod testes {
     }
 
     #[test]
+    fn decodifica_byte_exclusivo_windows1252() {
+        let mut v = Vec::new();
+        v.extend_from_slice(
+            b"XX0001000;PA TESTE \x92;CIDADE;1,0;10;10;06;1;1;01/01/2000;Compra;01/01/2000\n",
+        );
+        let partes = DecodificadorAssentamentosIncra
+            .decodificar(&v, "text/csv")
+            .unwrap();
+        let (_, linhas) = ler_parte(&partes[0]);
+        assert_eq!(linhas[0][1], c("PA TESTE \u{2019}"));
+    }
+
+    #[test]
     fn doze_colunas_nomeadas() {
         let partes = DecodificadorAssentamentosIncra
             .decodificar(&csv_exemplo(), "text/csv")
             .unwrap();
         let (colunas, _) = ler_parte(&partes[0]);
-        assert_eq!(colunas.len(), COLUNAS);
-        assert_eq!(colunas.last().unwrap(), "data_obtencao");
+        assert_eq!(
+            colunas,
+            vec![
+                "codigo_projeto",
+                "nome_projeto",
+                "municipio_sede",
+                "area_ha",
+                "familias_assentadas",
+                "familias_assent",
+                "fase",
+                "tipo",
+                "numero",
+                "data_criacao",
+                "forma_obtencao",
+                "data_obtencao",
+            ]
+        );
+    }
+
+    #[test]
+    fn rejeita_csv_vazio() {
+        let v = b"MINISTERIO;;;;;;;;;;\nINSTITUTO;;;;;;;;;;\n";
+        let resultado = DecodificadorAssentamentosIncra.decodificar(v, "text/csv");
+        assert!(resultado.is_err());
     }
 }
