@@ -61,7 +61,11 @@ executar cnpj --etiquetas competencia=2026-10,tabela=empresas,parte=0
 ## Idempotência
 
 A ingestão é idempotente **por competência** (mês do dump). Se o ZIP já foi
-baixado e o ETag/versão não mudou, a tarefa pula o download. Cada competência
+baixado, a URL configurada é a mesma registrada no manifesto Raw e o ETag/versão
+não mudou, a tarefa pula o download. Uma mudança de endpoint força a reingestão,
+mesmo quando o novo servidor reutiliza o ETag. Ao implantar a troca de URL,
+encerre execuções iniciadas por imagens antigas antes de iniciar a nova imagem;
+um processo antigo ainda pode acessar o endpoint anterior. Cada competência
 é um snapshot completo — não há deltas.
 
 ## Estratégia de diff entre snapshots
