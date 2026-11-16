@@ -20,6 +20,7 @@ pub use fontes::camara::{
     FonteCamara, FonteCamaraDespesas, FonteCamaraTramitacoes, FonteCamaraVotacoes,
 };
 pub use fontes::cnpj::FonteCnpj;
+pub use fontes::comex::FonteComex;
 pub use fontes::conab::FonteConab;
 pub use fontes::cvm::FonteCvm;
 pub use fontes::emendas::FonteEmendas;
@@ -62,6 +63,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteRemuneracaoEstadualGo),
         Box::new(FonteBcb),
         Box::new(FonteCnpj),
+        Box::new(FonteComex),
         Box::new(FonteConab),
         Box::new(FonteCvm),
         Box::new(FonteEmendas),

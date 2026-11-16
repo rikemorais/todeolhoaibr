@@ -84,7 +84,8 @@ impl ClienteHttpComRetentativas {
         let mut construtor = reqwest::Client::builder()
             .user_agent(agente)
             .connect_timeout(TEMPO_DE_CONEXAO)
-            .read_timeout(TEMPO_SEM_DADOS);
+            .read_timeout(TEMPO_SEM_DADOS)
+            .danger_accept_invalid_certs(perfil.aceitar_certificado_invalido);
 
         let host_da_credencial = if let Some(credencial) = perfil.credencial {
             let valor = segredo
@@ -570,6 +571,7 @@ mod testes {
         }),
         limite: None,
         agente: None,
+        aceitar_certificado_invalido: false,
     };
 
     #[tokio::test]
@@ -722,6 +724,7 @@ mod testes {
                 intervalo: Duration::from_secs(1),
             }),
             agente: None,
+            aceitar_certificado_invalido: false,
         };
         assert!(
             ClienteHttpComRetentativas::com_perfil(PoliticaDeRetentativas::default(), perfil, None)

@@ -14,5 +14,6 @@ pub(super) const fn perfil_http() -> PerfilHttp {
             intervalo: Duration::from_secs(1),
         }),
         agente: None,
+        aceitar_certificado_invalido: false,
     }
 }
