@@ -4,7 +4,10 @@ Cadastro completo de empresas e estabelecimentos do país (ativos e baixados), d
 MEI à grande empresa. Base para análise de aberturas/fechamentos, capital social,
 porte e saúde empresarial por estado e município.
 
-Origem: <https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/>.
+Origem (pasta pública da Receita):
+<https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9>.
+Download direto, sem credenciais, pelo WebDAV público:
+<https://arquivos.receitafederal.gov.br/public.php/dav/files/YggdBLfdninEJX9/>.
 Layout oficial: <https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf>.
 
 ## O que é ingerido
