@@ -10,6 +10,7 @@
 
 use std::io::Read;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -78,6 +79,26 @@ impl TarefaDeBronze {
         ErroDeIngestao::Manifesto {
             recurso: self.recurso.clone(),
             detalhe,
+        }
+    }
+
+    async fn remover_snapshot_nao_publicado(
+        &self,
+        bronze: &dyn ArmazenamentoRaw,
+        local: &LocalizacaoRaw,
+        partes: &[ParteRaw],
+    ) {
+        let mut chaves: Vec<_> = partes.iter().map(|parte| parte.chave.clone()).collect();
+        chaves.push(local.manifesto());
+        for falha in bronze
+            .remover_lote(&chaves, 2, Duration::from_secs(15))
+            .await
+        {
+            tracing::warn!(
+                chave = %falha.chave,
+                detalhe = %falha.detalhe,
+                "snapshot Bronze obsoleto deixou objeto órfão; pendente de recuperação"
+            );
         }
     }
 
@@ -248,6 +269,28 @@ impl Tarefa for TarefaDeBronze {
             })
             .await?;
 
+        // O Raw pode avançar durante o download e a decodificação. Não publique
+        // Bronze antigo como vigente se isso for percebido antes do commit.
+        let raw_vigente =
+            match manifesto_vigente(self.origem.as_ref(), &self.fonte, &self.recurso).await {
+                Ok(manifesto) => manifesto,
+                Err(erro) => {
+                    self.remover_snapshot_nao_publicado(bronze, &local, &partes)
+                        .await;
+                    return Err(erro);
+                }
+            };
+        if raw_vigente
+            .as_ref()
+            .is_none_or(|vigente| vigente.id_execucao != manifesto_raw.id_execucao)
+        {
+            self.remover_snapshot_nao_publicado(bronze, &local, &partes)
+                .await;
+            return Err(self.erro_manifesto(
+                "ponteiro Raw mudou durante o refino; tente executar a tarefa novamente".into(),
+            ));
+        }
+
         // 6. Ponteiro do bronze, com a versão do raw para a idempotência da próxima rodada.
         let ponteiro = UltimaVersao {
             versao: Some(versao_origem),
@@ -274,6 +317,7 @@ mod testes {
     use std::collections::HashMap;
     use std::io::Write;
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use chrono::{TimeZone, Utc};
     use todeolho_nucleo::{ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp};
@@ -300,6 +344,8 @@ mod testes {
     #[derive(Default)]
     struct RawEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
+        leituras_de_ponteiro: AtomicUsize,
+        mutacao_na_segunda_leitura: Mutex<Option<Vec<(String, Vec<u8>)>>>,
     }
 
     #[async_trait]
@@ -323,6 +369,15 @@ mod testes {
             unimplemented!("o bronze não grava por fluxo")
         }
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            if chave.ends_with("_ultima_versao.json")
+                && self.leituras_de_ponteiro.fetch_add(1, Ordering::Relaxed) == 1
+                && let Some(mutacoes) = self.mutacao_na_segunda_leitura.lock().unwrap().take()
+            {
+                let mut objetos = self.objetos.lock().unwrap();
+                for (chave, conteudo) in mutacoes {
+                    objetos.insert(chave, conteudo);
+                }
+            }
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
         }
 
@@ -337,6 +392,11 @@ mod testes {
             }
             objetos.insert(objeto.chave, objeto.conteudo);
             Ok(true)
+        }
+
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.objetos.lock().unwrap().remove(chave);
+            Ok(())
         }
     }
 
@@ -420,6 +480,39 @@ mod testes {
             LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
             serde_json::to_vec(&ponteiro).unwrap(),
         );
+    }
+
+    fn agendar_avanco_raw(raw: &RawEmMemoria, id_execucao: &str) {
+        let dt = Utc.with_ymd_and_hms(2026, 11, 3, 11, 0, 0).unwrap();
+        let local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, id_execucao);
+        let manifesto = ManifestoRaw {
+            fonte: FONTE.into(),
+            recurso: RECURSO.into(),
+            id_execucao: id_execucao.into(),
+            url_inicial: "https://origem/despesas".into(),
+            iniciada_em: dt,
+            concluida_em: dt,
+            partes: vec![ParteRaw {
+                chave: "raw/concorrente.csv".into(),
+                url: "https://origem/despesas".into(),
+                bytes: 9,
+                sha256: "x".into(),
+                tipo_de_conteudo: "text/csv".into(),
+                versao: Some("etag-reutilizado".into()),
+            }],
+        };
+        let ponteiro = UltimaVersao {
+            versao: Some("etag-reutilizado".into()),
+            manifesto: local.manifesto(),
+            iniciada_em: Some(dt),
+        };
+        *raw.mutacao_na_segunda_leitura.lock().unwrap() = Some(vec![
+            (local.manifesto(), serde_json::to_vec(&manifesto).unwrap()),
+            (
+                LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                serde_json::to_vec(&ponteiro).unwrap(),
+            ),
+        ]);
     }
 
     fn contexto(bronze: Arc<dyn ArmazenamentoRaw>, id: &str) -> ContextoDeExecucao {
@@ -520,6 +613,22 @@ mod testes {
             tarefa(raw).pendente(bronze.as_ref()).await.unwrap(),
             "um manifesto novo deve invalidar o bronze mesmo com ETag repetido"
         );
+    }
+
+    #[tokio::test]
+    async fn nao_publica_bronze_quando_raw_avanca_durante_o_refino() {
+        let raw = Arc::new(RawEmMemoria::default());
+        semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC1");
+        agendar_avanco_raw(&raw, "RAWEXEC2");
+        let bronze = Arc::new(RawEmMemoria::default());
+
+        let erro = tarefa(raw)
+            .executar(&contexto(bronze.clone(), "BR1"))
+            .await
+            .unwrap_err();
+
+        assert!(erro.to_string().contains("Raw mudou durante o refino"));
+        assert!(bronze.objetos.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
