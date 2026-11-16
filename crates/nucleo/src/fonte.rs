@@ -50,6 +50,8 @@ pub struct PerfilHttp {
     pub agente: Option<&'static str>,
     /// Política de redirecionamento HTTP.
     pub redirecionamento: RedirecionamentoHttp,
+    /// Aceita certificados TLS inválidos (CAs governamentais fora do bundle).
+    pub aceitar_certificado_invalido: bool,
 }
 
 /// Uma API pública ingerida pelo projeto (o "criador" do Factory Method).

@@ -180,6 +180,7 @@ impl FonteDeDados for FonteEmendas {
                 intervalo: Duration::from_secs(60),
             }),
             agente: None,
+            aceitar_certificado_invalido: false,
         }
     }
 

@@ -137,6 +137,24 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             prefixo_recurso: "safras/",
             cria_decodificador: || Arc::new(DecodificadorConabSafra),
         },
+        // Comex Stat (MDIC): CSV anual de comércio exterior por NCM (Latin-1, `;`).
+        FonteDeRefino {
+            nome: "comex-ncm",
+            fonte_raw: "comex",
+            prefixo_recurso: "ncm/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorCsv::novo_windows1252("comercio", b';', 0))
+            },
+        },
+        // Comex Stat (MDIC): CSV anual de comércio exterior por município/SH4.
+        FonteDeRefino {
+            nome: "comex-mun",
+            fonte_raw: "comex",
+            prefixo_recurso: "mun/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorCsv::novo_windows1252("comercio_mun", b';', 0))
+            },
+        },
         // Ipeadata (OData): registros sob a chave `value`.
         FonteDeRefino {
             nome: "ipeadata",
