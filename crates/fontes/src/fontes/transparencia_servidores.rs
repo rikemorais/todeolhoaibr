@@ -27,6 +27,7 @@ const fn perfil_http_cgu() -> PerfilHttp {
             intervalo: Duration::from_secs(1),
         }),
         agente: Some(AGENTE),
+        aceitar_certificado_invalido: false,
     }
 }
 
