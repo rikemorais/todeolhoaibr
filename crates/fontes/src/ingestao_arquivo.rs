@@ -715,6 +715,8 @@ mod testes {
         ausente: Mutex<bool>,
         cortes: Mutex<VecDeque<Option<usize>>>,
         pedidos: Mutex<Vec<u64>>,
+        urls_consultadas: Mutex<Vec<String>>,
+        urls_baixadas: Mutex<Vec<String>>,
         downloads: Mutex<u32>,
         consultas: Mutex<u32>,
         sem_tamanho: bool,
@@ -734,6 +736,8 @@ mod testes {
                 ausente: Mutex::new(false),
                 cortes: Mutex::new(VecDeque::new()),
                 pedidos: Mutex::new(Vec::new()),
+                urls_consultadas: Mutex::new(Vec::new()),
+                urls_baixadas: Mutex::new(Vec::new()),
                 downloads: Mutex::new(0),
                 consultas: Mutex::new(0),
                 sem_tamanho: false,
@@ -779,8 +783,9 @@ mod testes {
             unreachable!("a tarefa de arquivo não usa respostas em memória")
         }
 
-        async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+        async fn informacoes(&self, url: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
             *self.consultas.lock().unwrap() += 1;
+            self.urls_consultadas.lock().unwrap().push(url.to_owned());
             if *self.ausente.lock().unwrap() {
                 return Ok(InformacoesDoArquivo::default());
             }
@@ -801,6 +806,7 @@ mod testes {
             _versao: Option<&str>,
         ) -> Result<DownloadHttp, ErroDeIngestao> {
             *self.downloads.lock().unwrap() += 1;
+            self.urls_baixadas.lock().unwrap().push(url.to_owned());
             self.pedidos.lock().unwrap().push(inicio);
 
             if *self.ausente.lock().unwrap() {
@@ -1097,6 +1103,22 @@ mod testes {
 
         assert!(!segunda.reaproveitada);
         assert_eq!(*cenario.http.downloads.lock().unwrap(), 2);
+        let nova_url = "https://origem-nova/arquivo.zip";
+        assert_eq!(
+            cenario
+                .http
+                .urls_consultadas
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|url| url.as_str() == nova_url)
+                .count(),
+            2
+        );
+        assert_eq!(
+            cenario.http.urls_baixadas.lock().unwrap().as_slice(),
+            ["https://origem/arquivo.zip", nova_url]
+        );
     }
 
     #[tokio::test]

@@ -140,6 +140,13 @@ pub trait ArmazenamentoRaw: Send + Sync {
     /// Conteúdo do objeto, ou `None` se ele não existir.
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao>;
 
+    /// Lê um objeto pequeno de controle com o timeout adequado a metadados.
+    /// Por padrão usa [`ArmazenamentoRaw::ler`]; adaptadores podem sobrescrever
+    /// para evitar que um timeout longo de transferência bloqueie a publicação.
+    async fn ler_controle(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+        self.ler(chave).await
+    }
+
     /// Baixa o objeto escrevendo-o em `escrita`, sem carregar tudo na memória; devolve `false`
     /// se não existir. Útil para objetos grandes (ex.: ZIPs de vários GB do TSE). O padrão usa
     /// [`Self::ler`] (carrega na memória); a infraestrutura deve transmitir em fluxo.

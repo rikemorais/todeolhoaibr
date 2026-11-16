@@ -166,9 +166,9 @@ pub async fn publicar_ponteiro_sob_guarda(
     // Um CAS pode perder para outra execução que publicou depois da leitura.
     // Releia e reavalie a recência: se o concorrente publicou uma versão mais
     // antiga, ainda publicamos esta; se publicou uma mais nova, a preservamos.
-    const TENTATIVAS_CAS: u8 = 3;
+    const TENTATIVAS_CAS: u8 = 8;
     for tentativa in 0..TENTATIVAS_CAS {
-        let bytes_vigente = armazenamento.ler(&chave).await?;
+        let bytes_vigente = armazenamento.ler_controle(&chave).await?;
         if let Some(ref bytes) = bytes_vigente
             && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
             && (vigente.iniciada_em > nova.iniciada_em
@@ -195,6 +195,8 @@ pub async fn publicar_ponteiro_sob_guarda(
         if tentativa + 1 == TENTATIVAS_CAS {
             return Ok(false);
         }
+        let espera = std::time::Duration::from_millis(20_u64 << tentativa.min(4));
+        tokio::time::sleep(espera).await;
     }
 
     Ok(false)
