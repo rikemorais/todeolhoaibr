@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.104.0] - 2026-11-16
+
+### Adicionado
+
+- Ingestão de imóveis rurais e assentamentos do INCRA: 80 tarefas (SIGEF público/privado por UF, SNCI, assentamentos geo e CSV tabular SIPRA), com decodificador Bronze para o CSV de assentamentos e documentação (issue #42).
+
 ## [0.103.0] - 2026-11-16
 
 ### Adicionado
