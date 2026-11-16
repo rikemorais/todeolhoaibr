@@ -41,6 +41,13 @@ const DATASETS: [Dataset; 4] = [
 
 /// Comex Stat (MDIC) — comércio exterior brasileiro: exportação e importação
 /// por NCM (com UF) e por município (SH4), série mensal desde 1997.
+///
+/// O MDIC publica dois datasets complementares: NCM (8 dígitos + UF) e MUN
+/// (SH4 + município). Não existe um dataset combinado NCM + município.
+///
+/// Idempotência: cada recurso Raw corresponde a um CSV anual inteiro. Dentro
+/// do arquivo, cada linha é única pela combinação de todas as colunas
+/// dimensionais (fluxo + NCM/SH4 + país + UF/município + mês + via + URF).
 pub struct FonteComex;
 
 impl FonteDeDados for FonteComex {
@@ -65,7 +72,7 @@ impl FonteDeDados for FonteComex {
                 intervalo: Duration::from_secs(1),
             }),
             agente: None,
-            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Bloquear,
             aceitar_certificado_invalido: true,
         }
     }
@@ -102,8 +109,7 @@ mod testes {
     #[test]
     fn gera_120_tarefas() {
         let tarefas = FonteComex.criar_tarefas();
-        let esperado = 4 * (ULTIMO_ANO - PRIMEIRO_ANO + 1) as usize;
-        assert_eq!(tarefas.len(), esperado);
+        assert_eq!(tarefas.len(), 120);
     }
 
     #[test]
