@@ -41,6 +41,8 @@ pub struct EstadoNaRaw {
     pub integra: bool,
     /// Validador da versão guardada (ETag/Last-Modified), quando houver.
     pub versao: Option<String>,
+    /// URL que produziu o manifesto vigente, quando conhecida.
+    pub origem: Option<String>,
     /// Tamanho total guardado, em bytes, quando conhecido.
     pub tamanho: Option<u64>,
 }
@@ -54,6 +56,7 @@ impl EstadoNaRaw {
             completa: false,
             integra: false,
             versao,
+            origem: None,
             tamanho: None,
         }
     }
@@ -78,7 +81,7 @@ impl EstadoNaRaw {
 /// );
 ///
 /// // Validador igual ao guardado: reaproveita.
-/// let raw = EstadoNaRaw { completa: true, integra: true, versao: Some("v1".into()), tamanho: Some(100) };
+/// let raw = EstadoNaRaw { completa: true, integra: true, versao: Some("v1".into()), origem: Some("https://origem/arquivo".into()), tamanho: Some(100) };
 /// assert_eq!(decidir(&origem, Some(&raw)), DecisaoDeIngestao::Reaproveitar);
 /// ```
 pub fn decidir(origem: &InformacoesDoArquivo, raw: Option<&EstadoNaRaw>) -> DecisaoDeIngestao {
@@ -128,6 +131,7 @@ mod testes {
             completa: true,
             integra: true,
             versao: versao.map(str::to_owned),
+            origem: None,
             tamanho,
         }
     }

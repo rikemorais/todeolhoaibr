@@ -14,8 +14,9 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
-    LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa, ProgressoDaTarefa,
-    ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw, publicar_ponteiro,
+    LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa,
+    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw,
+    publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::SyncIoBridge;
@@ -70,6 +71,21 @@ impl TarefaDeArquivo {
     pub(crate) fn aceitar_ausencia(mut self) -> Self {
         self.aceitar_ausencia = true;
         self
+    }
+
+    fn decidir_com_origem(
+        &self,
+        informacoes: &todeolho_nucleo::InformacoesDoArquivo,
+        estado: Option<&todeolho_nucleo::EstadoNaRaw>,
+    ) -> DecisaoDeIngestao {
+        if estado
+            .and_then(|estado| estado.origem.as_deref())
+            .is_some_and(|origem| origem != self.url)
+        {
+            DecisaoDeIngestao::Ingerir(MotivoDeIngestao::Desatualizada)
+        } else {
+            decidir(informacoes, estado)
+        }
     }
 
     async fn transferir(
@@ -246,12 +262,14 @@ impl Tarefa for TarefaDeArquivo {
         // condicional, então nada é baixado indevidamente.
         if precisao == PrecisaoDaEstimativa::Rapida {
             return Ok(match estado.as_ref() {
-                Some(e) if e.completa && e.integra => Some(0),
+                Some(e) if e.completa && e.integra && e.origem.as_deref() == Some(&self.url) => {
+                    Some(0)
+                }
                 _ => None,
             });
         }
         let informacoes = contexto.http.informacoes(&self.url).await?;
-        match decidir(&informacoes, estado.as_ref()) {
+        match self.decidir_com_origem(&informacoes, estado.as_ref()) {
             DecisaoDeIngestao::Reaproveitar => Ok(Some(0)),
             DecisaoDeIngestao::Ingerir(_) => Ok(informacoes.tamanho),
         }
@@ -270,7 +288,7 @@ impl Tarefa for TarefaDeArquivo {
         let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
             estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
-        let motivo = match decidir(&informacoes, estado.as_ref()) {
+        let motivo = match self.decidir_com_origem(&informacoes, estado.as_ref()) {
             DecisaoDeIngestao::Reaproveitar => {
                 return Ok(ResumoDaTarefa {
                     reaproveitada: true,
@@ -1045,6 +1063,25 @@ mod testes {
         tarefa().executar(&cenario.contexto).await.unwrap();
         *cenario.http.versao.lock().unwrap() = Some("v2".into());
         let segunda = tarefa().executar(&cenario.contexto).await.unwrap();
+
+        assert!(!segunda.reaproveitada);
+        assert_eq!(*cenario.http.downloads.lock().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn reingere_quando_url_da_origem_muda_mesmo_com_etag_igual() {
+        let cenario = cenario(HttpFalso::novo(Some("etag-opaco")));
+        tarefa().executar(&cenario.contexto).await.unwrap();
+
+        let mut nova_origem = tarefa();
+        nova_origem.url = "https://origem-nova/arquivo.zip".into();
+        let estimativa = nova_origem
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Exata)
+            .await
+            .unwrap();
+        assert_eq!(estimativa, Some(CONTEUDO.len() as u64));
+
+        let segunda = nova_origem.executar(&cenario.contexto).await.unwrap();
 
         assert!(!segunda.reaproveitada);
         assert_eq!(*cenario.http.downloads.lock().unwrap(), 2);

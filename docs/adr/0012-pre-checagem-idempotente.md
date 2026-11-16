@@ -23,6 +23,7 @@ Uma pré-checagem comum às tarefas decide, **antes de buscar**, se o recurso pr
 **Validador autoritativo, com requisição condicional**
 
 - O validador da origem (ETag ou `Last-Modified`) é autoritativo: se bate com o guardado, reaproveita; se difere, reingere.
+- Em tarefas de arquivo, a URL do manifesto vigente também participa da pré-checagem. Se a URL de origem muda, o arquivo é reingerido mesmo que o novo host reutilize o mesmo ETag opaco.
 - Para APIs paginadas, a releitura usa **requisição condicional** (`If-None-Match`/`If-Modified-Since`) por página: 304 reaproveita a parte já gravada, 200 reingere aquela página. O manifesto novo é remontado a partir das partes reaproveitadas e reingeridas.
 
 **Fallback onde não há validador**
