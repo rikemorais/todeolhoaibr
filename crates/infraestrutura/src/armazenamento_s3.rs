@@ -16,6 +16,9 @@ use tracing::{info, warn};
 const TAMANHO_DA_PARTE: usize = 16 * 1024 * 1024;
 const TENTATIVAS_DE_ESCRITA: u32 = 4;
 const ESPERA_BASE: std::time::Duration = std::time::Duration::from_millis(200);
+/// Timeout curto para ponteiros e outros metadados pequenos. Transferências de
+/// dados continuam usando o timeout generoso configurado no bucket principal.
+const TIMEOUT_CONTROLE_S3: Duration = Duration::from_secs(15);
 
 /// Dados de conexão a um serviço compatível com S3.
 #[derive(Debug, Clone)]
@@ -120,6 +123,12 @@ impl ArmazenamentoS3 {
         }
     }
 
+    fn bucket_de_controle(&self, chave: &str) -> Result<Box<Bucket>, ErroDeIngestao> {
+        self.bucket
+            .with_request_timeout(TIMEOUT_CONTROLE_S3)
+            .map_err(|erro| self.erro(chave, erro))
+    }
+
     /// Lista todas as chaves sob um prefixo (percorrendo as páginas). Usado pelo refino
     /// para descobrir quais recursos já foram ingeridos no bucket.
     pub async fn listar_chaves(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
@@ -185,9 +194,10 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         objeto: ObjetoRaw,
         conteudo_vigente: Option<&[u8]>,
     ) -> Result<bool, ErroDeIngestao> {
+        let bucket = self.bucket_de_controle(&objeto.chave)?;
         let atual = self
             .repetir_s3(&objeto.chave, "GET condicional", || {
-                self.bucket.get_object(&objeto.chave)
+                bucket.get_object(&objeto.chave)
             })
             .await;
         let (nome_cabecalho, valor_cabecalho) = match atual {
@@ -218,7 +228,7 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
 
         let resultado = self
             .repetir_s3(&objeto.chave, "PUT condicional", || async {
-                self.bucket
+                bucket
                     .put_object_builder(&objeto.chave, &objeto.conteudo)
                     .with_content_type(&objeto.tipo_de_conteudo)
                     .with_header(nome_cabecalho, valor_cabecalho.clone())?
@@ -301,6 +311,18 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
         match self.bucket.get_object(chave).await {
             Ok(resposta) => Ok(Some(resposta.bytes().to_vec())),
+            Err(S3Error::HttpFailWithBody(404, _)) => Ok(None),
+            Err(erro) => Err(self.erro(chave, erro)),
+        }
+    }
+
+    async fn ler_controle(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+        let bucket = self.bucket_de_controle(chave)?;
+        match self
+            .repetir_s3(chave, "GET controle", || bucket.get_object(chave))
+            .await
+        {
+            Ok(resposta) => Ok(Some(resposta.to_vec())),
             Err(S3Error::HttpFailWithBody(404, _)) => Ok(None),
             Err(erro) => Err(self.erro(chave, erro)),
         }
@@ -840,6 +862,15 @@ mod testes {
     fn novo_constroi_sem_rede_com_config_valida() {
         let config = config_de_teste("http://127.0.0.1:7070".to_owned(), "teste-raw".to_owned());
         assert!(ArmazenamentoS3::novo(config).is_ok());
+    }
+
+    #[test]
+    fn bucket_de_controle_tem_timeout_curto_sem_alterar_o_bucket_principal() {
+        let s3 = armazenamento_local("http://127.0.0.1:7070".to_owned());
+        let controle = s3.bucket_de_controle("_ultima_versao.json").unwrap();
+
+        assert_eq!(controle.request_timeout(), Some(TIMEOUT_CONTROLE_S3));
+        assert_eq!(s3.bucket.request_timeout(), Some(Duration::from_secs(1800)));
     }
 
     #[test]
