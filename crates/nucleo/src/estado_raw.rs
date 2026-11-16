@@ -10,9 +10,12 @@ use crate::portas::{ArmazenamentoRaw, ObjetoRaw};
 use crate::raw::{LocalizacaoRaw, ManifestoRaw, UltimaVersao};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 type Trava = Arc<tokio::sync::Mutex<()>>;
 static TRAVAS: OnceLock<Mutex<HashMap<String, Trava>>> = OnceLock::new();
+const TENTATIVAS_CAS_PUBLICACAO: u8 = 64;
+const PRAZO_CAS_PUBLICACAO: Duration = Duration::from_secs(30);
 
 /// Guarda a publicação de um recurso dentro deste processo, inclusive a
 /// conferência final da Bronze antes de publicar sua Silver.
@@ -131,8 +134,9 @@ pub async fn manifesto_vigente(
 ///
 /// Só grava quando não há ponteiro vigente, quando o vigente é ilegível, ou
 /// quando o snapshot atual (`nova.iniciada_em`) é mais recente que o guardado.
-/// Devolve `true` se gravou, `false` se preservou um ponteiro mais novo ou se
-/// houve conflito de escrita condicional (CAS).
+/// Devolve `true` se o ponteiro desta execução está vigente, e `false` se
+/// preservou um ponteiro mais novo. Conflitos CAS persistentes e timeouts
+/// devolvem erro com indicação para repetir a tarefa.
 ///
 /// Usa [`ArmazenamentoRaw::gravar_condicional`] para que a gravação só ocorra
 /// se o ponteiro não mudou entre a leitura e a escrita. Quando o backend
@@ -164,39 +168,79 @@ pub async fn publicar_ponteiro_sob_guarda(
         detalhe: erro.to_string(),
     })?;
 
-    // Um CAS pode perder para outra execução que publicou depois da leitura.
-    // Releia e reavalie a recência: se o concorrente publicou uma versão mais
-    // antiga, ainda publicamos esta; se publicou uma mais nova, a preservamos.
-    let mut tentativa = 0_u8;
-    loop {
-        let bytes_vigente = armazenamento.ler_controle(&chave).await?;
-        if let Some(ref bytes) = bytes_vigente
-            && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
-            && (vigente.iniciada_em > nova.iniciada_em
-                || (vigente.iniciada_em.is_some()
-                    && vigente.iniciada_em == nova.iniciada_em
-                    && vigente.manifesto != nova.manifesto))
-        {
-            return Ok(false);
+    let publicar = async {
+        // Um CAS pode perder para outra execução que publicou depois da leitura.
+        // Releia e reavalie a recência: uma execução antiga não bloqueia esta;
+        // uma mais nova vence; conflitos persistentes falham com indicação de retry.
+        for tentativa in 0..TENTATIVAS_CAS_PUBLICACAO {
+            let bytes_vigente = armazenamento.ler_controle(&chave).await?;
+            if let Some(ref bytes) = bytes_vigente
+                && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
+            {
+                if vigente.manifesto == nova.manifesto && vigente.iniciada_em == nova.iniciada_em {
+                    return Ok(true);
+                }
+                if ponteiro_e_mais_recente(&vigente, nova) {
+                    return Ok(false);
+                }
+            }
+
+            let gravou = armazenamento
+                .gravar_condicional(
+                    ObjetoRaw {
+                        chave: chave.clone(),
+                        conteudo: conteudo.clone(),
+                        tipo_de_conteudo: "application/json".to_owned(),
+                    },
+                    bytes_vigente.as_deref(),
+                )
+                .await?;
+            if gravou {
+                return Ok(true);
+            }
+            if tentativa + 1 < TENTATIVAS_CAS_PUBLICACAO {
+                let espera = Duration::from_millis(1_u64 << tentativa.min(4));
+                tokio::time::sleep(espera).await;
+            }
         }
 
-        let gravou = armazenamento
-            .gravar_condicional(
-                ObjetoRaw {
-                    chave: chave.clone(),
-                    conteudo: conteudo.clone(),
-                    tipo_de_conteudo: "application/json".to_owned(),
-                },
-                bytes_vigente.as_deref(),
-            )
-            .await?;
-        if gravou {
-            return Ok(true);
+        let bytes_vigente = armazenamento.ler_controle(&chave).await?;
+        if let Some(bytes) = bytes_vigente
+            && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(&bytes)
+        {
+            if vigente.manifesto == nova.manifesto && vigente.iniciada_em == nova.iniciada_em {
+                return Ok(true);
+            }
+            if ponteiro_e_mais_recente(&vigente, nova) {
+                return Ok(false);
+            }
         }
-        let espera = std::time::Duration::from_millis(20_u64 << tentativa.min(4));
-        tentativa = tentativa.saturating_add(1);
-        tokio::time::sleep(espera).await;
+
+        Err(ErroDeIngestao::Armazenamento {
+            chave: chave.clone(),
+            detalhe: format!(
+                "publicação CAS conflitou {TENTATIVAS_CAS_PUBLICACAO} vezes; tente executar a tarefa novamente"
+            ),
+        })
+    };
+
+    match tokio::time::timeout(PRAZO_CAS_PUBLICACAO, publicar).await {
+        Ok(resultado) => resultado,
+        Err(_) => Err(ErroDeIngestao::Armazenamento {
+            chave,
+            detalhe: format!(
+                "prazo de {}s excedido ao publicar ponteiro Raw; tente executar a tarefa novamente",
+                PRAZO_CAS_PUBLICACAO.as_secs()
+            ),
+        }),
     }
+}
+
+fn ponteiro_e_mais_recente(vigente: &UltimaVersao, nova: &UltimaVersao) -> bool {
+    vigente.iniciada_em > nova.iniciada_em
+        || (vigente.iniciada_em.is_some()
+            && vigente.iniciada_em == nova.iniciada_em
+            && vigente.manifesto != nova.manifesto)
 }
 
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
@@ -745,6 +789,54 @@ mod testes {
         );
         assert_eq!(armazenamento.conflitos.load(AtOrd::Relaxed), 0);
         assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "nova");
+    }
+
+    #[tokio::test]
+    async fn conflitos_cas_persistentes_devolvem_erro_repetivel() {
+        struct CasSempreEmConflito(ArmazenamentoEmMemoria);
+
+        #[async_trait]
+        impl ArmazenamentoRaw for CasSempreEmConflito {
+            async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+                self.0.gravar(objeto).await
+            }
+            async fn gravar_fluxo(
+                &self,
+                _: &str,
+                _: &str,
+                _: &mut (dyn AsyncRead + Send + Unpin),
+            ) -> Result<(), ErroDeIngestao> {
+                unreachable!()
+            }
+            async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+                self.0.ler(chave).await
+            }
+            async fn gravar_condicional(
+                &self,
+                _: ObjetoRaw,
+                _: Option<&[u8]>,
+            ) -> Result<bool, ErroDeIngestao> {
+                Ok(false)
+            }
+        }
+
+        let armazenamento = CasSempreEmConflito(ArmazenamentoEmMemoria::default());
+        let erro = publicar_ponteiro(
+            &armazenamento,
+            FONTE,
+            RECURSO,
+            &ponteiro("nova", Utc::now()),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            erro.to_string()
+                .contains("tente executar a tarefa novamente")
+        );
     }
 
     #[tokio::test]

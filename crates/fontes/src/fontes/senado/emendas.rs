@@ -417,6 +417,7 @@ async fn publicar_snapshot(
         &contexto.id_execucao,
     );
     let chave = local.parte(1, "xlsx");
+    let chave_manifesto = local.manifesto();
     let tamanho = bytes.len() as u64;
     contexto
         .armazenamento
@@ -435,7 +436,7 @@ async fn publicar_snapshot(
         iniciada_em: contexto.iniciada_em,
         concluida_em: Utc::now(),
         partes: vec![ParteRaw {
-            chave,
+            chave: chave.clone(),
             url: URL_PAINEL.to_owned(),
             bytes: tamanho,
             sha256: hash,
@@ -451,12 +452,12 @@ async fn publicar_snapshot(
     contexto
         .armazenamento
         .gravar(ObjetoRaw {
-            chave: local.manifesto(),
+            chave: chave_manifesto.clone(),
             conteudo: bytes_manifesto,
             tipo_de_conteudo: "application/json".to_owned(),
         })
         .await?;
-    let publicou = publicar_ponteiro(
+    let resultado_publicacao = publicar_ponteiro(
         contexto.armazenamento.as_ref(),
         NOME_FONTE,
         RECURSO,
@@ -466,20 +467,46 @@ async fn publicar_snapshot(
             iniciada_em: Some(contexto.iniciada_em),
         },
     )
-    .await?;
-    if !publicou {
-        return Err(ErroDeIngestao::Manifesto {
-            recurso: RECURSO.to_owned(),
-            detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada".into(),
-        });
-    }
-
-    Ok(ResumoDaTarefa {
+    .await;
+    let resumo = ResumoDaTarefa {
         partes: 1,
         bytes: tamanho,
         reaproveitada: false,
         motivo: None,
-    })
+    };
+    if matches!(&resultado_publicacao, Ok(true)) {
+        return Ok(resumo);
+    }
+
+    let manifesto_atual =
+        manifesto_vigente(contexto.armazenamento.as_ref(), NOME_FONTE, RECURSO).await?;
+    if manifesto_atual
+        .as_ref()
+        .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+    {
+        return Ok(resumo);
+    }
+
+    let chaves = vec![chave_manifesto, chave];
+    let falhas = contexto
+        .armazenamento
+        .remover_lote(&chaves, 2, Duration::from_secs(15))
+        .await;
+    for falha in falhas {
+        tracing::warn!(
+            chave = %falha.chave,
+            detalhe = %falha.detalhe,
+            "snapshot do SIGA Brasil não publicado deixou objeto Raw órfão; pendente de recuperação"
+        );
+    }
+    match resultado_publicacao {
+        Err(erro) => Err(erro),
+        Ok(false) => Err(ErroDeIngestao::Manifesto {
+            recurso: RECURSO.to_owned(),
+            detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada".into(),
+        }),
+        Ok(true) => Ok(resumo),
+    }
 }
 
 #[async_trait]
@@ -516,6 +543,7 @@ impl Tarefa for TarefaSigaBrasil {
 #[cfg(test)]
 mod testes {
     use std::collections::HashMap;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
@@ -530,7 +558,7 @@ mod testes {
     use todeolho_nucleo::FonteDeDados;
 
     #[derive(Default)]
-    struct ArmazenamentoEmMemoria(Mutex<HashMap<String, Vec<u8>>>);
+    struct ArmazenamentoEmMemoria(Mutex<HashMap<String, Vec<u8>>>, AtomicBool);
 
     #[async_trait]
     impl ArmazenamentoRaw for ArmazenamentoEmMemoria {
@@ -571,11 +599,27 @@ mod testes {
             conteudo_vigente: Option<&[u8]>,
         ) -> Result<bool, ErroDeIngestao> {
             let mut objetos = self.0.lock().unwrap();
+            if objeto.chave.ends_with("_ultima_versao.json")
+                && self.1.swap(false, Ordering::Relaxed)
+            {
+                let concorrente = UltimaVersao {
+                    versao: None,
+                    manifesto: "concorrente".into(),
+                    iniciada_em: Some(Utc::now() + chrono::TimeDelta::minutes(1)),
+                };
+                objetos.insert(objeto.chave, serde_json::to_vec(&concorrente).unwrap());
+                return Ok(false);
+            }
             if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
                 return Ok(false);
             }
             objetos.insert(objeto.chave, objeto.conteudo);
             Ok(true)
+        }
+
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.0.lock().unwrap().remove(chave);
+            Ok(())
         }
     }
 
@@ -807,6 +851,40 @@ mod testes {
         let segunda = publicar_snapshot(&contexto_seguinte, xlsx).await.unwrap();
         assert!(segunda.reaproveitada);
         assert_eq!(segunda.partes, 0);
+    }
+
+    #[tokio::test]
+    async fn remove_snapshot_quando_outra_execucao_publica_primeiro() {
+        let armazenamento = Arc::new(ArmazenamentoEmMemoria::default());
+        armazenamento.1.store(true, Ordering::Relaxed);
+        let contexto = ContextoDeExecucao {
+            id_execucao: "captura-perdedora".to_owned(),
+            iniciada_em: Utc::now(),
+            armazenamento: armazenamento.clone(),
+            http: Arc::new(ClienteHttpInerte),
+            progresso: None,
+        };
+        let erro = publicar_snapshot(&contexto, b"PK\x03\x04conteudo".to_vec())
+            .await
+            .unwrap_err();
+
+        assert!(erro.to_string().contains("mais recente preservado"));
+        let objetos = armazenamento.0.lock().unwrap();
+        assert!(
+            !objetos
+                .keys()
+                .any(|chave| chave.ends_with("parte-00001.xlsx"))
+        );
+        assert!(
+            !objetos
+                .keys()
+                .any(|chave| chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("_ultima_versao.json"))
+        );
     }
 
     #[tokio::test]
