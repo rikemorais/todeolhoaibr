@@ -136,8 +136,9 @@ pub async fn manifesto_vigente(
 ///
 /// Usa [`ArmazenamentoRaw::gravar_condicional`] para que a gravação só ocorra
 /// se o ponteiro não mudou entre a leitura e a escrita. Quando o backend
-/// suporta CAS real (e.g. S3 `If-Match`), a operação é atômica; com o
-/// fallback padrão, o guard por recência persiste sem regressão.
+/// suporta CAS real (e.g. S3 `If-Match`), a operação é atômica. Adaptadores
+/// sem CAS atômico falham explicitamente pelo fallback padrão de
+/// [`ArmazenamentoRaw::gravar_condicional`].
 pub async fn publicar_ponteiro(
     armazenamento: &dyn ArmazenamentoRaw,
     fonte: &str,

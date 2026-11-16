@@ -239,8 +239,18 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
 
         match resultado {
             Ok(_) => Ok(true),
-            Err(S3Error::HttpFailWithBody(409 | 412, _)) => Ok(false),
-            Err(erro) => Err(self.erro(&objeto.chave, erro)),
+            Err(erro @ S3Error::HttpFailWithBody(409 | 412, _)) => {
+                match self.ler_controle(&objeto.chave).await {
+                    Ok(Some(atual)) if atual == objeto.conteudo => Ok(true),
+                    Ok(_) => Ok(false),
+                    Err(_) => Err(self.erro(&objeto.chave, erro)),
+                }
+            }
+            Err(erro) => match self.ler_controle(&objeto.chave).await {
+                Ok(Some(atual)) if atual == objeto.conteudo => Ok(true),
+                Ok(atual) if atual.as_deref() != conteudo_vigente => Ok(false),
+                Ok(_) | Err(_) => Err(self.erro(&objeto.chave, erro)),
+            },
         }
     }
 
@@ -708,6 +718,7 @@ mod testes {
                 "Content-Type: application/xml\r\n",
                 "precondition failed",
             ),
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
         ]);
         let s3 = armazenamento_local(endpoint);
         let objeto = ObjetoRaw {
@@ -722,6 +733,7 @@ mod testes {
                 .unwrap()
         );
         let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 3);
         assert!(requisicoes[0].starts_with("GET /teste-raw-79/ultima-versao.json "));
         assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
         assert_eq!(
@@ -778,6 +790,43 @@ mod testes {
         assert!(requisicoes[1].starts_with("GET /teste-raw-79/ultima-versao.json "));
         assert!(requisicoes[2].starts_with("PUT /teste-raw-79/ultima-versao.json "));
         assert!(requisicoes[3].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[2], "if-match"),
+            Some("\"ponteiro-v1\"")
+        );
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[3], "if-match"),
+            Some("\"ponteiro-v1\"")
+        );
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_confirma_put_commitado_apos_conflito_no_retry() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(503, "", "resposta perdida após commit"),
+            resposta_s3(
+                412,
+                "Content-Type: application/xml\r\n",
+                "precondition failed",
+            ),
+            resposta_s3(200, "ETag: \"ponteiro-v2\"\r\n", "ponteiro novo"),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 4);
+        assert!(requisicoes[3].starts_with("GET /teste-raw-79/ultima-versao.json "));
     }
 
     #[tokio::test]

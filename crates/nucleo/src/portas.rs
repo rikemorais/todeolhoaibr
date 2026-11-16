@@ -454,6 +454,7 @@ mod testes {
             erro.to_string()
                 .contains("não implementa gravação condicional atômica")
         );
+        assert_eq!(armazenamento.chamadas.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]

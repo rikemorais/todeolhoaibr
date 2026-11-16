@@ -64,9 +64,14 @@ A ingestão é idempotente **por competência** (mês do dump). Se o ZIP já foi
 baixado, a URL configurada é a mesma registrada no manifesto Raw e o ETag/versão
 não mudou, a tarefa pula o download. Uma mudança de endpoint força a reingestão,
 mesmo quando o novo servidor reutiliza o ETag. Ao implantar a troca de URL,
-encerre execuções iniciadas por imagens antigas antes de iniciar a nova imagem;
-um processo antigo ainda pode acessar o endpoint anterior. Cada competência
-é um snapshot completo — não há deltas.
+pause agendadores e filas que possam iniciar imagens antigas, aguarde todas as
+execuções antigas terminarem e confirme que não há workers antigos em execução
+ou pendentes antes de iniciar a nova imagem. Só reative os agendamentos depois
+que a nova imagem estiver ativa. O ponteiro compara a hora de início, mas não
+tem um token de geração que consiga cercar um binário antigo; se uma imagem
+antiga voltar a executar depois da troca, ela ainda pode acessar o endpoint
+anterior e publicar seu resultado. Cada competência é um snapshot completo —
+não há deltas.
 
 ## Estratégia de diff entre snapshots
 
