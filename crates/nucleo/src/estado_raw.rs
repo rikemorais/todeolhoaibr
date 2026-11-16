@@ -63,7 +63,7 @@ pub async fn estado_na_raw_com_origem(
     recurso: &str,
 ) -> Result<Option<(EstadoNaRaw, Option<String>)>, ErroDeIngestao> {
     let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-    let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+    let Some(bytes) = armazenamento.ler_controle(&chave_ponteiro).await? else {
         return Ok(None);
     };
     // Ponteiro ilegível não pode travar o recurso: trata como estado incompleto
@@ -109,7 +109,7 @@ pub async fn manifesto_vigente(
     recurso: &str,
 ) -> Result<Option<ManifestoRaw>, ErroDeIngestao> {
     let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-    let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+    let Some(bytes) = armazenamento.ler_controle(&chave_ponteiro).await? else {
         return Ok(None);
     };
     // Ponteiro ou manifesto ilegível: segue como se não houvesse ingestão
@@ -279,6 +279,19 @@ mod testes {
 
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
+        }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
         }
     }
 

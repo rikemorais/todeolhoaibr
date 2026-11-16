@@ -186,21 +186,20 @@ pub trait ArmazenamentoRaw: Send + Sync {
     ///
     /// Devolve `true` se gravou, `false` se a pré-condição falhou (conflito).
     ///
-    /// A implementação padrão lê, compara e grava sem atomicidade entre processos;
-    /// adaptadores devem sobrescrever quando o backend suportar escrita condicional
-    /// (e.g. S3 `If-Match`).
+    /// A implementação padrão falha deliberadamente: uma leitura seguida de uma
+    /// gravação comum não é atômica e pode deixar dois processos sobrescreverem
+    /// ponteiros entre si. Adaptadores devem implementar CAS real no backend
+    /// (e.g. S3 `If-Match`) antes de publicar recursos compartilhados.
     async fn gravar_condicional(
         &self,
         objeto: ObjetoRaw,
         conteudo_vigente: Option<&[u8]>,
     ) -> Result<bool, ErroDeIngestao> {
-        let atual = self.ler(&objeto.chave).await?;
-        if atual.as_deref() == conteudo_vigente {
-            self.gravar(objeto).await?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        let _ = conteudo_vigente;
+        Err(ErroDeIngestao::Armazenamento {
+            chave: objeto.chave,
+            detalhe: "adaptador não implementa gravação condicional atômica".into(),
+        })
     }
 }
 
@@ -432,6 +431,29 @@ mod testes {
         let falhas = arm.remover_lote(&[], 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());
         assert_eq!(arm.chamadas.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn grava_condicional_sem_suporte_atomico_falha_explicitamente() {
+        let armazenamento = ArmazenamentoContador {
+            chamadas: AtomicUsize::new(0),
+        };
+        let erro = armazenamento
+            .gravar_condicional(
+                ObjetoRaw {
+                    chave: "ponteiro".into(),
+                    conteudo: b"novo".to_vec(),
+                    tipo_de_conteudo: "application/json".into(),
+                },
+                None,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(
+            erro.to_string()
+                .contains("não implementa gravação condicional atômica")
+        );
     }
 
     #[tokio::test]

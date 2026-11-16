@@ -742,6 +742,24 @@ mod testes {
         async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(None)
         }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            let atual = objetos
+                .iter()
+                .find(|existente| existente.chave == objeto.chave)
+                .map(|existente| existente.conteudo.as_slice());
+            if atual != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.retain(|existente| existente.chave != objeto.chave);
+            objetos.push(objeto);
+            Ok(true)
+        }
     }
 
     struct HttpFalso(HashMap<&'static str, &'static str>);
@@ -1247,6 +1265,19 @@ mod testes {
 
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
+        }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
         }
     }
 
