@@ -167,8 +167,8 @@ pub async fn publicar_ponteiro_sob_guarda(
     // Um CAS pode perder para outra execução que publicou depois da leitura.
     // Releia e reavalie a recência: se o concorrente publicou uma versão mais
     // antiga, ainda publicamos esta; se publicou uma mais nova, a preservamos.
-    const TENTATIVAS_CAS: u8 = 8;
-    for tentativa in 0..TENTATIVAS_CAS {
+    let mut tentativa = 0_u8;
+    loop {
         let bytes_vigente = armazenamento.ler_controle(&chave).await?;
         if let Some(ref bytes) = bytes_vigente
             && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
@@ -193,14 +193,10 @@ pub async fn publicar_ponteiro_sob_guarda(
         if gravou {
             return Ok(true);
         }
-        if tentativa + 1 == TENTATIVAS_CAS {
-            return Ok(false);
-        }
         let espera = std::time::Duration::from_millis(20_u64 << tentativa.min(4));
+        tentativa = tentativa.saturating_add(1);
         tokio::time::sleep(espera).await;
     }
-
-    Ok(false)
 }
 
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
@@ -671,12 +667,12 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn publicar_ponteiro_tenta_de_novo_se_cas_perdeu_para_uma_rodada_antiga() {
-        use std::sync::atomic::{AtomicBool, Ordering as AtOrd};
+    async fn publicar_ponteiro_persiste_apos_mais_de_oito_conflitos_com_rodadas_antigas() {
+        use std::sync::atomic::{AtomicUsize, Ordering as AtOrd};
 
         struct CasComRodadaAntiga {
             inner: ArmazenamentoEmMemoria,
-            intruso: AtomicBool,
+            conflitos: AtomicUsize,
         }
 
         #[async_trait]
@@ -703,7 +699,9 @@ mod testes {
                 objeto: ObjetoRaw,
                 conteudo_vigente: Option<&[u8]>,
             ) -> Result<bool, ErroDeIngestao> {
-                if self.intruso.swap(false, AtOrd::Relaxed) {
+                let houve_conflito = self.conflitos.load(AtOrd::Relaxed) > 0;
+                if houve_conflito {
+                    self.conflitos.fetch_sub(1, AtOrd::Relaxed);
                     let intruso = UltimaVersao {
                         versao: None,
                         manifesto: "rodada-antiga".to_owned(),
@@ -716,6 +714,7 @@ mod testes {
                             tipo_de_conteudo: "application/json".into(),
                         })
                         .await?;
+                    return Ok(false);
                 }
                 let atual = self.inner.ler(&objeto.chave).await?;
                 if atual.as_deref() == conteudo_vigente {
@@ -729,7 +728,7 @@ mod testes {
 
         let armazenamento = CasComRodadaAntiga {
             inner: ArmazenamentoEmMemoria::default(),
-            intruso: AtomicBool::new(true),
+            conflitos: AtomicUsize::new(10),
         };
         let gravou = publicar_ponteiro(
             &armazenamento,
@@ -742,8 +741,9 @@ mod testes {
 
         assert!(
             gravou,
-            "a rodada atual deve tentar publicar após o conflito"
+            "a rodada atual deve persistir até vencer conflitos com rodadas antigas"
         );
+        assert_eq!(armazenamento.conflitos.load(AtOrd::Relaxed), 0);
         assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "nova");
     }
 

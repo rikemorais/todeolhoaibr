@@ -186,20 +186,21 @@ pub trait ArmazenamentoRaw: Send + Sync {
     ///
     /// Devolve `true` se gravou, `false` se a pré-condição falhou (conflito).
     ///
-    /// A implementação padrão falha deliberadamente: uma leitura seguida de uma
-    /// gravação comum não é atômica e pode deixar dois processos sobrescreverem
-    /// ponteiros entre si. Adaptadores devem implementar CAS real no backend
-    /// (e.g. S3 `If-Match`) antes de publicar recursos compartilhados.
+    /// A implementação padrão preserva adaptadores legados com leitura seguida
+    /// de gravação. Ela não é atômica entre processos; o publicador de ponteiros
+    /// serializa chamadas no processo atual, mas adaptadores compartilhados por
+    /// vários processos devem implementar CAS real no backend (e.g. S3 `If-Match`).
     async fn gravar_condicional(
         &self,
         objeto: ObjetoRaw,
         conteudo_vigente: Option<&[u8]>,
     ) -> Result<bool, ErroDeIngestao> {
-        let _ = conteudo_vigente;
-        Err(ErroDeIngestao::Armazenamento {
-            chave: objeto.chave,
-            detalhe: "adaptador não implementa gravação condicional atômica".into(),
-        })
+        let atual = self.ler(&objeto.chave).await?;
+        if atual.as_deref() != conteudo_vigente {
+            return Ok(false);
+        }
+        self.gravar(objeto).await?;
+        Ok(true)
     }
 }
 
@@ -332,6 +333,8 @@ pub trait ClienteHttp: Send + Sync {
 #[cfg(test)]
 mod testes {
     use super::*;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tokio::io::AsyncRead;
 
@@ -366,8 +369,10 @@ mod testes {
     }
 
     /// Adapter stub que aceita remoções e conta chamadas.
+    #[derive(Default)]
     struct ArmazenamentoContador {
         chamadas: AtomicUsize,
+        objetos: Mutex<HashMap<String, Vec<u8>>>,
     }
 
     #[async_trait]
@@ -375,7 +380,12 @@ mod testes {
         async fn preparar(&self) -> Result<(), ErroDeIngestao> {
             Ok(())
         }
-        async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+        async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            self.chamadas.fetch_add(1, Ordering::Relaxed);
+            self.objetos
+                .lock()
+                .unwrap()
+                .insert(objeto.chave, objeto.conteudo);
             Ok(())
         }
         async fn gravar_fluxo(
@@ -390,8 +400,8 @@ mod testes {
             self.chamadas.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
-        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
-            Ok(None)
+        async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(self.objetos.lock().unwrap().get(chave).cloned())
         }
     }
 
@@ -425,43 +435,72 @@ mod testes {
 
     #[tokio::test]
     async fn remover_lote_sem_chaves_devolve_vazio() {
-        let arm = ArmazenamentoContador {
-            chamadas: AtomicUsize::new(0),
-        };
+        let arm = ArmazenamentoContador::default();
         let falhas = arm.remover_lote(&[], 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());
         assert_eq!(arm.chamadas.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]
-    async fn grava_condicional_sem_suporte_atomico_falha_explicitamente() {
-        let armazenamento = ArmazenamentoContador {
-            chamadas: AtomicUsize::new(0),
+    async fn gravacao_condicional_padrao_preserva_adaptadores_que_implementam_ler_e_gravar() {
+        let armazenamento = ArmazenamentoContador::default();
+        let objeto = ObjetoRaw {
+            chave: "ponteiro".into(),
+            conteudo: b"novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
         };
-        let erro = armazenamento
+
+        assert!(
+            armazenamento
+                .gravar_condicional(objeto.clone(), None)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !armazenamento
+                .gravar_condicional(objeto.clone(), None)
+                .await
+                .unwrap()
+        );
+        assert_eq!(armazenamento.chamadas.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            armazenamento.ler("ponteiro").await.unwrap(),
+            Some(b"novo".to_vec())
+        );
+    }
+
+    #[tokio::test]
+    async fn gravacao_condicional_padrao_rejeita_conteudo_antigo() {
+        let armazenamento = ArmazenamentoContador::default();
+        armazenamento
+            .gravar(ObjetoRaw {
+                chave: "ponteiro".into(),
+                conteudo: b"novo".to_vec(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let gravou = armazenamento
             .gravar_condicional(
                 ObjetoRaw {
                     chave: "ponteiro".into(),
-                    conteudo: b"novo".to_vec(),
+                    conteudo: b"antigo".to_vec(),
                     tipo_de_conteudo: "application/json".into(),
                 },
-                None,
+                Some(b"antigo"),
             )
             .await
-            .unwrap_err();
-
-        assert!(
-            erro.to_string()
-                .contains("não implementa gravação condicional atômica")
+            .unwrap();
+        assert!(!gravou);
+        assert_eq!(
+            armazenamento.ler("ponteiro").await.unwrap(),
+            Some(b"novo".to_vec())
         );
-        assert_eq!(armazenamento.chamadas.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]
     async fn remover_lote_com_sucesso_nao_devolve_falhas() {
-        let arm = ArmazenamentoContador {
-            chamadas: AtomicUsize::new(0),
-        };
+        let arm = ArmazenamentoContador::default();
         let chaves: Vec<String> = (0..10).map(|i| format!("chave-{i}")).collect();
         let falhas = arm.remover_lote(&chaves, 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());
