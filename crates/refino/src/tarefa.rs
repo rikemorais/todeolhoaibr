@@ -341,11 +341,13 @@ mod testes {
         assert_eq!(std::fs::read(arquivo.path()).unwrap(), comprimido);
     }
 
+    type MutacaoRaw = Vec<(String, Vec<u8>)>;
+
     #[derive(Default)]
     struct RawEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
         leituras_de_ponteiro: AtomicUsize,
-        mutacao_na_segunda_leitura: Mutex<Option<Vec<(String, Vec<u8>)>>>,
+        mutacao_na_segunda_leitura: Mutex<Option<MutacaoRaw>>,
     }
 
     #[async_trait]
