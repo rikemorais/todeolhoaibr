@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
 use crate::fontes::{
-    DecodificadorCnpj, DecodificadorConabSafra, DecodificadorCotahist, DecodificadorCsv,
-    DecodificadorEmendasSiga, DecodificadorIbgeAgregados, DecodificadorJson,
-    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset,
-    DecodificadorZipCsv,
+    DecodificadorAssentamentosIncra, DecodificadorCnpj, DecodificadorConabSafra,
+    DecodificadorCotahist, DecodificadorCsv, DecodificadorEmendasSiga, DecodificadorIbgeAgregados,
+    DecodificadorJson, DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes,
+    DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -385,6 +385,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "cnpj",
             prefixo_recurso: "",
             cria_decodificador: || Arc::new(DecodificadorCnpj),
+        },
+        // --- INCRA: CSV tabular de assentamentos (SIPRA), Windows-1252/`;` ---
+        FonteDeRefino {
+            nome: "incra-assentamentos",
+            fonte_raw: "incra",
+            prefixo_recurso: "assentamentos-csv/",
+            cria_decodificador: || Arc::new(DecodificadorAssentamentosIncra),
         },
         // --- CVM: DFP (anual) e ITR (trimestral), ZIP de CSVs Latin-1 com `;` ---
         FonteDeRefino {

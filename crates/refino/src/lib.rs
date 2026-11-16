@@ -31,9 +31,9 @@ pub use decodificador::{Decodificador, ParteBronze};
 pub use escritor::{ErroDeRefino, EscritorParquet, EscritorParquetTipado, Tabela};
 pub use executor_sql::FiltrosSqlEmendas;
 pub use fontes::{
-    DecodificadorConabSafra, DecodificadorCsv, DecodificadorEmendasSiga,
-    DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
-    DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
+    DecodificadorAssentamentosIncra, DecodificadorConabSafra, DecodificadorCsv,
+    DecodificadorEmendasSiga, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorZipCsv,
 };
 pub use linhagem::{LeitorDeParteBronze, LoteBronze, OrigemParteBronze, ReferenciaLinhaBronze};
 pub use silver::TarefaDeSilverIpeadata;
