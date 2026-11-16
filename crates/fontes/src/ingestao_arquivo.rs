@@ -371,45 +371,48 @@ impl Tarefa for TarefaDeArquivo {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        let publicou = publicar_ponteiro(
+        let resultado_publicacao = publicar_ponteiro(
             contexto.armazenamento.as_ref(),
             &self.fonte,
             &self.recurso,
             &ultima,
         )
-        .await?;
-        if !publicou {
-            let manifesto_atual =
-                manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
-                    .await?;
-            if manifesto_atual
-                .as_ref()
-                .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
-            {
-                return Ok(resumo);
-            }
+        .await;
+        if matches!(&resultado_publicacao, Ok(true)) {
+            return Ok(resumo);
+        }
 
-            let chaves = vec![chave_manifesto, chave_parte];
-            let falhas = contexto
-                .armazenamento
-                .remover_lote(&chaves, 2, Duration::from_secs(15))
-                .await;
-            for falha in falhas {
-                warn!(
-                    chave = %falha.chave,
-                    detalhe = %falha.detalhe,
-                    recurso = %self.recurso,
-                    "snapshot não publicado deixou objeto Raw órfão; pendente de recuperação"
-                );
-            }
-            return Err(ErroDeIngestao::Manifesto {
+        let manifesto_atual =
+            manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
+        if manifesto_atual
+            .as_ref()
+            .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+        {
+            return Ok(resumo);
+        }
+
+        let chaves = vec![chave_manifesto, chave_parte];
+        let falhas = contexto
+            .armazenamento
+            .remover_lote(&chaves, 2, Duration::from_secs(15))
+            .await;
+        for falha in falhas {
+            warn!(
+                chave = %falha.chave,
+                detalhe = %falha.detalhe,
+                recurso = %self.recurso,
+                "snapshot não publicado deixou objeto Raw órfão; pendente de recuperação"
+            );
+        }
+        match resultado_publicacao {
+            Err(erro) => Err(erro),
+            Ok(false) => Err(ErroDeIngestao::Manifesto {
                 recurso: self.recurso.clone(),
                 detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada"
                     .into(),
-            });
+            }),
+            Ok(true) => Ok(resumo),
         }
-
-        Ok(resumo)
     }
 }
 

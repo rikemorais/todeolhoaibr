@@ -186,10 +186,11 @@ pub trait ArmazenamentoRaw: Send + Sync {
     ///
     /// Devolve `true` se gravou, `false` se a pré-condição falhou (conflito).
     ///
-    /// A implementação padrão preserva adaptadores legados com leitura seguida
-    /// de gravação. Ela não é atômica entre processos; o publicador de ponteiros
-    /// serializa chamadas no processo atual, mas adaptadores compartilhados por
-    /// vários processos devem implementar CAS real no backend (e.g. S3 `If-Match`).
+    /// Compatibilidade para adaptadores legados de processo único: a implementação
+    /// padrão faz leitura seguida de gravação e não é atômica entre processos.
+    /// Não use esse fallback quando mais de um processo puder publicar a mesma
+    /// chave; adaptadores compartilhados devem implementar CAS real no backend
+    /// (e.g. S3 `If-Match`).
     async fn gravar_condicional(
         &self,
         objeto: ObjetoRaw,
