@@ -3,6 +3,7 @@ pub mod b3;
 pub mod bcb;
 pub mod camara;
 pub mod cnpj;
+pub mod conab;
 pub mod cvm;
 pub mod emendas;
 pub mod ibge;

@@ -7,9 +7,10 @@ use std::sync::Arc;
 
 use crate::decodificador::Decodificador;
 use crate::fontes::{
-    DecodificadorCnpj, DecodificadorCotahist, DecodificadorCsv, DecodificadorEmendasSiga,
-    DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
-    DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset, DecodificadorZipCsv,
+    DecodificadorCnpj, DecodificadorConabSafra, DecodificadorCotahist, DecodificadorCsv,
+    DecodificadorEmendasSiga, DecodificadorIbgeAgregados, DecodificadorJson,
+    DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes, DecodificadorXmlDataset,
+    DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -128,6 +129,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "bcb",
             prefixo_recurso: "series/",
             cria_decodificador: || Arc::new(DecodificadorJson::novo("serie")),
+        },
+        // CONAB: XLSX de safra de grãos (aba "Brasil - Total por Produto").
+        FonteDeRefino {
+            nome: "conab-safras",
+            fonte_raw: "conab",
+            prefixo_recurso: "safras/",
+            cria_decodificador: || Arc::new(DecodificadorConabSafra),
         },
         // Ipeadata (OData): registros sob a chave `value`.
         FonteDeRefino {
