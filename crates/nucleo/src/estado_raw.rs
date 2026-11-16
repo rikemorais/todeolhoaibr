@@ -49,6 +49,19 @@ pub async fn estado_na_raw(
     fonte: &str,
     recurso: &str,
 ) -> Result<Option<EstadoNaRaw>, ErroDeIngestao> {
+    Ok(estado_na_raw_com_origem(armazenamento, fonte, recurso)
+        .await?
+        .map(|(estado, _)| estado))
+}
+
+/// Lê o estado de um recurso na Raw e a URL gravada no manifesto vigente.
+///
+/// Esta função preserva a URL sem alterar o contrato público de `EstadoNaRaw`.
+pub async fn estado_na_raw_com_origem(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+) -> Result<Option<(EstadoNaRaw, Option<String>)>, ErroDeIngestao> {
     let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
     let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
         return Ok(None);
@@ -56,32 +69,35 @@ pub async fn estado_na_raw(
     // Ponteiro ilegível não pode travar o recurso: trata como estado incompleto
     // para que a decisão reingira e o sobrescreva (ver issue #13).
     let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes) else {
-        return Ok(Some(EstadoNaRaw::incompleto(None)));
+        return Ok(Some((EstadoNaRaw::incompleto(None), None)));
     };
 
     let Some(bytes_manifesto) = armazenamento.ler(&ponteiro.manifesto).await? else {
-        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+        return Ok(Some((EstadoNaRaw::incompleto(ponteiro.versao), None)));
     };
     // Manifesto ilegível recebe o mesmo tratamento do ponteiro corrompido.
     let Ok(manifesto) = serde_json::from_slice::<ManifestoRaw>(&bytes_manifesto) else {
-        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+        return Ok(Some((EstadoNaRaw::incompleto(ponteiro.versao), None)));
     };
 
     // Manifesto sem partes não descreve dado nenhum: incompleto, para reingerir.
     if manifesto.partes.is_empty() {
-        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+        return Ok(Some((EstadoNaRaw::incompleto(ponteiro.versao), None)));
     }
 
     let tamanho = manifesto.partes.iter().map(|parte| parte.bytes).sum();
     let integra = partes_integras(armazenamento, &manifesto).await?;
 
-    Ok(Some(EstadoNaRaw {
-        completa: true,
-        integra,
-        versao: ponteiro.versao,
-        origem: Some(manifesto.url_inicial.clone()),
-        tamanho: Some(tamanho),
-    }))
+    let origem = Some(manifesto.url_inicial.clone());
+    Ok(Some((
+        EstadoNaRaw {
+            completa: true,
+            integra,
+            versao: ponteiro.versao,
+            tamanho: Some(tamanho),
+        },
+        origem,
+    )))
 }
 
 /// O manifesto da ingestão vigente de um recurso, ou `None` se não houver
