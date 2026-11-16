@@ -5,8 +5,8 @@
 //! ponteiro) contra o bucket `bronze` — o layout é o mesmo, só muda o bucket.
 //!
 //! Procedência: cada part do bronze registra, no manifesto, a tabela de origem e o
-//! **validador da versão do raw** (`versao`) e, quando necessária, a versão da regra:
-//! reexecutar só reprocessa quando a entrada ou a regra mudou.
+//! **ID do manifesto Raw** (`versao`) e, quando necessária, a versão da regra:
+//! reexecutar só reprocessa quando uma nova captura ou regra for publicada.
 
 use std::io::Read;
 use std::sync::Arc;
@@ -81,26 +81,13 @@ impl TarefaDeBronze {
         }
     }
 
-    /// Validador do bronze: versão do raw (ou id da execução) e versão de regra opcional.
-    async fn versao_de_origem(
-        &self,
-        manifesto_raw: &ManifestoRaw,
-    ) -> Result<String, ErroDeIngestao> {
-        let chave = LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso);
-        let versao_raw = if let Some(bytes) = self.origem.ler(&chave).await?
-            && let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes)
-            && let Some(versao) = ponteiro.versao
-        {
-            versao
-        } else {
-            manifesto_raw.id_execucao.clone()
-        };
-        Ok(
-            match self.decodificador.versao_regra(&self.fonte, &self.recurso) {
-                Some(regra) => format!("{versao_raw}|regra={regra}"),
-                None => versao_raw,
-            },
-        )
+    /// Versão do bronze: id do manifesto Raw selecionado e versão de regra opcional.
+    fn versao_de_origem(&self, manifesto_raw: &ManifestoRaw) -> String {
+        let versao_raw = &manifesto_raw.id_execucao;
+        match self.decodificador.versao_regra(&self.fonte, &self.recurso) {
+            Some(regra) => format!("{versao_raw}|regra={regra}"),
+            None => versao_raw.clone(),
+        }
     }
 
     /// Lê a procedência do `raw` e decide se o `bronze` precisa reprocessar.
@@ -117,7 +104,7 @@ impl TarefaDeBronze {
         else {
             return Ok(None);
         };
-        let versao_origem = self.versao_de_origem(&manifesto_raw).await?;
+        let versao_origem = self.versao_de_origem(&manifesto_raw);
         let reaproveitar = match estado_na_raw(bronze, &self.fonte, &self.recurso).await? {
             Some(estado) => {
                 estado.completa
@@ -395,8 +382,12 @@ mod testes {
 
     /// Semeia o raw com ponteiro + manifesto + uma parte, como se já tivesse sido ingerido.
     fn semear_raw(raw: &RawEmMemoria, versao: &str) {
+        semear_raw_com_execucao(raw, versao, &format!("RAW-{versao}"));
+    }
+
+    fn semear_raw_com_execucao(raw: &RawEmMemoria, versao: &str, id_execucao: &str) {
         let dt = Utc.with_ymd_and_hms(2026, 11, 3, 10, 0, 0).unwrap();
-        let local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, "RAWEXEC");
+        let local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, id_execucao);
         let chave_parte = local.parte(1, "zip");
         {
             let mut o = raw.objetos.lock().unwrap();
@@ -405,7 +396,7 @@ mod testes {
         let manifesto = ManifestoRaw {
             fonte: FONTE.into(),
             recurso: RECURSO.into(),
-            id_execucao: "RAWEXEC".into(),
+            id_execucao: id_execucao.into(),
             url_inicial: "https://origem/despesas".into(),
             iniciada_em: dt,
             concluida_em: dt,
@@ -512,6 +503,23 @@ mod testes {
 
         assert!(!depois.reaproveitada, "raw mudou: deveria reprocessar");
         assert_eq!(depois.partes, 1);
+    }
+
+    #[tokio::test]
+    async fn reprocessa_quando_etag_repete_em_nova_execucao_raw() {
+        let raw = Arc::new(RawEmMemoria::default());
+        semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC1");
+        let bronze = Arc::new(RawEmMemoria::default());
+        tarefa(raw.clone())
+            .executar(&contexto(bronze.clone(), "BR1"))
+            .await
+            .unwrap();
+
+        semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC2");
+        assert!(
+            tarefa(raw).pendente(bronze.as_ref()).await.unwrap(),
+            "um manifesto novo deve invalidar o bronze mesmo com ETag repetido"
+        );
     }
 
     #[tokio::test]

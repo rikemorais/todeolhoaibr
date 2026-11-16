@@ -13,6 +13,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Reingere arquivos quando a URL de origem muda, mesmo se o novo host reutilizar o mesmo ETag opaco.
 - Torna condicional e atômica a publicação do ponteiro Raw no backend S3, confirma commits com resposta ambígua e mantém adaptadores legados serializados dentro do processo.
 - Reavalia conflitos CAS (limite de 64 tentativas/30 s, com erro repetível ao esgotar), remove arquivos e manifestos de snapshots que perderam a publicação e usa timeout curto ao ler ponteiros Bronze.
+- Identifica a procedência Bronze pelo ID do manifesto Raw selecionado, evitando reaproveitar ETags repetidos e leituras de ponteiro inconsistentes.
 
 ## [0.104.0] - 2026-11-16
 
