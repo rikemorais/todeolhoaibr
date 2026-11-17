@@ -424,6 +424,18 @@ impl Tarefa for TarefaDeIngestaoHttp {
                         );
                     }
                 }
+                if let Err(erro) = todeolho_nucleo::agendar_limpeza_snapshot(
+                    contexto.armazenamento.as_ref(),
+                    &chave_manifesto,
+                )
+                .await
+                {
+                    warn!(
+                        %erro,
+                        manifesto = %chave_manifesto,
+                        "não foi possível agendar a limpeza tardia do snapshot Raw"
+                    );
+                }
             } else {
                 let falhas = contexto
                     .armazenamento
@@ -944,14 +956,28 @@ mod testes {
         assert_eq!(resumo.bytes, (PAGINA_1.len() + PAGINA_2.len()) as u64);
 
         let objetos = armazenamento.objetos.lock().unwrap();
-        assert_eq!(objetos.len(), 4);
-        assert_eq!(objetos[0].conteudo, PAGINA_1.as_bytes());
-        assert!(objetos[0].chave.ends_with("/parte-00001.json"));
-        assert!(objetos[1].chave.ends_with("/parte-00002.json"));
-        assert!(objetos[2].chave.ends_with("/_manifesto.json"));
-        assert!(objetos[3].chave.ends_with("/_ultima_versao.json"));
+        assert_eq!(objetos.len(), 5); // partes, manifesto, ponteiro e trava compartilhada
+        let parte_1 = objetos
+            .iter()
+            .find(|objeto| objeto.chave.ends_with("/parte-00001.json"))
+            .unwrap();
+        let parte_2 = objetos
+            .iter()
+            .find(|objeto| objeto.chave.ends_with("/parte-00002.json"))
+            .unwrap();
+        let objeto_manifesto = objetos
+            .iter()
+            .find(|objeto| objeto.chave.ends_with("/_manifesto.json"))
+            .unwrap();
+        assert!(
+            objetos
+                .iter()
+                .any(|objeto| objeto.chave.ends_with("/_ultima_versao.json"))
+        );
+        assert_eq!(parte_1.conteudo, PAGINA_1.as_bytes());
+        assert_eq!(parte_2.conteudo, PAGINA_2.as_bytes());
 
-        let manifesto: ManifestoRaw = serde_json::from_slice(&objetos[2].conteudo).unwrap();
+        let manifesto: ManifestoRaw = serde_json::from_slice(&objeto_manifesto.conteudo).unwrap();
         assert_eq!(manifesto.partes.len(), 2);
         assert_eq!(manifesto.partes[1].url, "https://api/2");
         assert_eq!(
@@ -1099,9 +1125,17 @@ mod testes {
 
         assert_eq!(http.chamadas.load(Ordering::SeqCst), 2);
         let objetos = armazenamento.objetos.lock().unwrap();
-        assert_eq!(objetos.len(), 3);
-        assert_eq!(objetos[0].conteudo, CORPO_VALIDO.as_bytes());
-        assert!(objetos[1].chave.ends_with("/_manifesto.json"));
+        assert_eq!(objetos.len(), 4); // parte, manifesto, ponteiro e trava compartilhada
+        assert!(
+            objetos
+                .iter()
+                .any(|objeto| objeto.conteudo == CORPO_VALIDO.as_bytes())
+        );
+        assert!(
+            objetos
+                .iter()
+                .any(|objeto| objeto.chave.ends_with("/_manifesto.json"))
+        );
     }
 
     #[tokio::test]
