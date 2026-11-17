@@ -5,6 +5,16 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.104.1] - 2026-11-16
+
+### Corrigido
+
+- Atualiza o endpoint de download dos arquivos CNPJ para a pasta pública atual da Receita Federal.
+- Reingere arquivos quando a URL de origem muda, mesmo se o novo host reutilizar o mesmo ETag opaco.
+- Torna condicional e atômica a publicação do ponteiro Raw no backend S3, confirma commits com resposta ambígua e mantém adaptadores legados serializados dentro do processo.
+- Reavalia conflitos CAS (limite de 64 tentativas/30 s, com erro repetível ao esgotar), agenda limpeza de snapshots perdedores com janela de segurança de 24 h e usa timeout curto ao ler ponteiros Bronze.
+- Identifica a procedência Bronze pelo ID do manifesto Raw selecionado, evitando reaproveitar ETags repetidos e leituras de ponteiro inconsistentes.
+
 ## [0.104.0] - 2026-11-16
 
 ### Adicionado

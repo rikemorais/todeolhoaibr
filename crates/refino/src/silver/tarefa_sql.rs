@@ -301,6 +301,19 @@ mod testes {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
         }
 
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
+        }
+
         async fn ler_fluxo(
             &self,
             chave: &str,
