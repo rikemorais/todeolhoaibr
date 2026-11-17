@@ -4,7 +4,10 @@ Cadastro completo de empresas e estabelecimentos do país (ativos e baixados), d
 MEI à grande empresa. Base para análise de aberturas/fechamentos, capital social,
 porte e saúde empresarial por estado e município.
 
-Origem: <https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/>.
+Origem (pasta pública da Receita):
+<https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9>.
+Download direto, sem credenciais, pelo WebDAV público:
+<https://arquivos.receitafederal.gov.br/public.php/dav/files/YggdBLfdninEJX9/>.
 Layout oficial: <https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf>.
 
 ## O que é ingerido
@@ -58,8 +61,17 @@ executar cnpj --etiquetas competencia=2026-10,tabela=empresas,parte=0
 ## Idempotência
 
 A ingestão é idempotente **por competência** (mês do dump). Se o ZIP já foi
-baixado e o ETag/versão não mudou, a tarefa pula o download. Cada competência
-é um snapshot completo — não há deltas.
+baixado, a URL configurada é a mesma registrada no manifesto Raw e o ETag/versão
+não mudou, a tarefa pula o download. Uma mudança de endpoint força a reingestão,
+mesmo quando o novo servidor reutiliza o ETag. Ao implantar a troca de URL,
+pause agendadores e filas que possam iniciar imagens antigas, aguarde todas as
+execuções antigas terminarem e confirme que não há workers antigos em execução
+ou pendentes antes de iniciar a nova imagem. Só reative os agendamentos depois
+que a nova imagem estiver ativa. O ponteiro compara a hora de início, mas não
+tem um token de geração que consiga cercar um binário antigo; se uma imagem
+antiga voltar a executar depois da troca, ela ainda pode acessar o endpoint
+anterior e publicar seu resultado. Cada competência é um snapshot completo —
+não há deltas.
 
 ## Estratégia de diff entre snapshots
 

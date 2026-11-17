@@ -140,6 +140,13 @@ pub trait ArmazenamentoRaw: Send + Sync {
     /// Conteúdo do objeto, ou `None` se ele não existir.
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao>;
 
+    /// Lê um objeto pequeno de controle com o timeout adequado a metadados.
+    /// Por padrão usa [`ArmazenamentoRaw::ler`]; adaptadores podem sobrescrever
+    /// para evitar que um timeout longo de transferência bloqueie a publicação.
+    async fn ler_controle(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+        self.ler(chave).await
+    }
+
     /// Baixa o objeto escrevendo-o em `escrita`, sem carregar tudo na memória; devolve `false`
     /// se não existir. Útil para objetos grandes (ex.: ZIPs de vários GB do TSE). O padrão usa
     /// [`Self::ler`] (carrega na memória); a infraestrutura deve transmitir em fluxo.
@@ -179,8 +186,10 @@ pub trait ArmazenamentoRaw: Send + Sync {
     ///
     /// Devolve `true` se gravou, `false` se a pré-condição falhou (conflito).
     ///
-    /// A implementação padrão lê, compara e grava sem atomicidade entre processos;
-    /// adaptadores devem sobrescrever quando o backend suportar escrita condicional
+    /// Compatibilidade para adaptadores legados de processo único: a implementação
+    /// padrão faz leitura seguida de gravação e não é atômica entre processos.
+    /// Não use esse fallback quando mais de um processo puder publicar a mesma
+    /// chave; adaptadores compartilhados devem implementar CAS real no backend
     /// (e.g. S3 `If-Match`).
     async fn gravar_condicional(
         &self,
@@ -188,12 +197,11 @@ pub trait ArmazenamentoRaw: Send + Sync {
         conteudo_vigente: Option<&[u8]>,
     ) -> Result<bool, ErroDeIngestao> {
         let atual = self.ler(&objeto.chave).await?;
-        if atual.as_deref() == conteudo_vigente {
-            self.gravar(objeto).await?;
-            Ok(true)
-        } else {
-            Ok(false)
+        if atual.as_deref() != conteudo_vigente {
+            return Ok(false);
         }
+        self.gravar(objeto).await?;
+        Ok(true)
     }
 }
 
@@ -326,6 +334,8 @@ pub trait ClienteHttp: Send + Sync {
 #[cfg(test)]
 mod testes {
     use super::*;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tokio::io::AsyncRead;
 
@@ -360,8 +370,10 @@ mod testes {
     }
 
     /// Adapter stub que aceita remoções e conta chamadas.
+    #[derive(Default)]
     struct ArmazenamentoContador {
         chamadas: AtomicUsize,
+        objetos: Mutex<HashMap<String, Vec<u8>>>,
     }
 
     #[async_trait]
@@ -369,7 +381,12 @@ mod testes {
         async fn preparar(&self) -> Result<(), ErroDeIngestao> {
             Ok(())
         }
-        async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+        async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            self.chamadas.fetch_add(1, Ordering::Relaxed);
+            self.objetos
+                .lock()
+                .unwrap()
+                .insert(objeto.chave, objeto.conteudo);
             Ok(())
         }
         async fn gravar_fluxo(
@@ -384,8 +401,8 @@ mod testes {
             self.chamadas.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
-        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
-            Ok(None)
+        async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(self.objetos.lock().unwrap().get(chave).cloned())
         }
     }
 
@@ -419,19 +436,72 @@ mod testes {
 
     #[tokio::test]
     async fn remover_lote_sem_chaves_devolve_vazio() {
-        let arm = ArmazenamentoContador {
-            chamadas: AtomicUsize::new(0),
-        };
+        let arm = ArmazenamentoContador::default();
         let falhas = arm.remover_lote(&[], 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());
         assert_eq!(arm.chamadas.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]
-    async fn remover_lote_com_sucesso_nao_devolve_falhas() {
-        let arm = ArmazenamentoContador {
-            chamadas: AtomicUsize::new(0),
+    async fn gravacao_condicional_padrao_preserva_adaptadores_que_implementam_ler_e_gravar() {
+        let armazenamento = ArmazenamentoContador::default();
+        let objeto = ObjetoRaw {
+            chave: "ponteiro".into(),
+            conteudo: b"novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
         };
+
+        assert!(
+            armazenamento
+                .gravar_condicional(objeto.clone(), None)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !armazenamento
+                .gravar_condicional(objeto.clone(), None)
+                .await
+                .unwrap()
+        );
+        assert_eq!(armazenamento.chamadas.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            armazenamento.ler("ponteiro").await.unwrap(),
+            Some(b"novo".to_vec())
+        );
+    }
+
+    #[tokio::test]
+    async fn gravacao_condicional_padrao_rejeita_conteudo_antigo() {
+        let armazenamento = ArmazenamentoContador::default();
+        armazenamento
+            .gravar(ObjetoRaw {
+                chave: "ponteiro".into(),
+                conteudo: b"novo".to_vec(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let gravou = armazenamento
+            .gravar_condicional(
+                ObjetoRaw {
+                    chave: "ponteiro".into(),
+                    conteudo: b"antigo".to_vec(),
+                    tipo_de_conteudo: "application/json".into(),
+                },
+                Some(b"antigo"),
+            )
+            .await
+            .unwrap();
+        assert!(!gravou);
+        assert_eq!(
+            armazenamento.ler("ponteiro").await.unwrap(),
+            Some(b"novo".to_vec())
+        );
+    }
+
+    #[tokio::test]
+    async fn remover_lote_com_sucesso_nao_devolve_falhas() {
+        let arm = ArmazenamentoContador::default();
         let chaves: Vec<String> = (0..10).map(|i| format!("chave-{i}")).collect();
         let falhas = arm.remover_lote(&chaves, 4, Duration::from_secs(5)).await;
         assert!(falhas.is_empty());

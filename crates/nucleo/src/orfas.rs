@@ -1,21 +1,99 @@
-//! Recuperação de partes Raw órfãs: objetos gravados durante ingestões que não
-//! concluíram (erro ambíguo no manifesto, cancelamento abrupto, ou rollback
-//! incompleto). A limpeza só remove objetos comprovadamente desprotegidos — sem
-//! manifesto — e nunca atinge partes de ingestões vigentes.
+//! Recuperação de snapshots Raw sem publicação concluída. Snapshots marcados para
+//! remoção passam por uma janela de segurança para preservar leitores que já tenham
+//! carregado o ponteiro antes de uma publicação ser substituída.
 //!
 //! Ver issue #269 e PR #278 (revisão).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 use crate::erros::ErroDeIngestao;
-use crate::portas::{ArmazenamentoRaw, FalhaDeRemocao};
-use crate::raw::ManifestoRaw;
+use crate::portas::{ArmazenamentoRaw, FalhaDeRemocao, ObjetoRaw};
+use crate::raw::{ManifestoRaw, UltimaVersao};
 
 const CONCORRENCIA: usize = 4;
 const DEADLINE: Duration = Duration::from_secs(30);
+const GRACA_SNAPSHOT: chrono::Duration = chrono::Duration::hours(24);
+const RETENCAO_EXECUCAO_ATIVA: chrono::Duration = chrono::Duration::days(7);
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LimpezaPendente {
+    manifesto: String,
+    solicitada_em: DateTime<Utc>,
+    #[serde(default)]
+    nao_vigente_desde: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ExecucaoAtiva {
+    iniciada_em: DateTime<Utc>,
+}
+
+/// Marca o prefixo antes de gravar partes; assim uma varredura concorrente
+/// preserva uploads ainda sem manifesto. Marcadores abandonados expiram em sete dias.
+pub async fn marcar_execucao_ativa(
+    armazenamento: &dyn ArmazenamentoRaw,
+    chave_manifesto: &str,
+) -> Result<(), ErroDeIngestao> {
+    let chave = chave_da_execucao_ativa(chave_manifesto);
+    let conteudo = serde_json::to_vec(&ExecucaoAtiva {
+        iniciada_em: Utc::now(),
+    })
+    .map_err(|erro| ErroDeIngestao::Manifesto {
+        recurso: chave_manifesto.to_owned(),
+        detalhe: erro.to_string(),
+    })?;
+    armazenamento
+        .gravar(ObjetoRaw {
+            chave,
+            conteudo,
+            tipo_de_conteudo: "application/json".to_owned(),
+        })
+        .await
+}
+
+fn chave_da_execucao_ativa(chave_manifesto: &str) -> String {
+    chave_manifesto.strip_suffix("_manifesto.json").map_or_else(
+        || format!("{chave_manifesto}.execucao_ativa.json"),
+        |prefixo| format!("{prefixo}_execucao_ativa.json"),
+    )
+}
+
+/// Agenda a remoção tardia de um snapshot cuja publicação foi perdida ou ficou ambígua.
+/// A varredura espera a janela de segurança e confere novamente o ponteiro antes de apagar.
+pub async fn agendar_limpeza_snapshot(
+    armazenamento: &dyn ArmazenamentoRaw,
+    chave_manifesto: &str,
+) -> Result<(), ErroDeIngestao> {
+    let chave = chave_da_limpeza(chave_manifesto);
+    let conteudo = serde_json::to_vec(&LimpezaPendente {
+        manifesto: chave_manifesto.to_owned(),
+        solicitada_em: Utc::now(),
+        nao_vigente_desde: None,
+    })
+    .map_err(|erro| ErroDeIngestao::Manifesto {
+        recurso: chave_manifesto.to_owned(),
+        detalhe: erro.to_string(),
+    })?;
+    armazenamento
+        .gravar(ObjetoRaw {
+            chave,
+            conteudo,
+            tipo_de_conteudo: "application/json".to_owned(),
+        })
+        .await
+}
+
+fn chave_da_limpeza(chave_manifesto: &str) -> String {
+    chave_manifesto.strip_suffix("_manifesto.json").map_or_else(
+        || format!("{chave_manifesto}.limpeza_pendente.json"),
+        |prefixo| format!("{prefixo}_limpeza_pendente.json"),
+    )
+}
 
 /// Resultado da verificação de manifesto após erro ambíguo.
 #[derive(Debug)]
@@ -67,15 +145,15 @@ pub async fn verificar_manifesto_ou_limpar(
     }
 }
 
-/// Varre um prefixo no armazenamento e remove objetos que não pertencem a
-/// nenhum manifesto vigente nem à execução corrente.
+/// Varre um prefixo e remove objetos não referenciados, incluindo snapshots
+/// explicitamente agendados quando sua janela de segurança já expirou.
 ///
 /// `id_execucao_atual` exclui partes da ingestão em andamento para evitar
 /// colisão quando duas execuções do mesmo recurso se sobrepõem.
 ///
-/// Se um manifesto listado não puder ser lido ou desserializado, todas as
-/// chaves sob a mesma execução são consideradas protegidas (princípio
-/// conservador: na dúvida, não apagar).
+/// Snapshots com marcador permanecem protegidos por 24 horas e enquanto forem
+/// apontados por `_ultima_versao.json`. Se um manifesto ou ponteiro listado não
+/// puder ser lido, a execução é protegida por inteiro.
 pub async fn limpar_orfas_do_recurso(
     armazenamento: &dyn ArmazenamentoRaw,
     prefixo_recurso: &str,
@@ -87,56 +165,136 @@ pub async fn limpar_orfas_do_recurso(
     }
 
     let mut protegidas = HashSet::new();
+    let mut manifestos_vigentes = HashSet::new();
 
-    // Protege tudo da execução corrente.
+    for chave in &chaves {
+        if chave.ends_with("/_publicacao.lock.json") {
+            protegidas.insert(chave.clone());
+        }
+        if chave.ends_with("/_ultima_versao.json") {
+            protegidas.insert(chave.clone());
+            match armazenamento.ler_controle(chave).await {
+                Ok(Some(bytes)) => match serde_json::from_slice::<UltimaVersao>(&bytes) {
+                    Ok(ponteiro) => {
+                        manifestos_vigentes.insert(ponteiro.manifesto);
+                    }
+                    Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
+                },
+                Ok(None) | Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
+            }
+        }
+    }
+
+    let mut execucoes_ativas = HashSet::new();
+    for chave in &chaves {
+        if !chave.ends_with("/_execucao_ativa.json") {
+            continue;
+        }
+        match armazenamento.ler(chave).await {
+            Ok(Some(bytes)) => match serde_json::from_slice::<ExecucaoAtiva>(&bytes) {
+                Ok(execucao)
+                    if Utc::now().signed_duration_since(execucao.iniciada_em)
+                        < RETENCAO_EXECUCAO_ATIVA =>
+                {
+                    execucoes_ativas.insert(prefixo_da_execucao(chave));
+                    proteger_execucao(chave, &chaves, &mut protegidas);
+                }
+                Ok(_) => {}
+                Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
+            },
+            Ok(None) | Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
+        }
+    }
+
+    let mut limpezas_pendentes = HashMap::new();
+    for chave in &chaves {
+        if !chave.ends_with("/_limpeza_pendente.json") {
+            continue;
+        }
+        match armazenamento.ler(chave).await {
+            Ok(Some(bytes)) => match serde_json::from_slice::<LimpezaPendente>(&bytes) {
+                Ok(limpeza) if chave_da_limpeza(&limpeza.manifesto) == *chave => {
+                    limpezas_pendentes.insert(limpeza.manifesto.clone(), (chave.clone(), limpeza));
+                }
+                _ => proteger_execucao(chave, &chaves, &mut protegidas),
+            },
+            Ok(None) | Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
+        }
+    }
+
     for chave in &chaves {
         if chave.contains(&format!("execucao={id_execucao_atual}/")) {
             protegidas.insert(chave.clone());
         }
     }
 
+    let mut limpezas_expiradas = Vec::new();
+    for (manifesto, (chave_limpeza, limpeza)) in &mut limpezas_pendentes {
+        let atual = manifestos_vigentes.contains(manifesto);
+        let estado_antes = limpeza.nao_vigente_desde;
+        if atual {
+            limpeza.nao_vigente_desde = None;
+        } else if limpeza.nao_vigente_desde.is_none() {
+            limpeza.nao_vigente_desde = Some(Utc::now());
+        }
+        if estado_antes != limpeza.nao_vigente_desde {
+            let conteudo =
+                serde_json::to_vec(limpeza).map_err(|erro| ErroDeIngestao::Manifesto {
+                    recurso: manifesto.clone(),
+                    detalhe: erro.to_string(),
+                })?;
+            if let Err(erro) = armazenamento
+                .gravar(ObjetoRaw {
+                    chave: chave_limpeza.clone(),
+                    conteudo,
+                    tipo_de_conteudo: "application/json".to_owned(),
+                })
+                .await
+            {
+                warn!(%erro, manifesto = %manifesto, "falha ao atualizar marcador de limpeza; protegendo snapshot");
+                proteger_execucao(manifesto, &chaves, &mut protegidas);
+            }
+        }
+        protegidas.insert(chave_limpeza.clone());
+        let expirada = limpeza
+            .nao_vigente_desde
+            .is_some_and(|desde| Utc::now().signed_duration_since(desde) >= GRACA_SNAPSHOT);
+        if expirada && !atual {
+            limpezas_expiradas.push((Some(chave_limpeza.clone()), prefixo_da_execucao(manifesto)));
+        } else {
+            proteger_execucao(manifesto, &chaves, &mut protegidas);
+        }
+    }
+
     for chave in &chaves {
-        if chave.ends_with("/_manifesto.json") {
-            protegidas.insert(chave.clone());
-            match armazenamento.ler(chave).await {
-                Ok(Some(bytes)) => match serde_json::from_slice::<ManifestoRaw>(&bytes) {
-                    Ok(manifesto) => {
+        if !chave.ends_with("/_manifesto.json") {
+            continue;
+        }
+        let atual = manifestos_vigentes.contains(chave);
+        let ativa = execucoes_ativas.contains(&prefixo_da_execucao(chave));
+        match armazenamento.ler(chave).await {
+            Ok(Some(bytes)) => match serde_json::from_slice::<ManifestoRaw>(&bytes) {
+                Ok(manifesto) => {
+                    let expirado_sem_marcador = !limpezas_pendentes.contains_key(chave)
+                        && Utc::now().signed_duration_since(manifesto.concluida_em)
+                            >= GRACA_SNAPSHOT;
+                    let em_limpeza = limpezas_pendentes.get(chave).is_some_and(|(_, limpeza)| {
+                        limpeza.nao_vigente_desde.is_some_and(|desde| {
+                            Utc::now().signed_duration_since(desde) >= GRACA_SNAPSHOT
+                        })
+                    });
+                    if atual || ativa || (!expirado_sem_marcador && !em_limpeza) {
+                        protegidas.insert(chave.clone());
                         for parte in &manifesto.partes {
                             protegidas.insert(parte.chave.clone());
                         }
-                    }
-                    Err(_) => {
-                        // Manifesto ilegível: proteger TODAS as chaves sob a mesma
-                        // execução para não apagar dados referenciados.
-                        warn!(
-                            manifesto = %chave,
-                            "manifesto ilegível; protegendo toda a execução"
-                        );
-                        let prefixo_exec = prefixo_da_execucao(chave);
-                        for outra in &chaves {
-                            if outra.starts_with(&prefixo_exec) {
-                                protegidas.insert(outra.clone());
-                            }
-                        }
-                    }
-                },
-                Ok(None) | Err(_) => {
-                    // Listou mas não conseguiu ler: proteger a execução inteira.
-                    warn!(
-                        manifesto = %chave,
-                        "falha ao ler manifesto listado; protegendo toda a execução"
-                    );
-                    let prefixo_exec = prefixo_da_execucao(chave);
-                    for outra in &chaves {
-                        if outra.starts_with(&prefixo_exec) {
-                            protegidas.insert(outra.clone());
-                        }
+                    } else if !limpezas_pendentes.contains_key(chave) {
+                        limpezas_expiradas.push((None, prefixo_da_execucao(chave)));
                     }
                 }
-            }
-        }
-        if chave.ends_with("/_ultima_versao.json") {
-            protegidas.insert(chave.clone());
+                Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
+            },
+            Ok(None) | Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
         }
     }
 
@@ -145,19 +303,53 @@ pub async fn limpar_orfas_do_recurso(
         .filter(|chave| !protegidas.contains(chave))
         .collect();
 
-    if orfas.is_empty() {
-        return Ok((0, Vec::new()));
+    let mut total = orfas.len();
+    let mut falhas = if orfas.is_empty() {
+        Vec::new()
+    } else {
+        info!(
+            prefixo = %prefixo_recurso,
+            orfas = total,
+            "encontradas partes órfãs; iniciando limpeza"
+        );
+        remover_e_logar(armazenamento, &orfas, "varredura").await
+    };
+
+    // O marcador só sai depois que todos os objetos daquela execução foram
+    // removidos. Se uma remoção falhar, ele permite que a próxima varredura
+    // tente novamente em vez de deixar um manifesto válido órfão protegido para sempre.
+    for (chave_limpeza, prefixo_execucao) in limpezas_expiradas {
+        if falhas
+            .iter()
+            .any(|falha| falha.chave.starts_with(&prefixo_execucao))
+        {
+            continue;
+        }
+        let Some(chave_limpeza) = chave_limpeza else {
+            continue;
+        };
+        let falhas_marcador = remover_e_logar(
+            armazenamento,
+            &[chave_limpeza],
+            "marcador de limpeza concluída",
+        )
+        .await;
+        if falhas_marcador.is_empty() {
+            total += 1;
+        }
+        falhas.extend(falhas_marcador);
     }
-
-    let total = orfas.len();
-    info!(
-        prefixo = %prefixo_recurso,
-        orfas = total,
-        "encontradas partes órfãs; iniciando limpeza"
-    );
-
-    let falhas = remover_e_logar(armazenamento, &orfas, "varredura").await;
     Ok((total, falhas))
+}
+
+fn proteger_execucao(chave: &str, chaves: &[String], protegidas: &mut HashSet<String>) {
+    warn!(manifesto = %chave, "estado do snapshot incerto; protegendo a execução inteira");
+    let prefixo_exec = prefixo_da_execucao(chave);
+    for outra in chaves {
+        if outra.starts_with(&prefixo_exec) {
+            protegidas.insert(outra.clone());
+        }
+    }
 }
 
 /// Extrai o prefixo da execução de uma chave de manifesto.
@@ -202,12 +394,14 @@ mod testes {
     #[derive(Default)]
     struct ArmazenamentoEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
+        falha_remocao: Mutex<Option<String>>,
     }
 
     impl ArmazenamentoEmMemoria {
         fn com(objetos: impl IntoIterator<Item = (String, Vec<u8>)>) -> Self {
             Self {
                 objetos: Mutex::new(objetos.into_iter().collect()),
+                falha_remocao: Mutex::new(None),
             }
         }
 
@@ -240,6 +434,12 @@ mod testes {
         }
 
         async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            if self.falha_remocao.lock().unwrap().as_deref() == Some(chave) {
+                return Err(ErroDeIngestao::Armazenamento {
+                    chave: chave.to_owned(),
+                    detalhe: "falha simulada".to_owned(),
+                });
+            }
             self.objetos.lock().unwrap().remove(chave);
             Ok(())
         }
@@ -383,6 +583,256 @@ mod testes {
         assert_eq!(total, 0);
         assert!(falhas.is_empty());
         assert!(armazenamento.contem("ibge/estados/exec1/parte-00001.json"));
+    }
+
+    #[tokio::test]
+    async fn snapshot_perdedor_fica_protegido_durante_a_graca() {
+        let manifesto_vigente =
+            manifesto_com_partes(vec![parte("ibge/estados/exec-atual/parte.json")]);
+        let manifesto_perdedor =
+            manifesto_com_partes(vec![parte("ibge/estados/exec-perdedor/parte.json")]);
+        let chave_manifesto_perdedor = "ibge/estados/exec-perdedor/_manifesto.json";
+        let limpeza = LimpezaPendente {
+            manifesto: chave_manifesto_perdedor.to_owned(),
+            solicitada_em: Utc::now(),
+            nao_vigente_desde: None,
+        };
+        let ponteiro = UltimaVersao {
+            versao: None,
+            manifesto: "ibge/estados/exec-atual/_manifesto.json".to_owned(),
+            iniciada_em: None,
+        };
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (
+                "ibge/estados/_ultima_versao.json".to_owned(),
+                json(&ponteiro),
+            ),
+            (
+                "ibge/estados/exec-atual/_manifesto.json".to_owned(),
+                json(&manifesto_vigente),
+            ),
+            (
+                "ibge/estados/exec-atual/parte.json".to_owned(),
+                b"atual".to_vec(),
+            ),
+            (
+                chave_manifesto_perdedor.to_owned(),
+                json(&manifesto_perdedor),
+            ),
+            (
+                "ibge/estados/exec-perdedor/parte.json".to_owned(),
+                b"perdedor".to_vec(),
+            ),
+            (chave_da_limpeza(chave_manifesto_perdedor), json(&limpeza)),
+        ]);
+
+        let (removidas, falhas) =
+            limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
+                .await
+                .unwrap();
+
+        assert_eq!(removidas, 0);
+        assert!(falhas.is_empty());
+        assert!(armazenamento.contem(chave_manifesto_perdedor));
+        assert!(armazenamento.contem("ibge/estados/exec-perdedor/parte.json"));
+        assert!(armazenamento.contem(&chave_da_limpeza(chave_manifesto_perdedor)));
+    }
+
+    #[tokio::test]
+    async fn snapshot_perdedor_e_removido_depois_da_graca() {
+        let manifesto_vigente =
+            manifesto_com_partes(vec![parte("ibge/estados/exec-atual/parte.json")]);
+        let manifesto_perdedor =
+            manifesto_com_partes(vec![parte("ibge/estados/exec-perdedor/parte.json")]);
+        let chave_manifesto_perdedor = "ibge/estados/exec-perdedor/_manifesto.json";
+        let limpeza = LimpezaPendente {
+            manifesto: chave_manifesto_perdedor.to_owned(),
+            solicitada_em: Utc::now(),
+            nao_vigente_desde: Some(Utc::now() - GRACA_SNAPSHOT - chrono::Duration::seconds(1)),
+        };
+        let ponteiro = UltimaVersao {
+            versao: None,
+            manifesto: "ibge/estados/exec-atual/_manifesto.json".to_owned(),
+            iniciada_em: None,
+        };
+        let chave_limpeza = chave_da_limpeza(chave_manifesto_perdedor);
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (
+                "ibge/estados/_ultima_versao.json".to_owned(),
+                json(&ponteiro),
+            ),
+            (
+                "ibge/estados/exec-atual/_manifesto.json".to_owned(),
+                json(&manifesto_vigente),
+            ),
+            (
+                "ibge/estados/exec-atual/parte.json".to_owned(),
+                b"atual".to_vec(),
+            ),
+            (
+                chave_manifesto_perdedor.to_owned(),
+                json(&manifesto_perdedor),
+            ),
+            (
+                "ibge/estados/exec-perdedor/parte.json".to_owned(),
+                b"perdedor".to_vec(),
+            ),
+            (chave_limpeza.clone(), json(&limpeza)),
+        ]);
+
+        let (removidas, falhas) =
+            limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "corrente")
+                .await
+                .unwrap();
+
+        assert_eq!(removidas, 3);
+        assert!(falhas.is_empty());
+        assert!(!armazenamento.contem(chave_manifesto_perdedor));
+        assert!(!armazenamento.contem("ibge/estados/exec-perdedor/parte.json"));
+        assert!(!armazenamento.contem(&chave_limpeza));
+        assert!(armazenamento.contem("ibge/estados/exec-atual/parte.json"));
+    }
+
+    #[tokio::test]
+    async fn snapshot_vigente_reinicia_a_graca_ao_deixar_de_ser_apontado() {
+        let manifesto_chave = "ibge/estados/exec-perdedor/_manifesto.json";
+        let chave_limpeza = chave_da_limpeza(manifesto_chave);
+        let manifesto = manifesto_com_partes(vec![parte("ibge/estados/exec-perdedor/parte.json")]);
+        let marcador = LimpezaPendente {
+            manifesto: manifesto_chave.to_owned(),
+            solicitada_em: Utc::now() - GRACA_SNAPSHOT - chrono::Duration::seconds(1),
+            nao_vigente_desde: Some(Utc::now() - GRACA_SNAPSHOT - chrono::Duration::seconds(1)),
+        };
+        let ponteiro = UltimaVersao {
+            versao: None,
+            manifesto: manifesto_chave.to_owned(),
+            iniciada_em: None,
+        };
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (manifesto_chave.to_owned(), json(&manifesto)),
+            (
+                "ibge/estados/exec-perdedor/parte.json".to_owned(),
+                b"dados".to_vec(),
+            ),
+            (chave_limpeza.clone(), json(&marcador)),
+            (
+                "ibge/estados/_ultima_versao.json".to_owned(),
+                json(&ponteiro),
+            ),
+        ]);
+
+        limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+        let depois_de_corrente: LimpezaPendente =
+            serde_json::from_slice(&armazenamento.ler(&chave_limpeza).await.unwrap().unwrap())
+                .unwrap();
+        assert!(depois_de_corrente.nao_vigente_desde.is_none());
+        assert!(armazenamento.contem(manifesto_chave));
+
+        let ponteiro_substituido = UltimaVersao {
+            versao: None,
+            manifesto: "ibge/estados/exec-novo/_manifesto.json".to_owned(),
+            iniciada_em: None,
+        };
+        armazenamento
+            .gravar(ObjetoRaw {
+                chave: "ibge/estados/_ultima_versao.json".to_owned(),
+                conteudo: json(&ponteiro_substituido),
+                tipo_de_conteudo: "application/json".to_owned(),
+            })
+            .await
+            .unwrap();
+        limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+        let depois_de_substituido: LimpezaPendente =
+            serde_json::from_slice(&armazenamento.ler(&chave_limpeza).await.unwrap().unwrap())
+                .unwrap();
+        assert!(
+            Utc::now().signed_duration_since(depois_de_substituido.nao_vigente_desde.unwrap())
+                < GRACA_SNAPSHOT
+        );
+        assert!(armazenamento.contem(manifesto_chave));
+    }
+
+    #[tokio::test]
+    async fn marcador_permanece_quando_a_remocao_do_snapshot_falha() {
+        let prefixo = "ibge/estados/execucao=e1/";
+        let manifesto_chave = format!("{prefixo}_manifesto.json");
+        let marcador_chave = format!("{prefixo}_limpeza_pendente.json");
+        let parte_chave = format!("{prefixo}parte-00001.json");
+        let mut manifesto = manifesto_com_partes(vec![parte(&parte_chave)]);
+        manifesto.id_execucao = "e1".to_owned();
+        let marcador = LimpezaPendente {
+            manifesto: manifesto_chave.clone(),
+            solicitada_em: Utc::now(),
+            nao_vigente_desde: Some(Utc::now() - GRACA_SNAPSHOT - chrono::Duration::seconds(1)),
+        };
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (manifesto_chave.clone(), json(&manifesto)),
+            (marcador_chave.clone(), json(&marcador)),
+            (parte_chave.clone(), b"dados".to_vec()),
+        ]);
+        *armazenamento.falha_remocao.lock().unwrap() = Some(manifesto_chave.clone());
+
+        let (_, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+
+        assert_eq!(falhas.len(), 1);
+        assert!(armazenamento.contem(&marcador_chave));
+        assert!(armazenamento.contem(&manifesto_chave));
+
+        *armazenamento.falha_remocao.lock().unwrap() = None;
+        limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+        assert!(!armazenamento.contem(&marcador_chave));
+        assert!(!armazenamento.contem(&manifesto_chave));
+        assert!(!armazenamento.contem(&parte_chave));
+    }
+
+    #[tokio::test]
+    async fn execucao_ativa_protege_partes_antes_do_manifesto() {
+        let prefixo = "ibge/estados/data_ingestao=2026-11-16/execucao=ativa/";
+        let parte_chave = format!("{prefixo}parte-00001.json");
+        let ativa_chave = format!("{prefixo}_execucao_ativa.json");
+        let execucao = ExecucaoAtiva {
+            iniciada_em: Utc::now(),
+        };
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (parte_chave.clone(), b"dados".to_vec()),
+            (ativa_chave.clone(), json(&execucao)),
+        ]);
+
+        let (removidas, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+
+        assert_eq!(removidas, 0);
+        assert!(falhas.is_empty());
+        assert!(armazenamento.contem(&parte_chave));
+    }
+
+    #[tokio::test]
+    async fn manifesto_antigo_sem_marcador_e_recolhido() {
+        let prefixo = "ibge/estados/data_ingestao=2026-01-01/execucao=abandonada/";
+        let manifesto_chave = format!("{prefixo}_manifesto.json");
+        let parte_chave = format!("{prefixo}parte-00001.json");
+        let mut manifesto = manifesto_com_partes(vec![parte(&parte_chave)]);
+        manifesto.concluida_em = Utc::now() - GRACA_SNAPSHOT - chrono::Duration::seconds(1);
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (manifesto_chave.clone(), json(&manifesto)),
+            (parte_chave.clone(), b"dados".to_vec()),
+        ]);
+
+        limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+
+        assert!(!armazenamento.contem(&manifesto_chave));
+        assert!(!armazenamento.contem(&parte_chave));
     }
 
     #[tokio::test]
