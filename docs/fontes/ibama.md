@@ -61,9 +61,14 @@ atualizados diariamente.
 
 ## Idempotência
 
-Cada arquivo é um snapshot completo. Re-ingerir substitui o snapshot anterior
-no Raw. A idempotência por número do auto ou termo de embargo (chave de
-negócio) é responsabilidade da camada Silver.
+**Raw (ingestão):** cada arquivo é um snapshot completo. Re-ingerir substitui
+o snapshot anterior — a idempotência é por recurso (mesma URL = mesmo
+snapshot sobrescrito), consistente com todas as outras fontes Raw.
+
+**Silver (refinamento):** a chave de negócio é o número do auto de infração ou
+do termo de embargo. A deduplicação e tipagem por registro são
+responsabilidade do contrato Silver, onde os CSVs são parseados e
+normalizados.
 
 ## Filtros
 
