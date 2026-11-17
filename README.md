@@ -44,6 +44,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `incra` | imóveis rurais (SIGEF/SNCI) e assentamentos por UF (sob demanda) | [doc da fonte](docs/fontes/incra.md) |
 | `inpe` | desmatamento PRODES/DETER e focos de calor Queimadas (sob demanda) | [doc da fonte](docs/fontes/inpe.md) |
 | `mapbiomas` | cobertura do solo, desmatamento e vegetação secundária — Collection 11 (sob demanda) | [doc da fonte](docs/fontes/mapbiomas.md) |
+| `ibama` | fiscalização ambiental — autos de infração e termos de embargo, 16 tabelas CSV (sob demanda) | [doc da fonte](docs/fontes/ibama.md) |
 
 ## Como rodar
 
