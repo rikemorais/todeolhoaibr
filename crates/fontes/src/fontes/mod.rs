@@ -7,6 +7,7 @@ pub mod comex;
 pub mod conab;
 pub mod cvm;
 pub mod emendas;
+pub mod ibama;
 pub mod ibge;
 pub mod incra;
 pub mod inpe;
