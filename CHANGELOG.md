@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.105.0] - 2026-11-17
+
+### Adicionado
+
+- Ingestão de desmatamento e focos de calor do INPE: 32 tarefas (PRODES por bioma via WFS, DETER Amazônia/Cerrado via WFS, Queimadas anuais 2003–2025 do satélite de referência) com documentação (issue #43).
+
 ## [0.104.1] - 2026-11-16
 
 ### Corrigido
