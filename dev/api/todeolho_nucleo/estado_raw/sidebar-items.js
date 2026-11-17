@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["bloquear_publicacao","estado_na_raw","manifesto_vigente","publicar_ponteiro","publicar_ponteiro_sob_guarda"],"struct":["GuardaPublicacao"]};
+window.SIDEBAR_ITEMS = {"fn":["bloquear_publicacao","estado_na_raw","estado_na_raw_com_origem","manifesto_vigente","publicar_ponteiro","publicar_ponteiro_bronze_se_raw_vigente","publicar_ponteiro_compartilhado","publicar_ponteiro_sob_guarda"],"struct":["GuardaPublicacao"]};

@@ -49,7 +49,7 @@
 <a href=#49 id=49 data-nosnippet>49</a>        recurso: <span class="kw-2">&amp;</span>str,
 <a href=#50 id=50 data-nosnippet>50</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt;, ErroDeSnapshotBronze&gt; {
 <a href=#51 id=51 data-nosnippet>51</a>        <span class="kw">let </span>chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-<a href=#52 id=52 data-nosnippet>52</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(bytes) = armazenamento.ler(<span class="kw-2">&amp;</span>chave_ponteiro).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{
+<a href=#52 id=52 data-nosnippet>52</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(bytes) = armazenamento.ler_controle(<span class="kw-2">&amp;</span>chave_ponteiro).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{
 <a href=#53 id=53 data-nosnippet>53</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
 <a href=#54 id=54 data-nosnippet>54</a>        };
 <a href=#55 id=55 data-nosnippet>55</a>        <span class="kw">let </span>ponteiro: UltimaVersao = serde_json::from_slice(<span class="kw-2">&amp;</span>bytes)
@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>        recurso: <span class="kw-2">&amp;</span>str,
 <a href=#107 id=107 data-nosnippet>107</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, ErroDeSnapshotBronze&gt; {
 <a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span>chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(bytes) = armazenamento.ler(<span class="kw-2">&amp;</span>chave_ponteiro).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{
+<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(bytes) = armazenamento.ler_controle(<span class="kw-2">&amp;</span>chave_ponteiro).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{
 <a href=#110 id=110 data-nosnippet>110</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
 <a href=#111 id=111 data-nosnippet>111</a>        };
 <a href=#112 id=112 data-nosnippet>112</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(ponteiro) = serde_json::from_slice::&lt;UltimaVersao&gt;(<span class="kw-2">&amp;</span>bytes) <span class="kw">else </span>{

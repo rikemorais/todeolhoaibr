@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ResultadoVerificacao"],"fn":["limpar_orfas_do_recurso","verificar_manifesto_ou_limpar"]};
+window.SIDEBAR_ITEMS = {"enum":["ResultadoVerificacao"],"fn":["agendar_limpeza_snapshot","limpar_orfas_do_recurso","marcar_execucao_ativa","verificar_manifesto_ou_limpar"]};

@@ -1878,7 +1878,10 @@
 <p>Cadastro completo de empresas e estabelecimentos do país (ativos e baixados), do
 MEI à grande empresa. Base para análise de aberturas/fechamentos, capital social,
 porte e saúde empresarial por estado e município.</p>
-<p>Origem: <a href="https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/">https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/</a>.
+<p>Origem (pasta pública da Receita):
+<a href="https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9">https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9</a>.
+Download direto, sem credenciais, pelo WebDAV público:
+<a href="https://arquivos.receitafederal.gov.br/public.php/dav/files/YggdBLfdninEJX9/">https://arquivos.receitafederal.gov.br/public.php/dav/files/YggdBLfdninEJX9/</a>.
 Layout oficial: <a href="https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf">https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf</a>.</p>
 <h2 id="o-que-e-ingerido">O que é ingerido<a class="headerlink" href="#o-que-e-ingerido" title="Permanent link">&para;</a></h2>
 <p><strong>37 ZIPs por snapshot mensal</strong>, baixados via <code>TarefaDeArquivo</code> como arquivos
@@ -1967,8 +1970,17 @@ grandes (em fluxo, sem carregar na memória) e gravados opacos na Raw:</p>
 </code></pre></div>
 <h2 id="idempotencia">Idempotência<a class="headerlink" href="#idempotencia" title="Permanent link">&para;</a></h2>
 <p>A ingestão é idempotente <strong>por competência</strong> (mês do dump). Se o ZIP já foi
-baixado e o ETag/versão não mudou, a tarefa pula o download. Cada competência
-é um snapshot completo — não há deltas.</p>
+baixado, a URL configurada é a mesma registrada no manifesto Raw e o ETag/versão
+não mudou, a tarefa pula o download. Uma mudança de endpoint força a reingestão,
+mesmo quando o novo servidor reutiliza o ETag. Ao implantar a troca de URL,
+pause agendadores e filas que possam iniciar imagens antigas, aguarde todas as
+execuções antigas terminarem e confirme que não há workers antigos em execução
+ou pendentes antes de iniciar a nova imagem. Só reative os agendamentos depois
+que a nova imagem estiver ativa. O ponteiro compara a hora de início, mas não
+tem um token de geração que consiga cercar um binário antigo; se uma imagem
+antiga voltar a executar depois da troca, ela ainda pode acessar o endpoint
+anterior e publicar seu resultado. Cada competência é um snapshot completo —
+não há deltas.</p>
 <h2 id="estrategia-de-diff-entre-snapshots">Estratégia de diff entre snapshots<a class="headerlink" href="#estrategia-de-diff-entre-snapshots" title="Permanent link">&para;</a></h2>
 <p>A base da Receita é um <strong>snapshot pontual, não um log de eventos</strong>. Para construir
 séries temporais (aberturas/fechamentos ao longo do tempo):</p>
