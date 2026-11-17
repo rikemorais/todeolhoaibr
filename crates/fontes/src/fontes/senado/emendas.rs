@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
     ParteRaw, PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada, UltimaVersao,
-    manifesto_vigente, publicar_ponteiro,
+    agendar_limpeza_snapshot, limpar_orfas_do_recurso, manifesto_vigente, publicar_ponteiro,
 };
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest, http::HeaderValue};
 use url::Url;
@@ -479,24 +479,25 @@ async fn publicar_snapshot(
     }
 
     let manifesto_atual =
-        manifesto_vigente(contexto.armazenamento.as_ref(), NOME_FONTE, RECURSO).await?;
-    if manifesto_atual
-        .as_ref()
-        .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
-    {
+        manifesto_vigente(contexto.armazenamento.as_ref(), NOME_FONTE, RECURSO).await;
+    if manifesto_atual.as_ref().is_ok_and(|manifesto| {
+        manifesto
+            .as_ref()
+            .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+    }) {
         return Ok(resumo);
     }
+    if let Err(erro) = &manifesto_atual {
+        tracing::warn!(%erro, "falha ao conferir se a publicação do SIGA Brasil foi confirmada");
+    }
 
-    let chaves = vec![chave_manifesto, chave];
-    let falhas = contexto
-        .armazenamento
-        .remover_lote(&chaves, 2, Duration::from_secs(15))
-        .await;
-    for falha in falhas {
+    if let Err(erro) =
+        agendar_limpeza_snapshot(contexto.armazenamento.as_ref(), &chave_manifesto).await
+    {
         tracing::warn!(
-            chave = %falha.chave,
-            detalhe = %falha.detalhe,
-            "snapshot do SIGA Brasil não publicado deixou objeto Raw órfão; pendente de recuperação"
+            %erro,
+            manifesto = %chave_manifesto,
+            "não foi possível agendar a limpeza tardia do snapshot do SIGA Brasil"
         );
     }
     match resultado_publicacao {
@@ -528,6 +529,15 @@ impl Tarefa for TarefaSigaBrasil {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        if let Err(erro) = limpar_orfas_do_recurso(
+            contexto.armazenamento.as_ref(),
+            &format!("{NOME_FONTE}/{RECURSO}/"),
+            &contexto.id_execucao,
+        )
+        .await
+        {
+            tracing::warn!(%erro, "falha ao varrer snapshots pendentes do SIGA Brasil");
+        }
         let cliente = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(180))
@@ -854,7 +864,7 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn remove_snapshot_quando_outra_execucao_publica_primeiro() {
+    async fn agenda_limpeza_com_graca_quando_outra_execucao_publica_primeiro() {
         let armazenamento = Arc::new(ArmazenamentoEmMemoria::default());
         armazenamento.1.store(true, Ordering::Relaxed);
         let contexto = ContextoDeExecucao {
@@ -871,14 +881,19 @@ mod testes {
         assert!(erro.to_string().contains("mais recente preservado"));
         let objetos = armazenamento.0.lock().unwrap();
         assert!(
-            !objetos
+            objetos
                 .keys()
                 .any(|chave| chave.ends_with("parte-00001.xlsx"))
         );
         assert!(
-            !objetos
+            objetos
                 .keys()
                 .any(|chave| chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("_limpeza_pendente.json"))
         );
         assert!(
             objetos

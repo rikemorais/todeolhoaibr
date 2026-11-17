@@ -15,8 +15,8 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
     LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa,
-    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw_com_origem,
-    manifesto_vigente, publicar_ponteiro,
+    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, decidir,
+    estado_na_raw_com_origem, limpar_orfas_do_recurso, manifesto_vigente, publicar_ponteiro,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::SyncIoBridge;
@@ -283,6 +283,17 @@ impl Tarefa for TarefaDeArquivo {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        let prefixo_recurso = format!("{}/{}/", self.fonte, self.recurso);
+        if let Err(erro) = limpar_orfas_do_recurso(
+            contexto.armazenamento.as_ref(),
+            &prefixo_recurso,
+            &contexto.id_execucao,
+        )
+        .await
+        {
+            warn!(%erro, recurso = %self.recurso, "falha ao varrer snapshots pendentes antes da ingestão");
+        }
+
         let local = LocalizacaoRaw::nova(
             &self.fonte,
             &self.recurso,
@@ -343,7 +354,6 @@ impl Tarefa for TarefaDeArquivo {
             reaproveitada: false,
             motivo: Some(motivo),
         };
-        let chave_parte = arquivo.parte.chave.clone();
         let chave_manifesto = local.manifesto();
 
         let manifesto = ManifestoRaw {
@@ -383,25 +393,25 @@ impl Tarefa for TarefaDeArquivo {
         }
 
         let manifesto_atual =
-            manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
-        if manifesto_atual
-            .as_ref()
-            .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
-        {
+            manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await;
+        if manifesto_atual.as_ref().is_ok_and(|vigente| {
+            vigente
+                .as_ref()
+                .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+        }) {
             return Ok(resumo);
         }
+        if let Err(erro) = &manifesto_atual {
+            warn!(%erro, recurso = %self.recurso, "falha ao conferir se a publicação Raw foi confirmada");
+        }
 
-        let chaves = vec![chave_manifesto, chave_parte];
-        let falhas = contexto
-            .armazenamento
-            .remover_lote(&chaves, 2, Duration::from_secs(15))
-            .await;
-        for falha in falhas {
+        if let Err(erro) =
+            agendar_limpeza_snapshot(contexto.armazenamento.as_ref(), &chave_manifesto).await
+        {
             warn!(
-                chave = %falha.chave,
-                detalhe = %falha.detalhe,
-                recurso = %self.recurso,
-                "snapshot não publicado deixou objeto Raw órfão; pendente de recuperação"
+                %erro,
+                manifesto = %chave_manifesto,
+                "não foi possível agendar a limpeza tardia do snapshot"
             );
         }
         match resultado_publicacao {
@@ -1175,7 +1185,7 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn remove_arquivo_e_manifesto_quando_uma_execucao_concorrente_vence() {
+    async fn agenda_limpeza_com_graca_quando_uma_execucao_concorrente_vence() {
         let cenario = cenario(HttpFalso::novo(Some("v1")));
         *cenario.armazenamento.concorrer_publicacao.lock().unwrap() = true;
         let local = LocalizacaoRaw::nova(
@@ -1191,8 +1201,13 @@ mod testes {
 
         assert!(erro.to_string().contains("mais recente preservado"));
         let objetos = cenario.armazenamento.objetos.lock().unwrap();
-        assert!(!objetos.contains_key(&chave_parte));
-        assert!(!objetos.contains_key(&chave_manifesto));
+        assert!(objetos.contains_key(&chave_parte));
+        assert!(objetos.contains_key(&chave_manifesto));
+        assert!(
+            objetos.contains_key(
+                &chave_manifesto.replace("_manifesto.json", "_limpeza_pendente.json")
+            )
+        );
     }
 
     #[tokio::test]

@@ -10,15 +10,14 @@
 
 use std::io::Read;
 use std::sync::Arc;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
-    ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw, manifesto_vigente,
-    publicar_ponteiro,
+    ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, estado_na_raw,
+    limpar_orfas_do_recurso, manifesto_vigente, publicar_ponteiro_bronze_se_raw_vigente,
 };
 
 use crate::decodificador::Decodificador;
@@ -82,26 +81,6 @@ impl TarefaDeBronze {
         }
     }
 
-    async fn remover_snapshot_nao_publicado(
-        &self,
-        bronze: &dyn ArmazenamentoRaw,
-        local: &LocalizacaoRaw,
-        partes: &[ParteRaw],
-    ) {
-        let mut chaves: Vec<_> = partes.iter().map(|parte| parte.chave.clone()).collect();
-        chaves.push(local.manifesto());
-        for falha in bronze
-            .remover_lote(&chaves, 2, Duration::from_secs(15))
-            .await
-        {
-            tracing::warn!(
-                chave = %falha.chave,
-                detalhe = %falha.detalhe,
-                "snapshot Bronze obsoleto deixou objeto órfão; pendente de recuperação"
-            );
-        }
-    }
-
     /// Versão do bronze: id do manifesto Raw selecionado e versão de regra opcional.
     fn versao_de_origem(&self, manifesto_raw: &ManifestoRaw) -> String {
         let versao_raw = &manifesto_raw.id_execucao;
@@ -155,6 +134,15 @@ impl Tarefa for TarefaDeBronze {
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let bronze = contexto.armazenamento.as_ref();
+        if let Err(erro) = limpar_orfas_do_recurso(
+            bronze,
+            &format!("{}/{}/", self.fonte, self.recurso),
+            &contexto.id_execucao,
+        )
+        .await
+        {
+            tracing::warn!(%erro, fonte = %self.fonte, recurso = %self.recurso, "falha ao varrer snapshots Bronze pendentes");
+        }
 
         // 1-2. Procedência do raw + idempotência. Sem ingestão na origem não há o que
         // refinar; bronze íntegro e na mesma versão do raw é reaproveitado.
@@ -269,46 +257,57 @@ impl Tarefa for TarefaDeBronze {
             })
             .await?;
 
-        // O Raw pode avançar durante o download e a decodificação. Não publique
-        // Bronze antigo como vigente se isso for percebido antes do commit.
-        let raw_vigente =
-            match manifesto_vigente(self.origem.as_ref(), &self.fonte, &self.recurso).await {
-                Ok(manifesto) => manifesto,
-                Err(erro) => {
-                    self.remover_snapshot_nao_publicado(bronze, &local, &partes)
-                        .await;
-                    return Err(erro);
-                }
-            };
-        if raw_vigente
-            .as_ref()
-            .is_none_or(|vigente| vigente.id_execucao != manifesto_raw.id_execucao)
-        {
-            self.remover_snapshot_nao_publicado(bronze, &local, &partes)
-                .await;
-            return Err(self.erro_manifesto(
-                "ponteiro Raw mudou durante o refino; tente executar a tarefa novamente".into(),
-            ));
-        }
-
-        // 6. Ponteiro do bronze, com a versão do raw para a idempotência da próxima rodada.
+        // 6. Confere a geração Raw e publica Bronze sob a trava distribuída
+        // compartilhada com os publicadores Raw do mesmo recurso.
         let ponteiro = UltimaVersao {
             versao: Some(versao_origem),
             manifesto: local.manifesto(),
-            iniciada_em: Some(contexto.iniciada_em),
+            iniciada_em: Some(manifesto_raw.iniciada_em),
         };
-        if !publicar_ponteiro(bronze, &self.fonte, &self.recurso, &ponteiro).await? {
-            return Err(self.erro_manifesto(
-                "ponteiro Bronze mais recente preservado; esta execução não foi publicada".into(),
-            ));
+        let resultado_publicacao = publicar_ponteiro_bronze_se_raw_vigente(
+            self.origem.as_ref(),
+            bronze,
+            &self.fonte,
+            &self.recurso,
+            &manifesto_raw.id_execucao,
+            &ponteiro,
+        )
+        .await;
+        if matches!(&resultado_publicacao, Ok(true)) {
+            return Ok(ResumoDaTarefa {
+                partes: partes.len(),
+                bytes: total_bytes,
+                reaproveitada: false,
+                motivo: None,
+            });
         }
 
-        Ok(ResumoDaTarefa {
-            partes: partes.len(),
-            bytes: total_bytes,
-            reaproveitada: false,
-            motivo: None,
-        })
+        let manifesto_bronze_atual = manifesto_vigente(bronze, &self.fonte, &self.recurso).await;
+        if manifesto_bronze_atual.as_ref().is_ok_and(|manifesto| {
+            manifesto
+                .as_ref()
+                .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+        }) {
+            return Ok(ResumoDaTarefa {
+                partes: partes.len(),
+                bytes: total_bytes,
+                reaproveitada: false,
+                motivo: None,
+            });
+        }
+        if let Err(erro) = &manifesto_bronze_atual {
+            tracing::warn!(%erro, recurso = %self.recurso, "falha ao conferir se a publicação Bronze foi confirmada");
+        }
+        if let Err(erro) = agendar_limpeza_snapshot(bronze, &local.manifesto()).await {
+            tracing::warn!(%erro, manifesto = %local.manifesto(), "não foi possível agendar a limpeza tardia do snapshot Bronze");
+        }
+        match resultado_publicacao {
+            Err(erro) => Err(erro),
+            Ok(false) => Err(self.erro_manifesto(
+                "ponteiro Bronze mais recente preservado; esta execução não foi publicada".into(),
+            )),
+            Ok(true) => unreachable!("publicação bem-sucedida já retornou acima"),
+        }
     }
 }
 
@@ -618,7 +617,7 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn nao_publica_bronze_quando_raw_avanca_durante_o_refino() {
+    async fn agenda_limpeza_quando_raw_avanca_durante_o_refino() {
         let raw = Arc::new(RawEmMemoria::default());
         semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC1");
         agendar_avanco_raw(&raw, "RAWEXEC2");
@@ -629,8 +628,28 @@ mod testes {
             .await
             .unwrap_err();
 
-        assert!(erro.to_string().contains("Raw mudou durante o refino"));
-        assert!(bronze.objetos.lock().unwrap().is_empty());
+        assert!(erro.to_string().contains("ponteiro Bronze"));
+        let objetos = bronze.objetos.lock().unwrap();
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("parte-00001.parquet"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("_limpeza_pendente.json"))
+        );
+        assert!(
+            !objetos
+                .keys()
+                .any(|chave| chave.ends_with("_ultima_versao.json"))
+        );
     }
 
     #[tokio::test]

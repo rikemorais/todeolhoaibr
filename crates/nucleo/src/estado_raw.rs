@@ -8,7 +8,10 @@ use crate::decisao::EstadoNaRaw;
 use crate::erros::ErroDeIngestao;
 use crate::portas::{ArmazenamentoRaw, ObjetoRaw};
 use crate::raw::{LocalizacaoRaw, ManifestoRaw, UltimaVersao};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -16,6 +19,23 @@ type Trava = Arc<tokio::sync::Mutex<()>>;
 static TRAVAS: OnceLock<Mutex<HashMap<String, Trava>>> = OnceLock::new();
 const TENTATIVAS_CAS_PUBLICACAO: u8 = 64;
 const PRAZO_CAS_PUBLICACAO: Duration = Duration::from_secs(30);
+const PRAZO_AQUISICAO_TRAVA: Duration = Duration::from_secs(30);
+const DURACAO_TRAVA_DISTRIBUIDA: chrono::Duration = chrono::Duration::minutes(5);
+const ESPERA_TRAVA_DISTRIBUIDA: Duration = Duration::from_millis(25);
+static SEQUENCIA_TRAVA_DISTRIBUIDA: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EstadoDaTrava {
+    token: String,
+    vence_em: DateTime<Utc>,
+    liberada: bool,
+}
+
+struct TravaDistribuida<'a> {
+    armazenamento: &'a dyn ArmazenamentoRaw,
+    chave: String,
+    token: String,
+}
 
 /// Guarda a publicação de um recurso dentro deste processo, inclusive a
 /// conferência final da Bronze antes de publicar sua Silver.
@@ -39,6 +59,106 @@ pub async fn bloquear_publicacao(fonte: &str, recurso: &str) -> GuardaPublicacao
     };
     GuardaPublicacao {
         _guarda: trava.lock_owned().await,
+    }
+}
+
+async fn adquirir_trava_distribuida<'a>(
+    armazenamento: &'a dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+) -> Result<TravaDistribuida<'a>, ErroDeIngestao> {
+    let chave = format!("{fonte}/{recurso}/_publicacao.lock.json");
+    let token = format!(
+        "{}-{}",
+        Utc::now().timestamp_nanos_opt().unwrap_or_default(),
+        SEQUENCIA_TRAVA_DISTRIBUIDA.fetch_add(1, Ordering::Relaxed)
+    );
+    let prazo = tokio::time::Instant::now() + PRAZO_AQUISICAO_TRAVA;
+
+    loop {
+        let atual = armazenamento.ler_controle(&chave).await?;
+        let pode_adquirir = atual.as_ref().is_none_or(|bytes| {
+            serde_json::from_slice::<EstadoDaTrava>(bytes)
+                .is_ok_and(|trava| trava.liberada || trava.vence_em <= Utc::now())
+        }) || atual
+            .as_ref()
+            .is_some_and(|bytes| serde_json::from_slice::<EstadoDaTrava>(bytes).is_err());
+
+        if pode_adquirir {
+            let nova = EstadoDaTrava {
+                token: token.clone(),
+                vence_em: Utc::now() + DURACAO_TRAVA_DISTRIBUIDA,
+                liberada: false,
+            };
+            let gravou = armazenamento
+                .gravar_condicional(
+                    ObjetoRaw {
+                        chave: chave.clone(),
+                        conteudo: serde_json::to_vec(&nova).map_err(|erro| {
+                            ErroDeIngestao::Manifesto {
+                                recurso: recurso.to_owned(),
+                                detalhe: erro.to_string(),
+                            }
+                        })?,
+                        tipo_de_conteudo: "application/json".to_owned(),
+                    },
+                    atual.as_deref(),
+                )
+                .await?;
+            if gravou {
+                return Ok(TravaDistribuida {
+                    armazenamento,
+                    chave,
+                    token,
+                });
+            }
+        }
+
+        if tokio::time::Instant::now() >= prazo {
+            return Err(ErroDeIngestao::Armazenamento {
+                chave,
+                detalhe: "prazo de 30s excedido aguardando publicação concorrente; tente executar a tarefa novamente".into(),
+            });
+        }
+        tokio::time::sleep(ESPERA_TRAVA_DISTRIBUIDA).await;
+    }
+}
+
+impl TravaDistribuida<'_> {
+    async fn liberar(self) {
+        let resultado: Result<(), ErroDeIngestao> = async {
+            let Some(bytes) = self.armazenamento.ler_controle(&self.chave).await? else {
+                return Ok(());
+            };
+            let Ok(mut atual) = serde_json::from_slice::<EstadoDaTrava>(&bytes) else {
+                return Ok(());
+            };
+            if atual.token != self.token || atual.liberada {
+                return Ok(());
+            }
+            atual.liberada = true;
+            atual.vence_em = Utc::now();
+            self.armazenamento
+                .gravar_condicional(
+                    ObjetoRaw {
+                        chave: self.chave.clone(),
+                        conteudo: serde_json::to_vec(&atual).map_err(|erro| {
+                            ErroDeIngestao::Manifesto {
+                                recurso: self.chave.clone(),
+                                detalhe: erro.to_string(),
+                            }
+                        })?,
+                        tipo_de_conteudo: "application/json".to_owned(),
+                    },
+                    Some(&bytes),
+                )
+                .await?;
+            Ok(())
+        }
+        .await;
+        if let Err(erro) = resultado {
+            tracing::warn!(%erro, chave = %self.chave, "falha ao liberar trava distribuída; ela expira automaticamente");
+        }
     }
 }
 
@@ -139,18 +259,49 @@ pub async fn manifesto_vigente(
 /// devolvem erro com indicação para repetir a tarefa.
 ///
 /// Usa [`ArmazenamentoRaw::gravar_condicional`] para que a gravação só ocorra
-/// se o ponteiro não mudou entre a leitura e a escrita. Quando o backend
-/// suporta CAS real (e.g. S3 `If-Match`), a operação é atômica. Adaptadores
-/// sem CAS atômico falham explicitamente pelo fallback padrão de
-/// [`ArmazenamentoRaw::gravar_condicional`].
+/// se o ponteiro não mudou entre a leitura e a escrita. Backends compartilhados
+/// entre processos devem implementar CAS atômico; o fallback legado de leitura
+/// seguida de gravação só é seguro para adaptadores de processo único.
 pub async fn publicar_ponteiro(
     armazenamento: &dyn ArmazenamentoRaw,
     fonte: &str,
     recurso: &str,
     nova: &UltimaVersao,
 ) -> Result<bool, ErroDeIngestao> {
+    let trava = adquirir_trava_distribuida(armazenamento, fonte, recurso).await?;
     let guarda = bloquear_publicacao(fonte, recurso).await;
-    publicar_ponteiro_sob_guarda(armazenamento, fonte, recurso, nova, &guarda).await
+    let resultado =
+        publicar_ponteiro_sob_guarda(armazenamento, fonte, recurso, nova, &guarda).await;
+    trava.liberar().await;
+    resultado
+}
+
+/// Confere o manifesto Raw vigente e publica Bronze sob a mesma trava distribuída
+/// usada pelos publicadores Raw. Assim, outro processo não troca a origem entre a
+/// conferência final e a gravação do ponteiro Bronze.
+pub async fn publicar_ponteiro_bronze_se_raw_vigente(
+    raw: &dyn ArmazenamentoRaw,
+    bronze: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+    id_execucao_raw: &str,
+    ponteiro_bronze: &UltimaVersao,
+) -> Result<bool, ErroDeIngestao> {
+    let trava = adquirir_trava_distribuida(raw, fonte, recurso).await?;
+    let resultado = async {
+        let vigente = manifesto_vigente(raw, fonte, recurso).await?;
+        if vigente
+            .as_ref()
+            .is_none_or(|manifesto| manifesto.id_execucao != id_execucao_raw)
+        {
+            return Ok(false);
+        }
+        let guarda = bloquear_publicacao(fonte, recurso).await;
+        publicar_ponteiro_sob_guarda(bronze, fonte, recurso, ponteiro_bronze, &guarda).await
+    }
+    .await;
+    trava.liberar().await;
+    resultado
 }
 
 /// Publica após o chamador adquirir a guarda do recurso Bronze correspondente.
@@ -398,6 +549,53 @@ mod testes {
         assert!(estado.integra);
         assert_eq!(estado.versao.as_deref(), Some("v1"));
         assert_eq!(estado.tamanho, Some(CONTEUDO.len() as u64));
+    }
+
+    #[tokio::test]
+    async fn publicar_bronze_sob_trava_raw_exige_a_mesma_execucao() {
+        let raw = integro();
+        let bronze = ArmazenamentoEmMemoria::default();
+        let ponteiro_bronze = UltimaVersao {
+            versao: Some("e1".into()),
+            manifesto: "bronze/estados/_manifesto.json".into(),
+            iniciada_em: Some(Utc::now()),
+        };
+
+        assert!(
+            !publicar_ponteiro_bronze_se_raw_vigente(
+                &raw,
+                &bronze,
+                FONTE,
+                RECURSO,
+                "outra-execucao",
+                &ponteiro_bronze,
+            )
+            .await
+            .unwrap()
+        );
+        assert!(
+            estado_na_raw(&bronze, FONTE, RECURSO)
+                .await
+                .unwrap()
+                .is_none()
+        );
+
+        assert!(
+            publicar_ponteiro_bronze_se_raw_vigente(
+                &raw,
+                &bronze,
+                FONTE,
+                RECURSO,
+                "e1",
+                &ponteiro_bronze,
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(
+            manifesto_do_ponteiro(&bronze).await,
+            "bronze/estados/_manifesto.json"
+        );
     }
 
     #[tokio::test]
@@ -670,7 +868,9 @@ mod testes {
                 objeto: ObjetoRaw,
                 conteudo_vigente: Option<&[u8]>,
             ) -> Result<bool, ErroDeIngestao> {
-                if self.intruso.swap(false, AtOrd::Relaxed) {
+                if objeto.chave.ends_with("/_ultima_versao.json")
+                    && self.intruso.swap(false, AtOrd::Relaxed)
+                {
                     let intruso = UltimaVersao {
                         versao: None,
                         manifesto: "intruso".to_owned(),
@@ -743,7 +943,8 @@ mod testes {
                 objeto: ObjetoRaw,
                 conteudo_vigente: Option<&[u8]>,
             ) -> Result<bool, ErroDeIngestao> {
-                let houve_conflito = self.conflitos.load(AtOrd::Relaxed) > 0;
+                let houve_conflito = objeto.chave.ends_with("/_ultima_versao.json")
+                    && self.conflitos.load(AtOrd::Relaxed) > 0;
                 if houve_conflito {
                     self.conflitos.fetch_sub(1, AtOrd::Relaxed);
                     let intruso = UltimaVersao {
@@ -816,10 +1017,15 @@ mod testes {
             }
             async fn gravar_condicional(
                 &self,
-                _: ObjetoRaw,
+                objeto: ObjetoRaw,
                 _: Option<&[u8]>,
             ) -> Result<bool, ErroDeIngestao> {
-                Ok(false)
+                if objeto.chave.ends_with("/_publicacao.lock.json") {
+                    self.0.gravar(objeto).await?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
             }
         }
 
