@@ -61,7 +61,7 @@ impl FonteDeDados for FonteMapBiomas {
                 intervalo: std::time::Duration::from_secs(2),
             }),
             agente: None,
-            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
+            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Bloquear,
             aceitar_certificado_invalido: false,
         }
     }
@@ -168,10 +168,10 @@ mod testes {
     }
 
     #[test]
-    fn segue_redirecionamento() {
+    fn bloqueia_redirecionamento() {
         assert!(matches!(
             FonteMapBiomas.perfil_http().redirecionamento,
-            todeolho_nucleo::RedirecionamentoHttp::Seguir
+            todeolho_nucleo::RedirecionamentoHttp::Bloquear
         ));
     }
 }
