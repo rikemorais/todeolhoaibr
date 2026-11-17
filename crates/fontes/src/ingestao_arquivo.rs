@@ -16,7 +16,8 @@ use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
     LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa,
     ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, decidir,
-    estado_na_raw_com_origem, limpar_orfas_do_recurso, manifesto_vigente, publicar_ponteiro,
+    estado_na_raw_com_origem, limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
+    publicar_ponteiro_compartilhado,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::SyncIoBridge;
@@ -283,6 +284,13 @@ impl Tarefa for TarefaDeArquivo {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        let local = LocalizacaoRaw::nova(
+            &self.fonte,
+            &self.recurso,
+            contexto.iniciada_em,
+            &contexto.id_execucao,
+        );
+        marcar_execucao_ativa(contexto.armazenamento.as_ref(), &local.manifesto()).await?;
         let prefixo_recurso = format!("{}/{}/", self.fonte, self.recurso);
         if let Err(erro) = limpar_orfas_do_recurso(
             contexto.armazenamento.as_ref(),
@@ -294,12 +302,6 @@ impl Tarefa for TarefaDeArquivo {
             warn!(%erro, recurso = %self.recurso, "falha ao varrer snapshots pendentes antes da ingestão");
         }
 
-        let local = LocalizacaoRaw::nova(
-            &self.fonte,
-            &self.recurso,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        );
         let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
             estado_na_raw_com_origem(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
@@ -381,8 +383,8 @@ impl Tarefa for TarefaDeArquivo {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        let resultado_publicacao = publicar_ponteiro(
-            contexto.armazenamento.as_ref(),
+        let resultado_publicacao = publicar_ponteiro_compartilhado(
+            Arc::clone(&contexto.armazenamento),
             &self.fonte,
             &self.recurso,
             &ultima,
@@ -687,6 +689,9 @@ mod testes {
         }
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.objetos
                 .lock()
                 .unwrap()

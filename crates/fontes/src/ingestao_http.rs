@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
     ParteRaw, PrecisaoDaEstimativa, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao,
-    estado_na_raw, manifesto_vigente, publicar_ponteiro,
+    estado_na_raw, manifesto_vigente, marcar_execucao_ativa, publicar_ponteiro_compartilhado,
 };
 use tracing::warn;
 
@@ -490,6 +490,7 @@ impl TarefaDeIngestaoHttp {
             contexto.iniciada_em,
             &contexto.id_execucao,
         );
+        marcar_execucao_ativa(contexto.armazenamento.as_ref(), &local.manifesto()).await?;
 
         // Varredura de órfãs: limpa partes de execuções anteriores que não
         // concluíram (cancelamento abrupto, rollback incompleto). A varredura é
@@ -656,8 +657,8 @@ impl TarefaDeIngestaoHttp {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        let publicou = publicar_ponteiro(
-            contexto.armazenamento.as_ref(),
+        let publicou = publicar_ponteiro_compartilhado(
+            Arc::clone(&contexto.armazenamento),
             &self.fonte,
             &self.recurso,
             &ultima,
@@ -730,6 +731,9 @@ mod testes {
         }
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.objetos.lock().unwrap().push(objeto);
             Ok(())
         }
@@ -751,8 +755,14 @@ mod testes {
             unreachable!("a ingestão paginada grava respostas em memória")
         }
 
-        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
-            Ok(None)
+        async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(self
+                .objetos
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|objeto| objeto.chave == chave)
+                .map(|objeto| objeto.conteudo.clone()))
         }
 
         async fn gravar_condicional(

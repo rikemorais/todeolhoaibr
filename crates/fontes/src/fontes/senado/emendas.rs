@@ -12,7 +12,8 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
     ParteRaw, PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada, UltimaVersao,
-    agendar_limpeza_snapshot, limpar_orfas_do_recurso, manifesto_vigente, publicar_ponteiro,
+    agendar_limpeza_snapshot, limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
+    publicar_ponteiro_compartilhado,
 };
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest, http::HeaderValue};
 use url::Url;
@@ -457,8 +458,8 @@ async fn publicar_snapshot(
             tipo_de_conteudo: "application/json".to_owned(),
         })
         .await?;
-    let resultado_publicacao = publicar_ponteiro(
-        contexto.armazenamento.as_ref(),
+    let resultado_publicacao = publicar_ponteiro_compartilhado(
+        contexto.armazenamento.clone(),
         NOME_FONTE,
         RECURSO,
         &UltimaVersao {
@@ -529,6 +530,13 @@ impl Tarefa for TarefaSigaBrasil {
         &self,
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+        let local = LocalizacaoRaw::nova(
+            NOME_FONTE,
+            RECURSO,
+            contexto.iniciada_em,
+            &contexto.id_execucao,
+        );
+        marcar_execucao_ativa(contexto.armazenamento.as_ref(), &local.manifesto()).await?;
         if let Err(erro) = limpar_orfas_do_recurso(
             contexto.armazenamento.as_ref(),
             &format!("{NOME_FONTE}/{RECURSO}/"),
@@ -577,6 +585,9 @@ mod testes {
         }
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.0.lock().unwrap().insert(objeto.chave, objeto.conteudo);
             Ok(())
         }

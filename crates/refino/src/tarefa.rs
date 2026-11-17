@@ -17,7 +17,8 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
     ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, estado_na_raw,
-    limpar_orfas_do_recurso, manifesto_vigente, publicar_ponteiro_bronze_se_raw_vigente,
+    limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
+    publicar_ponteiro_bronze_se_raw_vigente,
 };
 
 use crate::decodificador::Decodificador;
@@ -134,6 +135,13 @@ impl Tarefa for TarefaDeBronze {
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let bronze = contexto.armazenamento.as_ref();
+        let local = LocalizacaoRaw::nova(
+            &self.fonte,
+            &self.recurso,
+            contexto.iniciada_em,
+            &contexto.id_execucao,
+        );
+        marcar_execucao_ativa(bronze, &local.manifesto()).await?;
         if let Err(erro) = limpar_orfas_do_recurso(
             bronze,
             &format!("{}/{}/", self.fonte, self.recurso),
@@ -203,12 +211,6 @@ impl Tarefa for TarefaDeBronze {
             .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
 
         // 4. Grava uma parte Parquet por tabela no bronze.
-        let local = LocalizacaoRaw::nova(
-            &self.fonte,
-            &self.recurso,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        );
         let mut partes = Vec::with_capacity(conteudos.len());
         let mut total_bytes = 0u64;
         for (indice, conteudo) in conteudos.into_iter().enumerate() {
@@ -262,10 +264,10 @@ impl Tarefa for TarefaDeBronze {
         let ponteiro = UltimaVersao {
             versao: Some(versao_origem),
             manifesto: local.manifesto(),
-            iniciada_em: Some(manifesto_raw.iniciada_em),
+            iniciada_em: Some(contexto.iniciada_em),
         };
         let resultado_publicacao = publicar_ponteiro_bronze_se_raw_vigente(
-            self.origem.as_ref(),
+            Arc::clone(&self.origem),
             bronze,
             &self.fonte,
             &self.recurso,
@@ -355,6 +357,9 @@ mod testes {
             Ok(())
         }
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.objetos
                 .lock()
                 .unwrap()
