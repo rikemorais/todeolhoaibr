@@ -26,7 +26,8 @@ pub use fontes::cvm::FonteCvm;
 pub use fontes::emendas::FonteEmendas;
 pub use fontes::ibama::FonteIbama;
 pub use fontes::ibge::{
-    FonteIbge, FonteIbgeDemografiaEmpresas, FonteIbgePibMunicipios, FonteIbgeRendaPerCapita,
+    FonteIbge, FonteIbgeAgropecuaria, FonteIbgeDemografiaEmpresas, FonteIbgePibMunicipios,
+    FonteIbgeRendaPerCapita,
 };
 pub use fontes::incra::FonteIncra;
 pub use fontes::inpe::FonteInpe;
@@ -60,6 +61,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteB3),
         Box::new(FonteIbge),
         Box::new(FonteIbgeDemografiaEmpresas),
+        Box::new(FonteIbgeAgropecuaria),
         Box::new(FonteIbgePibMunicipios),
         Box::new(FonteIbgeRendaPerCapita),
         Box::new(FonteMapaEmpresas),
