@@ -44,6 +44,12 @@ impl LocalizacaoRaw {
     pub fn manifesto(&self) -> String {
         format!("{}/_manifesto.json", self.prefixo)
     }
+
+    /// Chave temporária que informa ao coletor que esta execução ainda pode
+    /// estar gravando partes sem manifesto.
+    pub fn execucao_ativa(&self) -> String {
+        format!("{}/_execucao_ativa.json", self.prefixo)
+    }
 }
 
 /// Uma parte gravada de um recurso (uma página de API ou o arquivo baixado).
