@@ -8,11 +8,42 @@ use crate::decisao::EstadoNaRaw;
 use crate::erros::ErroDeIngestao;
 use crate::portas::{ArmazenamentoRaw, ObjetoRaw};
 use crate::raw::{LocalizacaoRaw, ManifestoRaw, UltimaVersao};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 type Trava = Arc<tokio::sync::Mutex<()>>;
 static TRAVAS: OnceLock<Mutex<HashMap<String, Trava>>> = OnceLock::new();
+const TENTATIVAS_CAS_PUBLICACAO: u8 = 64;
+const PRAZO_CAS_PUBLICACAO: Duration = Duration::from_secs(30);
+const PRAZO_AQUISICAO_TRAVA: Duration = Duration::from_secs(30);
+const DURACAO_TRAVA_DISTRIBUIDA: chrono::Duration = chrono::Duration::minutes(5);
+const ESPERA_TRAVA_DISTRIBUIDA: Duration = Duration::from_millis(25);
+static SEQUENCIA_TRAVA_DISTRIBUIDA: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EstadoDaTrava {
+    token: String,
+    vence_em: DateTime<Utc>,
+    liberada: bool,
+}
+
+struct TravaDistribuida {
+    armazenamento: Arc<dyn ArmazenamentoRaw>,
+    chave: String,
+    token: String,
+    liberada: bool,
+}
+
+fn erro_prazo_aquisicao_trava(chave: &str) -> ErroDeIngestao {
+    ErroDeIngestao::Armazenamento {
+        chave: chave.to_owned(),
+        detalhe: "prazo de 30s excedido aguardando publicação concorrente; tente executar a tarefa novamente".into(),
+    }
+}
 
 /// Guarda a publicação de um recurso dentro deste processo, inclusive a
 /// conferência final da Bronze antes de publicar sua Silver.
@@ -39,6 +70,173 @@ pub async fn bloquear_publicacao(fonte: &str, recurso: &str) -> GuardaPublicacao
     }
 }
 
+async fn adquirir_trava_distribuida_compartilhada(
+    armazenamento: Arc<dyn ArmazenamentoRaw>,
+    fonte: &str,
+    recurso: &str,
+) -> Result<TravaDistribuida, ErroDeIngestao> {
+    let (chave, token) = adquirir_dados_trava(armazenamento.as_ref(), fonte, recurso).await?;
+    Ok(TravaDistribuida {
+        armazenamento,
+        chave,
+        token,
+        liberada: false,
+    })
+}
+
+async fn adquirir_dados_trava(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+) -> Result<(String, String), ErroDeIngestao> {
+    let chave = format!("{fonte}/{recurso}/_publicacao.lock.json");
+    let token = format!(
+        "{}-{}",
+        Utc::now().timestamp_nanos_opt().unwrap_or_default(),
+        SEQUENCIA_TRAVA_DISTRIBUIDA.fetch_add(1, Ordering::Relaxed)
+    );
+    let prazo = tokio::time::Instant::now() + PRAZO_AQUISICAO_TRAVA;
+
+    loop {
+        let atual = tokio::time::timeout_at(prazo, armazenamento.ler_controle(&chave))
+            .await
+            .map_err(|_| erro_prazo_aquisicao_trava(&chave))??;
+        let pode_adquirir = atual.as_ref().is_none_or(|bytes| {
+            serde_json::from_slice::<EstadoDaTrava>(bytes)
+                .is_ok_and(|trava| trava.liberada || trava.vence_em <= Utc::now())
+        }) || atual
+            .as_ref()
+            .is_some_and(|bytes| serde_json::from_slice::<EstadoDaTrava>(bytes).is_err());
+
+        if pode_adquirir {
+            let nova = EstadoDaTrava {
+                token: token.clone(),
+                vence_em: Utc::now() + DURACAO_TRAVA_DISTRIBUIDA,
+                liberada: false,
+            };
+            let gravou = tokio::time::timeout_at(
+                prazo,
+                armazenamento.gravar_condicional(
+                    ObjetoRaw {
+                        chave: chave.clone(),
+                        conteudo: serde_json::to_vec(&nova).map_err(|erro| {
+                            ErroDeIngestao::Manifesto {
+                                recurso: recurso.to_owned(),
+                                detalhe: erro.to_string(),
+                            }
+                        })?,
+                        tipo_de_conteudo: "application/json".to_owned(),
+                    },
+                    atual.as_deref(),
+                ),
+            )
+            .await
+            .map_err(|_| erro_prazo_aquisicao_trava(&chave))??;
+            if gravou {
+                return Ok((chave, token));
+            }
+        }
+
+        if tokio::time::Instant::now() >= prazo {
+            return Err(erro_prazo_aquisicao_trava(&chave));
+        }
+        tokio::time::sleep(ESPERA_TRAVA_DISTRIBUIDA).await;
+    }
+}
+
+impl TravaDistribuida {
+    async fn renovar(&self) -> Result<bool, ErroDeIngestao> {
+        let Some(bytes) = self.armazenamento.ler_controle(&self.chave).await? else {
+            return Ok(false);
+        };
+        let Ok(mut atual) = serde_json::from_slice::<EstadoDaTrava>(&bytes) else {
+            return Ok(false);
+        };
+        if atual.token != self.token || atual.liberada || atual.vence_em <= Utc::now() {
+            return Ok(false);
+        }
+        atual.vence_em = Utc::now() + DURACAO_TRAVA_DISTRIBUIDA;
+        self.armazenamento
+            .gravar_condicional(
+                ObjetoRaw {
+                    chave: self.chave.clone(),
+                    conteudo: serde_json::to_vec(&atual).map_err(|erro| {
+                        ErroDeIngestao::Manifesto {
+                            recurso: self.chave.clone(),
+                            detalhe: erro.to_string(),
+                        }
+                    })?,
+                    tipo_de_conteudo: "application/json".to_owned(),
+                },
+                Some(&bytes),
+            )
+            .await
+    }
+
+    async fn liberar(mut self) {
+        let resultado =
+            liberar_trava_distribuida(self.armazenamento.as_ref(), &self.chave, &self.token).await;
+        self.liberada = true;
+        if let Err(erro) = resultado {
+            tracing::warn!(%erro, chave = %self.chave, "falha ao liberar trava distribuída; ela expira automaticamente");
+        }
+    }
+}
+
+impl Drop for TravaDistribuida {
+    fn drop(&mut self) {
+        if self.liberada {
+            return;
+        }
+        let (armazenamento, chave, token) = (
+            Arc::clone(&self.armazenamento),
+            self.chave.clone(),
+            self.token.clone(),
+        );
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                if let Err(erro) =
+                    liberar_trava_distribuida(armazenamento.as_ref(), &chave, &token).await
+                {
+                    tracing::warn!(%erro, chave = %chave, "falha ao liberar trava distribuída após cancelamento");
+                }
+            });
+        }
+    }
+}
+
+async fn liberar_trava_distribuida(
+    armazenamento: &dyn ArmazenamentoRaw,
+    chave: &str,
+    token: &str,
+) -> Result<(), ErroDeIngestao> {
+    let Some(bytes) = armazenamento.ler_controle(chave).await? else {
+        return Ok(());
+    };
+    let Ok(mut atual) = serde_json::from_slice::<EstadoDaTrava>(&bytes) else {
+        return Ok(());
+    };
+    if atual.token != token || atual.liberada {
+        return Ok(());
+    }
+    atual.liberada = true;
+    atual.vence_em = Utc::now();
+    armazenamento
+        .gravar_condicional(
+            ObjetoRaw {
+                chave: chave.to_owned(),
+                conteudo: serde_json::to_vec(&atual).map_err(|erro| ErroDeIngestao::Manifesto {
+                    recurso: chave.to_owned(),
+                    detalhe: erro.to_string(),
+                })?,
+                tipo_de_conteudo: "application/json".to_owned(),
+            },
+            Some(&bytes),
+        )
+        .await?;
+    Ok(())
+}
+
 /// Lê o estado de um recurso na Raw.
 ///
 /// `None` quando não há ingestão registrada (sem ponteiro `_ultima_versao.json`).
@@ -49,38 +247,55 @@ pub async fn estado_na_raw(
     fonte: &str,
     recurso: &str,
 ) -> Result<Option<EstadoNaRaw>, ErroDeIngestao> {
+    Ok(estado_na_raw_com_origem(armazenamento, fonte, recurso)
+        .await?
+        .map(|(estado, _)| estado))
+}
+
+/// Lê o estado de um recurso na Raw e a URL gravada no manifesto vigente.
+///
+/// Esta função preserva a URL sem alterar o contrato público de `EstadoNaRaw`.
+pub async fn estado_na_raw_com_origem(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+) -> Result<Option<(EstadoNaRaw, Option<String>)>, ErroDeIngestao> {
     let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-    let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+    let Some(bytes) = armazenamento.ler_controle(&chave_ponteiro).await? else {
         return Ok(None);
     };
     // Ponteiro ilegível não pode travar o recurso: trata como estado incompleto
     // para que a decisão reingira e o sobrescreva (ver issue #13).
     let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes) else {
-        return Ok(Some(EstadoNaRaw::incompleto(None)));
+        return Ok(Some((EstadoNaRaw::incompleto(None), None)));
     };
 
     let Some(bytes_manifesto) = armazenamento.ler(&ponteiro.manifesto).await? else {
-        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+        return Ok(Some((EstadoNaRaw::incompleto(ponteiro.versao), None)));
     };
     // Manifesto ilegível recebe o mesmo tratamento do ponteiro corrompido.
     let Ok(manifesto) = serde_json::from_slice::<ManifestoRaw>(&bytes_manifesto) else {
-        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+        return Ok(Some((EstadoNaRaw::incompleto(ponteiro.versao), None)));
     };
 
     // Manifesto sem partes não descreve dado nenhum: incompleto, para reingerir.
     if manifesto.partes.is_empty() {
-        return Ok(Some(EstadoNaRaw::incompleto(ponteiro.versao)));
+        return Ok(Some((EstadoNaRaw::incompleto(ponteiro.versao), None)));
     }
 
     let tamanho = manifesto.partes.iter().map(|parte| parte.bytes).sum();
     let integra = partes_integras(armazenamento, &manifesto).await?;
 
-    Ok(Some(EstadoNaRaw {
-        completa: true,
-        integra,
-        versao: ponteiro.versao,
-        tamanho: Some(tamanho),
-    }))
+    let origem = Some(manifesto.url_inicial.clone());
+    Ok(Some((
+        EstadoNaRaw {
+            completa: true,
+            integra,
+            versao: ponteiro.versao,
+            tamanho: Some(tamanho),
+        },
+        origem,
+    )))
 }
 
 /// O manifesto da ingestão vigente de um recurso, ou `None` se não houver
@@ -92,7 +307,7 @@ pub async fn manifesto_vigente(
     recurso: &str,
 ) -> Result<Option<ManifestoRaw>, ErroDeIngestao> {
     let chave_ponteiro = LocalizacaoRaw::ultima_versao(fonte, recurso);
-    let Some(bytes) = armazenamento.ler(&chave_ponteiro).await? else {
+    let Some(bytes) = armazenamento.ler_controle(&chave_ponteiro).await? else {
         return Ok(None);
     };
     // Ponteiro ou manifesto ilegível: segue como se não houvesse ingestão
@@ -114,13 +329,13 @@ pub async fn manifesto_vigente(
 ///
 /// Só grava quando não há ponteiro vigente, quando o vigente é ilegível, ou
 /// quando o snapshot atual (`nova.iniciada_em`) é mais recente que o guardado.
-/// Devolve `true` se gravou, `false` se preservou um ponteiro mais novo ou se
-/// houve conflito de escrita condicional (CAS).
+/// Devolve `true` se o ponteiro desta execução está vigente, e `false` se
+/// preservou um ponteiro mais novo. Conflitos CAS persistentes e timeouts
+/// devolvem erro com indicação para repetir a tarefa.
 ///
-/// Usa [`ArmazenamentoRaw::gravar_condicional`] para que a gravação só ocorra
-/// se o ponteiro não mudou entre a leitura e a escrita. Quando o backend
-/// suporta CAS real (e.g. S3 `If-Match`), a operação é atômica; com o
-/// fallback padrão, o guard por recência persiste sem regressão.
+/// Serializa publicações dentro do processo e usa CAS para o ponteiro. Para
+/// armazenamento compartilhado entre processos, use
+/// [`publicar_ponteiro_compartilhado`], que também mantém a trava distribuída.
 pub async fn publicar_ponteiro(
     armazenamento: &dyn ArmazenamentoRaw,
     fonte: &str,
@@ -131,6 +346,62 @@ pub async fn publicar_ponteiro(
     publicar_ponteiro_sob_guarda(armazenamento, fonte, recurso, nova, &guarda).await
 }
 
+/// Publica um ponteiro usando a trava distribuída e libera-a também quando a
+/// tarefa chamadora é cancelada. Use esta variante para storage compartilhado.
+pub async fn publicar_ponteiro_compartilhado(
+    armazenamento: Arc<dyn ArmazenamentoRaw>,
+    fonte: &str,
+    recurso: &str,
+    nova: &UltimaVersao,
+) -> Result<bool, ErroDeIngestao> {
+    let trava =
+        adquirir_trava_distribuida_compartilhada(Arc::clone(&armazenamento), fonte, recurso)
+            .await?;
+    let guarda = bloquear_publicacao(fonte, recurso).await;
+    let resultado =
+        publicar_ponteiro_sob_guarda(armazenamento.as_ref(), fonte, recurso, nova, &guarda).await;
+    trava.liberar().await;
+    resultado
+}
+
+/// Confere o manifesto Raw vigente e publica Bronze sob a mesma trava distribuída
+/// usada pelos publicadores Raw. Assim, outro processo não troca a origem entre a
+/// conferência final e a gravação do ponteiro Bronze.
+pub async fn publicar_ponteiro_bronze_se_raw_vigente(
+    raw: Arc<dyn ArmazenamentoRaw>,
+    bronze: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+    id_execucao_raw: &str,
+    ponteiro_bronze: &UltimaVersao,
+) -> Result<bool, ErroDeIngestao> {
+    let trava = adquirir_trava_distribuida_compartilhada(Arc::clone(&raw), fonte, recurso).await?;
+    let guarda = bloquear_publicacao(fonte, recurso).await;
+    let resultado = async {
+        let vigente = manifesto_vigente(raw.as_ref(), fonte, recurso).await?;
+        if vigente
+            .as_ref()
+            .is_none_or(|manifesto| manifesto.id_execucao != id_execucao_raw)
+        {
+            return Ok(false);
+        }
+        if !trava.renovar().await? {
+            return Ok(false);
+        }
+        let vigente = manifesto_vigente(raw.as_ref(), fonte, recurso).await?;
+        if vigente
+            .as_ref()
+            .is_none_or(|manifesto| manifesto.id_execucao != id_execucao_raw)
+        {
+            return Ok(false);
+        }
+        publicar_ponteiro_bronze_sob_guarda(bronze, fonte, recurso, ponteiro_bronze, &guarda).await
+    }
+    .await;
+    trava.liberar().await;
+    resultado
+}
+
 /// Publica após o chamador adquirir a guarda do recurso Bronze correspondente.
 /// Usado quando conferência Bronze e troca Silver precisam ser indivisíveis no processo.
 pub async fn publicar_ponteiro_sob_guarda(
@@ -138,35 +409,123 @@ pub async fn publicar_ponteiro_sob_guarda(
     fonte: &str,
     recurso: &str,
     nova: &UltimaVersao,
+    guarda: &GuardaPublicacao,
+) -> Result<bool, ErroDeIngestao> {
+    publicar_ponteiro_com_regra_de_versao(armazenamento, fonte, recurso, nova, guarda, false).await
+}
+
+async fn publicar_ponteiro_bronze_sob_guarda(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+    nova: &UltimaVersao,
+    guarda: &GuardaPublicacao,
+) -> Result<bool, ErroDeIngestao> {
+    publicar_ponteiro_com_regra_de_versao(armazenamento, fonte, recurso, nova, guarda, true).await
+}
+
+async fn publicar_ponteiro_com_regra_de_versao(
+    armazenamento: &dyn ArmazenamentoRaw,
+    fonte: &str,
+    recurso: &str,
+    nova: &UltimaVersao,
     _guarda: &GuardaPublicacao,
+    substituir_mesma_versao: bool,
 ) -> Result<bool, ErroDeIngestao> {
     let chave = LocalizacaoRaw::ultima_versao(fonte, recurso);
-    let bytes_vigente = armazenamento.ler(&chave).await?;
-
-    if let Some(ref bytes) = bytes_vigente
-        && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
-        && (vigente.iniciada_em > nova.iniciada_em
-            || (vigente.iniciada_em.is_some()
-                && vigente.iniciada_em == nova.iniciada_em
-                && vigente.manifesto != nova.manifesto))
-    {
-        return Ok(false);
-    }
-
     let conteudo = serde_json::to_vec_pretty(nova).map_err(|erro| ErroDeIngestao::Manifesto {
         recurso: recurso.to_owned(),
         detalhe: erro.to_string(),
     })?;
-    armazenamento
-        .gravar_condicional(
-            ObjetoRaw {
-                chave,
-                conteudo,
-                tipo_de_conteudo: "application/json".to_owned(),
-            },
-            bytes_vigente.as_deref(),
-        )
-        .await
+
+    let publicar = async {
+        // Um CAS pode perder para outra execução que publicou depois da leitura.
+        // Releia e reavalie a recência: uma execução antiga não bloqueia esta;
+        // uma mais nova vence; conflitos persistentes falham com indicação de retry.
+        for tentativa in 0..TENTATIVAS_CAS_PUBLICACAO {
+            let bytes_vigente = armazenamento.ler_controle(&chave).await?;
+            if let Some(ref bytes) = bytes_vigente
+                && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(bytes)
+            {
+                if vigente.manifesto == nova.manifesto && vigente.iniciada_em == nova.iniciada_em {
+                    return Ok(true);
+                }
+                if !(substituir_mesma_versao && vigente.versao == nova.versao)
+                    && ponteiro_e_mais_recente(&vigente, nova)
+                {
+                    return Ok(false);
+                }
+            }
+
+            let gravou = armazenamento
+                .gravar_condicional(
+                    ObjetoRaw {
+                        chave: chave.clone(),
+                        conteudo: conteudo.clone(),
+                        tipo_de_conteudo: "application/json".to_owned(),
+                    },
+                    bytes_vigente.as_deref(),
+                )
+                .await?;
+            if gravou {
+                return Ok(true);
+            }
+            if tentativa + 1 < TENTATIVAS_CAS_PUBLICACAO {
+                let espera = Duration::from_millis(1_u64 << tentativa.min(4));
+                tokio::time::sleep(espera).await;
+            }
+        }
+
+        let bytes_vigente = armazenamento.ler_controle(&chave).await?;
+        if let Some(bytes) = bytes_vigente
+            && let Ok(vigente) = serde_json::from_slice::<UltimaVersao>(&bytes)
+        {
+            if vigente.manifesto == nova.manifesto && vigente.iniciada_em == nova.iniciada_em {
+                return Ok(true);
+            }
+            if !(substituir_mesma_versao && vigente.versao == nova.versao)
+                && ponteiro_e_mais_recente(&vigente, nova)
+            {
+                return Ok(false);
+            }
+        }
+
+        Err(ErroDeIngestao::Armazenamento {
+            chave: chave.clone(),
+            detalhe: format!(
+                "publicação CAS conflitou {TENTATIVAS_CAS_PUBLICACAO} vezes; tente executar a tarefa novamente"
+            ),
+        })
+    };
+
+    let resultado = match tokio::time::timeout(PRAZO_CAS_PUBLICACAO, publicar).await {
+        Ok(resultado) => resultado,
+        Err(_) => Err(ErroDeIngestao::Armazenamento {
+            chave,
+            detalhe: format!(
+                "prazo de {}s excedido ao publicar ponteiro Raw; tente executar a tarefa novamente",
+                PRAZO_CAS_PUBLICACAO.as_secs()
+            ),
+        }),
+    };
+    if resultado.is_err()
+        && let Ok(Some(bytes)) = armazenamento
+            .ler_controle(&LocalizacaoRaw::ultima_versao(fonte, recurso))
+            .await
+        && serde_json::from_slice::<UltimaVersao>(&bytes).is_ok_and(|vigente| {
+            vigente.manifesto == nova.manifesto && vigente.iniciada_em == nova.iniciada_em
+        })
+    {
+        return Ok(true);
+    }
+    resultado
+}
+
+fn ponteiro_e_mais_recente(vigente: &UltimaVersao, nova: &UltimaVersao) -> bool {
+    vigente.iniciada_em > nova.iniciada_em
+        || (vigente.iniciada_em.is_some()
+            && vigente.iniciada_em == nova.iniciada_em
+            && vigente.manifesto != nova.manifesto)
 }
 
 /// Confere que cada parte do manifesto existe e tem o tamanho esperado.
@@ -247,6 +606,19 @@ mod testes {
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
         }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
+        }
     }
 
     fn parte(bytes: u64, sha256: &str) -> ParteRaw {
@@ -311,6 +683,88 @@ mod testes {
         assert!(estado.integra);
         assert_eq!(estado.versao.as_deref(), Some("v1"));
         assert_eq!(estado.tamanho, Some(CONTEUDO.len() as u64));
+    }
+
+    #[tokio::test]
+    async fn publicar_bronze_sob_trava_raw_exige_a_mesma_execucao() {
+        let raw: Arc<dyn ArmazenamentoRaw> = Arc::new(integro());
+        let bronze = ArmazenamentoEmMemoria::default();
+        let ponteiro_bronze = UltimaVersao {
+            versao: Some("e1".into()),
+            manifesto: "bronze/estados/_manifesto.json".into(),
+            iniciada_em: Some(Utc::now()),
+        };
+
+        assert!(
+            !publicar_ponteiro_bronze_se_raw_vigente(
+                Arc::clone(&raw),
+                &bronze,
+                FONTE,
+                RECURSO,
+                "outra-execucao",
+                &ponteiro_bronze,
+            )
+            .await
+            .unwrap()
+        );
+        assert!(
+            estado_na_raw(&bronze, FONTE, RECURSO)
+                .await
+                .unwrap()
+                .is_none()
+        );
+
+        assert!(
+            publicar_ponteiro_bronze_se_raw_vigente(
+                Arc::clone(&raw),
+                &bronze,
+                FONTE,
+                RECURSO,
+                "e1",
+                &ponteiro_bronze,
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(
+            manifesto_do_ponteiro(&bronze).await,
+            "bronze/estados/_manifesto.json"
+        );
+
+        bronze
+            .gravar(ObjetoRaw {
+                chave: LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                conteudo: serde_json::to_vec(&UltimaVersao {
+                    versao: Some("e1".into()),
+                    manifesto: "bronze/estados/manifesto-antigo.json".into(),
+                    iniciada_em: Some(Utc::now() + chrono::Duration::hours(1)),
+                })
+                .unwrap(),
+                tipo_de_conteudo: "application/json".into(),
+            })
+            .await
+            .unwrap();
+        let reconstruido = UltimaVersao {
+            versao: Some("e1".into()),
+            manifesto: "bronze/estados/manifesto-reconstruido.json".into(),
+            iniciada_em: Some(Utc::now()),
+        };
+        assert!(
+            publicar_ponteiro_bronze_se_raw_vigente(
+                Arc::clone(&raw),
+                &bronze,
+                FONTE,
+                RECURSO,
+                "e1",
+                &reconstruido,
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(
+            manifesto_do_ponteiro(&bronze).await,
+            "bronze/estados/manifesto-reconstruido.json"
+        );
     }
 
     #[tokio::test]
@@ -583,7 +1037,9 @@ mod testes {
                 objeto: ObjetoRaw,
                 conteudo_vigente: Option<&[u8]>,
             ) -> Result<bool, ErroDeIngestao> {
-                if self.intruso.swap(false, AtOrd::Relaxed) {
+                if objeto.chave.ends_with("/_ultima_versao.json")
+                    && self.intruso.swap(false, AtOrd::Relaxed)
+                {
                     let intruso = UltimaVersao {
                         versao: None,
                         manifesto: "intruso".to_owned(),
@@ -621,6 +1077,141 @@ mod testes {
         .unwrap();
         assert!(!gravou, "CAS deve rejeitar quando o ponteiro mudou");
         assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "intruso");
+    }
+
+    #[tokio::test]
+    async fn publicar_ponteiro_persiste_apos_mais_de_oito_conflitos_com_rodadas_antigas() {
+        use std::sync::atomic::{AtomicUsize, Ordering as AtOrd};
+
+        struct CasComRodadaAntiga {
+            inner: ArmazenamentoEmMemoria,
+            conflitos: AtomicUsize,
+        }
+
+        #[async_trait]
+        impl ArmazenamentoRaw for CasComRodadaAntiga {
+            async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+                self.inner.gravar(objeto).await
+            }
+            async fn gravar_fluxo(
+                &self,
+                _: &str,
+                _: &str,
+                _: &mut (dyn AsyncRead + Send + Unpin),
+            ) -> Result<(), ErroDeIngestao> {
+                unreachable!()
+            }
+            async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+                self.inner.ler(chave).await
+            }
+            async fn gravar_condicional(
+                &self,
+                objeto: ObjetoRaw,
+                conteudo_vigente: Option<&[u8]>,
+            ) -> Result<bool, ErroDeIngestao> {
+                let houve_conflito = objeto.chave.ends_with("/_ultima_versao.json")
+                    && self.conflitos.load(AtOrd::Relaxed) > 0;
+                if houve_conflito {
+                    self.conflitos.fetch_sub(1, AtOrd::Relaxed);
+                    let intruso = UltimaVersao {
+                        versao: None,
+                        manifesto: "rodada-antiga".to_owned(),
+                        iniciada_em: Some(Utc::now() - chrono::TimeDelta::seconds(600)),
+                    };
+                    self.inner
+                        .gravar(ObjetoRaw {
+                            chave: objeto.chave.clone(),
+                            conteudo: serde_json::to_vec_pretty(&intruso).unwrap(),
+                            tipo_de_conteudo: "application/json".into(),
+                        })
+                        .await?;
+                    return Ok(false);
+                }
+                let atual = self.inner.ler(&objeto.chave).await?;
+                if atual.as_deref() == conteudo_vigente {
+                    self.inner.gravar(objeto).await?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+        }
+
+        let armazenamento = CasComRodadaAntiga {
+            inner: ArmazenamentoEmMemoria::default(),
+            conflitos: AtomicUsize::new(10),
+        };
+        let gravou = publicar_ponteiro(
+            &armazenamento,
+            FONTE,
+            RECURSO,
+            &ponteiro("nova", Utc::now()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            gravou,
+            "a rodada atual deve persistir até vencer conflitos com rodadas antigas"
+        );
+        assert_eq!(armazenamento.conflitos.load(AtOrd::Relaxed), 0);
+        assert_eq!(manifesto_do_ponteiro(&armazenamento.inner).await, "nova");
+    }
+
+    #[tokio::test]
+    async fn conflitos_cas_persistentes_devolvem_erro_repetivel() {
+        struct CasSempreEmConflito(ArmazenamentoEmMemoria);
+
+        #[async_trait]
+        impl ArmazenamentoRaw for CasSempreEmConflito {
+            async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+                Ok(())
+            }
+            async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+                self.0.gravar(objeto).await
+            }
+            async fn gravar_fluxo(
+                &self,
+                _: &str,
+                _: &str,
+                _: &mut (dyn AsyncRead + Send + Unpin),
+            ) -> Result<(), ErroDeIngestao> {
+                unreachable!()
+            }
+            async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+                self.0.ler(chave).await
+            }
+            async fn gravar_condicional(
+                &self,
+                objeto: ObjetoRaw,
+                _: Option<&[u8]>,
+            ) -> Result<bool, ErroDeIngestao> {
+                if objeto.chave.ends_with("/_publicacao.lock.json") {
+                    self.0.gravar(objeto).await?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+        }
+
+        let armazenamento = CasSempreEmConflito(ArmazenamentoEmMemoria::default());
+        let erro = publicar_ponteiro(
+            &armazenamento,
+            FONTE,
+            RECURSO,
+            &ponteiro("nova", Utc::now()),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            erro.to_string()
+                .contains("tente executar a tarefa novamente")
+        );
     }
 
     #[tokio::test]

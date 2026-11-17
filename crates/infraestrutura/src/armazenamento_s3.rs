@@ -16,6 +16,9 @@ use tracing::{info, warn};
 const TAMANHO_DA_PARTE: usize = 16 * 1024 * 1024;
 const TENTATIVAS_DE_ESCRITA: u32 = 4;
 const ESPERA_BASE: std::time::Duration = std::time::Duration::from_millis(200);
+/// Timeout curto para ponteiros e outros metadados pequenos. Transferências de
+/// dados continuam usando o timeout generoso configurado no bucket principal.
+const TIMEOUT_CONTROLE_S3: Duration = Duration::from_secs(15);
 
 /// Dados de conexão a um serviço compatível com S3.
 #[derive(Debug, Clone)]
@@ -44,8 +47,23 @@ impl ArmazenamentoS3 {
         &self,
         chave: &str,
         rotulo: &str,
-        mut operacao: F,
+        operacao: F,
     ) -> Result<T, ErroDeIngestao>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = Result<T, S3Error>>,
+    {
+        self.repetir_s3(chave, rotulo, operacao)
+            .await
+            .map_err(|erro| self.erro(chave, erro))
+    }
+
+    async fn repetir_s3<T, F, Fut>(
+        &self,
+        chave: &str,
+        rotulo: &str,
+        mut operacao: F,
+    ) -> Result<T, S3Error>
     where
         F: FnMut() -> Fut,
         Fut: Future<Output = Result<T, S3Error>>,
@@ -59,7 +77,7 @@ impl ArmazenamentoS3 {
                     warn!(%chave, %erro, tentativa, ?espera, %rotulo, "operação S3 falhou; tentando novamente");
                     tokio::time::sleep(espera).await;
                 }
-                Err(erro) => return Err(self.erro(chave, erro)),
+                Err(erro) => return Err(erro),
             }
         }
         unreachable!("ao menos uma tentativa é feita")
@@ -103,6 +121,12 @@ impl ArmazenamentoS3 {
             chave: chave.to_owned(),
             detalhe: detalhe.to_string(),
         }
+    }
+
+    fn bucket_de_controle(&self, chave: &str) -> Result<Box<Bucket>, ErroDeIngestao> {
+        self.bucket
+            .with_request_timeout(TIMEOUT_CONTROLE_S3)
+            .map_err(|erro| self.erro(chave, erro))
     }
 
     /// Lista todas as chaves sob um prefixo (percorrendo as páginas). Usado pelo refino
@@ -163,6 +187,71 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
         })
         .await?;
         Ok(())
+    }
+
+    async fn gravar_condicional(
+        &self,
+        objeto: ObjetoRaw,
+        conteudo_vigente: Option<&[u8]>,
+    ) -> Result<bool, ErroDeIngestao> {
+        let bucket = self.bucket_de_controle(&objeto.chave)?;
+        let atual = self
+            .repetir_s3(&objeto.chave, "GET condicional", || {
+                bucket.get_object(&objeto.chave)
+            })
+            .await;
+        let (nome_cabecalho, valor_cabecalho) = match atual {
+            Ok(atual) => {
+                let Some(esperado) = conteudo_vigente else {
+                    return Ok(false);
+                };
+                if atual.as_slice() != esperado {
+                    return Ok(false);
+                }
+                let etag = atual
+                    .headers()
+                    .into_iter()
+                    .find(|(nome, _)| nome.eq_ignore_ascii_case("etag"))
+                    .map(|(_, valor)| valor)
+                    .ok_or_else(|| ErroDeIngestao::Armazenamento {
+                        chave: objeto.chave.clone(),
+                        detalhe: "resposta S3 sem ETag para gravação condicional".into(),
+                    })?;
+                ("if-match", etag)
+            }
+            Err(S3Error::HttpFailWithBody(404, _)) if conteudo_vigente.is_none() => {
+                ("if-none-match", "*".to_owned())
+            }
+            Err(S3Error::HttpFailWithBody(404, _)) => return Ok(false),
+            Err(erro) => return Err(self.erro(&objeto.chave, erro)),
+        };
+
+        let resultado = self
+            .repetir_s3(&objeto.chave, "PUT condicional", || async {
+                bucket
+                    .put_object_builder(&objeto.chave, &objeto.conteudo)
+                    .with_content_type(&objeto.tipo_de_conteudo)
+                    .with_header(nome_cabecalho, valor_cabecalho.clone())?
+                    .execute()
+                    .await
+            })
+            .await;
+
+        match resultado {
+            Ok(_) => Ok(true),
+            Err(erro @ S3Error::HttpFailWithBody(409 | 412, _)) => {
+                match self.ler_controle(&objeto.chave).await {
+                    Ok(Some(atual)) if atual == objeto.conteudo => Ok(true),
+                    Ok(_) => Ok(false),
+                    Err(_) => Err(self.erro(&objeto.chave, erro)),
+                }
+            }
+            Err(erro) => match self.ler_controle(&objeto.chave).await {
+                Ok(Some(atual)) if atual == objeto.conteudo => Ok(true),
+                Ok(atual) if atual.as_deref() != conteudo_vigente => Ok(false),
+                Ok(_) | Err(_) => Err(self.erro(&objeto.chave, erro)),
+            },
+        }
     }
 
     async fn listar_prefixo(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
@@ -232,6 +321,18 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
     async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
         match self.bucket.get_object(chave).await {
             Ok(resposta) => Ok(Some(resposta.bytes().to_vec())),
+            Err(S3Error::HttpFailWithBody(404, _)) => Ok(None),
+            Err(erro) => Err(self.erro(chave, erro)),
+        }
+    }
+
+    async fn ler_controle(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+        let bucket = self.bucket_de_controle(chave)?;
+        match self
+            .repetir_s3(chave, "GET controle", || bucket.get_object(chave))
+            .await
+        {
+            Ok(resposta) => Ok(Some(resposta.to_vec())),
             Err(S3Error::HttpFailWithBody(404, _)) => Ok(None),
             Err(erro) => Err(self.erro(chave, erro)),
         }
@@ -453,6 +554,7 @@ mod testes {
                     200 => "OK",
                     204 => "No Content",
                     404 => "Not Found",
+                    412 => "Precondition Failed",
                     503 => "Service Unavailable",
                     status => panic!("status de mock não previsto: {status}"),
                 };
@@ -482,6 +584,74 @@ mod testes {
                 stream.write_all(resposta.corpo.as_bytes()).unwrap();
                 stream.flush().unwrap();
             }
+            requisicoes
+        });
+
+        (endpoint, servidor)
+    }
+
+    /// Faz dois GET observarem a mesma versão antes de aceitar os PUTs concorrentes.
+    fn servidor_s3_cas_concorrente() -> (String, JoinHandle<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        listener
+            .set_nonblocking(true)
+            .expect("listener não bloqueante");
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        let servidor = std::thread::spawn(move || {
+            fn aceitar(listener: &TcpListener) -> TcpStream {
+                let prazo = Instant::now() + Duration::from_secs(10);
+                loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => return stream,
+                        Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(Instant::now() < prazo, "timeout aceitando requisição S3");
+                            std::thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(erro) => panic!("falha ao aceitar conexão do SDK: {erro}"),
+                    }
+                }
+            }
+            fn responder(mut stream: TcpStream, status: u16, etag: &str, corpo: &str) {
+                let motivo = if status == 200 {
+                    "OK"
+                } else {
+                    "Precondition Failed"
+                };
+                let resposta = format!(
+                    "HTTP/1.1 {status} {motivo}\r\nContent-Length: {}\r\nETag: {etag}\r\nConnection: close\r\n\r\n{corpo}",
+                    corpo.len()
+                );
+                stream.write_all(resposta.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+
+            let mut requisicoes = Vec::new();
+            for _ in 0..2 {
+                let mut stream = aceitar(&listener);
+                let mut leitor = BufReader::new(stream.try_clone().unwrap());
+                requisicoes.push(ler_requisicao(&mut leitor, &mut stream).unwrap());
+                responder(stream, 200, "\"cas-v1\"", "ponteiro antigo");
+            }
+
+            let mut etag_atual = "\"cas-v1\"";
+            for _ in 0..2 {
+                let mut stream = aceitar(&listener);
+                let mut leitor = BufReader::new(stream.try_clone().unwrap());
+                let requisicao = ler_requisicao(&mut leitor, &mut stream).unwrap();
+                let condicao = valor_do_cabecalho(&requisicao, "if-match").map(str::to_owned);
+                requisicoes.push(requisicao);
+                if condicao.as_deref() == Some(etag_atual) {
+                    etag_atual = "\"cas-v2\"";
+                    responder(stream, 200, etag_atual, "");
+                } else {
+                    responder(stream, 412, etag_atual, "conflito");
+                }
+            }
+
+            let mut stream = aceitar(&listener);
+            let mut leitor = BufReader::new(stream.try_clone().unwrap());
+            requisicoes.push(ler_requisicao(&mut leitor, &mut stream).unwrap());
+            responder(stream, 200, etag_atual, "ponteiro vencedor");
             requisicoes
         });
 
@@ -548,6 +718,15 @@ mod testes {
         Ok(texto)
     }
 
+    fn valor_do_cabecalho<'a>(requisicao: &'a str, nome: &str) -> Option<&'a str> {
+        requisicao.lines().find_map(|linha| {
+            let (nome_cabecalho, valor) = linha.split_once(':')?;
+            nome_cabecalho
+                .eq_ignore_ascii_case(nome)
+                .then_some(valor.trim())
+        })
+    }
+
     /// Conecta a um **bucket dedicado e único** por teste, para que um teste não
     /// interfira em outro nem em dados reais — `descartar_envios_incompletos`, por
     /// exemplo, cancela todos os multiparts do bucket. Devolve `None` (pula) quando
@@ -596,6 +775,204 @@ mod testes {
         let requisicoes = servidor.join().unwrap();
         assert!(requisicoes[0].starts_with("GET /teste-raw-79/presente "));
         assert!(requisicoes[1].starts_with("HEAD /teste-raw-79/presente "));
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_usa_if_match_e_retorna_conflito() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(
+                412,
+                "Content-Type: application/xml\r\n",
+                "precondition failed",
+            ),
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            !s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 3);
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[1], "if-match"),
+            Some("\"ponteiro-v1\"")
+        );
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_cria_com_if_none_match() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(404, "Content-Type: application/xml\r\n", "ausente"),
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro inicial".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(s3.gravar_condicional(objeto, None).await.unwrap());
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[1].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[1], "if-none-match"),
+            Some("*")
+        );
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_repete_put_transitorio() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(503, "", "indisponível"),
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(503, "", "indisponível"),
+            resposta_s3(200, "ETag: \"ponteiro-v2\"\r\n", ""),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 4);
+        assert!(requisicoes[0].starts_with("GET /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[1].starts_with("GET /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[2].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert!(requisicoes[3].starts_with("PUT /teste-raw-79/ultima-versao.json "));
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[2], "if-match"),
+            Some("\"ponteiro-v1\"")
+        );
+        assert_eq!(
+            valor_do_cabecalho(&requisicoes[3], "if-match"),
+            Some("\"ponteiro-v1\"")
+        );
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_confirma_put_commitado_apos_conflito_no_retry() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(503, "", "resposta perdida após commit"),
+            resposta_s3(
+                412,
+                "Content-Type: application/xml\r\n",
+                "precondition failed",
+            ),
+            resposta_s3(200, "ETag: \"ponteiro-v2\"\r\n", "ponteiro novo"),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 4);
+        assert!(requisicoes[3].starts_with("GET /teste-raw-79/ultima-versao.json "));
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_nao_confirma_conteudo_de_outro_publicador() {
+        let (endpoint, servidor) = servidor_s3(vec![
+            resposta_s3(200, "ETag: \"ponteiro-v1\"\r\n", "ponteiro antigo"),
+            resposta_s3(503, "", "resposta ambígua"),
+            resposta_s3(
+                412,
+                "Content-Type: application/xml\r\n",
+                "precondition failed",
+            ),
+            resposta_s3(200, "ETag: \"ponteiro-v2\"\r\n", "outro publicador"),
+        ]);
+        let s3 = armazenamento_local(endpoint);
+        let objeto = ObjetoRaw {
+            chave: "ultima-versao.json".into(),
+            conteudo: b"ponteiro novo".to_vec(),
+            tipo_de_conteudo: "application/json".into(),
+        };
+
+        assert!(
+            !s3.gravar_condicional(objeto, Some(b"ponteiro antigo"))
+                .await
+                .unwrap()
+        );
+        let requisicoes = servidor.join().unwrap();
+        assert!(requisicoes[3].starts_with("GET /teste-raw-79/ultima-versao.json "));
+    }
+
+    #[tokio::test]
+    async fn gravar_condicional_serializa_corrida_entre_dois_publicadores() {
+        let (endpoint, servidor) = servidor_s3_cas_concorrente();
+        let armazenamento = std::sync::Arc::new(armazenamento_local(endpoint));
+        let primeira = {
+            let armazenamento = armazenamento.clone();
+            tokio::spawn(async move {
+                armazenamento
+                    .gravar_condicional(
+                        ObjetoRaw {
+                            chave: "ultima-versao.json".into(),
+                            conteudo: b"ponteiro A".to_vec(),
+                            tipo_de_conteudo: "application/json".into(),
+                        },
+                        Some(b"ponteiro antigo"),
+                    )
+                    .await
+            })
+        };
+        let segunda = {
+            let armazenamento = armazenamento.clone();
+            tokio::spawn(async move {
+                armazenamento
+                    .gravar_condicional(
+                        ObjetoRaw {
+                            chave: "ultima-versao.json".into(),
+                            conteudo: b"ponteiro B".to_vec(),
+                            tipo_de_conteudo: "application/json".into(),
+                        },
+                        Some(b"ponteiro antigo"),
+                    )
+                    .await
+            })
+        };
+
+        let resultados = [
+            primeira.await.unwrap().unwrap(),
+            segunda.await.unwrap().unwrap(),
+        ];
+        assert_ne!(resultados[0], resultados[1], "apenas um CAS pode vencer");
+        let requisicoes = servidor.join().unwrap();
+        assert_eq!(requisicoes.len(), 5);
+        let condicoes: Vec<_> = requisicoes
+            .iter()
+            .filter(|requisicao| requisicao.starts_with("PUT "))
+            .map(|requisicao| valor_do_cabecalho(requisicao, "if-match"))
+            .collect();
+        assert_eq!(condicoes, vec![Some("\"cas-v1\""), Some("\"cas-v1\"")]);
     }
 
     #[tokio::test]
@@ -680,6 +1057,15 @@ mod testes {
     fn novo_constroi_sem_rede_com_config_valida() {
         let config = config_de_teste("http://127.0.0.1:7070".to_owned(), "teste-raw".to_owned());
         assert!(ArmazenamentoS3::novo(config).is_ok());
+    }
+
+    #[test]
+    fn bucket_de_controle_tem_timeout_curto_sem_alterar_o_bucket_principal() {
+        let s3 = armazenamento_local("http://127.0.0.1:7070".to_owned());
+        let controle = s3.bucket_de_controle("_ultima_versao.json").unwrap();
+
+        assert_eq!(controle.request_timeout(), Some(TIMEOUT_CONTROLE_S3));
+        assert_eq!(s3.bucket.request_timeout(), Some(Duration::from_secs(1800)));
     }
 
     #[test]
@@ -769,6 +1155,65 @@ mod testes {
         // Não deixa o objeto acumulando a cada rodada.
         s3.bucket.delete_object(chave).await.unwrap();
         assert_eq!(s3.ler(chave).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    #[ignore = "requer versitygw: defina TODEOLHO_TESTE_S3_ENDPOINT e rode com --ignored"]
+    async fn gravar_condicional_no_versitygw_rejeita_ponteiro_desatualizado() {
+        std::env::var("TODEOLHO_TESTE_S3_ENDPOINT")
+            .expect("defina TODEOLHO_TESTE_S3_ENDPOINT para o teste de integração S3");
+        let s3 = s3_em_bucket_novo("cas").expect("endpoint S3 já validado acima");
+        s3.preparar().await.unwrap();
+        let objeto = |conteudo: &[u8]| ObjetoRaw {
+            chave: "_ultima_versao.json".to_owned(),
+            conteudo: conteudo.to_vec(),
+            tipo_de_conteudo: "application/json".to_owned(),
+        };
+
+        assert!(s3.gravar_condicional(objeto(b"v1"), None).await.unwrap());
+        assert!(!s3.gravar_condicional(objeto(b"v2"), None).await.unwrap());
+        assert!(
+            s3.gravar_condicional(objeto(b"v2"), Some(b"v1"))
+                .await
+                .unwrap()
+        );
+        assert!(
+            !s3.gravar_condicional(objeto(b"v3"), Some(b"v1"))
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            s3.ler("_ultima_versao.json").await.unwrap(),
+            Some(b"v2".to_vec())
+        );
+
+        let s3 = std::sync::Arc::new(s3);
+        let barreira = std::sync::Arc::new(tokio::sync::Barrier::new(3));
+        let publicar = |armazenamento: std::sync::Arc<ArmazenamentoS3>,
+                        barreira: std::sync::Arc<tokio::sync::Barrier>,
+                        conteudo: &'static [u8]| {
+            tokio::spawn(async move {
+                barreira.wait().await;
+                armazenamento
+                    .gravar_condicional(objeto(conteudo), Some(b"v2"))
+                    .await
+            })
+        };
+        let primeira = publicar(s3.clone(), barreira.clone(), b"v3");
+        let segunda = publicar(s3.clone(), barreira.clone(), b"v4");
+        barreira.wait().await;
+        let resultados = [
+            primeira.await.unwrap().unwrap(),
+            segunda.await.unwrap().unwrap(),
+        ];
+        assert_ne!(resultados[0], resultados[1], "apenas um CAS pode vencer");
+        let vigente = s3.ler("_ultima_versao.json").await.unwrap();
+        assert!(vigente == Some(b"v3".to_vec()) || vigente == Some(b"v4".to_vec()));
+
+        s3.bucket
+            .delete_object("_ultima_versao.json")
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

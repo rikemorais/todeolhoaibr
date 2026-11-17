@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
     ParteRaw, PrecisaoDaEstimativa, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao,
-    estado_na_raw, manifesto_vigente, publicar_ponteiro,
+    estado_na_raw, manifesto_vigente, marcar_execucao_ativa, publicar_ponteiro_compartilhado,
 };
 use tracing::warn;
 
@@ -424,6 +424,18 @@ impl Tarefa for TarefaDeIngestaoHttp {
                         );
                     }
                 }
+                if let Err(erro) = todeolho_nucleo::agendar_limpeza_snapshot(
+                    contexto.armazenamento.as_ref(),
+                    &chave_manifesto,
+                )
+                .await
+                {
+                    warn!(
+                        %erro,
+                        manifesto = %chave_manifesto,
+                        "não foi possível agendar a limpeza tardia do snapshot Raw"
+                    );
+                }
             } else {
                 let falhas = contexto
                     .armazenamento
@@ -478,6 +490,7 @@ impl TarefaDeIngestaoHttp {
             contexto.iniciada_em,
             &contexto.id_execucao,
         );
+        marcar_execucao_ativa(contexto.armazenamento.as_ref(), &local.manifesto()).await?;
 
         // Varredura de órfãs: limpa partes de execuções anteriores que não
         // concluíram (cancelamento abrupto, rollback incompleto). A varredura é
@@ -644,8 +657,8 @@ impl TarefaDeIngestaoHttp {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        let publicou = publicar_ponteiro(
-            contexto.armazenamento.as_ref(),
+        let publicou = publicar_ponteiro_compartilhado(
+            Arc::clone(&contexto.armazenamento),
             &self.fonte,
             &self.recurso,
             &ultima,
@@ -718,6 +731,9 @@ mod testes {
         }
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.objetos.lock().unwrap().push(objeto);
             Ok(())
         }
@@ -739,8 +755,32 @@ mod testes {
             unreachable!("a ingestão paginada grava respostas em memória")
         }
 
-        async fn ler(&self, _: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
-            Ok(None)
+        async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(self
+                .objetos
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|objeto| objeto.chave == chave)
+                .map(|objeto| objeto.conteudo.clone()))
+        }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            let atual = objetos
+                .iter()
+                .find(|existente| existente.chave == objeto.chave)
+                .map(|existente| existente.conteudo.as_slice());
+            if atual != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.retain(|existente| existente.chave != objeto.chave);
+            objetos.push(objeto);
+            Ok(true)
         }
     }
 
@@ -926,14 +966,28 @@ mod testes {
         assert_eq!(resumo.bytes, (PAGINA_1.len() + PAGINA_2.len()) as u64);
 
         let objetos = armazenamento.objetos.lock().unwrap();
-        assert_eq!(objetos.len(), 4);
-        assert_eq!(objetos[0].conteudo, PAGINA_1.as_bytes());
-        assert!(objetos[0].chave.ends_with("/parte-00001.json"));
-        assert!(objetos[1].chave.ends_with("/parte-00002.json"));
-        assert!(objetos[2].chave.ends_with("/_manifesto.json"));
-        assert!(objetos[3].chave.ends_with("/_ultima_versao.json"));
+        assert_eq!(objetos.len(), 5); // partes, manifesto, ponteiro e trava compartilhada
+        let parte_1 = objetos
+            .iter()
+            .find(|objeto| objeto.chave.ends_with("/parte-00001.json"))
+            .unwrap();
+        let parte_2 = objetos
+            .iter()
+            .find(|objeto| objeto.chave.ends_with("/parte-00002.json"))
+            .unwrap();
+        let objeto_manifesto = objetos
+            .iter()
+            .find(|objeto| objeto.chave.ends_with("/_manifesto.json"))
+            .unwrap();
+        assert!(
+            objetos
+                .iter()
+                .any(|objeto| objeto.chave.ends_with("/_ultima_versao.json"))
+        );
+        assert_eq!(parte_1.conteudo, PAGINA_1.as_bytes());
+        assert_eq!(parte_2.conteudo, PAGINA_2.as_bytes());
 
-        let manifesto: ManifestoRaw = serde_json::from_slice(&objetos[2].conteudo).unwrap();
+        let manifesto: ManifestoRaw = serde_json::from_slice(&objeto_manifesto.conteudo).unwrap();
         assert_eq!(manifesto.partes.len(), 2);
         assert_eq!(manifesto.partes[1].url, "https://api/2");
         assert_eq!(
@@ -1081,9 +1135,17 @@ mod testes {
 
         assert_eq!(http.chamadas.load(Ordering::SeqCst), 2);
         let objetos = armazenamento.objetos.lock().unwrap();
-        assert_eq!(objetos.len(), 3);
-        assert_eq!(objetos[0].conteudo, CORPO_VALIDO.as_bytes());
-        assert!(objetos[1].chave.ends_with("/_manifesto.json"));
+        assert_eq!(objetos.len(), 4); // parte, manifesto, ponteiro e trava compartilhada
+        assert!(
+            objetos
+                .iter()
+                .any(|objeto| objeto.conteudo == CORPO_VALIDO.as_bytes())
+        );
+        assert!(
+            objetos
+                .iter()
+                .any(|objeto| objeto.chave.ends_with("/_manifesto.json"))
+        );
     }
 
     #[tokio::test]
@@ -1247,6 +1309,19 @@ mod testes {
 
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
+        }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
         }
     }
 

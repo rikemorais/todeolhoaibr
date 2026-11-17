@@ -3,7 +3,7 @@ use todeolho_nucleo::TarefaPlanejada;
 use crate::ingestao_arquivo::TarefaDeArquivo;
 
 const NOME: &str = "cnpj";
-const BASE: &str = "https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj";
+const BASE: &str = "https://arquivos.receitafederal.gov.br/public.php/dav/files/YggdBLfdninEJX9";
 
 /// Competências (meses) publicadas pela Receita Federal.
 /// Acrescente aqui cada novo snapshot mensal quando disponibilizado.

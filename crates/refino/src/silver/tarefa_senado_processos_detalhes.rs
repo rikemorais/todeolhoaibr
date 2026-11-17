@@ -161,6 +161,19 @@ mod testes {
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.0.lock().unwrap().get(chave).cloned())
         }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.0.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
+        }
     }
 
     fn resultado_silver(silver: &Memoria, recurso: &str) -> RecordBatch {

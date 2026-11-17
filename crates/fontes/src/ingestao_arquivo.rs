@@ -14,8 +14,10 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
-    LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa, ProgressoDaTarefa,
-    ResumoDaTarefa, Tarefa, UltimaVersao, decidir, estado_na_raw, publicar_ponteiro,
+    LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, PrecisaoDaEstimativa,
+    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, decidir,
+    estado_na_raw_com_origem, limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
+    publicar_ponteiro_compartilhado,
 };
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::SyncIoBridge;
@@ -70,6 +72,19 @@ impl TarefaDeArquivo {
     pub(crate) fn aceitar_ausencia(mut self) -> Self {
         self.aceitar_ausencia = true;
         self
+    }
+
+    fn decidir_com_origem(
+        &self,
+        informacoes: &todeolho_nucleo::InformacoesDoArquivo,
+        estado: Option<&todeolho_nucleo::EstadoNaRaw>,
+        origem_na_raw: Option<&str>,
+    ) -> DecisaoDeIngestao {
+        if origem_na_raw.is_some_and(|origem| origem != self.url) {
+            DecisaoDeIngestao::Ingerir(MotivoDeIngestao::Desatualizada)
+        } else {
+            decidir(informacoes, estado)
+        }
     }
 
     async fn transferir(
@@ -239,19 +254,27 @@ impl Tarefa for TarefaDeArquivo {
         precisao: PrecisaoDaEstimativa,
     ) -> Result<Option<u64>, ErroDeIngestao> {
         let estado =
-            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
+            estado_na_raw_com_origem(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
+                .await?;
+        let (estado, origem_na_raw) = estado
+            .map(|(estado, origem)| (Some(estado), origem))
+            .unwrap_or((None, None));
         // No modo rápido (menu), uma cópia completa e íntegra na Raw quase sempre é
         // reaproveitada, então evitamos o HEAD na origem — custoso quando são centenas
         // de arquivos num host limitado a 5 req/s. A rodada real ainda faz a pré-checagem
         // condicional, então nada é baixado indevidamente.
         if precisao == PrecisaoDaEstimativa::Rapida {
             return Ok(match estado.as_ref() {
-                Some(e) if e.completa && e.integra => Some(0),
+                Some(e)
+                    if e.completa && e.integra && origem_na_raw.as_deref() == Some(&self.url) =>
+                {
+                    Some(0)
+                }
                 _ => None,
             });
         }
         let informacoes = contexto.http.informacoes(&self.url).await?;
-        match decidir(&informacoes, estado.as_ref()) {
+        match self.decidir_com_origem(&informacoes, estado.as_ref(), origem_na_raw.as_deref()) {
             DecisaoDeIngestao::Reaproveitar => Ok(Some(0)),
             DecisaoDeIngestao::Ingerir(_) => Ok(informacoes.tamanho),
         }
@@ -267,10 +290,30 @@ impl Tarefa for TarefaDeArquivo {
             contexto.iniciada_em,
             &contexto.id_execucao,
         );
+        marcar_execucao_ativa(contexto.armazenamento.as_ref(), &local.manifesto()).await?;
+        let prefixo_recurso = format!("{}/{}/", self.fonte, self.recurso);
+        if let Err(erro) = limpar_orfas_do_recurso(
+            contexto.armazenamento.as_ref(),
+            &prefixo_recurso,
+            &contexto.id_execucao,
+        )
+        .await
+        {
+            warn!(%erro, recurso = %self.recurso, "falha ao varrer snapshots pendentes antes da ingestão");
+        }
+
         let informacoes = contexto.http.informacoes(&self.url).await?;
         let estado =
-            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
-        let motivo = match decidir(&informacoes, estado.as_ref()) {
+            estado_na_raw_com_origem(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso)
+                .await?;
+        let (estado, origem_na_raw) = estado
+            .map(|(estado, origem)| (Some(estado), origem))
+            .unwrap_or((None, None));
+        let motivo = match self.decidir_com_origem(
+            &informacoes,
+            estado.as_ref(),
+            origem_na_raw.as_deref(),
+        ) {
             DecisaoDeIngestao::Reaproveitar => {
                 return Ok(ResumoDaTarefa {
                     reaproveitada: true,
@@ -313,6 +356,7 @@ impl Tarefa for TarefaDeArquivo {
             reaproveitada: false,
             motivo: Some(motivo),
         };
+        let chave_manifesto = local.manifesto();
 
         let manifesto = ManifestoRaw {
             fonte: self.fonte.clone(),
@@ -325,7 +369,7 @@ impl Tarefa for TarefaDeArquivo {
         };
         gravar_json(
             contexto,
-            local.manifesto(),
+            chave_manifesto.clone(),
             serde_json::to_vec_pretty(&manifesto).map_err(|e| self.erro_de_manifesto(e))?,
         )
         .await?;
@@ -339,22 +383,48 @@ impl Tarefa for TarefaDeArquivo {
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        let publicou = publicar_ponteiro(
-            contexto.armazenamento.as_ref(),
+        let resultado_publicacao = publicar_ponteiro_compartilhado(
+            Arc::clone(&contexto.armazenamento),
             &self.fonte,
             &self.recurso,
             &ultima,
         )
-        .await?;
-        if !publicou {
-            return Err(ErroDeIngestao::Manifesto {
+        .await;
+        if matches!(&resultado_publicacao, Ok(true)) {
+            return Ok(resumo);
+        }
+
+        let manifesto_atual =
+            manifesto_vigente(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await;
+        if manifesto_atual.as_ref().is_ok_and(|vigente| {
+            vigente
+                .as_ref()
+                .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+        }) {
+            return Ok(resumo);
+        }
+        if let Err(erro) = &manifesto_atual {
+            warn!(%erro, recurso = %self.recurso, "falha ao conferir se a publicação Raw foi confirmada");
+        }
+
+        if let Err(erro) =
+            agendar_limpeza_snapshot(contexto.armazenamento.as_ref(), &chave_manifesto).await
+        {
+            warn!(
+                %erro,
+                manifesto = %chave_manifesto,
+                "não foi possível agendar a limpeza tardia do snapshot"
+            );
+        }
+        match resultado_publicacao {
+            Err(erro) => Err(erro),
+            Ok(false) => Err(ErroDeIngestao::Manifesto {
                 recurso: self.recurso.clone(),
                 detalhe: "ponteiro Raw mais recente preservado; esta execução não foi publicada"
                     .into(),
-            });
+            }),
+            Ok(true) => Ok(resumo),
         }
-
-        Ok(resumo)
     }
 }
 
@@ -609,6 +679,7 @@ mod testes {
     struct ArmazenamentoEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
         limitar_fluxo: Mutex<bool>,
+        concorrer_publicacao: Mutex<bool>,
     }
 
     #[async_trait]
@@ -618,6 +689,9 @@ mod testes {
         }
 
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.objetos
                 .lock()
                 .unwrap()
@@ -627,6 +701,30 @@ mod testes {
 
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
+        }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objeto.chave.ends_with("_ultima_versao.json")
+                && std::mem::replace(&mut *self.concorrer_publicacao.lock().unwrap(), false)
+            {
+                let concorrente = todeolho_nucleo::UltimaVersao {
+                    versao: None,
+                    manifesto: "concorrente".into(),
+                    iniciada_em: Some(Utc::now() + chrono::TimeDelta::minutes(1)),
+                };
+                objetos.insert(objeto.chave, serde_json::to_vec(&concorrente).unwrap());
+                return Ok(false);
+            }
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
         }
 
         async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
@@ -685,6 +783,8 @@ mod testes {
         ausente: Mutex<bool>,
         cortes: Mutex<VecDeque<Option<usize>>>,
         pedidos: Mutex<Vec<u64>>,
+        urls_consultadas: Mutex<Vec<String>>,
+        urls_baixadas: Mutex<Vec<String>>,
         downloads: Mutex<u32>,
         consultas: Mutex<u32>,
         sem_tamanho: bool,
@@ -704,6 +804,8 @@ mod testes {
                 ausente: Mutex::new(false),
                 cortes: Mutex::new(VecDeque::new()),
                 pedidos: Mutex::new(Vec::new()),
+                urls_consultadas: Mutex::new(Vec::new()),
+                urls_baixadas: Mutex::new(Vec::new()),
                 downloads: Mutex::new(0),
                 consultas: Mutex::new(0),
                 sem_tamanho: false,
@@ -749,8 +851,9 @@ mod testes {
             unreachable!("a tarefa de arquivo não usa respostas em memória")
         }
 
-        async fn informacoes(&self, _: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
+        async fn informacoes(&self, url: &str) -> Result<InformacoesDoArquivo, ErroDeIngestao> {
             *self.consultas.lock().unwrap() += 1;
+            self.urls_consultadas.lock().unwrap().push(url.to_owned());
             if *self.ausente.lock().unwrap() {
                 return Ok(InformacoesDoArquivo::default());
             }
@@ -771,6 +874,7 @@ mod testes {
             _versao: Option<&str>,
         ) -> Result<DownloadHttp, ErroDeIngestao> {
             *self.downloads.lock().unwrap() += 1;
+            self.urls_baixadas.lock().unwrap().push(url.to_owned());
             self.pedidos.lock().unwrap().push(inicio);
 
             if *self.ausente.lock().unwrap() {
@@ -1048,6 +1152,67 @@ mod testes {
 
         assert!(!segunda.reaproveitada);
         assert_eq!(*cenario.http.downloads.lock().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn reingere_quando_url_da_origem_muda_mesmo_com_etag_igual() {
+        let cenario = cenario(HttpFalso::novo(Some("etag-opaco")));
+        tarefa().executar(&cenario.contexto).await.unwrap();
+
+        let mut nova_origem = tarefa();
+        nova_origem.url = "https://origem-nova/arquivo.zip".into();
+        let estimativa = nova_origem
+            .bytes_a_baixar(&cenario.contexto, PrecisaoDaEstimativa::Exata)
+            .await
+            .unwrap();
+        assert_eq!(estimativa, Some(CONTEUDO.len() as u64));
+
+        let segunda = nova_origem.executar(&cenario.contexto).await.unwrap();
+
+        assert!(!segunda.reaproveitada);
+        assert_eq!(*cenario.http.downloads.lock().unwrap(), 2);
+        let nova_url = "https://origem-nova/arquivo.zip";
+        assert_eq!(
+            cenario
+                .http
+                .urls_consultadas
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|url| url.as_str() == nova_url)
+                .count(),
+            2
+        );
+        assert_eq!(
+            cenario.http.urls_baixadas.lock().unwrap().as_slice(),
+            ["https://origem/arquivo.zip", nova_url]
+        );
+    }
+
+    #[tokio::test]
+    async fn agenda_limpeza_com_graca_quando_uma_execucao_concorrente_vence() {
+        let cenario = cenario(HttpFalso::novo(Some("v1")));
+        *cenario.armazenamento.concorrer_publicacao.lock().unwrap() = true;
+        let local = LocalizacaoRaw::nova(
+            "tse",
+            "votacao_secao/ano=2024/uf=AC",
+            cenario.contexto.iniciada_em,
+            &cenario.contexto.id_execucao,
+        );
+        let chave_parte = local.parte(1, "zip");
+        let chave_manifesto = local.manifesto();
+
+        let erro = tarefa().executar(&cenario.contexto).await.unwrap_err();
+
+        assert!(erro.to_string().contains("mais recente preservado"));
+        let objetos = cenario.armazenamento.objetos.lock().unwrap();
+        assert!(objetos.contains_key(&chave_parte));
+        assert!(objetos.contains_key(&chave_manifesto));
+        assert!(
+            objetos.contains_key(
+                &chave_manifesto.replace("_manifesto.json", "_limpeza_pendente.json")
+            )
+        );
     }
 
     #[tokio::test]
