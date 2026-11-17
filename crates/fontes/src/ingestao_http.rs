@@ -678,7 +678,9 @@ impl TarefaDeIngestaoHttp {
 
 pub(crate) fn extensao(tipo_de_conteudo: &str) -> &'static str {
     let tipo = tipo_de_conteudo.to_ascii_lowercase();
-    if tipo.contains("json") {
+    if tipo.contains("spreadsheetml") {
+        "xlsx"
+    } else if tipo.contains("json") {
         "json"
     } else if tipo.contains("xml") {
         "xml"

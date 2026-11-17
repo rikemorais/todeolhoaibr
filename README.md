@@ -41,6 +41,9 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `senado-processos-detalhes` | detalhes e histórico dos processos do Senado, por ano (sob demanda, volume alto) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
 | `senado-parlamentares` | senadores, partidos, UFs e mandatos por legislatura desde 1991 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
 | `tse` | votos por seção eleitoral, de 1998 a 2026 (16,4 GB) | [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) |
+| `incra` | imóveis rurais (SIGEF/SNCI) e assentamentos por UF (sob demanda) | [doc da fonte](docs/fontes/incra.md) |
+| `inpe` | desmatamento PRODES/DETER e focos de calor Queimadas (sob demanda) | [doc da fonte](docs/fontes/inpe.md) |
+| `mapbiomas` | cobertura do solo, desmatamento e vegetação secundária — Collection 11 (sob demanda) | [doc da fonte](docs/fontes/mapbiomas.md) |
 
 ## Como rodar
 
