@@ -24,6 +24,7 @@ pub use fontes::comex::FonteComex;
 pub use fontes::conab::FonteConab;
 pub use fontes::cvm::FonteCvm;
 pub use fontes::emendas::FonteEmendas;
+pub use fontes::ibama::FonteIbama;
 pub use fontes::ibge::{
     FonteIbge, FonteIbgeDemografiaEmpresas, FonteIbgePibMunicipios, FonteIbgeRendaPerCapita,
 };
@@ -68,6 +69,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteCnpj),
         Box::new(FonteComex),
         Box::new(FonteConab),
+        Box::new(FonteIbama),
         Box::new(FonteIncra),
         Box::new(FonteInpe),
         Box::new(FonteMapBiomas),
