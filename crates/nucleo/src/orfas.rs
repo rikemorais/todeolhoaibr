@@ -192,10 +192,13 @@ pub async fn limpar_orfas_do_recurso(
         }
     }
 
+    let mut limpezas_expiradas = Vec::new();
     for (manifesto, (chave_limpeza, limpeza)) in &limpezas_pendentes {
         let expirada = Utc::now().signed_duration_since(limpeza.solicitada_em) >= GRACA_SNAPSHOT;
-        if !expirada || manifestos_vigentes.contains(manifesto) {
-            protegidas.insert((*chave_limpeza).clone());
+        protegidas.insert((*chave_limpeza).clone());
+        if expirada && !manifestos_vigentes.contains(manifesto) {
+            limpezas_expiradas.push(((*chave_limpeza).clone(), prefixo_da_execucao(manifesto)));
+        } else {
             proteger_execucao(manifesto, &chaves, &mut protegidas);
         }
     }
@@ -205,18 +208,39 @@ pub async fn limpar_orfas_do_recurso(
         .filter(|chave| !protegidas.contains(chave))
         .collect();
 
-    if orfas.is_empty() {
-        return Ok((0, Vec::new()));
+    let mut total = orfas.len();
+    let mut falhas = if orfas.is_empty() {
+        Vec::new()
+    } else {
+        info!(
+            prefixo = %prefixo_recurso,
+            orfas = total,
+            "encontradas partes órfãs; iniciando limpeza"
+        );
+        remover_e_logar(armazenamento, &orfas, "varredura").await
+    };
+
+    // O marcador só sai depois que todos os objetos daquela execução foram
+    // removidos. Se uma remoção falhar, ele permite que a próxima varredura
+    // tente novamente em vez de deixar um manifesto válido órfão protegido para sempre.
+    for (chave_limpeza, prefixo_execucao) in limpezas_expiradas {
+        if falhas
+            .iter()
+            .any(|falha| falha.chave.starts_with(&prefixo_execucao))
+        {
+            continue;
+        }
+        let falhas_marcador = remover_e_logar(
+            armazenamento,
+            &[chave_limpeza],
+            "marcador de limpeza concluída",
+        )
+        .await;
+        if falhas_marcador.is_empty() {
+            total += 1;
+        }
+        falhas.extend(falhas_marcador);
     }
-
-    let total = orfas.len();
-    info!(
-        prefixo = %prefixo_recurso,
-        orfas = total,
-        "encontradas partes órfãs; iniciando limpeza"
-    );
-
-    let falhas = remover_e_logar(armazenamento, &orfas, "varredura").await;
     Ok((total, falhas))
 }
 
@@ -272,12 +296,14 @@ mod testes {
     #[derive(Default)]
     struct ArmazenamentoEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
+        falha_remocao: Mutex<Option<String>>,
     }
 
     impl ArmazenamentoEmMemoria {
         fn com(objetos: impl IntoIterator<Item = (String, Vec<u8>)>) -> Self {
             Self {
                 objetos: Mutex::new(objetos.into_iter().collect()),
+                falha_remocao: Mutex::new(None),
             }
         }
 
@@ -310,6 +336,12 @@ mod testes {
         }
 
         async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            if self.falha_remocao.lock().unwrap().as_deref() == Some(chave) {
+                return Err(ErroDeIngestao::Armazenamento {
+                    chave: chave.to_owned(),
+                    detalhe: "falha simulada".to_owned(),
+                });
+            }
             self.objetos.lock().unwrap().remove(chave);
             Ok(())
         }
@@ -559,6 +591,42 @@ mod testes {
         assert!(!armazenamento.contem("ibge/estados/exec-perdedor/parte.json"));
         assert!(!armazenamento.contem(&chave_limpeza));
         assert!(armazenamento.contem("ibge/estados/exec-atual/parte.json"));
+    }
+
+    #[tokio::test]
+    async fn marcador_permanece_quando_a_remocao_do_snapshot_falha() {
+        let prefixo = "ibge/estados/execucao=e1/";
+        let manifesto_chave = format!("{prefixo}_manifesto.json");
+        let marcador_chave = format!("{prefixo}_limpeza_pendente.json");
+        let parte_chave = format!("{prefixo}parte-00001.json");
+        let mut manifesto = manifesto_com_partes(vec![parte(&parte_chave)]);
+        manifesto.id_execucao = "e1".to_owned();
+        let marcador = LimpezaPendente {
+            manifesto: manifesto_chave.clone(),
+            solicitada_em: Utc::now() - GRACA_SNAPSHOT - chrono::Duration::seconds(1),
+        };
+        let armazenamento = ArmazenamentoEmMemoria::com([
+            (manifesto_chave.clone(), json(&manifesto)),
+            (marcador_chave.clone(), json(&marcador)),
+            (parte_chave.clone(), b"dados".to_vec()),
+        ]);
+        *armazenamento.falha_remocao.lock().unwrap() = Some(manifesto_chave.clone());
+
+        let (_, falhas) = limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+
+        assert_eq!(falhas.len(), 1);
+        assert!(armazenamento.contem(&marcador_chave));
+        assert!(armazenamento.contem(&manifesto_chave));
+
+        *armazenamento.falha_remocao.lock().unwrap() = None;
+        limpar_orfas_do_recurso(&armazenamento, "ibge/estados/", "outra")
+            .await
+            .unwrap();
+        assert!(!armazenamento.contem(&marcador_chave));
+        assert!(!armazenamento.contem(&manifesto_chave));
+        assert!(!armazenamento.contem(&parte_chave));
     }
 
     #[tokio::test]
