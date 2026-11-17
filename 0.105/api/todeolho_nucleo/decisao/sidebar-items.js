@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DecisaoDeIngestao","MotivoDeIngestao"],"fn":["decidir"],"struct":["EstadoNaRaw"]};
