@@ -5,8 +5,8 @@
 //! ponteiro) contra o bucket `bronze` — o layout é o mesmo, só muda o bucket.
 //!
 //! Procedência: cada part do bronze registra, no manifesto, a tabela de origem e o
-//! **validador da versão do raw** (`versao`) e, quando necessária, a versão da regra:
-//! reexecutar só reprocessa quando a entrada ou a regra mudou.
+//! **ID do manifesto Raw** (`versao`) e, quando necessária, a versão da regra:
+//! reexecutar só reprocessa quando uma nova captura ou regra for publicada.
 
 use std::io::Read;
 use std::sync::Arc;
@@ -16,8 +16,9 @@ use chrono::Utc;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ArmazenamentoRaw, ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
-    ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw, manifesto_vigente,
-    publicar_ponteiro,
+    ParteRaw, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, estado_na_raw,
+    limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
+    publicar_ponteiro_bronze_se_raw_vigente,
 };
 
 use crate::decodificador::Decodificador;
@@ -81,26 +82,13 @@ impl TarefaDeBronze {
         }
     }
 
-    /// Validador do bronze: versão do raw (ou id da execução) e versão de regra opcional.
-    async fn versao_de_origem(
-        &self,
-        manifesto_raw: &ManifestoRaw,
-    ) -> Result<String, ErroDeIngestao> {
-        let chave = LocalizacaoRaw::ultima_versao(&self.fonte, &self.recurso);
-        let versao_raw = if let Some(bytes) = self.origem.ler(&chave).await?
-            && let Ok(ponteiro) = serde_json::from_slice::<UltimaVersao>(&bytes)
-            && let Some(versao) = ponteiro.versao
-        {
-            versao
-        } else {
-            manifesto_raw.id_execucao.clone()
-        };
-        Ok(
-            match self.decodificador.versao_regra(&self.fonte, &self.recurso) {
-                Some(regra) => format!("{versao_raw}|regra={regra}"),
-                None => versao_raw,
-            },
-        )
+    /// Versão do bronze: id do manifesto Raw selecionado e versão de regra opcional.
+    fn versao_de_origem(&self, manifesto_raw: &ManifestoRaw) -> String {
+        let versao_raw = &manifesto_raw.id_execucao;
+        match self.decodificador.versao_regra(&self.fonte, &self.recurso) {
+            Some(regra) => format!("{versao_raw}|regra={regra}"),
+            None => versao_raw.clone(),
+        }
     }
 
     /// Lê a procedência do `raw` e decide se o `bronze` precisa reprocessar.
@@ -117,7 +105,7 @@ impl TarefaDeBronze {
         else {
             return Ok(None);
         };
-        let versao_origem = self.versao_de_origem(&manifesto_raw).await?;
+        let versao_origem = self.versao_de_origem(&manifesto_raw);
         let reaproveitar = match estado_na_raw(bronze, &self.fonte, &self.recurso).await? {
             Some(estado) => {
                 estado.completa
@@ -147,6 +135,22 @@ impl Tarefa for TarefaDeBronze {
         contexto: &ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
         let bronze = contexto.armazenamento.as_ref();
+        let local = LocalizacaoRaw::nova(
+            &self.fonte,
+            &self.recurso,
+            contexto.iniciada_em,
+            &contexto.id_execucao,
+        );
+        marcar_execucao_ativa(bronze, &local.manifesto()).await?;
+        if let Err(erro) = limpar_orfas_do_recurso(
+            bronze,
+            &format!("{}/{}/", self.fonte, self.recurso),
+            &contexto.id_execucao,
+        )
+        .await
+        {
+            tracing::warn!(%erro, fonte = %self.fonte, recurso = %self.recurso, "falha ao varrer snapshots Bronze pendentes");
+        }
 
         // 1-2. Procedência do raw + idempotência. Sem ingestão na origem não há o que
         // refinar; bronze íntegro e na mesma versão do raw é reaproveitado.
@@ -207,12 +211,6 @@ impl Tarefa for TarefaDeBronze {
             .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
 
         // 4. Grava uma parte Parquet por tabela no bronze.
-        let local = LocalizacaoRaw::nova(
-            &self.fonte,
-            &self.recurso,
-            contexto.iniciada_em,
-            &contexto.id_execucao,
-        );
         let mut partes = Vec::with_capacity(conteudos.len());
         let mut total_bytes = 0u64;
         for (indice, conteudo) in conteudos.into_iter().enumerate() {
@@ -261,24 +259,57 @@ impl Tarefa for TarefaDeBronze {
             })
             .await?;
 
-        // 6. Ponteiro do bronze, com a versão do raw para a idempotência da próxima rodada.
+        // 6. Confere a geração Raw e publica Bronze sob a trava distribuída
+        // compartilhada com os publicadores Raw do mesmo recurso.
         let ponteiro = UltimaVersao {
             versao: Some(versao_origem),
             manifesto: local.manifesto(),
             iniciada_em: Some(contexto.iniciada_em),
         };
-        if !publicar_ponteiro(bronze, &self.fonte, &self.recurso, &ponteiro).await? {
-            return Err(self.erro_manifesto(
-                "ponteiro Bronze mais recente preservado; esta execução não foi publicada".into(),
-            ));
+        let resultado_publicacao = publicar_ponteiro_bronze_se_raw_vigente(
+            Arc::clone(&self.origem),
+            bronze,
+            &self.fonte,
+            &self.recurso,
+            &manifesto_raw.id_execucao,
+            &ponteiro,
+        )
+        .await;
+        if matches!(&resultado_publicacao, Ok(true)) {
+            return Ok(ResumoDaTarefa {
+                partes: partes.len(),
+                bytes: total_bytes,
+                reaproveitada: false,
+                motivo: None,
+            });
         }
 
-        Ok(ResumoDaTarefa {
-            partes: partes.len(),
-            bytes: total_bytes,
-            reaproveitada: false,
-            motivo: None,
-        })
+        let manifesto_bronze_atual = manifesto_vigente(bronze, &self.fonte, &self.recurso).await;
+        if manifesto_bronze_atual.as_ref().is_ok_and(|manifesto| {
+            manifesto
+                .as_ref()
+                .is_some_and(|vigente| vigente.id_execucao == contexto.id_execucao)
+        }) {
+            return Ok(ResumoDaTarefa {
+                partes: partes.len(),
+                bytes: total_bytes,
+                reaproveitada: false,
+                motivo: None,
+            });
+        }
+        if let Err(erro) = &manifesto_bronze_atual {
+            tracing::warn!(%erro, recurso = %self.recurso, "falha ao conferir se a publicação Bronze foi confirmada");
+        }
+        if let Err(erro) = agendar_limpeza_snapshot(bronze, &local.manifesto()).await {
+            tracing::warn!(%erro, manifesto = %local.manifesto(), "não foi possível agendar a limpeza tardia do snapshot Bronze");
+        }
+        match resultado_publicacao {
+            Err(erro) => Err(erro),
+            Ok(false) => Err(self.erro_manifesto(
+                "ponteiro Bronze mais recente preservado; esta execução não foi publicada".into(),
+            )),
+            Ok(true) => unreachable!("publicação bem-sucedida já retornou acima"),
+        }
     }
 }
 
@@ -287,6 +318,7 @@ mod testes {
     use std::collections::HashMap;
     use std::io::Write;
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use chrono::{TimeZone, Utc};
     use todeolho_nucleo::{ClienteHttp, DownloadHttp, InformacoesDoArquivo, RespostaHttp};
@@ -310,9 +342,13 @@ mod testes {
         assert_eq!(std::fs::read(arquivo.path()).unwrap(), comprimido);
     }
 
+    type MutacaoRaw = Vec<(String, Vec<u8>)>;
+
     #[derive(Default)]
     struct RawEmMemoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
+        leituras_de_ponteiro: AtomicUsize,
+        mutacao_na_segunda_leitura: Mutex<Option<MutacaoRaw>>,
     }
 
     #[async_trait]
@@ -321,6 +357,9 @@ mod testes {
             Ok(())
         }
         async fn gravar(&self, objeto: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            if objeto.chave.ends_with("/_execucao_ativa.json") {
+                return Ok(());
+            }
             self.objetos
                 .lock()
                 .unwrap()
@@ -336,7 +375,34 @@ mod testes {
             unimplemented!("o bronze não grava por fluxo")
         }
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            if chave.ends_with("_ultima_versao.json")
+                && self.leituras_de_ponteiro.fetch_add(1, Ordering::Relaxed) == 1
+                && let Some(mutacoes) = self.mutacao_na_segunda_leitura.lock().unwrap().take()
+            {
+                let mut objetos = self.objetos.lock().unwrap();
+                for (chave, conteudo) in mutacoes {
+                    objetos.insert(chave, conteudo);
+                }
+            }
             Ok(self.objetos.lock().unwrap().get(chave).cloned())
+        }
+
+        async fn gravar_condicional(
+            &self,
+            objeto: ObjetoRaw,
+            conteudo_vigente: Option<&[u8]>,
+        ) -> Result<bool, ErroDeIngestao> {
+            let mut objetos = self.objetos.lock().unwrap();
+            if objetos.get(&objeto.chave).map(Vec::as_slice) != conteudo_vigente {
+                return Ok(false);
+            }
+            objetos.insert(objeto.chave, objeto.conteudo);
+            Ok(true)
+        }
+
+        async fn remover(&self, chave: &str) -> Result<(), ErroDeIngestao> {
+            self.objetos.lock().unwrap().remove(chave);
+            Ok(())
         }
     }
 
@@ -382,8 +448,12 @@ mod testes {
 
     /// Semeia o raw com ponteiro + manifesto + uma parte, como se já tivesse sido ingerido.
     fn semear_raw(raw: &RawEmMemoria, versao: &str) {
+        semear_raw_com_execucao(raw, versao, &format!("RAW-{versao}"));
+    }
+
+    fn semear_raw_com_execucao(raw: &RawEmMemoria, versao: &str, id_execucao: &str) {
         let dt = Utc.with_ymd_and_hms(2026, 11, 3, 10, 0, 0).unwrap();
-        let local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, "RAWEXEC");
+        let local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, id_execucao);
         let chave_parte = local.parte(1, "zip");
         {
             let mut o = raw.objetos.lock().unwrap();
@@ -392,7 +462,7 @@ mod testes {
         let manifesto = ManifestoRaw {
             fonte: FONTE.into(),
             recurso: RECURSO.into(),
-            id_execucao: "RAWEXEC".into(),
+            id_execucao: id_execucao.into(),
             url_inicial: "https://origem/despesas".into(),
             iniciada_em: dt,
             concluida_em: dt,
@@ -416,6 +486,39 @@ mod testes {
             LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
             serde_json::to_vec(&ponteiro).unwrap(),
         );
+    }
+
+    fn agendar_avanco_raw(raw: &RawEmMemoria, id_execucao: &str) {
+        let dt = Utc.with_ymd_and_hms(2026, 11, 3, 11, 0, 0).unwrap();
+        let local = LocalizacaoRaw::nova(FONTE, RECURSO, dt, id_execucao);
+        let manifesto = ManifestoRaw {
+            fonte: FONTE.into(),
+            recurso: RECURSO.into(),
+            id_execucao: id_execucao.into(),
+            url_inicial: "https://origem/despesas".into(),
+            iniciada_em: dt,
+            concluida_em: dt,
+            partes: vec![ParteRaw {
+                chave: "raw/concorrente.csv".into(),
+                url: "https://origem/despesas".into(),
+                bytes: 9,
+                sha256: "x".into(),
+                tipo_de_conteudo: "text/csv".into(),
+                versao: Some("etag-reutilizado".into()),
+            }],
+        };
+        let ponteiro = UltimaVersao {
+            versao: Some("etag-reutilizado".into()),
+            manifesto: local.manifesto(),
+            iniciada_em: Some(dt),
+        };
+        *raw.mutacao_na_segunda_leitura.lock().unwrap() = Some(vec![
+            (local.manifesto(), serde_json::to_vec(&manifesto).unwrap()),
+            (
+                LocalizacaoRaw::ultima_versao(FONTE, RECURSO),
+                serde_json::to_vec(&ponteiro).unwrap(),
+            ),
+        ]);
     }
 
     fn contexto(bronze: Arc<dyn ArmazenamentoRaw>, id: &str) -> ContextoDeExecucao {
@@ -499,6 +602,59 @@ mod testes {
 
         assert!(!depois.reaproveitada, "raw mudou: deveria reprocessar");
         assert_eq!(depois.partes, 1);
+    }
+
+    #[tokio::test]
+    async fn reprocessa_quando_etag_repete_em_nova_execucao_raw() {
+        let raw = Arc::new(RawEmMemoria::default());
+        semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC1");
+        let bronze = Arc::new(RawEmMemoria::default());
+        tarefa(raw.clone())
+            .executar(&contexto(bronze.clone(), "BR1"))
+            .await
+            .unwrap();
+
+        semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC2");
+        assert!(
+            tarefa(raw).pendente(bronze.as_ref()).await.unwrap(),
+            "um manifesto novo deve invalidar o bronze mesmo com ETag repetido"
+        );
+    }
+
+    #[tokio::test]
+    async fn agenda_limpeza_quando_raw_avanca_durante_o_refino() {
+        let raw = Arc::new(RawEmMemoria::default());
+        semear_raw_com_execucao(&raw, "etag-reutilizado", "RAWEXEC1");
+        agendar_avanco_raw(&raw, "RAWEXEC2");
+        let bronze = Arc::new(RawEmMemoria::default());
+
+        let erro = tarefa(raw)
+            .executar(&contexto(bronze.clone(), "BR1"))
+            .await
+            .unwrap_err();
+
+        assert!(erro.to_string().contains("ponteiro Bronze"));
+        let objetos = bronze.objetos.lock().unwrap();
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("parte-00001.parquet"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("_manifesto.json"))
+        );
+        assert!(
+            objetos
+                .keys()
+                .any(|chave| chave.ends_with("_limpeza_pendente.json"))
+        );
+        assert!(
+            !objetos
+                .keys()
+                .any(|chave| chave.ends_with("_ultima_versao.json"))
+        );
     }
 
     #[tokio::test]

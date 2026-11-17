@@ -26,8 +26,9 @@ pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
 pub use erros::{ErroDeDag, ErroDeIngestao};
 pub use espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
 pub use estado_raw::{
-    GuardaPublicacao, bloquear_publicacao, estado_na_raw, manifesto_vigente, publicar_ponteiro,
-    publicar_ponteiro_sob_guarda,
+    GuardaPublicacao, bloquear_publicacao, estado_na_raw, estado_na_raw_com_origem,
+    manifesto_vigente, publicar_ponteiro, publicar_ponteiro_bronze_se_raw_vigente,
+    publicar_ponteiro_compartilhado, publicar_ponteiro_sob_guarda,
 };
 pub use executor::{
     EstadoDaTarefa, ExecutorDeDag, ObservadorDeExecucao, RelatorioDaExecucao, ResultadoDaTarefa,
@@ -37,7 +38,10 @@ pub use historico::{
     Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
     RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
 };
-pub use orfas::{ResultadoVerificacao, limpar_orfas_do_recurso, verificar_manifesto_ou_limpar};
+pub use orfas::{
+    ResultadoVerificacao, agendar_limpeza_snapshot, limpar_orfas_do_recurso, marcar_execucao_ativa,
+    verificar_manifesto_ou_limpar,
+};
 pub use portas::{
     ArmazenamentoRaw, ClienteHttp, DownloadHttp, FalhaDeRemocao, FluxoDeBytes,
     InformacoesDoArquivo, ObjetoRaw, RespostaCondicional, RespostaHttp,
