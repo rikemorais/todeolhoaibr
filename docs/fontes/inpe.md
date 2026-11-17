@@ -14,17 +14,22 @@ Mapeamento anual de desmatamento por corte raso em todos os biomas brasileiros.
 O ano PRODES vai de 1.º de agosto a 31 de julho. É a medida oficial de
 desmatamento do governo federal.
 
+O PRODES monitora a Amazônia desde 1988 (a série histórica mais longa). Os dados
+vetoriais no GeoServer TerraBrasilis cobrem a partir dos anos indicados abaixo; os
+anos anteriores estão disponíveis apenas em formato raster (GeoTIFF) no servidor
+de dados do INPE, e sua ingestão é follow-up.
+
 Download via WFS do GeoServer TerraBrasilis (SHAPE-ZIP).
 
-| Bioma | Workspace | Layer | Cobertura |
-|-------|-----------|-------|-----------|
-| Amazônia (bioma) | `prodes-amazon-nb` | `yearly_deforestation_biome` | Desde 2008 |
-| Amazônia Legal | `prodes-legal-amz` | `yearly_deforestation` | Desde 2008 |
-| Cerrado | `prodes-cerrado-nb` | `yearly_deforestation` | Desde ~2018 |
-| Caatinga | `prodes-caatinga-nb` | `yearly_deforestation` | Desde 2004 |
-| Mata Atlântica | `prodes-mata-atlantica-nb` | `yearly_deforestation` | Desde 2004 |
-| Pampa | `prodes-pampa-nb` | `yearly_deforestation` | Desde 2004 |
-| Pantanal | `prodes-pantanal-nb` | `yearly_deforestation` | Desde 2004 |
+| Bioma | Workspace | Layer | Vetorial desde |
+|-------|-----------|-------|----------------|
+| Amazônia (bioma) | `prodes-amazon-nb` | `yearly_deforestation_biome` | 2008 |
+| Amazônia Legal | `prodes-legal-amz` | `yearly_deforestation` | 2008 |
+| Cerrado | `prodes-cerrado-nb` | `yearly_deforestation` | ~2018 |
+| Caatinga | `prodes-caatinga-nb` | `yearly_deforestation` | 2004 |
+| Mata Atlântica | `prodes-mata-atlantica-nb` | `yearly_deforestation` | 2004 |
+| Pampa | `prodes-pampa-nb` | `yearly_deforestation` | 2004 |
+| Pantanal | `prodes-pantanal-nb` | `yearly_deforestation` | 2004 |
 
 Geometria: Polygon (EPSG:4674 / SIRGAS 2000).
 

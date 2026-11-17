@@ -127,30 +127,24 @@ impl FonteDeDados for FonteInpe {
 
         for b in &BIOMAS_PRODES {
             tarefas.push(
-                TarefaPlanejada::nova(
-                    TarefaDeArquivo::nova(
-                        format!("prodes-{}", b.slug),
-                        NOME,
-                        format!("prodes/bioma={}", b.slug),
-                        url_wfs(b.workspace, b.layer),
-                    )
-                    .aceitar_ausencia(),
-                )
+                TarefaPlanejada::nova(TarefaDeArquivo::nova(
+                    format!("prodes-{}", b.slug),
+                    NOME,
+                    format!("prodes/bioma={}", b.slug),
+                    url_wfs(b.workspace, b.layer),
+                ))
                 .com_etiquetas([("produto", "prodes"), ("bioma", b.slug)]),
             );
         }
 
         for b in &BIOMAS_DETER {
             tarefas.push(
-                TarefaPlanejada::nova(
-                    TarefaDeArquivo::nova(
-                        format!("deter-{}", b.slug),
-                        NOME,
-                        format!("deter/bioma={}", b.slug),
-                        url_wfs(b.workspace, b.layer),
-                    )
-                    .aceitar_ausencia(),
-                )
+                TarefaPlanejada::nova(TarefaDeArquivo::nova(
+                    format!("deter-{}", b.slug),
+                    NOME,
+                    format!("deter/bioma={}", b.slug),
+                    url_wfs(b.workspace, b.layer),
+                ))
                 .com_etiquetas([("produto", "deter"), ("bioma", b.slug)]),
             );
         }
