@@ -331,6 +331,10 @@ impl ClienteHttp for ClienteHttpComRetentativas {
                 tamanho: cabecalho(&resposta, header::CONTENT_LENGTH)
                     .and_then(|tamanho| tamanho.parse().ok()),
             },
+            Err(ErroDeIngestao::Autenticacao { status: 403, .. }) => {
+                warn!(%url, "servidor recusou HEAD; baixando sem metadados");
+                InformacoesDoArquivo::default()
+            }
             Err(erro @ ErroDeIngestao::Autenticacao { .. }) => return Err(erro),
             Err(erro) => {
                 warn!(%erro, "não foi possível consultar as informações do arquivo");
@@ -827,6 +831,68 @@ mod testes {
         let requisicao = servidor.join().unwrap().to_ascii_lowercase();
         assert!(requisicao.starts_with("head /arquivo "));
         assert!(requisicao.contains("chave-api-dados: token-secreto"));
+    }
+
+    #[tokio::test]
+    async fn head_403_nao_impede_download_do_arquivo() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        use tokio::io::AsyncReadExt;
+
+        const CORPO: &[u8] = b"xlsx";
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let porta = ouvinte.local_addr().unwrap().port();
+        let (enviar_metodo, receber_metodos) = std::sync::mpsc::channel::<String>();
+        let servidor = std::thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut conexao, _) = ouvinte.accept().unwrap();
+                let mut buf = [0u8; 2048];
+                let lidos = conexao.read(&mut buf).unwrap();
+                let requisicao = String::from_utf8_lossy(&buf[..lidos]).into_owned();
+                let metodo = requisicao.split_whitespace().next().unwrap().to_owned();
+                enviar_metodo.send(metodo.clone()).unwrap();
+
+                if metodo == "HEAD" {
+                    conexao
+                        .write_all(
+                            b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        )
+                        .unwrap();
+                } else {
+                    let cabecalho = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        CORPO.len()
+                    );
+                    conexao.write_all(cabecalho.as_bytes()).unwrap();
+                    conexao.write_all(CORPO).unwrap();
+                }
+            }
+        });
+
+        let cliente = ClienteHttpComRetentativas::novo(PoliticaDeRetentativas::default()).unwrap();
+        let url = format!("http://127.0.0.1:{porta}/arquivo.xlsx");
+        let informacoes = cliente.informacoes(&url).await;
+        let download = cliente.baixar(&url).await;
+        servidor.join().unwrap();
+
+        assert_eq!(
+            informacoes.unwrap(),
+            InformacoesDoArquivo {
+                versao: None,
+                tamanho: None,
+            }
+        );
+        let mut corpo = Vec::new();
+        download
+            .unwrap()
+            .fluxo
+            .read_to_end(&mut corpo)
+            .await
+            .unwrap();
+        assert_eq!(corpo, CORPO);
+        assert_eq!(receber_metodos.recv().unwrap(), "HEAD");
+        assert_eq!(receber_metodos.recv().unwrap(), "GET");
     }
 
     #[tokio::test]
