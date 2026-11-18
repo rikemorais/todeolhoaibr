@@ -45,6 +45,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `inpe` | desmatamento PRODES/DETER e focos de calor Queimadas (sob demanda) | [doc da fonte](docs/fontes/inpe.md) |
 | `mapbiomas` | cobertura do solo, desmatamento e vegetação secundária — Collection 11 (sob demanda) | [doc da fonte](docs/fontes/mapbiomas.md) |
 | `ibama` | fiscalização ambiental — autos de infração e termos de embargo, 16 tabelas CSV (sob demanda) | [doc da fonte](docs/fontes/ibama.md) |
+| `ibge-agropecuaria` | PAM, PPM, LSPA e PEVS via SIDRA — 217 tarefas (sob demanda) | [doc da fonte](docs/fontes/ibge-agropecuaria.md) |
 
 ## Como rodar
 
