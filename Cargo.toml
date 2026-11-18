@@ -29,6 +29,7 @@ rust-s3 = { version = "0.38", default-features = false, features = ["fail-on-err
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 sha2 = "0.11"
+suppaftp = { version = "13", default-features = false, features = ["tokio"] }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
