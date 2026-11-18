@@ -1,7 +1,5 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::io;
-use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -13,6 +11,8 @@ use todeolho_nucleo::{
 };
 use tokio_util::io::StreamReader;
 use tracing::warn;
+
+use crate::limite::{aguardar_limite, registrar_limite};
 
 const AGENTE: &str = concat!(
     "todeolhoai/",
@@ -60,13 +60,6 @@ pub struct ClienteHttpComRetentativas {
     politica: PoliticaDeRetentativas,
     host_da_credencial: Option<String>,
 }
-
-struct EstadoDoHost {
-    proxima: tokio::time::Instant,
-    intervalo_entre_requisicoes: Duration,
-}
-
-static LIMITES_POR_HOST: OnceLock<Mutex<HashMap<String, EstadoDoHost>>> = OnceLock::new();
 
 impl ClienteHttpComRetentativas {
     /// Cria o cliente com a política de retentativas dada.
@@ -450,36 +443,6 @@ fn erro_de_configuracao(detalhe: String) -> ErroDeIngestao {
     }
 }
 
-async fn aguardar_limite(host: &str) {
-    if let Some(instante) = reservar_limite(host) {
-        tokio::time::sleep_until(instante).await;
-    }
-}
-
-fn registrar_limite(host: &str, intervalo: Duration) {
-    let mut limites = LIMITES_POR_HOST
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let agora = tokio::time::Instant::now();
-    let estado = limites.entry(host.to_owned()).or_insert(EstadoDoHost {
-        proxima: agora,
-        intervalo_entre_requisicoes: intervalo,
-    });
-    estado.intervalo_entre_requisicoes = estado.intervalo_entre_requisicoes.max(intervalo);
-}
-
-fn reservar_limite(host: &str) -> Option<tokio::time::Instant> {
-    let mut limites = LIMITES_POR_HOST
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let estado = limites.get_mut(host)?;
-    let instante = estado.proxima.max(tokio::time::Instant::now());
-    estado.proxima = instante + estado.intervalo_entre_requisicoes;
-    Some(instante)
-}
-
 fn tipo_de_conteudo(resposta: &Response) -> String {
     cabecalho(resposta, header::CONTENT_TYPE).unwrap_or_else(|| "application/octet-stream".into())
 }
@@ -707,6 +670,7 @@ mod testes {
 
     #[test]
     fn limite_e_compartilhado_por_host_e_respeita_o_mais_restritivo() {
+        use crate::limite::reservar_limite;
         let host = "teste-limite-compartilhado.example";
         registrar_limite(host, Duration::from_millis(100));
         let primeira = reservar_limite(host).unwrap();

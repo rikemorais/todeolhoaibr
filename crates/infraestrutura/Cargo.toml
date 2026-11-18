@@ -14,6 +14,8 @@ futures.workspace = true
 reqwest.workspace = true
 rust-s3.workspace = true
 serde_json.workspace = true
+suppaftp.workspace = true
 tokio = { workspace = true, features = ["io-util"] }
+url.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
