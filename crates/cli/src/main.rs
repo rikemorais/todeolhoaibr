@@ -16,8 +16,8 @@ use clap::{Args, Parser, Subcommand};
 use futures::stream::{self, StreamExt};
 use todeolho_fontes::catalogo;
 use todeolho_infraestrutura::{
-    ArmazenamentoS3, ClienteHttpComRetentativas, ConfiguracaoS3, HistoricoS3,
-    PoliticaDeRetentativas, espaco_livre_em,
+    ArmazenamentoS3, ClienteDespacho, ClienteFtp, ClienteHttpComRetentativas, ConfiguracaoS3,
+    HistoricoS3, PoliticaDeRetentativas, espaco_livre_em,
 };
 use todeolho_nucleo::{
     ArmazenamentoRaw, AvaliacaoDeEspaco, Camada, ContextoDeExecucao, DagDeIngestao,
@@ -379,12 +379,13 @@ fn contexto_para_fonte(
         .credencial
         .map(|credencial| obrigatoria(credencial.variavel))
         .transpose()?;
+    let politica = PoliticaDeRetentativas::default();
+    let http: Arc<dyn todeolho_nucleo::ClienteHttp> = Arc::new(
+        ClienteHttpComRetentativas::com_perfil(politica, perfil, segredo.as_deref())?,
+    );
+    let ftp: Arc<dyn todeolho_nucleo::ClienteHttp> = Arc::new(ClienteFtp::novo(politica));
     Ok(ContextoDeExecucao {
-        http: Arc::new(ClienteHttpComRetentativas::com_perfil(
-            PoliticaDeRetentativas::default(),
-            perfil,
-            segredo.as_deref(),
-        )?),
+        http: Arc::new(ClienteDespacho::novo(http, ftp)),
         ..contexto.clone()
     })
 }

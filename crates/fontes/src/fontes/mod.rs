@@ -19,6 +19,7 @@ pub mod remuneracao_estadual_mg;
 pub mod seeg;
 pub mod senado;
 pub mod tce_ce;
+pub mod trabalho;
 pub mod transparencia;
 pub mod transparencia_servidores;
 pub mod tse;
