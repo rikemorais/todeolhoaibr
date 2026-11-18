@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.106.0] - 2026-11-18
+
+### Adicionado
+
+- Ingestão de emissões de gases de efeito estufa do SEEG (Observatório do Clima): 2 arquivos XLSX da edição 14.0, dados nacionais e municipais em CO2e (issue #45).
+
 ## [0.105.1] - 2026-11-17
 
 ### Corrigido
