@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["espaco_livre_em"],"struct":["ArmazenamentoS3","ClienteHttpComRetentativas","ConfiguracaoS3","HistoricoS3","PoliticaDeRetentativas"]};
+window.SIDEBAR_ITEMS = {"fn":["espaco_livre_em"],"struct":["ArmazenamentoS3","ClienteDespacho","ClienteFtp","ClienteHttpComRetentativas","ConfiguracaoS3","HistoricoS3","PoliticaDeRetentativas"]};
