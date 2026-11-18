@@ -279,6 +279,25 @@ fn iterar_meses(
     meses
 }
 
+fn url_emitidos(pasta: &str, ym: &str, ano: u16, mes: u8) -> String {
+    if ano >= 2026 && mes >= 7 {
+        format!(
+            "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+emitidos/\
+             D.DLK.FRM.000.DADOSABERTOS.EMITIDOS_{ym}.zip"
+        )
+    } else if ano >= 2026 && mes >= 4 {
+        format!(
+            "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+emitidos/\
+             D.SDA.PDA.003.EMI.{ym}.zip"
+        )
+    } else {
+        format!(
+            "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+emitidos/\
+             D.SDA.PDA.003.EMI.{ym}.CSV.ZIP"
+        )
+    }
+}
+
 fn tarefas_emitidos() -> Vec<TarefaPlanejada> {
     iterar_meses(PRIMEIRO_ANO, PRIMEIRO_MES, ULTIMO_ANO, ULTIMO_MES_EMITIDOS)
         .into_iter()
@@ -287,10 +306,7 @@ fn tarefas_emitidos() -> Vec<TarefaPlanejada> {
             let ano_s = ano.to_string();
             let mes_s = format!("{mes:02}");
             let pasta = pasta_pda(ano, mes);
-            let url = format!(
-                "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+emitidos/\
-                 D.SDA.PDA.003.EMI.{ym}.CSV.ZIP"
-            );
+            let url = url_emitidos(pasta, &ym, ano, mes);
             let mut tarefa = TarefaDeArquivo::nova(
                 format!("emitidos_{ym}"),
                 NOME,
@@ -309,12 +325,42 @@ fn tarefas_emitidos() -> Vec<TarefaPlanejada> {
         .collect()
 }
 
+fn url_mantidos(pasta: &str, ym: &str, ano: u16, mes: u8, status: &str) -> String {
+    if ano >= 2026 && mes >= 7 {
+        let sufixo = match status {
+            "ativos" => "ATIVOS",
+            "cessados" => "CESSADOS",
+            _ => "SUSPENSOS",
+        };
+        format!(
+            "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+mantidos/\
+             D.DLK.FRM.000.DADOSABERTOS.MANTIDOS_{sufixo}_{ym}.zip"
+        )
+    } else if (ano == 2025 && mes >= 11) || (ano == 2026 && mes <= 6) {
+        let curto = match status {
+            "ativos" => "ATIVO",
+            "cessados" => "CESSADO",
+            _ => "SUSPENSO",
+        };
+        format!(
+            "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+mantidos/\
+             {curto}_{ym}.zip"
+        )
+    } else {
+        let (prefixo, ext) = match status {
+            "ativos" => ("MANATIVOS", "CVS"),
+            "cessados" => ("MANCESSADOS", "CSV"),
+            _ => ("MANSUSPENSOS", "CSV"),
+        };
+        format!(
+            "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+mantidos/\
+             D.SDA.PDA.004.{prefixo}.{ym}.{ext}.ZIP"
+        )
+    }
+}
+
 fn tarefas_mantidos() -> Vec<TarefaPlanejada> {
-    let status_info: [(&str, &str, &str); 3] = [
-        ("ativos", "MANATIVOS", "CVS"),
-        ("cessados", "MANCESSADOS", "CSV"),
-        ("suspensos", "MANSUSPENSOS", "CSV"),
-    ];
+    let status_list: [&str; 3] = ["ativos", "cessados", "suspensos"];
     iterar_meses(PRIMEIRO_ANO, PRIMEIRO_MES, ULTIMO_ANO, ULTIMO_MES_MANTIDOS)
         .into_iter()
         .flat_map(|(ano, mes)| {
@@ -322,11 +368,8 @@ fn tarefas_mantidos() -> Vec<TarefaPlanejada> {
             let ano_s = ano.to_string();
             let mes_s = format!("{mes:02}");
             let pasta = pasta_pda(ano, mes);
-            status_info.iter().map(move |&(status, prefixo, ext)| {
-                let url = format!(
-                    "{BASE_S3}/{pasta}/Grupos_de_dados/Benef%C3%ADcios+mantidos/\
-                     D.SDA.PDA.004.{prefixo}.{ym}.{ext}.ZIP"
-                );
+            status_list.iter().map(move |&status| {
+                let url = url_mantidos(pasta, &ym, ano, mes, status);
                 let mut tarefa = TarefaDeArquivo::nova(
                     format!("mantidos_{status}_{ym}"),
                     NOME,
@@ -491,5 +534,34 @@ mod testes {
         assert_eq!(contagem("concedidos"), CONCEDIDOS.len());
         assert!(contagem("emitidos") > 30);
         assert!(contagem("mantidos") > 90);
+    }
+
+    #[test]
+    fn emitidos_jul2026_usa_padrao_dlk() {
+        assert!(
+            url_emitidos("PDA_2025_2027", "202607", 2026, 7)
+                .contains("D.DLK.FRM.000.DADOSABERTOS.EMITIDOS_202607")
+        );
+    }
+
+    #[test]
+    fn emitidos_abr2026_usa_zip_minusculo() {
+        let url = url_emitidos("PDA_2025_2027", "202604", 2026, 4);
+        assert!(url.ends_with(".zip"));
+        assert!(!url.contains(".CSV.ZIP"));
+    }
+
+    #[test]
+    fn mantidos_jul2026_usa_padrao_dlk() {
+        assert!(
+            url_mantidos("PDA_2025_2027", "202607", 2026, 7, "ativos")
+                .contains("D.DLK.FRM.000.DADOSABERTOS.MANTIDOS_ATIVOS_202607")
+        );
+    }
+
+    #[test]
+    fn mantidos_nov2025_usa_padrao_curto() {
+        let url = url_mantidos("PDA_2025_2027", "202511", 2025, 11, "cessados");
+        assert!(url.contains("CESSADO_202511.zip"));
     }
 }
