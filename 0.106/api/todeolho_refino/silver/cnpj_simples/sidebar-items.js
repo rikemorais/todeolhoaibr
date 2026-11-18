@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SQL_CNPJ_SIMPLES"],"fn":["esquema_cnpj_simples"]};

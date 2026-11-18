@@ -5,11 +5,16 @@
     "aliases": []
   },
   {
-    "version": "0.105",
-    "title": "0.105",
+    "version": "0.106",
+    "title": "0.106",
     "aliases": [
       "latest"
     ]
+  },
+  {
+    "version": "0.105",
+    "title": "0.105",
+    "aliases": []
   },
   {
     "version": "0.104",

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_tse_despesas_pagas_2022"],"struct":["TarefaDeSilverTseDespesasPagas2022"]};
