@@ -1963,6 +1963,7 @@ emite linhas flat com 5 colunas:</p>
 </table>
 <h2 id="observacoes">Observações<a class="headerlink" href="#observacoes" title="Permanent link">&para;</a></h2>
 <ul>
+<li>O XLSX é baixado pelo endpoint Plone <code>%40%40download/file</code> publicado na página do levantamento. Se o portal recusar a consulta <code>HEAD</code> com HTTP 403, o cliente segue sem ETag/tamanho e tenta o <code>GET</code>; um 403 no próprio download continua sendo tratado como erro de acesso.</li>
 <li>O portal antigo (<code>portaldeinformacoes.conab.gov.br</code>) está offline. Os boletins
   de safra estão disponíveis em <code>gov.br</code>.</li>
 <li>Estoques e preços agrícolas não estão incluídos nesta fonte (portal offline).</li>
