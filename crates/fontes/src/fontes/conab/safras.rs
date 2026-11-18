@@ -37,7 +37,7 @@ fn url_levantamento(safra_inicio: u16, levantamento: u8) -> String {
     };
     format!(
         "{BASE}/{levantamento}o-levantamento-safra-{safra_inicio}-{yy:02}\
-         /site_previsao_de_safra-por_produto-{mes}-{ano_civil}.xlsx"
+         /site_previsao_de_safra-por_produto-{mes}-{ano_civil}.xlsx/%40%40download/file"
     )
 }
 
@@ -168,9 +168,18 @@ mod testes {
 
     #[test]
     fn url_do_primeiro_levantamento_2025_26() {
-        let url = url_levantamento(2025, 1);
-        assert!(url.contains("1o-levantamento-safra-2025-26"), "URL: {url}");
-        assert!(url.contains("out-2025.xlsx"), "URL: {url}");
+        assert_eq!(
+            url_levantamento(2025, 1),
+            "https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/safras/safra-de-graos/boletim-da-safra-de-graos/1o-levantamento-safra-2025-26/site_previsao_de_safra-por_produto-out-2025.xlsx/%40%40download/file"
+        );
+    }
+
+    #[test]
+    fn url_da_safra_atual_usa_o_download_oficial_plone() {
+        assert_eq!(
+            url_levantamento(2026, 1),
+            "https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/safras/safra-de-graos/boletim-da-safra-de-graos/1o-levantamento-safra-2026-27/site_previsao_de_safra-por_produto-out-2026.xlsx/%40%40download/file"
+        );
     }
 
     #[test]
