@@ -47,6 +47,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `ibama` | fiscalização ambiental — autos de infração e termos de embargo, 16 tabelas CSV (sob demanda) | [doc da fonte](docs/fontes/ibama.md) |
 | `ibge-agropecuaria` | PAM, PPM, LSPA e PEVS via SIDRA — 217 tarefas (sob demanda) | [doc da fonte](docs/fontes/ibge-agropecuaria.md) |
 | `seeg` | emissões de GEE (Observatório do Clima) — 2 arquivos XLSX, edição 14.0 (sob demanda) | [doc da fonte](docs/fontes/seeg.md) |
+| `previdencia` | benefícios previdenciários do RGPS/INSS — concedidos, emitidos e mantidos (Jun/2023–Out/2026), 201 tarefas (sob demanda) | [doc da fonte](docs/fontes/previdencia.md) |
 | `trabalho` | emprego formal RAIS (1985–2025) e Novo CAGED (2020–2026) via FTP — ~1 277 tarefas (sob demanda) | [doc da fonte](docs/fontes/trabalho.md) |
 
 ## Como rodar
