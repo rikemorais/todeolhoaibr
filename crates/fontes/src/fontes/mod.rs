@@ -16,6 +16,7 @@ pub mod mapa_empresas;
 pub mod mapbiomas;
 pub mod remuneracao_estadual_go;
 pub mod remuneracao_estadual_mg;
+pub mod seeg;
 pub mod senado;
 pub mod tce_ce;
 pub mod transparencia;
