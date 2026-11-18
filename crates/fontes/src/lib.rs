@@ -34,6 +34,7 @@ pub use fontes::inpe::FonteInpe;
 pub use fontes::ipeadata::FonteIpeadata;
 pub use fontes::mapa_empresas::FonteMapaEmpresas;
 pub use fontes::mapbiomas::FonteMapBiomas;
+pub use fontes::previdencia::FontePrevidencia;
 pub use fontes::remuneracao_estadual_go::FonteRemuneracaoEstadualGo;
 pub use fontes::remuneracao_estadual_mg::FonteRemuneracaoEstadualMg;
 pub use fontes::seeg::FonteSeeg;
@@ -92,6 +93,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteSenadoParlamentares),
         Box::new(FonteSeeg),
         Box::new(FonteTrabalho),
+        Box::new(FontePrevidencia),
         Box::new(FonteRemuneracaoMunicipalTceCe),
         Box::new(FonteTransparenciaBeneficios),
         Box::new(FonteTransparenciaServidoresAtivos),
