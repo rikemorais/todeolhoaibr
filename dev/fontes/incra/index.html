@@ -22,7 +22,7 @@
     
     
       
-        <title>INCRA — Imóveis Rurais e Assentamentos - Tô de Olho AI</title>
+        <title>INCRA — SIGEF e Assentamentos - Tô de Olho AI</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#incra-imoveis-rurais-e-assentamentos" class="md-skip">
+        <a href="#incra-sigef-e-assentamentos" class="md-skip">
           Pular para conteúdo
         </a>
       
@@ -121,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              INCRA — Imóveis Rurais e Assentamentos
+              INCRA — SIGEF e Assentamentos
             
           </span>
         </div>
@@ -1789,96 +1789,36 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#camadas" class="md-nav__link">
+  <a href="#sigef-geoportal-incra" class="md-nav__link">
     <span class="md-ellipsis">
-      Camadas
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Camadas">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#sigef-parcelas-certificadas-pos-2013" class="md-nav__link">
-    <span class="md-ellipsis">
-      SIGEF — Parcelas Certificadas (pós-2013)
+      SIGEF — Geoportal INCRA
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#snci-certificacoes-anteriores" class="md-nav__link">
-    <span class="md-ellipsis">
-      SNCI — Certificações Anteriores
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#assentamentos-geoespacial" class="md-nav__link">
-    <span class="md-ellipsis">
-      Assentamentos — Geoespacial
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
+      
+        <li class="md-nav__item">
   <a href="#assentamentos-csv-tabular-sipra" class="md-nav__link">
     <span class="md-ellipsis">
-      Assentamentos — CSV Tabular (SIPRA)
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#recursos" class="md-nav__link">
-    <span class="md-ellipsis">
-      Recursos
+      Assentamentos — CSV tabular (SIPRA)
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#formato" class="md-nav__link">
+  <a href="#catalogo" class="md-nav__link">
     <span class="md-ellipsis">
-      Formato
+      Catálogo
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#bronze" class="md-nav__link">
+  <a href="#disponibilidade-das-camadas-legadas" class="md-nav__link">
     <span class="md-ellipsis">
-      Bronze
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#idempotencia" class="md-nav__link">
-    <span class="md-ellipsis">
-      Idempotência
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#observacoes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Observações
+      Disponibilidade das camadas legadas
     </span>
   </a>
   
@@ -1916,318 +1856,82 @@
   
 
 
-<h1 id="incra-imoveis-rurais-e-assentamentos">INCRA — Imóveis Rurais e Assentamentos<a class="headerlink" href="#incra-imoveis-rurais-e-assentamentos" title="Permanent link">&para;</a></h1>
+<h1 id="incra-sigef-e-assentamentos">INCRA — SIGEF e Assentamentos<a class="headerlink" href="#incra-sigef-e-assentamentos" title="Permanent link">&para;</a></h1>
 <p>Fonte: <strong>incra</strong> (<code>FonteIncra</code>)</p>
-<p>Dados de certificação de imóveis rurais (SIGEF/SNCI) e projetos de
-assentamento da reforma agrária, publicados pelo INCRA (Instituto Nacional
-de Colonização e Reforma Agrária).</p>
-<h2 id="camadas">Camadas<a class="headerlink" href="#camadas" title="Permanent link">&para;</a></h2>
-<h3 id="sigef-parcelas-certificadas-pos-2013">SIGEF — Parcelas Certificadas (pós-2013)<a class="headerlink" href="#sigef-parcelas-certificadas-pos-2013" title="Permanent link">&para;</a></h3>
-<p>Shapefiles por UF com parcelas certificadas no Sistema de Gestão Fundiária.
-Duas naturezas: público (imóveis de propriedade pública) e privado.</p>
+<p>Ingere parcelas georreferenciadas do SIGEF pelo Geoportal público do INCRA e a
+relação tabular de projetos de assentamento publicada pelo INCRA.</p>
+<h2 id="sigef-geoportal-incra">SIGEF — Geoportal INCRA<a class="headerlink" href="#sigef-geoportal-incra" title="Permanent link">&para;</a></h2>
+<p>O Geoportal publica a camada <code>geonode:sigef_geo</code> por WFS. A ingestão filtra a
+camada por código IBGE da UF e pelo campo <code>natureza</code>, baixando um Shapefile ZIP
+por categoria e estado, sem autenticação.</p>
 <table>
 <thead>
 <tr>
-<th>Campo</th>
-<th>Descrição</th>
+<th>Recurso Raw</th>
+<th>Filtro <code>natureza</code></th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>codigo_parcela</code></td>
-<td>Identificador único da parcela</td>
+<td><code>sigef-publico/uf={UF}</code></td>
+<td><code>Gleba Pública</code></td>
 </tr>
 <tr>
-<td><code>rt</code></td>
-<td>Responsável técnico</td>
+<td><code>sigef-privado/uf={UF}</code></td>
+<td><code>Particular</code></td>
 </tr>
 <tr>
-<td><code>art</code></td>
-<td>Anotação de responsabilidade técnica</td>
-</tr>
-<tr>
-<td><code>situacao</code></td>
-<td>Situação da certificação</td>
-</tr>
-<tr>
-<td><code>codigo_imovel</code></td>
-<td>Código do imóvel no SNCR</td>
-</tr>
-<tr>
-<td><code>data_submissao</code></td>
-<td>Data de submissão ao SIGEF</td>
-</tr>
-<tr>
-<td><code>data_aprovacao</code></td>
-<td>Data de aprovação</td>
-</tr>
-<tr>
-<td><code>status</code></td>
-<td>Status da parcela</td>
-</tr>
-<tr>
-<td><code>nome_area</code></td>
-<td>Nome da área</td>
-</tr>
-<tr>
-<td><code>registro_matricula</code></td>
-<td>Matrícula no registro de imóveis</td>
-</tr>
-<tr>
-<td><code>registro_data</code></td>
-<td>Data do registro</td>
-</tr>
-<tr>
-<td><code>cod_municipio</code></td>
-<td>Código IBGE do município</td>
-</tr>
-<tr>
-<td><code>uf</code></td>
-<td>UF</td>
-</tr>
-<tr>
-<td><code>natureza</code></td>
-<td>Público ou privado</td>
-</tr>
-<tr>
-<td><code>geometry</code></td>
-<td>Polygon Z (EPSG:4674 / SIRGAS 2000)</td>
+<td><code>sigef-assentamento/uf={UF}</code></td>
+<td><code>Assentamento Parcela</code></td>
 </tr>
 </tbody>
 </table>
-<h3 id="snci-certificacoes-anteriores">SNCI — Certificações Anteriores<a class="headerlink" href="#snci-certificacoes-anteriores" title="Permanent link">&para;</a></h3>
-<p>Parcelas certificadas no sistema anterior ao SIGEF (registros até ~2016).
-Publicadas em 24 das 27 UFs (sem AC, DF, RR).</p>
+<p>Os arquivos contêm, entre outros campos, <code>parcela_codigo</code>, <code>natureza</code>,
+<code>codigo_imovel</code>, <code>municipio_id</code>, <code>uf_id</code>, <code>area_hectares</code>, <code>status</code> e
+<code>geometry</code> (EPSG:4674 / SIRGAS 2000). A categoria <code>Assentamento Parcela</code> contém
+parcelas SIGEF classificadas como assentamento; ela não representa os perímetros
+dos projetos de assentamento.</p>
+<h2 id="assentamentos-csv-tabular-sipra">Assentamentos — CSV tabular (SIPRA)<a class="headerlink" href="#assentamentos-csv-tabular-sipra" title="Permanent link">&para;</a></h2>
+<p>Lista nacional de projetos de assentamento, publicada pelo INCRA em CSV,
+separada por <code>;</code> e codificada em Windows-1252. O decodificador
+<code>DecodificadorAssentamentosIncra</code> filtra cabeçalhos ministeriais, separadores de
+Superintendência Regional e totalizadores.</p>
 <table>
 <thead>
 <tr>
-<th>Campo</th>
-<th>Descrição</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>num_processo</code></td>
-<td>Número do processo</td>
-</tr>
-<tr>
-<td><code>sr</code></td>
-<td>Superintendência regional</td>
-</tr>
-<tr>
-<td><code>num_certificacao</code></td>
-<td>Número da certificação</td>
-</tr>
-<tr>
-<td><code>data_certificacao</code></td>
-<td>Data da certificação</td>
-</tr>
-<tr>
-<td><code>area_peca_tecnica</code></td>
-<td>Área da peça técnica</td>
-</tr>
-<tr>
-<td><code>cod_profissional</code></td>
-<td>Código do profissional</td>
-</tr>
-<tr>
-<td><code>cod_imovel_rural</code></td>
-<td>Código do imóvel rural</td>
-</tr>
-<tr>
-<td><code>nome_imovel</code></td>
-<td>Nome do imóvel</td>
-</tr>
-<tr>
-<td><code>uf</code></td>
-<td>UF</td>
-</tr>
-<tr>
-<td><code>geometry</code></td>
-<td>Polygon (EPSG:4674 / SIRGAS 2000)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="assentamentos-geoespacial">Assentamentos — Geoespacial<a class="headerlink" href="#assentamentos-geoespacial" title="Permanent link">&para;</a></h3>
-<p>Shapefile nacional com os perímetros dos projetos de assentamento.</p>
-<table>
-<thead>
-<tr>
-<th>Campo</th>
-<th>Descrição</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>codigo_sipra</code></td>
-<td>Código SIPRA do projeto</td>
-</tr>
-<tr>
-<td><code>nome_projeto</code></td>
-<td>Nome do projeto de assentamento</td>
-</tr>
-<tr>
-<td><code>municipio</code></td>
-<td>Município</td>
-</tr>
-<tr>
-<td><code>uf</code></td>
-<td>UF</td>
-</tr>
-<tr>
-<td><code>area_ha</code></td>
-<td>Área em hectares</td>
-</tr>
-<tr>
-<td><code>capacidade</code></td>
-<td>Capacidade de famílias</td>
-</tr>
-<tr>
-<td><code>num_familias</code></td>
-<td>Número de famílias assentadas</td>
-</tr>
-<tr>
-<td><code>fase</code></td>
-<td>Fase de implementação</td>
-</tr>
-<tr>
-<td><code>data_criacao</code></td>
-<td>Data de criação do projeto</td>
-</tr>
-<tr>
-<td><code>forma_obtencao</code></td>
-<td>Forma de obtenção (desapropriação, compra, etc.)</td>
-</tr>
-<tr>
-<td><code>data_obtencao</code></td>
-<td>Data de obtenção</td>
-</tr>
-<tr>
-<td><code>geometry</code></td>
-<td>Polygon (EPSG:4674 / SIRGAS 2000)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="assentamentos-csv-tabular-sipra">Assentamentos — CSV Tabular (SIPRA)<a class="headerlink" href="#assentamentos-csv-tabular-sipra" title="Permanent link">&para;</a></h3>
-<p>Lista de projetos de assentamento publicada pelo INCRA em CSV. Nacional, ~10 mil
-projetos. Fonte: SIPRA (Sistema de Informações de Projetos de Reforma Agrária).</p>
-<table>
-<thead>
-<tr>
-<th>Coluna</th>
-<th>Descrição</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>codigo_projeto</code></td>
-<td>Código SIPRA (ex.: PA0006000)</td>
-</tr>
-<tr>
-<td><code>nome_projeto</code></td>
-<td>Nome do projeto de assentamento</td>
-</tr>
-<tr>
-<td><code>municipio_sede</code></td>
-<td>Município sede</td>
-</tr>
-<tr>
-<td><code>area_ha</code></td>
-<td>Área em hectares</td>
-</tr>
-<tr>
-<td><code>familias_assentadas</code></td>
-<td>Famílias assentadas</td>
-</tr>
-<tr>
-<td><code>familias_assent</code></td>
-<td>Famílias assentadas (capacidade)</td>
-</tr>
-<tr>
-<td><code>fase</code></td>
-<td>Fase de implementação (código)</td>
-</tr>
-<tr>
-<td><code>tipo</code></td>
-<td>Tipo de projeto</td>
-</tr>
-<tr>
-<td><code>numero</code></td>
-<td>Número do projeto</td>
-</tr>
-<tr>
-<td><code>data_criacao</code></td>
-<td>Data de criação</td>
-</tr>
-<tr>
-<td><code>forma_obtencao</code></td>
-<td>Forma de obtenção</td>
-</tr>
-<tr>
-<td><code>data_obtencao</code></td>
-<td>Data de obtenção</td>
-</tr>
-</tbody>
-</table>
-<h2 id="recursos">Recursos<a class="headerlink" href="#recursos" title="Permanent link">&para;</a></h2>
-<p>Padrão: <code>{camada}/uf={UF}</code> para shapefiles por estado.</p>
-<p>Exemplos:
-- <code>sigef-publico/uf=SP</code> — parcelas certificadas públicas de São Paulo
-- <code>sigef-privado/uf=MG</code> — parcelas certificadas privadas de Minas Gerais
-- <code>snci/uf=BA</code> — certificações SNCI da Bahia
-- <code>assentamentos-geo</code> — shapefile nacional de assentamentos
-- <code>assentamentos-csv</code> — CSV tabular de projetos de assentamento</p>
-<p><strong>Total:</strong> 80 tarefas (27 SIGEF público + 27 SIGEF privado + 24 SNCI + 1 geo + 1 CSV). Sob demanda.</p>
-<h2 id="formato">Formato<a class="headerlink" href="#formato" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Shapefiles:</strong> ZIP contendo .shp, .dbf, .shx, .prj. CRS EPSG:4674 (SIRGAS 2000).
-  Encoding DBF: Latin-1 (cp1252). Geometria: SIGEF → Polygon Z; SNCI/Assentamentos → Polygon.</li>
-<li><strong>CSV tabular:</strong> delimitador <code>;</code>, encoding Latin-1 (Windows-1252), com linhas de metadados
-  intercaladas que são filtradas pelo decodificador.</li>
-</ul>
-<h2 id="bronze">Bronze<a class="headerlink" href="#bronze" title="Permanent link">&para;</a></h2>
-<p>Decodificador apenas para o CSV tabular: <code>DecodificadorAssentamentosIncra</code> — filtra
-linhas de cabeçalho ministerial, separadores de Superintendência Regional e totalizador.</p>
-<table>
-<thead>
-<tr>
-<th>Entrada</th>
-<th>Prefixo</th>
+<th>Recurso Raw</th>
 <th>Tabela Bronze</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>incra-assentamentos</code></td>
-<td><code>assentamentos-csv/</code></td>
+<td><code>assentamentos-csv/projetos</code></td>
 <td><code>assentamentos</code></td>
 </tr>
 </tbody>
 </table>
-<p>Shapefiles: ficam na Raw com manifesto, sem decodificação Bronze nesta versão.
-Decodificador de shapefile (extração do .dbf) é follow-up.</p>
-<h2 id="idempotencia">Idempotência<a class="headerlink" href="#idempotencia" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Shapefiles: por UF — cada UF é um recurso distinto. Re-ingerir substitui o ZIP inteiro.</li>
-<li>CSV de assentamentos: recurso único nacional. Dentro do CSV, cada projeto é único
-  por <code>codigo_projeto</code>.</li>
-</ul>
-<h2 id="observacoes">Observações<a class="headerlink" href="#observacoes" title="Permanent link">&para;</a></h2>
-<ul>
-<li>O endpoint de shapefiles (<code>certificacao.incra.gov.br</code>) tem indisponibilidade intermitente.
-  Todas as tarefas de shapefile aceitam ausência (<code>aceitar_ausencia</code>).</li>
-<li>O certificado TLS pode usar CA governamental (SERPRO). A fonte ativa
-  <code>aceitar_certificado_invalido</code> no perfil HTTP.</li>
-<li>O SNCI não tem cobertura em AC, DF e RR (sem arquivo publicado).</li>
-<li>Tabelas auxiliares de códigos e cruzamento com CAR são follow-up.</li>
-<li>Permite cruzamento com CONAB (produção agrícola por município) e CAR (dimensão fundiária).</li>
-</ul>
+<p>Campos documentados no arquivo de origem incluem <code>codigo_projeto</code>,
+<code>nome_projeto</code>, <code>municipio_sede</code>, <code>area_ha</code>, <code>familias_assentadas</code>, <code>fase</code>,
+<code>tipo</code>, <code>numero</code>, <code>data_criacao</code>, <code>forma_obtencao</code> e <code>data_obtencao</code>. A chave
+de negócio dos projetos é <code>codigo_projeto</code>.</p>
+<h2 id="catalogo">Catálogo<a class="headerlink" href="#catalogo" title="Permanent link">&para;</a></h2>
+<p><strong>Total:</strong> 82 tarefas: 27 UFs para cada uma das três categorias SIGEF e uma
+tarefa nacional do CSV. A fonte é sob demanda.</p>
+<h2 id="disponibilidade-das-camadas-legadas">Disponibilidade das camadas legadas<a class="headerlink" href="#disponibilidade-das-camadas-legadas" title="Permanent link">&para;</a></h2>
+<p>O host antigo <code>certificacao.incra.gov.br</code> não resolve em DNS. O serviço oficial
+de download do Acervo Fundiário agora exige conta gov.br, portanto a ingestão
+automática sem credenciais não pode obter os Shapefiles legados de SNCI nem os
+perímetros geográficos de assentamentos. Essas tarefas saíram do catálogo; os
+objetos que já tenham sido gravados na Raw não são apagados e deixam de receber
+atualizações automáticas. O CSV tabular de assentamentos continua disponível
+publicamente.</p>
 <h2 id="referencias">Referências<a class="headerlink" href="#referencias" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://dados.gov.br/dados/conjuntos-dados/acervo-fundiario">Acervo Fundiário — dados.gov.br</a></li>
-<li><a href="https://dados.gov.br/dados/conjuntos-dados/sistema-de-gestao-fundiaria---sigef">SIGEF — dados.gov.br</a></li>
+<li><a href="https://geoportal.incra.gov.br/">Geoportal INCRA</a></li>
+<li><a href="https://geoportal.incra.gov.br/developer/">Serviços WFS do Geoportal</a></li>
+<li><a href="https://www.gov.br/governodigital/pt-br/infraestrutura-nacional-de-dados/territoriais/bases-e-sistemas/sigef/sigef/">SIGEF — Governo Digital</a></li>
+<li><a href="https://www.gov.br/pt-br/servicos/obter-coordenadas-e-baixar-os-arquivos-dos-imoveis-rurais-certificados">Serviço oficial de download do Acervo Fundiário</a></li>
 <li><a href="https://www.gov.br/incra/pt-br/assuntos/reforma-agraria/assentamentos-relacao-de-projetos">Relação de Projetos de Assentamento</a></li>
-<li><a href="https://sigef.incra.gov.br/consultar/parcelas/">SIGEF — Consulta Pública</a></li>
 </ul>
 
 
