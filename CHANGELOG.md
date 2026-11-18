@@ -5,6 +5,15 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.107.0] - 2026-11-18
+
+### Alterado
+
+- Migra as 54 tarefas SIGEF do INCRA para o WFS público do Geoportal, filtrando por UF e natureza.
+- Adiciona 27 tarefas para parcelas SIGEF classificadas como assentamento.
+- Retira do catálogo as 24 tarefas SNCI e a tarefa de perímetros geográficos de assentamentos: o serviço legado do Acervo Fundiário passou a exigir login gov.br e seu antigo host não resolve em DNS. O CSV tabular de assentamentos continua disponível.
+- Valida o certificado TLS do Geoportal e limita as requisições ao host atual.
+
 ## [0.106.0] - 2026-11-18
 
 ### Adicionado
