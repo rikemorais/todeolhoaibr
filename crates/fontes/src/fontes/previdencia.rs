@@ -530,10 +530,10 @@ mod testes {
     }
 
     #[test]
-    fn contagem_por_registro() {
-        assert_eq!(contagem("concedidos"), CONCEDIDOS.len());
-        assert!(contagem("emitidos") > 30);
-        assert!(contagem("mantidos") > 90);
+    fn contagem_fixa_por_registro() {
+        assert_eq!(contagem("concedidos"), 41);
+        assert_eq!(contagem("emitidos"), 40);
+        assert_eq!(contagem("mantidos"), 120);
     }
 
     #[test]
