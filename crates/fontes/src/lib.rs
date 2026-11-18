@@ -36,6 +36,7 @@ pub use fontes::mapa_empresas::FonteMapaEmpresas;
 pub use fontes::mapbiomas::FonteMapBiomas;
 pub use fontes::remuneracao_estadual_go::FonteRemuneracaoEstadualGo;
 pub use fontes::remuneracao_estadual_mg::FonteRemuneracaoEstadualMg;
+pub use fontes::seeg::FonteSeeg;
 pub use fontes::senado::{
     FonteSenadoDespesas, FonteSenadoEmendas, FonteSenadoParlamentares, FonteSenadoProcessos,
     FonteSenadoProcessosDetalhes, FonteSenadoVotacoes,
@@ -88,6 +89,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteSenadoProcessos),
         Box::new(FonteSenadoProcessosDetalhes),
         Box::new(FonteSenadoParlamentares),
+        Box::new(FonteSeeg),
         Box::new(FonteRemuneracaoMunicipalTceCe),
         Box::new(FonteTransparenciaBeneficios),
         Box::new(FonteTransparenciaServidoresAtivos),
