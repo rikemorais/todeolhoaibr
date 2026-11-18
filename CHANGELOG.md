@@ -5,6 +5,13 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.108.0] - 2026-11-18
+
+### Adicionado
+
+- Suporte a FTP na infraestrutura: `ClienteFtp` assíncrono (suppaftp v13), `ClienteDespacho` que roteia por esquema de URL e limitador de taxa compartilhado HTTP/FTP.
+- Ingestão de emprego formal do PDET/MTE: ~1 277 tarefas para RAIS (1985–2025) e Novo CAGED (2020–2026) via FTP anônimo (issue #54).
+
 ## [0.107.0] - 2026-11-18
 
 ### Alterado
