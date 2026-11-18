@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.109.0] - 2026-11-18
+
+### Adicionado
+
+- Ingestão de benefícios previdenciários do RGPS/INSS: 201 tarefas para concedidos (XLSX), emitidos (ZIP/CSV) e mantidos por status (ativos, cessados, suspensos), de Jun/2023 a Out/2026, via S3 do Portal de Dados Abertos do INSS (issue #50).
+
 ## [0.108.0] - 2026-11-18
 
 ### Adicionado
