@@ -18,18 +18,11 @@ const ULTIMO_ANO_CAGED: u16 = 2026;
 const ULTIMO_MES_CAGED: u8 = 11;
 
 const UFS: [&str; 27] = [
-    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB",
-    "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
+    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE",
+    "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
 ];
 
-const REGIOES: [&str; 6] = [
-    "CENTRO_OESTE",
-    "MG_ES_RJ",
-    "NORDESTE",
-    "NORTE",
-    "SP",
-    "SUL",
-];
+const REGIOES: [&str; 6] = ["CENTRO_OESTE", "MG_ES_RJ", "NORDESTE", "NORTE", "SP", "SUL"];
 
 /// Emprego formal: RAIS (anual) e Novo CAGED (mensal) do PDET/MTE.
 ///
@@ -89,25 +82,28 @@ fn tarefas_rais_per_uf() -> Vec<TarefaPlanejada> {
             if uf == "TO" && ano < 1990 {
                 tarefa = tarefa.aceitar_ausencia();
             }
-            tarefas.push(
-                TarefaPlanejada::nova(tarefa).com_etiquetas([
-                    ("registro", "rais"),
-                    ("tipo", "vinculo"),
-                    ("ano", &ano_s),
-                    ("uf", &uf_lower),
-                ]),
-            );
+            tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
+                ("registro", "rais"),
+                ("tipo", "vinculo"),
+                ("ano", &ano_s),
+                ("uf", &uf_lower),
+            ]));
         }
         let nome_estb = format!("rais_{ano}_estb");
         let recurso_estb = format!("rais/tipo=estabelecimento/ano={ano}");
         let url_estb = format!("{BASE}/RAIS/{ano}/ESTB{ano}.7z");
         tarefas.push(
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(nome_estb, NOME, recurso_estb, url_estb))
-                .com_etiquetas([
-                    ("registro", "rais"),
-                    ("tipo", "estabelecimento"),
-                    ("ano", &ano_s),
-                ]),
+            TarefaPlanejada::nova(TarefaDeArquivo::nova(
+                nome_estb,
+                NOME,
+                recurso_estb,
+                url_estb,
+            ))
+            .com_etiquetas([
+                ("registro", "rais"),
+                ("tipo", "estabelecimento"),
+                ("ano", &ano_s),
+            ]),
         );
     }
     tarefas
@@ -127,14 +123,12 @@ fn tarefas_rais_per_regiao() -> Vec<TarefaPlanejada> {
             if aceitar {
                 tarefa = tarefa.aceitar_ausencia();
             }
-            tarefas.push(
-                TarefaPlanejada::nova(tarefa).com_etiquetas([
-                    ("registro", "rais"),
-                    ("tipo", "vinculo"),
-                    ("ano", &ano_s),
-                    ("regiao", &regiao_lower),
-                ]),
-            );
+            tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
+                ("registro", "rais"),
+                ("tipo", "vinculo"),
+                ("ano", &ano_s),
+                ("regiao", &regiao_lower),
+            ]));
         }
         {
             let nome_ni = format!("rais_{ano}_ni");
@@ -144,7 +138,12 @@ fn tarefas_rais_per_regiao() -> Vec<TarefaPlanejada> {
                 TarefaPlanejada::nova(
                     TarefaDeArquivo::nova(nome_ni, NOME, recurso_ni, url_ni).aceitar_ausencia(),
                 )
-                .com_etiquetas([("registro", "rais"), ("tipo", "vinculo"), ("ano", &ano_s), ("regiao", "ni")]),
+                .com_etiquetas([
+                    ("registro", "rais"),
+                    ("tipo", "vinculo"),
+                    ("ano", &ano_s),
+                    ("regiao", "ni"),
+                ]),
             );
         }
         {
@@ -155,13 +154,11 @@ fn tarefas_rais_per_regiao() -> Vec<TarefaPlanejada> {
             if aceitar {
                 tarefa = tarefa.aceitar_ausencia();
             }
-            tarefas.push(
-                TarefaPlanejada::nova(tarefa).com_etiquetas([
-                    ("registro", "rais"),
-                    ("tipo", "estabelecimento"),
-                    ("ano", &ano_s),
-                ]),
-            );
+            tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
+                ("registro", "rais"),
+                ("tipo", "estabelecimento"),
+                ("ano", &ano_s),
+            ]));
         }
     }
     tarefas
@@ -183,21 +180,17 @@ fn tarefas_caged() -> Vec<TarefaPlanejada> {
             for &(tipo_upper, tipo_lower) in &tipos {
                 let nome = format!("caged_{tipo_lower}_{ym}");
                 let recurso = format!("caged/tipo={tipo_lower}/ano={ano}/mes={mes_s}");
-                let url = format!(
-                    "{BASE}/NOVO%20CAGED/{ano}/{ym}/CAGED{tipo_upper}{ym}.7z"
-                );
+                let url = format!("{BASE}/NOVO%20CAGED/{ano}/{ym}/CAGED{tipo_upper}{ym}.7z");
                 let mut tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
                 if ano == ULTIMO_ANO_CAGED && mes > ULTIMO_MES_CAGED.saturating_sub(2) {
                     tarefa = tarefa.aceitar_ausencia();
                 }
-                tarefas.push(
-                    TarefaPlanejada::nova(tarefa).com_etiquetas([
-                        ("registro", "caged"),
-                        ("tipo", tipo_lower),
-                        ("ano", &ano_s),
-                        ("mes", &mes_s),
-                    ]),
-                );
+                tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
+                    ("registro", "caged"),
+                    ("tipo", tipo_lower),
+                    ("ano", &ano_s),
+                    ("mes", &mes_s),
+                ]));
             }
         }
     }
@@ -224,13 +217,16 @@ mod testes {
     fn gera_quantidade_esperada_de_tarefas() {
         let t = tarefas();
         let rais_per_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize * (UFS.len() + 1);
-        let rais_per_regiao =
-            (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize * (REGIOES.len() + 2);
-        let caged_meses = (ULTIMO_ANO_CAGED - PRIMEIRO_ANO_CAGED) as usize * 12
-            + ULTIMO_MES_CAGED as usize;
+        let rais_per_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize * (REGIOES.len() + 2);
+        let caged_meses =
+            (ULTIMO_ANO_CAGED - PRIMEIRO_ANO_CAGED) as usize * 12 + ULTIMO_MES_CAGED as usize;
         let caged_total = caged_meses * 3;
         let esperado = rais_per_uf + rais_per_regiao + caged_total;
-        assert_eq!(t.len(), esperado, "RAIS UF={rais_per_uf}, RAIS reg={rais_per_regiao}, CAGED={caged_total}");
+        assert_eq!(
+            t.len(),
+            esperado,
+            "RAIS UF={rais_per_uf}, RAIS reg={rais_per_regiao}, CAGED={caged_total}"
+        );
     }
 
     #[test]

@@ -15,6 +15,7 @@ pub struct ClienteDespacho {
 }
 
 impl ClienteDespacho {
+    /// Cria o despacho com os clientes HTTP e FTP concretos.
     pub fn novo(http: Arc<dyn ClienteHttp>, ftp: Arc<dyn ClienteHttp>) -> Self {
         Self { http, ftp }
     }

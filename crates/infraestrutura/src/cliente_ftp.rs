@@ -11,11 +11,12 @@ use todeolho_nucleo::{
 use tracing::warn;
 use url::Url;
 
-use crate::limite::aguardar_limite;
 use crate::PoliticaDeRetentativas;
+use crate::limite::aguardar_limite;
 
 const TEMPO_DE_CONEXAO: Duration = Duration::from_secs(30);
 
+/// Cliente FTP assíncrono que implementa a interface `ClienteHttp`.
 pub struct ClienteFtp {
     politica: PoliticaDeRetentativas,
 }
@@ -28,19 +29,17 @@ struct UrlFtp {
 }
 
 impl ClienteFtp {
+    /// Cria um cliente com a política de retentativas informada.
     pub fn novo(politica: PoliticaDeRetentativas) -> Self {
         Self { politica }
     }
 
     async fn conectar(&self, url_ftp: &UrlFtp) -> Result<AsyncFtpStream, ErroDeIngestao> {
         let endereco = format!("{}:{}", url_ftp.host, url_ftp.porta);
-        let mut ftp = tokio::time::timeout(
-            TEMPO_DE_CONEXAO,
-            AsyncFtpStream::connect(&endereco),
-        )
-        .await
-        .map_err(|_| erro_ftp(&endereco, "timeout na conexão FTP"))?
-        .map_err(|e| mapear_erro_ftp(&endereco, e))?;
+        let mut ftp = tokio::time::timeout(TEMPO_DE_CONEXAO, AsyncFtpStream::connect(&endereco))
+            .await
+            .map_err(|_| erro_ftp(&endereco, "timeout na conexão FTP"))?
+            .map_err(|e| mapear_erro_ftp(&endereco, e))?;
 
         ftp.login("anonymous", "todeolhoai@")
             .await
@@ -234,15 +233,16 @@ fn decodificar_porcento(texto: &str) -> String {
     let bytes = texto.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(hi), Some(lo)) = (
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && let (Some(hi), Some(lo)) = (
                 (bytes[i + 1] as char).to_digit(16),
                 (bytes[i + 2] as char).to_digit(16),
-            ) {
-                resultado.push((hi * 16 + lo) as u8);
-                i += 3;
-                continue;
-            }
+            )
+        {
+            resultado.push((hi * 16 + lo) as u8);
+            i += 3;
+            continue;
         }
         resultado.push(bytes[i]);
         i += 1;
@@ -258,12 +258,12 @@ fn erro_ftp(url: &str, detalhe: &str) -> ErroDeIngestao {
 }
 
 fn mapear_erro_ftp(url: &str, erro: FtpError) -> ErroDeIngestao {
-    if let FtpError::UnexpectedResponse(Response { status, .. }) = &erro {
-        if *status == Status::FileUnavailable {
-            return ErroDeIngestao::NaoEncontrado {
-                url: url.to_owned(),
-            };
-        }
+    if let FtpError::UnexpectedResponse(Response { status, .. }) = &erro
+        && *status == Status::FileUnavailable
+    {
+        return ErroDeIngestao::NaoEncontrado {
+            url: url.to_owned(),
+        };
     }
     ErroDeIngestao::Http {
         url: url.to_owned(),
@@ -290,9 +290,10 @@ mod testes {
 
     #[test]
     fn analisa_url_com_espaco_codificado() {
-        let u =
-            analisar_url("ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2024/202401/CAGEDMOV202401.7z")
-                .unwrap();
+        let u = analisar_url(
+            "ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2024/202401/CAGEDMOV202401.7z",
+        )
+        .unwrap();
         assert_eq!(u.host, "ftp.mtps.gov.br");
         assert_eq!(u.diretorio, "/pdet/microdados/NOVO CAGED/2024/202401");
         assert_eq!(u.arquivo, "CAGEDMOV202401.7z");
