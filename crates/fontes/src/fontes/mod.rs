@@ -12,6 +12,7 @@ pub mod emendas;
 pub mod gfw;
 pub mod ibama;
 pub mod ibge;
+pub mod icmbio;
 pub mod incra;
 pub mod inep;
 pub mod inpe;
