@@ -27,6 +27,7 @@ pub mod senado;
 pub mod tce_ce;
 pub mod trabalho;
 pub mod transparencia;
+pub mod transparencia_inativos;
 pub mod transparencia_servidores;
 pub mod tse;
 pub mod undp;
