@@ -31,6 +31,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `emendas` | autoria/localidade/valores anuais na CGU e repasses municipais mensais do Tesouro (sob demanda; CGU requer token) | [doc da fonte](docs/fontes/emendas.md) |
 | `emendas-siga-brasil` | favorecidos e valores “Pago + RP” do painel público do Senado (sob demanda; sem credenciais) | [doc da fonte](docs/fontes/emendas.md) |
 | `energia` | ANEEL (tarifas, SIGA, geração distribuída) + EPE (BEN, consumo por classe) + ONS (balanço carga/geração por subsistema, 2000–2026), 36 tarefas (sob demanda) | [doc da fonte](docs/fontes/energia.md) |
+| `macro_intl` | IMF (WEO Oct/2026 + histórico) + OECD (Economic Outlook, GDP, CPI, desemprego, BoP via SDMX), 7 tarefas (sob demanda) | [doc da fonte](docs/fontes/macro-intl.md) |
 | `transparencia-beneficios` | Bolsa Família, Auxílio Brasil e BPC/LOAS por município e competência (sob demanda; requer token) | [doc da fonte](docs/fontes/beneficios-sociais.md) |
 | `transparencia-inativos` | inativos, pensionistas civis e militares, reserva e reforma do Executivo Federal (desde jan/2020, sob demanda) | [doc da fonte](docs/fontes/transparencia-inativos.md) |
 | `transparencia-servidores-ativos` | remuneração mensal de servidores civis ativos do Executivo Federal, SIAPE e BACEN (sob demanda) | [doc da fonte](docs/fontes/servidores-federais-ativos.md) |

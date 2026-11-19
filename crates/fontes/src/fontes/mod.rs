@@ -18,6 +18,7 @@ pub mod incra;
 pub mod inep;
 pub mod inpe;
 pub mod ipeadata;
+pub mod macro_intl;
 pub mod mapa_empresas;
 pub mod mapbiomas;
 pub mod previdencia;
