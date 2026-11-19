@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.116.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de segurança pública: 11 séries do Atlas da Violência (IPEA) via OData do Ipeadata — homicídios (total, feminino, jovens, masculino), taxa de homicídios, suicídios, taxa de suicídios, acidentes de trânsito (total e jovens), taxa de acidentes e população — e 5 edições do Anuário Brasileiro de Segurança Pública (FBSP) em XLSX, 2022–2026, 16 tarefas sob demanda (issue #61).
+
 ## [0.115.1] - 2026-11-19
 
 ### Corrigido
