@@ -19,7 +19,7 @@ Perímetros dos imóveis rurais cadastrados no CAR, por UF:
 | ES | 130.987 | PI | 337.983 | SP | 474.035 |
 | GO | 245.396 | PR | 559.308 | TO | 112.678 |
 
-**Total: ~8,5 milhões de imóveis em 27 tarefas (uma por UF), sob demanda.**
+**Total: ~8,5 milhões de imóveis em 27 tarefas (uma por UF), sob demanda.** Cada tarefa grava páginas de até 10 mil imóveis como recursos Raw separados.
 
 ## Sobre a fonte
 
@@ -29,7 +29,9 @@ reserva legal, APP, uso consolidado e vegetação nativa.
 
 O download é feito via WFS (Web Feature Service) público do GeoServer do SICAR,
 sem captcha e sem credenciais. Cada UF é uma layer WFS
-(`sicar:sicar_imoveis_{uf}`) servida em SHAPE-ZIP.
+(`sicar:sicar_imoveis_{uf}`) servida em SHAPE-ZIP. O servidor limita cada resposta
+a 10 mil imóveis. A tarefa consulta `resultType=hits` e percorre as páginas com
+`count=10000` e `startIndex`, publicando um ZIP por página.
 
 ### Atributos por imóvel
 
@@ -61,7 +63,7 @@ do perímetro do imóvel em SIRGAS 2000 (EPSG:4674).
 ## Padrão de URL
 
 ```
-https://geoserver.car.gov.br/geoserver/sicar/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=sicar:sicar_imoveis_{uf}&outputFormat=SHAPE-ZIP
+https://geoserver.car.gov.br/geoserver/sicar/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=sicar:sicar_imoveis_{uf}&outputFormat=SHAPE-ZIP&count=10000&startIndex={inicio}
 ```
 
 ## Comandos
@@ -82,7 +84,10 @@ docker compose run --rm --build ingestao executar car --filtro uf=DF
 
 - **Dado geoespacial**: a Raw guarda o SHAPE-ZIP bruto (vetor + atributos),
   imutável. Processamento geoespacial fica nas camadas seguintes.
+- **Layout Raw**: `car/imoveis/{UF}/pagina={NNNN}`. Os objetos antigos em
+  `car/imoveis/{UF}` contêm só a primeira página e não são usados pela tarefa
+  paginada; devem ser desconsiderados por consumidores da Raw.
 - **Volume alto**: BA e MG têm mais de 1 milhão de features cada. O download
   completo de uma UF grande pode levar vários minutos.
-- O WFS suporta paginação (`startIndex` + `count`) se for necessário
-  parcelar downloads no futuro.
+- Cada página tem manifesto próprio. Uma execução interrompida reaproveita as
+  páginas já publicadas quando a origem confirma que não mudaram.
