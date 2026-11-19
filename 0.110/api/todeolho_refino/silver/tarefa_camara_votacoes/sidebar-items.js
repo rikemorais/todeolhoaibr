@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_camara_votacoes"],"struct":["TarefaDeSilverCamaraVotacoes"]};
