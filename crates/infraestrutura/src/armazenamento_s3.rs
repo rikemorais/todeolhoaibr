@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use std::time::Duration;
 
 use s3::creds::Credentials;
@@ -19,6 +20,8 @@ const ESPERA_BASE: std::time::Duration = std::time::Duration::from_millis(200);
 /// Timeout curto para ponteiros e outros metadados pequenos. Transferências de
 /// dados continuam usando o timeout generoso configurado no bucket principal.
 const TIMEOUT_CONTROLE_S3: Duration = Duration::from_secs(15);
+/// A transferência HTTP tem limite de seis horas; uploads mais novos podem estar ativos.
+const IDADE_MINIMA_ENVIO_ORFAO: chrono::TimeDelta = chrono::TimeDelta::hours(24);
 
 /// Dados de conexão a um serviço compatível com S3.
 #[derive(Debug, Clone)]
@@ -307,8 +310,16 @@ impl ArmazenamentoRaw for ArmazenamentoS3 {
             .await
             .map_err(|e| self.erro(&nome, e))?;
 
+        let limite = Utc::now() - IDADE_MINIMA_ENVIO_ORFAO;
         let mut descartados = 0;
         for envio in paginas.iter().flat_map(|pagina| &pagina.uploads) {
+            let Ok(iniciado_em) = DateTime::parse_from_rfc3339(&envio.initiated) else {
+                warn!(chave = %envio.key, iniciado_em = %envio.initiated, "data inválida de upload multipart; mantendo envio");
+                continue;
+            };
+            if iniciado_em > limite {
+                continue;
+            }
             self.bucket
                 .abort_upload(&envio.key, &envio.id)
                 .await
@@ -1000,10 +1011,13 @@ mod testes {
     }
 
     #[tokio::test]
-    async fn descartar_envios_incompletos_cancela_cada_upload_listado() {
-        let uploads = "<ListMultipartUploadsResult><Bucket>teste-raw-79</Bucket><IsTruncated>false</IsTruncated><Upload><Key>um.bin</Key><UploadId>upload-um</UploadId><Initiated>2026-01-01T00:00:00.000Z</Initiated><StorageClass>STANDARD</StorageClass></Upload><Upload><Key>dois.bin</Key><UploadId>upload-dois</UploadId><Initiated>2026-01-01T00:00:00.000Z</Initiated><StorageClass>STANDARD</StorageClass></Upload></ListMultipartUploadsResult>";
+    async fn descartar_envios_incompletos_preserva_upload_recente() {
+        let recente = Utc::now().to_rfc3339();
+        let uploads = format!(
+            "<ListMultipartUploadsResult><Bucket>teste-raw-79</Bucket><IsTruncated>false</IsTruncated><Upload><Key>um.bin</Key><UploadId>upload-um</UploadId><Initiated>2026-01-01T00:00:00.000Z</Initiated><StorageClass>STANDARD</StorageClass></Upload><Upload><Key>recente.bin</Key><UploadId>upload-recente</UploadId><Initiated>{recente}</Initiated><StorageClass>STANDARD</StorageClass></Upload><Upload><Key>dois.bin</Key><UploadId>upload-dois</UploadId><Initiated>2026-01-01T00:00:00.000Z</Initiated><StorageClass>STANDARD</StorageClass></Upload></ListMultipartUploadsResult>"
+        );
         let (endpoint, servidor) = servidor_s3(vec![
-            resposta_s3(200, "Content-Type: application/xml\r\n", uploads),
+            resposta_s3(200, "Content-Type: application/xml\r\n", &uploads),
             resposta_s3(204, "", ""),
             resposta_s3(204, "", ""),
         ]);

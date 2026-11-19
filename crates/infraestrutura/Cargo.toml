@@ -9,6 +9,7 @@ license.workspace = true
 todeolho-nucleo.workspace = true
 
 async-trait.workspace = true
+chrono.workspace = true
 fs4.workspace = true
 futures.workspace = true
 reqwest.workspace = true
