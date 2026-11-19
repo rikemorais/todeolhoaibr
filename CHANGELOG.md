@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.112.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de desmatamento global (Global Forest Watch via Our World in Data): 2 tarefas sob demanda — tree cover loss e tree cover loss from wildfires, todos os países de 2001 a 2024, formato CSV (issue #67).
+
 ## [0.111.0] - 2026-11-19
 
 ### Adicionado
