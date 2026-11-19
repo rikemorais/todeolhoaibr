@@ -61,6 +61,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `remuneracao-estadual-go` | Dados Abertos Goiás — folha mensal de remuneração do Executivo estadual | |
 | `remuneracao-estadual-mg` | Catálogo de Dados Abertos de MG — remuneração do Executivo estadual por competência | |
 | `remuneracao-estadual-ms` | Dados Abertos MS — remuneração do Executivo estadual por competência | [doc da fonte](docs/fontes/remuneracao-estadual-ms.md) |
+| `remuneracao-estadual-sc` | Dados Abertos SC — remuneração do Executivo estadual (ativos e inativos) por competência | [doc da fonte](docs/fontes/remuneracao-estadual-sc.md) |
 | `remuneracao-municipal-tce-ce` | TCE-CE — totais agregados de folhas municipais (competência 2025-12) | |
 | `seguranca` | Atlas da Violência (IPEA) — 11 séries OData de homicídios, suicídios e acidentes + 5 edições do Anuário FBSP em XLSX (sob demanda) | [doc da fonte](docs/fontes/seguranca.md) |
 | `seeg` | emissões de GEE (Observatório do Clima) — 2 arquivos XLSX, edição 14.0 (sob demanda) | [doc da fonte](docs/fontes/seeg.md) |

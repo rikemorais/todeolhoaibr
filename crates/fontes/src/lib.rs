@@ -45,6 +45,7 @@ pub use fontes::previdencia::FontePrevidencia;
 pub use fontes::remuneracao_estadual_go::FonteRemuneracaoEstadualGo;
 pub use fontes::remuneracao_estadual_mg::FonteRemuneracaoEstadualMg;
 pub use fontes::remuneracao_estadual_ms::FonteRemuneracaoEstadualMs;
+pub use fontes::remuneracao_estadual_sc::FonteRemuneracaoEstadualSc;
 pub use fontes::seeg::FonteSeeg;
 pub use fontes::seguranca::FonteSeguranca;
 pub use fontes::senado::{
@@ -81,6 +82,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteRemuneracaoEstadualMg),
         Box::new(FonteRemuneracaoEstadualGo),
         Box::new(FonteRemuneracaoEstadualMs),
+        Box::new(FonteRemuneracaoEstadualSc),
         Box::new(FonteBcb),
         Box::new(FonteCar),
         Box::new(FonteCnpj),
