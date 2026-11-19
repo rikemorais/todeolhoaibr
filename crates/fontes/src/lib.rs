@@ -30,6 +30,7 @@ pub use fontes::ibge::{
     FonteIbgeRendaPerCapita,
 };
 pub use fontes::incra::FonteIncra;
+pub use fontes::inep::FonteInep;
 pub use fontes::inpe::FonteInpe;
 pub use fontes::ipeadata::FonteIpeadata;
 pub use fontes::mapa_empresas::FonteMapaEmpresas;
@@ -94,6 +95,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteSeeg),
         Box::new(FonteTrabalho),
         Box::new(FontePrevidencia),
+        Box::new(FonteInep),
         Box::new(FonteRemuneracaoMunicipalTceCe),
         Box::new(FonteTransparenciaBeneficios),
         Box::new(FonteTransparenciaServidoresAtivos),
