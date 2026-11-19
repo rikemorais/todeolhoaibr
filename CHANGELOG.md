@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.115.1] - 2026-11-19
+
+### Corrigido
+
+- A limpeza de uploads multipart no S3 preserva transferências recentes de outras execuções e descarta somente uploads com mais de 24 horas.
+
 ## [0.115.0] - 2026-11-19
 
 ### Adicionado
