@@ -1999,7 +1999,7 @@ etiqueta suas tarefas ganha tudo isso sem código específico, o que mantém o p
 <li>O envio é um multipart próprio, sequencial, com um buffer de 16 MiB por arquivo. O <code>put_object_stream</code> do <code>rust-s3</code> foi descartado porque dimensiona a
   concorrência pela memória livre da máquina, ignorando o limite do container.</li>
 <li>Transferências que caem recomeçam o arquivo, até 3 vezes. O objeto só fica visível na Raw ao final.</li>
-<li>Antes de cada execução, transferências interrompidas são descartadas. Sem isso, as partes de um processo morto ocupariam disco para sempre.</li>
+<li>Antes de cada execução, uploads multipart com mais de 24 horas são descartados. A margem preserva transferências de outras execuções em andamento; uploads de processos interrompidos são recuperados após esse prazo.</li>
 </ul>
 <p><strong>Sem baixar de novo o que não mudou</strong></p>
 <p>Cada recurso guarda o ETag da última ingestão em <code>_ultima_versao.json</code>. Isso evita repetir gigabytes e faz uma carga longa interrompida continuar de onde parou.</p>
