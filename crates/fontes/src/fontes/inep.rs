@@ -100,17 +100,12 @@ fn tarefas_enem() -> Vec<TarefaPlanejada> {
         .map(|ano| {
             let url = format!("{BASE}/microdados/microdados_enem_{ano}.zip");
             let ano_s = ano.to_string();
-            let mut tarefa = TarefaDeArquivo::nova(
-                format!("enem_{ano}"),
-                NOME,
-                format!("enem/ano={ano}"),
-                url,
-            );
+            let mut tarefa =
+                TarefaDeArquivo::nova(format!("enem_{ano}"), NOME, format!("enem/ano={ano}"), url);
             if ano == ULTIMO_ANO_ENEM {
                 tarefa = tarefa.aceitar_ausencia();
             }
-            TarefaPlanejada::nova(tarefa)
-                .com_etiquetas([("registro", "enem"), ("ano", &ano_s)])
+            TarefaPlanejada::nova(tarefa).com_etiquetas([("registro", "enem"), ("ano", &ano_s)])
         })
         .collect()
 }
@@ -163,14 +158,12 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
                 if ano == *EDICOES_IDEB.last().unwrap() {
                     tarefa = tarefa.aceitar_ausencia();
                 }
-                tarefas.push(
-                    TarefaPlanejada::nova(tarefa).com_etiquetas([
-                        ("registro", "ideb"),
-                        ("nivel", nivel_slug),
-                        ("stage", stage),
-                        ("ano", &ano_s),
-                    ]),
-                );
+                tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
+                    ("registro", "ideb"),
+                    ("nivel", nivel_slug),
+                    ("stage", stage),
+                    ("ano", &ano_s),
+                ]));
             }
         }
 
@@ -184,13 +177,11 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
         if ano == *EDICOES_IDEB.last().unwrap() {
             tarefa_br = tarefa_br.aceitar_ausencia();
         }
-        tarefas.push(
-            TarefaPlanejada::nova(tarefa_br).com_etiquetas([
-                ("registro", "ideb"),
-                ("nivel", "brasil"),
-                ("ano", &ano_s),
-            ]),
-        );
+        tarefas.push(TarefaPlanejada::nova(tarefa_br).com_etiquetas([
+            ("registro", "ideb"),
+            ("nivel", "brasil"),
+            ("ano", &ano_s),
+        ]));
 
         let url_regioes = format!("{BASE}/ideb/resultados/divulgacao_regioes_ufs_ideb_{ano}{ext}");
         let mut tarefa_reg = TarefaDeArquivo::nova(
@@ -202,13 +193,11 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
         if ano == *EDICOES_IDEB.last().unwrap() {
             tarefa_reg = tarefa_reg.aceitar_ausencia();
         }
-        tarefas.push(
-            TarefaPlanejada::nova(tarefa_reg).com_etiquetas([
-                ("registro", "ideb"),
-                ("nivel", "regioes-ufs"),
-                ("ano", &ano_s),
-            ]),
-        );
+        tarefas.push(TarefaPlanejada::nova(tarefa_reg).com_etiquetas([
+            ("registro", "ideb"),
+            ("nivel", "regioes-ufs"),
+            ("ano", &ano_s),
+        ]));
     }
 
     for nivel in ["brasil", "ufs"] {
@@ -289,18 +278,8 @@ mod testes {
 
     #[test]
     fn censo_2025_url_tem_underscore_extra() {
-        let url_esperada = format!(
-            "{BASE}/dados_abertos/microdados_censo_escolar_2025_.zip"
-        );
-        assert!(
-            url_esperada.contains("_2025_.zip"),
-            "URL do censo 2025 deveria conter _2025_.zip"
-        );
-        assert!(
-            !url_esperada.contains("_2025.zip")
-                || url_esperada.contains("_2025_.zip"),
-            "URL não deve ter o padrão padrão _2025.zip sem o underscore extra"
-        );
+        let url = format!("{BASE}/dados_abertos/microdados_censo_escolar_2025_.zip");
+        assert!(url.contains("_2025_.zip"));
     }
 
     #[test]
