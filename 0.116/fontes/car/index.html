@@ -2042,6 +2042,7 @@ do perímetro do imóvel em SIRGAS 2000 (EPSG:4674).</p>
 <li><strong>Autenticação</strong>: nenhuma (WFS público)</li>
 <li><strong>Limite</strong>: 1 requisição/segundo (conservador — UFs grandes são pesadas)</li>
 <li><strong>Redirecionamento</strong>: seguir</li>
+<li><strong>TLS</strong>: cliente nativo (OpenSSL). O GeoServer aceita uma suíte TLS 1.2 que o cliente Rustls não suporta; o certificado continua sendo validado.</li>
 </ul>
 <h2 id="padrao-de-url">Padrão de URL<a class="headerlink" href="#padrao-de-url" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>https://geoserver.car.gov.br/geoserver/sicar/wfs?service=WFS&amp;version=2.0.0&amp;request=GetFeature&amp;typeNames=sicar:sicar_imoveis_{uf}&amp;outputFormat=SHAPE-ZIP
