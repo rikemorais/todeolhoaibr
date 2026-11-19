@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_senado_despesas"],"struct":["TarefaDeSilverSenadoDespesas"]};
