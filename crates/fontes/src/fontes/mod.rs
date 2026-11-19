@@ -23,6 +23,7 @@ pub mod previdencia;
 pub mod remuneracao_estadual_go;
 pub mod remuneracao_estadual_mg;
 pub mod seeg;
+pub mod seguranca;
 pub mod senado;
 pub mod tce_ce;
 pub mod trabalho;
