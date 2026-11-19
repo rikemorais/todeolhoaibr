@@ -38,6 +38,7 @@ pub use fontes::incra::FonteIncra;
 pub use fontes::inep::FonteInep;
 pub use fontes::inpe::FonteInpe;
 pub use fontes::ipeadata::FonteIpeadata;
+pub use fontes::macro_intl::FonteMacroIntl;
 pub use fontes::mapa_empresas::FonteMapaEmpresas;
 pub use fontes::mapbiomas::FonteMapBiomas;
 pub use fontes::previdencia::FontePrevidencia;
@@ -92,6 +93,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteEmendas),
         Box::new(FonteEnergia),
         Box::new(FonteIpeadata),
+        Box::new(FonteMacroIntl),
         Box::new(FonteCamara),
         Box::new(FonteCamaraDespesas),
         Box::new(FonteCamaraTramitacoes),
