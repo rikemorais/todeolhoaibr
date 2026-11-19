@@ -30,6 +30,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `mapa_empresas` | empresas abertas, fechadas e ativas por município e UF (snapshots mensais desde maio de 2026) | [doc da fonte](docs/fontes/mapa-empresas.md) |
 | `emendas` | autoria/localidade/valores anuais na CGU e repasses municipais mensais do Tesouro (sob demanda; CGU requer token) | [doc da fonte](docs/fontes/emendas.md) |
 | `emendas-siga-brasil` | favorecidos e valores “Pago + RP” do painel público do Senado (sob demanda; sem credenciais) | [doc da fonte](docs/fontes/emendas.md) |
+| `energia` | ANEEL (tarifas, SIGA, geração distribuída) + EPE (BEN, consumo por classe) + ONS (balanço carga/geração por subsistema, 2000–2026), 36 tarefas (sob demanda) | [doc da fonte](docs/fontes/energia.md) |
 | `transparencia-beneficios` | Bolsa Família, Auxílio Brasil e BPC/LOAS por município e competência (sob demanda; requer token) | [doc da fonte](docs/fontes/beneficios-sociais.md) |
 | `transparencia-inativos` | inativos, pensionistas civis e militares, reserva e reforma do Executivo Federal (desde jan/2020, sob demanda) | [doc da fonte](docs/fontes/transparencia-inativos.md) |
 | `transparencia-servidores-ativos` | remuneração mensal de servidores civis ativos do Executivo Federal, SIAPE e BACEN (sob demanda) | [doc da fonte](docs/fontes/servidores-federais-ativos.md) |
