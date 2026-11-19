@@ -32,6 +32,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `emendas-siga-brasil` | favorecidos e valores “Pago + RP” do painel público do Senado (sob demanda; sem credenciais) | [doc da fonte](docs/fontes/emendas.md) |
 | `transparencia-beneficios` | Bolsa Família, Auxílio Brasil e BPC/LOAS por município e competência (sob demanda; requer token) | [doc da fonte](docs/fontes/beneficios-sociais.md) |
 | `transparencia-servidores-ativos` | remuneração mensal de servidores civis ativos do Executivo Federal, SIAPE e BACEN (sob demanda) | [doc da fonte](docs/fontes/servidores-federais-ativos.md) |
+| `car` | Cadastro Ambiental Rural — perímetros de ~8,5M imóveis rurais por UF via WFS/SICAR (SHAPE-ZIP, sob demanda) | [doc da fonte](docs/fontes/car.md) |
 | `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
 | `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
 | `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
