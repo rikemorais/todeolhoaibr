@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publicar_tse_receitas_doador_originario_2022"],"struct":["TarefaDeSilverTseReceitasDoadorOriginario2022"]};
