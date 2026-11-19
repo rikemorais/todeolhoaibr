@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.114.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de Unidades de Conservação do SNUC (ICMBio/CNUC via MMA): 22 tarefas sob demanda — 16 CSVs semestrais de UCs ativas (2018–2026), 4 SHPs de polígonos dos limites (2024–2025) e 2 dicionários de dados, publicados em dados.mma.gov.br (issue #47).
+
 ## [0.113.0] - 2026-11-19
 
 ### Adicionado
