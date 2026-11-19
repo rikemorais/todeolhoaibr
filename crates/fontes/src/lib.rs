@@ -23,6 +23,7 @@ pub use fontes::cnpj::FonteCnpj;
 pub use fontes::comex::FonteComex;
 pub use fontes::conab::FonteConab;
 pub use fontes::cvm::FonteCvm;
+pub use fontes::datasus::FonteDataSus;
 pub use fontes::emendas::FonteEmendas;
 pub use fontes::ibama::FonteIbama;
 pub use fontes::ibge::{
@@ -96,6 +97,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteTrabalho),
         Box::new(FontePrevidencia),
         Box::new(FonteInep),
+        Box::new(FonteDataSus),
         Box::new(FonteRemuneracaoMunicipalTceCe),
         Box::new(FonteTransparenciaBeneficios),
         Box::new(FonteTransparenciaServidoresAtivos),

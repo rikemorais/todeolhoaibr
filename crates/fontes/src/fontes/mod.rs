@@ -6,6 +6,7 @@ pub mod cnpj;
 pub mod comex;
 pub mod conab;
 pub mod cvm;
+pub mod datasus;
 pub mod emendas;
 pub mod ibama;
 pub mod ibge;
