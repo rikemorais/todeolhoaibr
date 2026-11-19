@@ -35,10 +35,14 @@ fn url_levantamento(safra_inicio: u16, levantamento: u8) -> String {
     } else {
         safra_fim
     };
-    format!(
-        "{BASE}/{levantamento}o-levantamento-safra-{safra_inicio}-{yy:02}\
-         /site_previsao_de_safra-por_produto-{mes}-{ano_civil}.xlsx/%40%40download/file"
-    )
+    let arquivo = match (safra_inicio, levantamento) {
+        (2024, 1..=4 | 6..=8) => {
+            "tabela-de-dados-producao-e-balanco-de-oferta-e-demanda-de-graos".to_owned()
+        }
+        (2024, 9) | (2025, 4) => format!("site_previsao_de_safra-por_produto-{mes}-{ano_civil}"),
+        _ => format!("site_previsao_de_safra-por_produto-{mes}-{ano_civil}.xlsx"),
+    };
+    format!("{BASE}/{levantamento}o-levantamento-safra-{safra_inicio}-{yy:02}/{arquivo}")
 }
 
 fn ano_civil_publicacao(safra_inicio: u16, levantamento: u8) -> u16 {
@@ -170,15 +174,15 @@ mod testes {
     fn url_do_primeiro_levantamento_2025_26() {
         assert_eq!(
             url_levantamento(2025, 1),
-            "https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/safras/safra-de-graos/boletim-da-safra-de-graos/1o-levantamento-safra-2025-26/site_previsao_de_safra-por_produto-out-2025.xlsx/%40%40download/file"
+            "https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/safras/safra-de-graos/boletim-da-safra-de-graos/1o-levantamento-safra-2025-26/site_previsao_de_safra-por_produto-out-2025.xlsx"
         );
     }
 
     #[test]
-    fn url_da_safra_atual_usa_o_download_oficial_plone() {
+    fn url_da_safra_atual_usa_o_link_oficial() {
         assert_eq!(
             url_levantamento(2026, 1),
-            "https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/safras/safra-de-graos/boletim-da-safra-de-graos/1o-levantamento-safra-2026-27/site_previsao_de_safra-por_produto-out-2026.xlsx/%40%40download/file"
+            "https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/safras/safra-de-graos/boletim-da-safra-de-graos/1o-levantamento-safra-2026-27/site_previsao_de_safra-por_produto-out-2026.xlsx"
         );
     }
 
@@ -187,6 +191,22 @@ mod testes {
         let url = url_levantamento(2025, 12);
         assert!(url.contains("12o-levantamento-safra-2025-26"), "URL: {url}");
         assert!(url.contains("set-2026.xlsx"), "URL: {url}");
+    }
+
+    #[test]
+    fn urls_excepcionais_correspondem_aos_links_publicados() {
+        for levantamento in [1, 2, 3, 4, 6, 7, 8] {
+            assert!(
+                url_levantamento(2024, levantamento)
+                    .ends_with("/tabela-de-dados-producao-e-balanco-de-oferta-e-demanda-de-graos")
+            );
+        }
+        assert!(
+            url_levantamento(2024, 9).ends_with("/site_previsao_de_safra-por_produto-jun-2025")
+        );
+        assert!(
+            url_levantamento(2025, 4).ends_with("/site_previsao_de_safra-por_produto-jan-2026")
+        );
     }
 
     #[test]
