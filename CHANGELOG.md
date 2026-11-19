@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.120.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de remuneração estadual de Santa Catarina: CSVs mensais de ativos e inativos via catálogo CKAN de Dados Abertos SC, desde Abr/2022, 2 tarefas sob demanda (issue #75).
+
 ## [0.119.0] - 2026-11-19
 
 ### Adicionado
