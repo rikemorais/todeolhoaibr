@@ -8,6 +8,7 @@ pub mod conab;
 pub mod cvm;
 pub mod datasus;
 pub mod emendas;
+pub mod gfw;
 pub mod ibama;
 pub mod ibge;
 pub mod incra;

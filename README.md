@@ -51,6 +51,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `previdencia` | benefícios previdenciários do RGPS/INSS — concedidos, emitidos e mantidos (Jun/2023–Out/2026), 201 tarefas (sob demanda) | [doc da fonte](docs/fontes/previdencia.md) |
 | `trabalho` | emprego formal RAIS (1985–2025) e Novo CAGED (2020–2026) via FTP — ~1 277 tarefas (sob demanda) | [doc da fonte](docs/fontes/trabalho.md) |
 | `datasus` | indicadores de saúde — SIM, SINASC, SIH e CNES via FTP (DBC), 14 094 tarefas (sob demanda) | [doc da fonte](docs/fontes/datasus.md) |
+| `gfw` | desmatamento global — Tree Cover Loss e Wildfires por país (OWID/GFW, 2001–2024), 2 tarefas (sob demanda) | [doc da fonte](docs/fontes/gfw.md) |
 
 ## Como rodar
 
