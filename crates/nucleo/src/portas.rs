@@ -130,9 +130,9 @@ pub trait ArmazenamentoRaw: Send + Sync {
         resultado
     }
 
-    /// Apaga transferências que nunca terminaram, como as de um processo interrompido,
-    /// para que não ocupem disco. Uma ingestão em andamento perde a transferência atual e
-    /// a recomeça, então nenhum dado se perde.
+    /// Apaga transferências antigas que nunca terminaram, como as de um processo
+    /// interrompido, para que não ocupem disco. A implementação deve preservar
+    /// transferências recentes que podem pertencer a outra ingestão em andamento.
     async fn descartar_envios_incompletos(&self) -> Result<usize, ErroDeIngestao> {
         Ok(0)
     }
