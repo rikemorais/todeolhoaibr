@@ -3648,6 +3648,7 @@ name = "todeolho-infraestrutura"
 version = "0.114.1"
 dependencies = [
  "async-trait",
+ "chrono",
  "fs4",
  "futures",
  "reqwest",

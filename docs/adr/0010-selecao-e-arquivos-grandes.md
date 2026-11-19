@@ -48,7 +48,7 @@ etiqueta suas tarefas ganha tudo isso sem código específico, o que mantém o p
 - O envio é um multipart próprio, sequencial, com um buffer de 16 MiB por arquivo. O `put_object_stream` do `rust-s3` foi descartado porque dimensiona a
   concorrência pela memória livre da máquina, ignorando o limite do container.
 - Transferências que caem recomeçam o arquivo, até 3 vezes. O objeto só fica visível na Raw ao final.
-- Antes de cada execução, transferências interrompidas são descartadas. Sem isso, as partes de um processo morto ocupariam disco para sempre.
+- Antes de cada execução, uploads multipart com mais de 24 horas são descartados. A margem preserva transferências de outras execuções em andamento; uploads de processos interrompidos são recuperados após esse prazo.
 
 **Sem baixar de novo o que não mudou**
 
