@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EscolhaInicial"],"fn":["dimensoes","escolher","interpretar_numeros","perguntar_fontes","perguntar_numeros","tamanho","valores_com_tamanho"],"struct":["OpcaoDeFonte","OpcaoDeTarefa"],"type":["Escolha"]};
