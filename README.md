@@ -26,38 +26,57 @@ para consultar quando estiver diante de assuntos da sociedade.
 
 | Fonte | Recursos ingeridos | Documentação |
 | --- | --- | --- |
-| `ibge` | regiões, estados, municípios | [API de Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) |
-| `mapa_empresas` | empresas abertas, fechadas e ativas por município e UF (snapshots mensais desde maio de 2026) | [doc da fonte](docs/fontes/mapa-empresas.md) |
+| `ana` | ANA/SNIRH — inventário de estações hidrológicas (fluviométricas e pluviométricas) | |
+| `b3` | B3 COTAHIST — cotações históricas diárias da bolsa, de 1986 a 2026 | |
+| `bcb` | Banco Central — séries macro do SGS (juros, câmbio, inflação, atividade, crédito, fiscal) | |
+| `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
+| `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
+| `camara-tramitacoes` | histórico de tramitações das proposições da Câmara, por ano desde 2001 (sob demanda, volume alto) | [doc da fonte](docs/fontes/camara-tramitacoes.md) |
+| `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
+| `car` | Cadastro Ambiental Rural — perímetros de ~8,5M imóveis rurais por UF via WFS/SICAR (SHAPE-ZIP, sob demanda) | [doc da fonte](docs/fontes/car.md) |
+| `cnpj` | Receita Federal — Cadastro Nacional da Pessoa Jurídica (dados abertos) | |
+| `comex` | Comex Stat (MDIC) — comércio exterior por NCM e município, de 1997 a 2026 | |
+| `conab` | CONAB — séries de safra de grãos (levantamentos mensais, XLSX) | |
+| `cvm` | CVM — demonstrações financeiras de companhias abertas (DFP/ITR), de 2010 a 2026 | |
+| `datasus` | indicadores de saúde — SIM, SINASC, SIH e CNES via FTP (DBC), 14 094 tarefas (sob demanda) | [doc da fonte](docs/fontes/datasus.md) |
 | `emendas` | autoria/localidade/valores anuais na CGU e repasses municipais mensais do Tesouro (sob demanda; CGU requer token) | [doc da fonte](docs/fontes/emendas.md) |
 | `emendas-siga-brasil` | favorecidos e valores “Pago + RP” do painel público do Senado (sob demanda; sem credenciais) | [doc da fonte](docs/fontes/emendas.md) |
 | `energia` | ANEEL (tarifas, SIGA, geração distribuída) + EPE (BEN, consumo por classe) + ONS (balanço carga/geração por subsistema, 2000–2026), 36 tarefas (sob demanda) | [doc da fonte](docs/fontes/energia.md) |
+| `gfw` | desmatamento global — Tree Cover Loss e Wildfires por país (OWID/GFW, 2001–2024), 2 tarefas (sob demanda) | [doc da fonte](docs/fontes/gfw.md) |
+| `ibama` | fiscalização ambiental — autos de infração e termos de embargo, 16 tabelas CSV (sob demanda) | [doc da fonte](docs/fontes/ibama.md) |
+| `ibge` | regiões, estados, municípios | [API de Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) |
+| `ibge-agropecuaria` | PAM, PPM, LSPA e PEVS via SIDRA — 217 tarefas (sob demanda) | [doc da fonte](docs/fontes/ibge-agropecuaria.md) |
+| `ibge-demografia-empresas` | IBGE — Demografia das Empresas: natalidade, mortalidade e sobrevivência (SIDRA) | |
+| `ibge-pib-municipios` | IBGE — PIB dos Municípios e população residente estimada, por ano e município (desde 2001) | |
+| `ibge-renda-per-capita` | IBGE — Rendimento domiciliar per capita por município (Censos 2010 e 2022, API SIDRA) | |
+| `icmbio` | Unidades de Conservação (CNUC/MMA) — atributos semestrais e polígonos dos limites (2018–2026), 22 tarefas (sob demanda) | [doc da fonte](docs/fontes/icmbio.md) |
+| `incra` | imóveis rurais (SIGEF/SNCI) e assentamentos por UF (sob demanda) | [doc da fonte](docs/fontes/incra.md) |
+| `inep` | indicadores de educação — Censo Escolar (1995–2025), ENEM (1998–2025) e IDEB (2017–2025), 107 tarefas (sob demanda) | [doc da fonte](docs/fontes/inep.md) |
+| `inpe` | desmatamento PRODES/DETER e focos de calor Queimadas (sob demanda) | [doc da fonte](docs/fontes/inpe.md) |
+| `ipeadata` | Ipeadata — séries socioeconômicas regionais (IDHM, renda, Gini, pobreza, IVS) | |
 | `macro_intl` | IMF (WEO Oct/2026 + histórico) + OECD (Economic Outlook, GDP, CPI, desemprego, BoP via SDMX), 7 tarefas (sob demanda) | [doc da fonte](docs/fontes/macro-intl.md) |
+| `mapa_empresas` | empresas abertas, fechadas e ativas por município e UF (snapshots mensais desde maio de 2026) | [doc da fonte](docs/fontes/mapa-empresas.md) |
+| `mapbiomas` | cobertura do solo, desmatamento e vegetação secundária — Collection 11 (sob demanda) | [doc da fonte](docs/fontes/mapbiomas.md) |
+| `previdencia` | benefícios previdenciários do RGPS/INSS — concedidos, emitidos e mantidos (Jun/2023–Out/2026), 201 tarefas (sob demanda) | [doc da fonte](docs/fontes/previdencia.md) |
+| `remuneracao-estadual-go` | Dados Abertos Goiás — folha mensal de remuneração do Executivo estadual | |
+| `remuneracao-estadual-mg` | Catálogo de Dados Abertos de MG — remuneração do Executivo estadual por competência | |
+| `remuneracao-municipal-tce-ce` | TCE-CE — totais agregados de folhas municipais (competência 2025-12) | |
+| `seguranca` | Atlas da Violência (IPEA) — 11 séries OData de homicídios, suicídios e acidentes + 5 edições do Anuário FBSP em XLSX (sob demanda) | [doc da fonte](docs/fontes/seguranca.md) |
+| `seeg` | emissões de GEE (Observatório do Clima) — 2 arquivos XLSX, edição 14.0 (sob demanda) | [doc da fonte](docs/fontes/seeg.md) |
+| `senado-despesas` | Senado Federal — despesas da CEAPS, um arquivo por ano desde 2008 | |
+| `senado-parlamentares` | senadores, partidos, UFs e mandatos por legislatura desde 1991 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
+| `senado-processos` | processos legislativos do Senado, por ano desde 1826 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
+| `senado-processos-detalhes` | detalhes e histórico dos processos do Senado, por ano (sob demanda, volume alto) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
+| `senado-votacoes` | matérias e votos nominais do Senado, por ano (sob demanda) | [doc da fonte](docs/fontes/senado-votacoes.md) |
+| `trabalho` | emprego formal RAIS (1985–2025) e Novo CAGED (2020–2026) via FTP — ~1 277 tarefas (sob demanda) | [doc da fonte](docs/fontes/trabalho.md) |
 | `transparencia-beneficios` | Bolsa Família, Auxílio Brasil e BPC/LOAS por município e competência (sob demanda; requer token) | [doc da fonte](docs/fontes/beneficios-sociais.md) |
 | `transparencia-inativos` | inativos, pensionistas civis e militares, reserva e reforma do Executivo Federal (desde jan/2020, sob demanda) | [doc da fonte](docs/fontes/transparencia-inativos.md) |
 | `transparencia-servidores-ativos` | remuneração mensal de servidores civis ativos do Executivo Federal, SIAPE e BACEN (sob demanda) | [doc da fonte](docs/fontes/servidores-federais-ativos.md) |
-| `car` | Cadastro Ambiental Rural — perímetros de ~8,5M imóveis rurais por UF via WFS/SICAR (SHAPE-ZIP, sob demanda) | [doc da fonte](docs/fontes/car.md) |
-| `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
-| `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
-| `camara-votacoes` | proposições e votos nominais da Câmara, por ano (sob demanda) | [doc da fonte](docs/fontes/camara-votacoes.md) |
-| `camara-tramitacoes` | histórico de tramitações das proposições da Câmara, por ano desde 2001 (sob demanda, volume alto) | [doc da fonte](docs/fontes/camara-tramitacoes.md) |
-| `senado-votacoes` | matérias e votos nominais do Senado, por ano (sob demanda) | [doc da fonte](docs/fontes/senado-votacoes.md) |
-| `senado-processos` | processos legislativos do Senado, por ano desde 1826 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
-| `senado-processos-detalhes` | detalhes e histórico dos processos do Senado, por ano (sob demanda, volume alto) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
-| `senado-parlamentares` | senadores, partidos, UFs e mandatos por legislatura desde 1991 (sob demanda) | [doc das fontes do Senado](docs/fontes/senado-processos-e-parlamentares.md) |
 | `tse` | votos por seção eleitoral, de 1998 a 2026 (16,4 GB) | [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) |
-| `incra` | imóveis rurais (SIGEF/SNCI) e assentamentos por UF (sob demanda) | [doc da fonte](docs/fontes/incra.md) |
-| `inpe` | desmatamento PRODES/DETER e focos de calor Queimadas (sob demanda) | [doc da fonte](docs/fontes/inpe.md) |
-| `mapbiomas` | cobertura do solo, desmatamento e vegetação secundária — Collection 11 (sob demanda) | [doc da fonte](docs/fontes/mapbiomas.md) |
-| `inep` | indicadores de educação — Censo Escolar (1995–2025), ENEM (1998–2025) e IDEB (2017–2025), 107 tarefas (sob demanda) | [doc da fonte](docs/fontes/inep.md) |
-| `ibama` | fiscalização ambiental — autos de infração e termos de embargo, 16 tabelas CSV (sob demanda) | [doc da fonte](docs/fontes/ibama.md) |
-| `icmbio` | Unidades de Conservação (CNUC/MMA) — atributos semestrais e polígonos dos limites (2018–2026), 22 tarefas (sob demanda) | [doc da fonte](docs/fontes/icmbio.md) |
-| `ibge-agropecuaria` | PAM, PPM, LSPA e PEVS via SIDRA — 217 tarefas (sob demanda) | [doc da fonte](docs/fontes/ibge-agropecuaria.md) |
-| `seguranca` | Atlas da Violência (IPEA) — 11 séries OData de homicídios, suicídios e acidentes + 5 edições do Anuário FBSP em XLSX (sob demanda) | [doc da fonte](docs/fontes/seguranca.md) |
-| `seeg` | emissões de GEE (Observatório do Clima) — 2 arquivos XLSX, edição 14.0 (sob demanda) | [doc da fonte](docs/fontes/seeg.md) |
-| `previdencia` | benefícios previdenciários do RGPS/INSS — concedidos, emitidos e mantidos (Jun/2023–Out/2026), 201 tarefas (sob demanda) | [doc da fonte](docs/fontes/previdencia.md) |
-| `trabalho` | emprego formal RAIS (1985–2025) e Novo CAGED (2020–2026) via FTP — ~1 277 tarefas (sob demanda) | [doc da fonte](docs/fontes/trabalho.md) |
-| `datasus` | indicadores de saúde — SIM, SINASC, SIH e CNES via FTP (DBC), 14 094 tarefas (sob demanda) | [doc da fonte](docs/fontes/datasus.md) |
-| `gfw` | desmatamento global — Tree Cover Loss e Wildfires por país (OWID/GFW, 2001–2024), 2 tarefas (sob demanda) | [doc da fonte](docs/fontes/gfw.md) |
+| `tse-candidaturas` | TSE — candidaturas (desde 1994) e bens declarados dos candidatos (desde 2006), por eleição | |
+| `tse-prestacao-contas` | TSE — prestação de contas de campanha (receitas e despesas), um arquivo por eleição desde 2002 | |
+| `undp` | UNDP Human Development Report — IDH global e índices compostos por país | |
+| `world-bank` | World Bank Open Data — indicadores de desenvolvimento por país | |
 
 ## Como rodar
 
