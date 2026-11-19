@@ -56,6 +56,7 @@ do perímetro do imóvel em SIRGAS 2000 (EPSG:4674).
 - **Autenticação**: nenhuma (WFS público)
 - **Limite**: 1 requisição/segundo (conservador — UFs grandes são pesadas)
 - **Redirecionamento**: seguir
+- **TLS**: cliente nativo (OpenSSL). O GeoServer aceita uma suíte TLS 1.2 que o cliente Rustls não suporta; o certificado continua sendo validado.
 
 ## Padrão de URL
 

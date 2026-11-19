@@ -45,6 +45,10 @@ impl FonteDeDados for FonteCar {
         true
     }
 
+    fn usar_tls_nativo(&self) -> bool {
+        true
+    }
+
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
             credencial: None,
@@ -148,5 +152,10 @@ mod testes {
     #[test]
     fn nao_precisa_credencial() {
         assert!(FonteCar.perfil_http().credencial.is_none());
+    }
+
+    #[test]
+    fn usa_tls_nativo() {
+        assert!(FonteCar.usar_tls_nativo());
     }
 }
