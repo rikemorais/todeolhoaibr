@@ -9,6 +9,7 @@ pub mod conab;
 pub mod cvm;
 pub mod datasus;
 pub mod emendas;
+pub mod energia;
 pub mod gfw;
 pub mod ibama;
 pub mod ibge;
