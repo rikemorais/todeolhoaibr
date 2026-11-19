@@ -48,7 +48,7 @@ emite linhas flat com 5 colunas:
 
 ## Observações
 
-- O XLSX é baixado pelo endpoint Plone `%40%40download/file` publicado na página do levantamento. Se o portal recusar a consulta `HEAD` com HTTP 403, o cliente segue sem ETag/tamanho e tenta o `GET`; um 403 no próprio download continua sendo tratado como erro de acesso.
+- O XLSX é baixado pelo link de "Tabela de dados" publicado na página oficial do boletim. Os nomes variam entre levantamentos: parte de 2024/25 usa o slug `tabela-de-dados-producao-e-balanco-de-oferta-e-demanda-de-graos`, e alguns links não terminam em `.xlsx`. Se o portal recusar a consulta `HEAD` com HTTP 403, o cliente segue sem ETag/tamanho e tenta o `GET`; um 403 no próprio download continua sendo tratado como erro de acesso.
 - O portal antigo (`portaldeinformacoes.conab.gov.br`) está offline. Os boletins
   de safra estão disponíveis em `gov.br`.
 - Estoques e preços agrícolas não estão incluídos nesta fonte (portal offline).
