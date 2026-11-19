@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.117.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de dados de energia: ANEEL (tarifas homologadas, SIGA empreendimentos de geração, geração distribuída), EPE (consumo mensal por classe/UF, BEN capítulos 1–3 e 8 e Anexo I) e ONS (balanço de energia por subsistema horário, 2000–2026 — carga, geração hídrica/térmica/eólica/solar e intercâmbio), 36 tarefas sob demanda (issue #62).
+
 ## [0.116.1] - 2026-11-19
 
 ### Corrigido
