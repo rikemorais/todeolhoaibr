@@ -80,13 +80,17 @@ fn tarefas_censo_escolar() -> Vec<TarefaPlanejada> {
             };
             let url = format!("{BASE}/dados_abertos/{sufixo}");
             let ano_s = ano.to_string();
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
+            let mut tarefa = TarefaDeArquivo::nova(
                 format!("censo_escolar_{ano}"),
                 NOME,
                 format!("censo-escolar/ano={ano}"),
                 url,
-            ))
-            .com_etiquetas([("registro", "censo-escolar"), ("ano", &ano_s)])
+            );
+            if ano == ULTIMO_ANO_CENSO {
+                tarefa = tarefa.aceitar_ausencia();
+            }
+            TarefaPlanejada::nova(tarefa)
+                .com_etiquetas([("registro", "censo-escolar"), ("ano", &ano_s)])
         })
         .collect()
 }
@@ -96,13 +100,17 @@ fn tarefas_enem() -> Vec<TarefaPlanejada> {
         .map(|ano| {
             let url = format!("{BASE}/microdados/microdados_enem_{ano}.zip");
             let ano_s = ano.to_string();
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
+            let mut tarefa = TarefaDeArquivo::nova(
                 format!("enem_{ano}"),
                 NOME,
                 format!("enem/ano={ano}"),
                 url,
-            ))
-            .com_etiquetas([("registro", "enem"), ("ano", &ano_s)])
+            );
+            if ano == ULTIMO_ANO_ENEM {
+                tarefa = tarefa.aceitar_ausencia();
+            }
+            TarefaPlanejada::nova(tarefa)
+                .com_etiquetas([("registro", "enem"), ("ano", &ano_s)])
         })
         .collect()
 }
@@ -112,13 +120,17 @@ fn tarefas_enem_redacao() -> Vec<TarefaPlanejada> {
         .map(|ano| {
             let url = format!("{BASE}/microdados/competencias_redacao_enem_{ano}.zip");
             let ano_s = ano.to_string();
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
+            let mut tarefa = TarefaDeArquivo::nova(
                 format!("enem_redacao_{ano}"),
                 NOME,
                 format!("enem-redacao/ano={ano}"),
                 url,
-            ))
-            .com_etiquetas([("registro", "enem-redacao"), ("ano", &ano_s)])
+            );
+            if ano == ULTIMO_ANO_REDACAO {
+                tarefa = tarefa.aceitar_ausencia();
+            }
+            TarefaPlanejada::nova(tarefa)
+                .com_etiquetas([("registro", "enem-redacao"), ("ano", &ano_s)])
         })
         .collect()
 }
@@ -142,14 +154,17 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
             };
             for &stage in &STAGES_IDEB {
                 let url = format!("{BASE}/ideb/resultados/divulgacao_{stage}_{nivel}_{ano}{ext}");
+                let mut tarefa = TarefaDeArquivo::nova(
+                    format!("ideb_{nivel_slug}_{stage}_{ano}"),
+                    NOME,
+                    format!("ideb/{nivel_slug}/{stage}/edicao={ano}"),
+                    url,
+                );
+                if ano == *EDICOES_IDEB.last().unwrap() {
+                    tarefa = tarefa.aceitar_ausencia();
+                }
                 tarefas.push(
-                    TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                        format!("ideb_{nivel_slug}_{stage}_{ano}"),
-                        NOME,
-                        format!("ideb/{nivel_slug}/{stage}/edicao={ano}"),
-                        url,
-                    ))
-                    .com_etiquetas([
+                    TarefaPlanejada::nova(tarefa).com_etiquetas([
                         ("registro", "ideb"),
                         ("nivel", nivel_slug),
                         ("stage", stage),
@@ -160,14 +175,17 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
         }
 
         let url_brasil = format!("{BASE}/ideb/resultados/divulgacao_brasil_ideb_{ano}{ext}");
+        let mut tarefa_br = TarefaDeArquivo::nova(
+            format!("ideb_brasil_{ano}"),
+            NOME,
+            format!("ideb/brasil/edicao={ano}"),
+            url_brasil,
+        );
+        if ano == *EDICOES_IDEB.last().unwrap() {
+            tarefa_br = tarefa_br.aceitar_ausencia();
+        }
         tarefas.push(
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                format!("ideb_brasil_{ano}"),
-                NOME,
-                format!("ideb/brasil/edicao={ano}"),
-                url_brasil,
-            ))
-            .com_etiquetas([
+            TarefaPlanejada::nova(tarefa_br).com_etiquetas([
                 ("registro", "ideb"),
                 ("nivel", "brasil"),
                 ("ano", &ano_s),
@@ -175,14 +193,17 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
         );
 
         let url_regioes = format!("{BASE}/ideb/resultados/divulgacao_regioes_ufs_ideb_{ano}{ext}");
+        let mut tarefa_reg = TarefaDeArquivo::nova(
+            format!("ideb_regioes_ufs_{ano}"),
+            NOME,
+            format!("ideb/regioes-ufs/edicao={ano}"),
+            url_regioes,
+        );
+        if ano == *EDICOES_IDEB.last().unwrap() {
+            tarefa_reg = tarefa_reg.aceitar_ausencia();
+        }
         tarefas.push(
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                format!("ideb_regioes_ufs_{ano}"),
-                NOME,
-                format!("ideb/regioes-ufs/edicao={ano}"),
-                url_regioes,
-            ))
-            .com_etiquetas([
+            TarefaPlanejada::nova(tarefa_reg).com_etiquetas([
                 ("registro", "ideb"),
                 ("nivel", "regioes-ufs"),
                 ("ano", &ano_s),
@@ -200,12 +221,15 @@ fn tarefas_ideb() -> Vec<TarefaPlanejada> {
             "brasil"
         };
         tarefas.push(
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                format!("ideb_emi_{nivel}_2025"),
-                NOME,
-                format!("ideb/{nivel_slug}/ensino_medio_integrado/edicao=2025"),
-                url,
-            ))
+            TarefaPlanejada::nova(
+                TarefaDeArquivo::nova(
+                    format!("ideb_emi_{nivel}_2025"),
+                    NOME,
+                    format!("ideb/{nivel_slug}/ensino_medio_integrado/edicao=2025"),
+                    url,
+                )
+                .aceitar_ausencia(),
+            )
             .com_etiquetas([
                 ("registro", "ideb"),
                 ("nivel", nivel_slug),
@@ -265,13 +289,18 @@ mod testes {
 
     #[test]
     fn censo_2025_url_tem_underscore_extra() {
-        let t = tarefas();
-        let censo_2025 = t
-            .iter()
-            .find(|t| t.tarefa.nome() == "censo_escolar_2025")
-            .expect("censo_escolar_2025 deve existir");
-        let nome = censo_2025.tarefa.nome();
-        assert_eq!(nome, "censo_escolar_2025");
+        let url_esperada = format!(
+            "{BASE}/dados_abertos/microdados_censo_escolar_2025_.zip"
+        );
+        assert!(
+            url_esperada.contains("_2025_.zip"),
+            "URL do censo 2025 deveria conter _2025_.zip"
+        );
+        assert!(
+            !url_esperada.contains("_2025.zip")
+                || url_esperada.contains("_2025_.zip"),
+            "URL não deve ter o padrão padrão _2025.zip sem o underscore extra"
+        );
     }
 
     #[test]
