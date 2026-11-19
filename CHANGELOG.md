@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.118.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de macro internacional comparado: IMF (WEO Oct/2026 completo e arquivo histórico em XLSX) e OECD (Economic Outlook 119, GDP anual, CPI, desemprego mensal e balanço de pagamentos via SDMX REST em CSV), 7 tarefas sob demanda (issue #65).
+
 ## [0.117.0] - 2026-11-19
 
 ### Adicionado
