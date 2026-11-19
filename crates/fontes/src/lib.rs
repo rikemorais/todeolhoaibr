@@ -26,6 +26,7 @@ pub use fontes::conab::FonteConab;
 pub use fontes::cvm::FonteCvm;
 pub use fontes::datasus::FonteDataSus;
 pub use fontes::emendas::FonteEmendas;
+pub use fontes::energia::FonteEnergia;
 pub use fontes::gfw::FonteGfw;
 pub use fontes::ibama::FonteIbama;
 pub use fontes::ibge::{
@@ -89,6 +90,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteMapBiomas),
         Box::new(FonteCvm),
         Box::new(FonteEmendas),
+        Box::new(FonteEnergia),
         Box::new(FonteIpeadata),
         Box::new(FonteCamara),
         Box::new(FonteCamaraDespesas),
