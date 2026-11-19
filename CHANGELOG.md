@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.110.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de indicadores educacionais do INEP: 107 tarefas sob demanda para Censo Escolar (1995–2025, 31 ZIP), ENEM microdados (1998–2025, 28 ZIP) + competências da redação (2019–2024, 6 ZIP) e IDEB (2017–2025 bienal, 42 XLSX/ZIP por escola, município, UF e Brasil, incluindo ensino médio integrado 2025) (issue #59).
+
 ## [0.109.0] - 2026-11-18
 
 ### Adicionado
