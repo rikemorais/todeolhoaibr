@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.115.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de inativos, pensionistas civis e militares, reserva e reforma do Portal da Transparência: 6 tipos de planilha mensal — aposentados (SIAPE/BACEN), pensionistas civis (SIAPE/BACEN), pensionistas militares (Defesa) e reserva/reforma, série desde jan/2020 (issue #51).
+
 ## [0.114.1] - 2026-11-19
 
 ### Corrigido
