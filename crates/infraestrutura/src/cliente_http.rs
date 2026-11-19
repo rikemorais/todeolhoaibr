@@ -73,12 +73,27 @@ impl ClienteHttpComRetentativas {
         perfil: PerfilHttp,
         segredo: Option<&str>,
     ) -> Result<Self, ErroDeIngestao> {
+        Self::com_perfil_e_tls(politica, perfil, segredo, false)
+    }
+
+    /// Usa TLS nativo somente para fontes cujo servidor exige suítes legadas.
+    pub fn com_perfil_e_tls(
+        politica: PoliticaDeRetentativas,
+        perfil: PerfilHttp,
+        segredo: Option<&str>,
+        tls_nativo: bool,
+    ) -> Result<Self, ErroDeIngestao> {
         let agente = perfil.agente.unwrap_or(AGENTE);
         let mut construtor = reqwest::Client::builder()
             .user_agent(agente)
             .connect_timeout(TEMPO_DE_CONEXAO)
             .read_timeout(TEMPO_SEM_DADOS)
             .danger_accept_invalid_certs(perfil.aceitar_certificado_invalido);
+        construtor = if tls_nativo {
+            construtor.use_native_tls()
+        } else {
+            construtor.use_rustls_tls()
+        };
 
         let host_da_credencial = if let Some(credencial) = perfil.credencial {
             let valor = segredo

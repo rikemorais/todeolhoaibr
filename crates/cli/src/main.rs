@@ -129,6 +129,7 @@ struct FonteSelecionada {
     nome: String,
     tarefas: Vec<TarefaPlanejada>,
     perfil_http: PerfilHttp,
+    tls_nativo: bool,
 }
 
 #[tokio::main]
@@ -241,6 +242,7 @@ async fn selecionar() -> Result<bool> {
         selecionadas.push(FonteSelecionada {
             nome: fonte.nome().to_owned(),
             perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+            tls_nativo: fonte.usar_tls_nativo(),
             tarefas,
         });
     }
@@ -272,7 +274,8 @@ async fn estimar_tarefas_por_perfil(
 
     let mut estimativas = vec![None; tarefas.len()];
     for (perfil, grupo) in grupos {
-        let Ok(contexto_da_fonte) = contexto_para_fonte(contexto, perfil) else {
+        let Ok(contexto_da_fonte) = contexto_para_fonte(contexto, perfil, fonte.usar_tls_nativo())
+        else {
             continue;
         };
         let tarefas_do_grupo: Vec<_> = grupo.iter().map(|(_, tarefa)| Arc::clone(tarefa)).collect();
@@ -327,6 +330,7 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
                     FonteSelecionada {
                         nome: fonte.nome().to_owned(),
                         perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                        tls_nativo: fonte.usar_tls_nativo(),
                         tarefas,
                     }
                 })
@@ -339,6 +343,7 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
             vec![FonteSelecionada {
                 nome,
                 perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                tls_nativo: fonte.usar_tls_nativo(),
                 tarefas,
             }]
         }
@@ -374,15 +379,20 @@ async fn preparar_contexto() -> Result<ContextoDeExecucao> {
 fn contexto_para_fonte(
     contexto: &ContextoDeExecucao,
     perfil: PerfilHttp,
+    tls_nativo: bool,
 ) -> Result<ContextoDeExecucao> {
     let segredo = perfil
         .credencial
         .map(|credencial| obrigatoria(credencial.variavel))
         .transpose()?;
     let politica = PoliticaDeRetentativas::default();
-    let http: Arc<dyn todeolho_nucleo::ClienteHttp> = Arc::new(
-        ClienteHttpComRetentativas::com_perfil(politica, perfil, segredo.as_deref())?,
-    );
+    let http: Arc<dyn todeolho_nucleo::ClienteHttp> =
+        Arc::new(ClienteHttpComRetentativas::com_perfil_e_tls(
+            politica,
+            perfil,
+            segredo.as_deref(),
+            tls_nativo,
+        )?);
     let ftp: Arc<dyn todeolho_nucleo::ClienteHttp> = Arc::new(ClienteFtp::novo(politica));
     Ok(ContextoDeExecucao {
         http: Arc::new(ClienteDespacho::novo(http, ftp)),
@@ -400,7 +410,8 @@ async fn executar(
     let mut contextos = Vec::with_capacity(selecionadas.len());
     let mut estimativas = Vec::new();
     for fonte in selecionadas {
-        let contexto_da_fonte = contexto_para_fonte(&contexto, fonte.perfil_http)?;
+        let contexto_da_fonte =
+            contexto_para_fonte(&contexto, fonte.perfil_http, fonte.tls_nativo)?;
         estimativas.extend(
             estimar(
                 &tarefas_de(&fonte.tarefas),
