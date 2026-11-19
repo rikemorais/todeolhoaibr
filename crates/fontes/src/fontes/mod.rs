@@ -2,6 +2,7 @@ pub mod ana;
 pub mod b3;
 pub mod bcb;
 pub mod camara;
+pub mod car;
 pub mod cnpj;
 pub mod comex;
 pub mod conab;
