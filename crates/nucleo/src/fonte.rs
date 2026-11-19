@@ -78,6 +78,11 @@ pub trait FonteDeDados: Send + Sync {
         PerfilHttp::default()
     }
 
+    /// Usa o TLS do sistema quando o servidor exige uma suíte não oferecida pelo Rustls.
+    fn usar_tls_nativo(&self) -> bool {
+        false
+    }
+
     /// Declara o perfil HTTP necessário pelas tarefas selecionadas.
     ///
     /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
