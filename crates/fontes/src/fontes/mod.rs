@@ -10,6 +10,7 @@ pub mod emendas;
 pub mod ibama;
 pub mod ibge;
 pub mod incra;
+pub mod inep;
 pub mod inpe;
 pub mod ipeadata;
 pub mod mapa_empresas;

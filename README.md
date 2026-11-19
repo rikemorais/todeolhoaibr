@@ -44,6 +44,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `incra` | imóveis rurais (SIGEF/SNCI) e assentamentos por UF (sob demanda) | [doc da fonte](docs/fontes/incra.md) |
 | `inpe` | desmatamento PRODES/DETER e focos de calor Queimadas (sob demanda) | [doc da fonte](docs/fontes/inpe.md) |
 | `mapbiomas` | cobertura do solo, desmatamento e vegetação secundária — Collection 11 (sob demanda) | [doc da fonte](docs/fontes/mapbiomas.md) |
+| `inep` | indicadores de educação — Censo Escolar (1995–2025), ENEM (1998–2025) e IDEB (2017–2025), 107 tarefas (sob demanda) | [doc da fonte](docs/fontes/inep.md) |
 | `ibama` | fiscalização ambiental — autos de infração e termos de embargo, 16 tabelas CSV (sob demanda) | [doc da fonte](docs/fontes/ibama.md) |
 | `ibge-agropecuaria` | PAM, PPM, LSPA e PEVS via SIDRA — 217 tarefas (sob demanda) | [doc da fonte](docs/fontes/ibge-agropecuaria.md) |
 | `seeg` | emissões de GEE (Observatório do Clima) — 2 arquivos XLSX, edição 14.0 (sob demanda) | [doc da fonte](docs/fontes/seeg.md) |
