@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.111.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de indicadores de saúde do DATASUS via FTP: 14 094 tarefas sob demanda para SIM DORES e DOFET (1996–2023, 1 512 DBC), SINASC DN (1996–2023, 756 DBC), SIH RD (2008-01 a 2024-12, 5 508 DBC) e CNES ST (2005-08 a 2025-01, 6 318 DBC), todos por UF em formato DBC (issue #60).
+
 ## [0.110.0] - 2026-11-19
 
 ### Adicionado
