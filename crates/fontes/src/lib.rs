@@ -27,6 +27,7 @@ pub use fontes::cvm::FonteCvm;
 pub use fontes::datasus::FonteDataSus;
 pub use fontes::emendas::FonteEmendas;
 pub use fontes::energia::FonteEnergia;
+pub use fontes::fao::FonteFao;
 pub use fontes::gfw::FonteGfw;
 pub use fontes::ibama::FonteIbama;
 pub use fontes::ibge::{
@@ -96,6 +97,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteCvm),
         Box::new(FonteEmendas),
         Box::new(FonteEnergia),
+        Box::new(FonteFao),
         Box::new(FonteIpeadata),
         Box::new(FonteMacroIntl),
         Box::new(FonteCamara),
