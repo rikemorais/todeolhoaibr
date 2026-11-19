@@ -50,6 +50,7 @@ pub use fontes::senado::{
 pub use fontes::tce_ce::FonteRemuneracaoMunicipalTceCe;
 pub use fontes::trabalho::FonteTrabalho;
 pub use fontes::transparencia::FonteTransparenciaBeneficios;
+pub use fontes::transparencia_inativos::FonteTransparenciaInativos;
 pub use fontes::transparencia_servidores::FonteTransparenciaServidoresAtivos;
 pub use fontes::tse::{FonteTse, FonteTseCandidaturas, FonteTsePrestacaoContas};
 pub use fontes::undp::FonteUndp;
@@ -106,6 +107,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteGfw),
         Box::new(FonteRemuneracaoMunicipalTceCe),
         Box::new(FonteTransparenciaBeneficios),
+        Box::new(FonteTransparenciaInativos),
         Box::new(FonteTransparenciaServidoresAtivos),
         Box::new(FonteTse),
         Box::new(FonteTsePrestacaoContas),
