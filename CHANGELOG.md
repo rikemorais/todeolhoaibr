@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.116.1] - 2026-11-19
+
+### Corrigido
+
+- A fonte CAR usa TLS nativo para negociar a suíte aceita pelo GeoServer do SICAR, preservando a validação do certificado.
+
 ## [0.116.0] - 2026-11-19
 
 ### Adicionado
