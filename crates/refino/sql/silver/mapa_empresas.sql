@@ -2,7 +2,7 @@
 -- Uma observação mensal por UF, com contagens tipadas e saldo derivado.
 WITH entrada AS (
     SELECT
-        NULLIF(TRIM(periodo), '') AS periodo,
+        NULLIF(TRIM(split_part(split_part(_tdoa_origem_manifesto, '/periodo=', 2), '/', 1)), '') AS periodo,
         TRY_CAST(NULLIF(TRIM(dt_referencia), '') AS BIGINT) AS referencia_excel,
         TRY_CAST(NULLIF(TRIM(dt_geracao), '') AS BIGINT) AS geracao_excel,
         NULLIF(TRIM(cod_ibge), '') AS codigo_ibge,
