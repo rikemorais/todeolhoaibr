@@ -86,6 +86,56 @@ impl SnapshotBronze {
         }))
     }
 
+    /// Localiza o snapshot Bronze imediatamente anterior ao vigente para o mesmo
+    /// recurso. Retorna `None` se só existe um snapshot (sem histórico para comparar).
+    pub async fn anterior(
+        armazenamento: &dyn ArmazenamentoRaw,
+        fonte: &str,
+        recurso: &str,
+        chave_manifesto_vigente: &str,
+    ) -> Result<Option<Self>, ErroDeSnapshotBronze> {
+        let prefixo = format!("{fonte}/{recurso}/");
+        let chaves = armazenamento.listar_prefixo(&prefixo).await?;
+        let chaves_manifesto: Vec<&str> = chaves
+            .iter()
+            .filter(|c| c.ends_with("/_manifesto.json"))
+            .map(String::as_str)
+            .collect();
+
+        let mut manifestos: Vec<(String, ManifestoRaw)> = Vec::new();
+        for chave in chaves_manifesto {
+            let Some(bytes) = armazenamento.ler(chave).await? else {
+                continue;
+            };
+            let Ok(manifesto) = serde_json::from_slice::<ManifestoRaw>(&bytes) else {
+                continue;
+            };
+            if manifesto.fonte != fonte || manifesto.recurso != recurso {
+                continue;
+            }
+            manifestos.push((chave.to_owned(), manifesto));
+        }
+
+        manifestos.sort_by_key(|a| std::cmp::Reverse(a.1.concluida_em));
+
+        let posicao_vigente = manifestos
+            .iter()
+            .position(|(chave, _)| chave == chave_manifesto_vigente);
+        let Some(posicao) = posicao_vigente else {
+            return Ok(None);
+        };
+        let Some((chave_anterior, manifesto_anterior)) = manifestos.get(posicao + 1) else {
+            return Ok(None);
+        };
+        if manifesto_anterior.partes.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            chave_manifesto: chave_anterior.clone(),
+            manifesto: manifesto_anterior.clone(),
+        }))
+    }
+
     /// Chave do manifesto que identifica esta versão bronze.
     pub fn chave_manifesto(&self) -> &str {
         &self.chave_manifesto
@@ -494,6 +544,161 @@ mod testes {
                 .await
                 .unwrap()
         );
+    }
+
+    struct ArmazenamentoComListagem {
+        objetos: BTreeMap<String, Vec<u8>>,
+    }
+
+    #[async_trait]
+    impl ArmazenamentoRaw for ArmazenamentoComListagem {
+        async fn preparar(&self) -> Result<(), ErroDeIngestao> {
+            Ok(())
+        }
+        async fn gravar(&self, _: ObjetoRaw) -> Result<(), ErroDeIngestao> {
+            unreachable!()
+        }
+        async fn gravar_fluxo(
+            &self,
+            _: &str,
+            _: &str,
+            _: &mut (dyn AsyncRead + Send + Unpin),
+        ) -> Result<(), ErroDeIngestao> {
+            unreachable!()
+        }
+        async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
+            Ok(self.objetos.get(chave).cloned())
+        }
+        async fn ler_fluxo(
+            &self,
+            chave: &str,
+            escrita: &mut (dyn AsyncWrite + Send + Unpin),
+        ) -> Result<bool, ErroDeIngestao> {
+            let Some(bytes) = self.objetos.get(chave) else {
+                return Ok(false);
+            };
+            escrita
+                .write_all(bytes)
+                .await
+                .map_err(|erro| ErroDeIngestao::Armazenamento {
+                    chave: chave.to_owned(),
+                    detalhe: erro.to_string(),
+                })?;
+            Ok(true)
+        }
+        async fn listar_prefixo(&self, prefixo: &str) -> Result<Vec<String>, ErroDeIngestao> {
+            Ok(self
+                .objetos
+                .keys()
+                .filter(|k| k.starts_with(prefixo))
+                .cloned()
+                .collect())
+        }
+    }
+
+    fn fixture_dupla() -> (ArmazenamentoComListagem, String, String) {
+        let instante_ant = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+        let instante_vig = Utc.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap();
+        let parquet = Tabela::nova(["cnpj_basico", "razao_social"])
+            .com_linha([Some("111".into()), Some("A".into())])
+            .para_parquet()
+            .unwrap();
+        let sha = hex::encode(Sha256::digest(&parquet));
+
+        let parte_ant = "cnpj/empresas/data=2024-01/execucao=ant/parte-00001.parquet";
+        let manifesto_ant_chave = "cnpj/empresas/data=2024-01/execucao=ant/_manifesto.json";
+        let parte_vig = "cnpj/empresas/data=2024-02/execucao=vig/parte-00001.parquet";
+        let manifesto_vig_chave = "cnpj/empresas/data=2024-02/execucao=vig/_manifesto.json";
+
+        let manifesto_ant = ManifestoRaw {
+            fonte: "cnpj".into(),
+            recurso: "empresas".into(),
+            id_execucao: "ant".into(),
+            url_inicial: "raw/cnpj/empresas".into(),
+            iniciada_em: instante_ant,
+            concluida_em: instante_ant,
+            partes: vec![ParteRaw {
+                chave: parte_ant.into(),
+                url: "Empresas0.zip".into(),
+                bytes: parquet.len() as u64,
+                sha256: sha.clone(),
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                versao: None,
+            }],
+        };
+        let manifesto_vig = ManifestoRaw {
+            fonte: "cnpj".into(),
+            recurso: "empresas".into(),
+            id_execucao: "vig".into(),
+            url_inicial: "raw/cnpj/empresas".into(),
+            iniciada_em: instante_vig,
+            concluida_em: instante_vig,
+            partes: vec![ParteRaw {
+                chave: parte_vig.into(),
+                url: "Empresas0.zip".into(),
+                bytes: parquet.len() as u64,
+                sha256: sha.clone(),
+                tipo_de_conteudo: "application/vnd.apache.parquet".into(),
+                versao: None,
+            }],
+        };
+        let ponteiro = UltimaVersao {
+            versao: None,
+            manifesto: manifesto_vig_chave.into(),
+            iniciada_em: Some(instante_vig),
+        };
+        let objetos = BTreeMap::from([
+            (
+                LocalizacaoRaw::ultima_versao("cnpj", "empresas"),
+                serde_json::to_vec(&ponteiro).unwrap(),
+            ),
+            (
+                manifesto_ant_chave.into(),
+                serde_json::to_vec(&manifesto_ant).unwrap(),
+            ),
+            (
+                manifesto_vig_chave.into(),
+                serde_json::to_vec(&manifesto_vig).unwrap(),
+            ),
+            (parte_ant.into(), parquet.clone()),
+            (parte_vig.into(), parquet),
+        ]);
+        (
+            ArmazenamentoComListagem { objetos },
+            manifesto_vig_chave.into(),
+            manifesto_ant_chave.into(),
+        )
+    }
+
+    #[tokio::test]
+    async fn anterior_encontra_snapshot_mais_recente_antes_do_vigente() {
+        let (armazenamento, chave_vig, chave_ant) = fixture_dupla();
+        let anterior = SnapshotBronze::anterior(&armazenamento, "cnpj", "empresas", &chave_vig)
+            .await
+            .unwrap();
+        assert!(anterior.is_some());
+        assert_eq!(anterior.unwrap().chave_manifesto(), chave_ant);
+    }
+
+    #[tokio::test]
+    async fn anterior_retorna_none_quando_so_existe_um_snapshot() {
+        let (mut armazenamento, chave_vig, chave_ant) = fixture_dupla();
+        let parte_ant = "cnpj/empresas/data=2024-01/execucao=ant/parte-00001.parquet";
+        armazenamento.objetos.remove(&chave_ant);
+        armazenamento.objetos.remove(parte_ant);
+        let anterior = SnapshotBronze::anterior(&armazenamento, "cnpj", "empresas", &chave_vig)
+            .await
+            .unwrap();
+        assert!(anterior.is_none());
+    }
+
+    #[tokio::test]
+    async fn anterior_ignora_manifestos_de_outro_recurso() {
+        let (armazenamento, chave_vig, _) = fixture_dupla();
+        let anterior = SnapshotBronze::anterior(&armazenamento, "cnpj", "socios", &chave_vig)
+            .await
+            .unwrap();
+        assert!(anterior.is_none());
     }
 
     #[tokio::test]

@@ -60,6 +60,7 @@ pub use silver::camara_votacoes::ConjuntoCamaraVotacoes;
 pub use silver::camara_votacoes::{ErroCamaraVotacoesSilver, validar_camara_votacoes};
 pub use silver::cnpj_empresas::{SQL_CNPJ_EMPRESAS, esquema_cnpj_empresas};
 pub use silver::cnpj_estabelecimentos::{SQL_CNPJ_ESTABELECIMENTOS, esquema_cnpj_estabelecimentos};
+pub use silver::cnpj_eventos::{SQL_CNPJ_EVENTOS_EMPRESAS, esquema_cnpj_eventos};
 pub use silver::cnpj_simples::{SQL_CNPJ_SIMPLES, esquema_cnpj_simples};
 pub use silver::cnpj_socios::{SQL_CNPJ_SOCIOS, esquema_cnpj_socios};
 pub use silver::emendas::{
@@ -93,6 +94,7 @@ pub use silver::senado_votos::esquema_senado_votos;
 #[cfg(test)]
 pub use silver::senado_votos::{ErroSenadoVotosSilver, transformar_senado_votos};
 pub use silver::tarefa_bcb::TarefaDeSilverBcb;
+pub use silver::tarefa_cnpj_eventos::TarefaDeSilverCnpjEventos;
 pub use silver::tarefa_ibge_renda_per_capita::{
     TarefaDeSilverIbgeRendaPerCapita, publicar_ibge_renda_per_capita,
 };
