@@ -8,7 +8,7 @@
 //! **ID do manifesto Raw** (`versao`) e, quando necessária, a versão da regra:
 //! reexecutar só reprocessa quando uma nova captura ou regra for publicada.
 
-use std::io::Read;
+use std::io::{BufReader, Read};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -215,19 +215,31 @@ impl Tarefa for TarefaDeBronze {
         let mut total_bytes = 0u64;
         for (indice, conteudo) in conteudos.into_iter().enumerate() {
             let chave = local.parte(indice + 1, "parquet");
-            // Lê o Parquet do arquivo temporário só na hora de enviar: uma parte por vez na
-            // memória, não todas de uma vez (ver issue #164).
-            let parquet = std::fs::read(&conteudo.parquet)
+            let arquivo = std::fs::File::open(&conteudo.parquet)
                 .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
-            let bytes = parquet.len() as u64;
+            let bytes = arquivo
+                .metadata()
+                .map_err(|erro| self.erro_manifesto(erro.to_string()))?
+                .len();
             total_bytes += bytes;
-            let sha256 = hex::encode(Sha256::digest(&parquet));
+            let mut digest = Sha256::new();
+            let mut leitor = BufReader::new(arquivo);
+            let mut buffer = [0u8; 64 * 1024];
+            loop {
+                let lidos = leitor
+                    .read(&mut buffer)
+                    .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
+                if lidos == 0 {
+                    break;
+                }
+                digest.update(&buffer[..lidos]);
+            }
+            let sha256 = hex::encode(digest.finalize());
+            let mut fluxo = tokio::fs::File::open(&conteudo.parquet)
+                .await
+                .map_err(|erro| self.erro_manifesto(erro.to_string()))?;
             bronze
-                .gravar(ObjetoRaw {
-                    chave: chave.clone(),
-                    conteudo: parquet,
-                    tipo_de_conteudo: TIPO_PARQUET.to_owned(),
-                })
+                .gravar_fluxo(&chave, TIPO_PARQUET, &mut fluxo)
                 .await?;
             partes.push(ParteRaw {
                 chave,
