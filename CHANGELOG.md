@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.123.0] - 2026-11-20
+
+### Corrigido
+
+- O CAR consulta a contagem de imóveis no WFS e baixa todas as páginas, inclusive a última parcial. O layout Raw passa a ser `car/imoveis/{UF}/pagina={NNNN}` para evitar os ZIPs truncados em 10 mil feições por UF.
+
 ## [0.122.0] - 2026-11-19
 
 ### Adicionado
