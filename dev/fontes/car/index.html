@@ -1971,14 +1971,16 @@ Atualização: contínua · Licença: dados públicos (SFB/MMA)</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Total: ~8,5 milhões de imóveis em 27 tarefas (uma por UF), sob demanda.</strong></p>
+<p><strong>Total: ~8,5 milhões de imóveis em 27 tarefas (uma por UF), sob demanda.</strong> Cada tarefa grava páginas de até 10 mil imóveis como recursos Raw separados.</p>
 <h2 id="sobre-a-fonte">Sobre a fonte<a class="headerlink" href="#sobre-a-fonte" title="Permanent link">&para;</a></h2>
 <p>O <a href="https://www.car.gov.br/">SICAR</a> (Sistema Nacional de Cadastro Ambiental Rural)
 registra a situação ambiental dos imóveis rurais brasileiros: perímetro do imóvel,
 reserva legal, APP, uso consolidado e vegetação nativa.</p>
 <p>O download é feito via WFS (Web Feature Service) público do GeoServer do SICAR,
 sem captcha e sem credenciais. Cada UF é uma layer WFS
-(<code>sicar:sicar_imoveis_{uf}</code>) servida em SHAPE-ZIP.</p>
+(<code>sicar:sicar_imoveis_{uf}</code>) servida em SHAPE-ZIP. O servidor limita cada resposta
+a 10 mil imóveis. A tarefa consulta <code>resultType=hits</code> e percorre as páginas com
+<code>count=10000</code> e <code>startIndex</code>, publicando um ZIP por página.</p>
 <h3 id="atributos-por-imovel">Atributos por imóvel<a class="headerlink" href="#atributos-por-imovel" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2045,7 +2047,7 @@ do perímetro do imóvel em SIRGAS 2000 (EPSG:4674).</p>
 <li><strong>TLS</strong>: cliente nativo (OpenSSL). O GeoServer aceita uma suíte TLS 1.2 que o cliente Rustls não suporta; o certificado continua sendo validado.</li>
 </ul>
 <h2 id="padrao-de-url">Padrão de URL<a class="headerlink" href="#padrao-de-url" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>https://geoserver.car.gov.br/geoserver/sicar/wfs?service=WFS&amp;version=2.0.0&amp;request=GetFeature&amp;typeNames=sicar:sicar_imoveis_{uf}&amp;outputFormat=SHAPE-ZIP
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>https://geoserver.car.gov.br/geoserver/sicar/wfs?service=WFS&amp;version=2.0.0&amp;request=GetFeature&amp;typeNames=sicar:sicar_imoveis_{uf}&amp;outputFormat=SHAPE-ZIP&amp;count=10000&amp;startIndex={inicio}
 </code></pre></div>
 <h2 id="comandos">Comandos<a class="headerlink" href="#comandos" title="Permanent link">&para;</a></h2>
 <p>Para baixar todas as UFs:</p>
@@ -2058,10 +2060,13 @@ do perímetro do imóvel em SIRGAS 2000 (EPSG:4674).</p>
 <ul>
 <li><strong>Dado geoespacial</strong>: a Raw guarda o SHAPE-ZIP bruto (vetor + atributos),
   imutável. Processamento geoespacial fica nas camadas seguintes.</li>
+<li><strong>Layout Raw</strong>: <code>car/imoveis/{UF}/pagina={NNNN}</code>. Os objetos antigos em
+  <code>car/imoveis/{UF}</code> contêm só a primeira página e não são usados pela tarefa
+  paginada; devem ser desconsiderados por consumidores da Raw.</li>
 <li><strong>Volume alto</strong>: BA e MG têm mais de 1 milhão de features cada. O download
   completo de uma UF grande pode levar vários minutos.</li>
-<li>O WFS suporta paginação (<code>startIndex</code> + <code>count</code>) se for necessário
-  parcelar downloads no futuro.</li>
+<li>Cada página tem manifesto próprio. Uma execução interrompida reaproveita as
+  páginas já publicadas quando a origem confirma que não mudaram.</li>
 </ul>
 
 
