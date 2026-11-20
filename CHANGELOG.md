@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.122.0] - 2026-11-19
+
+### Adicionado
+
+- Ingestão de bolsas globais via FRED: 15 séries diárias — S&P 500, DJIA, NASDAQ, Nikkei 225, câmbio (USD/EUR, JPY, BRL, CNY, CAD, CHF, MXN, índice ponderado), VIX, petróleo WTI e Brent (issue #68).
+
 ## [0.121.0] - 2026-11-19
 
 ### Adicionado
