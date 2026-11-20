@@ -48,6 +48,10 @@ docker compose run --rm refino refinar bronze mapa_empresas
 
 O decodificador seleciona o bloco estadual da aba `Abertas, Fechadas e Ativas`, valida
 que as 27 UFs estão presentes uma vez cada e publica `bronze_mapa_empresas_movimentacao`.
+Nos arquivos de maio a julho de 2026, o bloco estadual traz apenas `Estado` no
+formato `Nome - UF`; o Bronze extrai a sigla desse campo. A partir de agosto, usa
+a coluna `UF` publicada diretamente. A tabela Bronze tem o mesmo esquema nos
+dois layouts.
 O caminho acrescenta a coluna de partição `periodo`, que pode ser combinada com a UF:
 
 ```sql
