@@ -380,11 +380,23 @@ mod testes {
         }
         async fn gravar_fluxo(
             &self,
-            _: &str,
-            _: &str,
-            _: &mut (dyn tokio::io::AsyncRead + Send + Unpin),
+            chave: &str,
+            tipo_de_conteudo: &str,
+            fluxo: &mut (dyn tokio::io::AsyncRead + Send + Unpin),
         ) -> Result<(), ErroDeIngestao> {
-            unimplemented!("o bronze não grava por fluxo")
+            let mut conteudo = Vec::new();
+            tokio::io::AsyncReadExt::read_to_end(fluxo, &mut conteudo)
+                .await
+                .map_err(|erro| ErroDeIngestao::Armazenamento {
+                    chave: chave.to_owned(),
+                    detalhe: erro.to_string(),
+                })?;
+            self.gravar(ObjetoRaw {
+                chave: chave.to_owned(),
+                conteudo,
+                tipo_de_conteudo: tipo_de_conteudo.to_owned(),
+            })
+            .await
         }
         async fn ler(&self, chave: &str) -> Result<Option<Vec<u8>>, ErroDeIngestao> {
             if chave.ends_with("_ultima_versao.json")
