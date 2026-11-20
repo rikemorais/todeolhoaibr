@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.124.0] - 2026-11-20
+
+### Adicionado
+
+- Silver CNPJ: tabela de eventos — diff entre snapshots Bronze consecutivos da tabela de empresas. Detecta aberturas, fechamentos e alterações campo a campo via `SnapshotBronze::anterior` + `executar_sql_duplo` (issue #431).
+
 ## [0.123.0] - 2026-11-20
 
 ### Corrigido
