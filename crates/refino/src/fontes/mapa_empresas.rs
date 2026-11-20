@@ -18,6 +18,15 @@ const COLUNAS: [&str; 8] = [
     "Empresas Fechadas",
     "Empresas Ativas",
 ];
+const COLUNAS_SEM_UF: [&str; 7] = [
+    "dt_referencia",
+    "dt_geracao",
+    "cod_ibge",
+    "Estado",
+    "Empresas Abertas",
+    "Empresas Fechadas",
+    "Empresas Ativas",
+];
 const UFS: [&str; 27] = [
     "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE",
     "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
@@ -42,30 +51,48 @@ impl Decodificador for DecodificadorMapaEmpresas {
         let cabecalho = linhas.next().ok_or_else(|| {
             ErroDeRefino::Decodificacao("planilha do Mapa de Empresas sem cabeçalho".into())
         })?;
-        let inicio = (0..cabecalho.len())
-            .find(|inicio| {
-                cabecalho
-                    .get(*inicio..inicio.saturating_add(COLUNAS.len()))
-                    .is_some_and(|celulas| {
-                        celulas
-                            .iter()
-                            .map(ToString::to_string)
-                            .eq(COLUNAS.iter().map(|coluna| (*coluna).to_owned()))
-                    })
+        let layout = (0..cabecalho.len())
+            .find_map(|inicio| {
+                let confere = |colunas: &[&str]| {
+                    cabecalho
+                        .get(inicio..inicio + colunas.len())
+                        .is_some_and(|celulas| {
+                            celulas
+                                .iter()
+                                .map(ToString::to_string)
+                                .eq(colunas.iter().copied())
+                        })
+                };
+                if confere(&COLUNAS) {
+                    Some((inicio, true))
+                } else if confere(&COLUNAS_SEM_UF) {
+                    Some((inicio, false))
+                } else {
+                    None
+                }
             })
             .ok_or_else(|| {
                 ErroDeRefino::Decodificacao(format!(
                     "bloco de dados por UF não encontrado na aba '{ABA}'"
                 ))
             })?;
-        let coluna_uf = inicio + 3;
+        let (inicio, tem_uf) = layout;
         let ufs_esperadas: std::collections::HashSet<String> =
             UFS.into_iter().map(str::to_owned).collect();
         let mut ufs_encontradas = std::collections::HashSet::new();
         let mut tabela = Tabela::nova(COLUNAS);
 
         for linha in linhas {
-            let Some(uf) = linha.get(coluna_uf).and_then(texto) else {
+            let coluna_estado = inicio + if tem_uf { 4 } else { 3 };
+            let uf = if tem_uf {
+                linha.get(inicio + 3).and_then(texto)
+            } else {
+                linha
+                    .get(coluna_estado)
+                    .and_then(texto)
+                    .and_then(|estado| estado.rsplit_once(" - ").map(|(_, uf)| uf.to_owned()))
+            };
+            let Some(uf) = uf else {
                 continue;
             };
             if !ufs_esperadas.contains(uf.as_str()) {
@@ -76,10 +103,19 @@ impl Decodificador for DecodificadorMapaEmpresas {
                     "UF duplicada no bloco estadual: {uf}"
                 )));
             }
-            let valores = linha.get(inicio..inicio + COLUNAS.len()).ok_or_else(|| {
+            let tamanho = if tem_uf {
+                COLUNAS.len()
+            } else {
+                COLUNAS_SEM_UF.len()
+            };
+            let valores = linha.get(inicio..inicio + tamanho).ok_or_else(|| {
                 ErroDeRefino::Decodificacao(format!("linha estadual incompleta para a UF {uf}"))
             })?;
-            tabela = tabela.com_linha(valores.iter().map(texto));
+            let mut valores: Vec<Option<String>> = valores.iter().map(texto).collect();
+            if !tem_uf {
+                valores.insert(3, Some(uf));
+            }
+            tabela = tabela.com_linha(valores);
         }
 
         if ufs_encontradas != ufs_esperadas {
@@ -111,7 +147,7 @@ mod testes {
 
     use crate::csv_zip::testes::ler_parte;
 
-    fn xlsx_com_ufs(ufs: &[&str]) -> Vec<u8> {
+    fn xlsx_com_ufs_layout(ufs: &[&str], tem_uf: bool) -> Vec<u8> {
         let mut bytes = Cursor::new(Vec::new());
         {
             let mut zip = ZipWriter::new(&mut bytes);
@@ -143,7 +179,8 @@ mod testes {
             let mut xml = String::from(
                 r#"<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">"#,
             );
-            for (indice, coluna) in COLUNAS.iter().enumerate() {
+            let colunas: &[&str] = if tem_uf { &COLUNAS } else { &COLUNAS_SEM_UF };
+            for (indice, coluna) in colunas.iter().enumerate() {
                 let letra = char::from(b'I' + indice as u8);
                 xml.push_str(&format!(
                     r#"<c r="{letra}1" t="inlineStr"><is><t>{coluna}</t></is></c>"#
@@ -152,7 +189,16 @@ mod testes {
             xml.push_str("</row>");
             for (indice, uf) in ufs.iter().enumerate() {
                 let numero_linha = indice + 2;
-                let valores = ["46265", "46269", "12", uf, "Estado", "10", "3", "100"];
+                let estado = if tem_uf {
+                    "Estado".to_owned()
+                } else {
+                    format!("Estado - {uf}")
+                };
+                let valores: Vec<&str> = if tem_uf {
+                    vec!["46265", "46269", "12", uf, &estado, "10", "3", "100"]
+                } else {
+                    vec!["46265", "46269", "12", &estado, "10", "3", "100"]
+                };
                 xml.push_str(&format!(r#"<row r="{numero_linha}">"#));
                 for (coluna, valor) in valores.iter().enumerate() {
                     let letra = char::from(b'I' + coluna as u8);
@@ -173,6 +219,22 @@ mod testes {
             zip.finish().unwrap();
         }
         bytes.into_inner()
+    }
+
+    fn xlsx_com_ufs(ufs: &[&str]) -> Vec<u8> {
+        xlsx_com_ufs_layout(ufs, true)
+    }
+
+    #[test]
+    fn extrai_uf_do_estado_no_layout_sem_coluna_uf() {
+        let partes = DecodificadorMapaEmpresas
+            .decodificar(&xlsx_com_ufs_layout(&UFS, false), "")
+            .unwrap();
+        let (colunas, linhas) = ler_parte(&partes[0]);
+        assert_eq!(colunas, COLUNAS);
+        assert_eq!(linhas.len(), 27);
+        assert_eq!(linhas[0][3], Some("AC".into()));
+        assert_eq!(linhas[0][4], Some("Estado - AC".into()));
     }
 
     #[test]

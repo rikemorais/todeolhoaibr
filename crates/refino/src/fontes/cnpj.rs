@@ -79,28 +79,25 @@ const COLUNAS_SIMPLES: &[&str] = &[
 const COLUNAS_AUXILIAR: &[&str] = &["codigo", "descricao"];
 
 fn colunas_da_tabela(nome_interno: &str) -> Result<&'static [&'static str], ErroDeRefino> {
-    let base = nome_interno
-        .rsplit('/')
-        .next()
-        .unwrap_or(nome_interno)
-        .split('.')
-        .next()
-        .unwrap_or(nome_interno);
-    let prefixo = base.to_ascii_uppercase();
-    if prefixo.starts_with("EMPRESA") && !prefixo.starts_with("ESTABELECIMENTO") {
+    let nome = nome_interno.rsplit('/').next().unwrap_or(nome_interno);
+    let nome = nome.to_ascii_uppercase();
+    if nome.starts_with("EMPRESA") || nome.ends_with(".EMPRECSV") {
         Ok(COLUNAS_EMPRESAS)
-    } else if prefixo.starts_with("ESTABELECIMENTO") {
+    } else if nome.starts_with("ESTABELECIMENTO") || nome.ends_with(".ESTABELE") {
         Ok(COLUNAS_ESTABELECIMENTOS)
-    } else if prefixo.starts_with("SOCIO") {
+    } else if nome.starts_with("SOCIO") || nome.ends_with(".SOCIOCSV") {
         Ok(COLUNAS_SOCIOS)
-    } else if prefixo.starts_with("SIMPLES") {
+    } else if nome.starts_with("SIMPLES") || nome.contains(".SIMPLES.CSV.") {
         Ok(COLUNAS_SIMPLES)
-    } else if prefixo.starts_with("CNAE")
-        || prefixo.starts_with("MUNICIPIO")
-        || prefixo.starts_with("NATUREZA")
-        || prefixo.starts_with("MOTIVO")
-        || prefixo.starts_with("QUALIFICACO") // Qualificacoes → QUALIFICACO...
-        || prefixo.starts_with("PAIS")
+    } else if nome.starts_with("CNAE")
+        || nome.starts_with("MUNICIPIO")
+        || nome.starts_with("NATUREZA")
+        || nome.starts_with("MOTIVO")
+        || nome.starts_with("QUALIFICACO") // Qualificacoes → QUALIFICACO...
+        || nome.starts_with("PAIS")
+        || [".CNAECSV", ".MUNICCSV", ".NATJUCSV", ".MOTICSV", ".QUALSCSV", ".PAISCSV"]
+            .iter()
+            .any(|sufixo| nome.ends_with(sufixo))
     {
         Ok(COLUNAS_AUXILIAR)
     } else {
@@ -128,10 +125,8 @@ fn decodificar_zip<F: Read + Seek>(fonte: F) -> Result<Vec<ParteBronze>, ErroDeR
             continue;
         }
         let nome_interno = entrada.name()?.into_owned();
-        let base_lower = nome_interno.to_ascii_lowercase();
-        if !(base_lower.ends_with(".csv") || base_lower.ends_with(".txt")) {
-            continue;
-        }
+        // A Receita também publica os CSVs com extensões próprias, como
+        // `.EMPRECSV`, `.ESTABELE` e `.CSV.D61010`.
         let colunas = colunas_da_tabela(&nome_interno)?;
         let leitor = leitor_auto_encoding(entrada);
         let nome = nome_logico(&nome_interno);
@@ -203,6 +198,34 @@ mod testes {
         assert_eq!(linhas.len(), 1);
         assert_eq!(linhas[0][0], Some("12345678".to_owned()));
         assert_eq!(linhas[0][1], Some("Empresa Teste".to_owned()));
+    }
+
+    #[test]
+    fn reconhece_nomes_internos_publicados_pela_receita() {
+        let casos = [
+            ("K3241.K03200Y0.D61010.EMPRECSV", COLUNAS_EMPRESAS),
+            ("K3241.K03200Y0.D61010.ESTABELE", COLUNAS_ESTABELECIMENTOS),
+            ("K3241.K03200Y0.D61010.SOCIOCSV", COLUNAS_SOCIOS),
+            ("F.K03200$W.SIMPLES.CSV.D61010", COLUNAS_SIMPLES),
+            ("F.K03200$Z.D61010.CNAECSV", COLUNAS_AUXILIAR),
+            ("F.K03200$Z.D61010.MUNICCSV", COLUNAS_AUXILIAR),
+            ("F.K03200$Z.D61010.NATJUCSV", COLUNAS_AUXILIAR),
+            ("F.K03200$Z.D61010.MOTICSV", COLUNAS_AUXILIAR),
+            ("F.K03200$Z.D61010.QUALSCSV", COLUNAS_AUXILIAR),
+            ("F.K03200$Z.D61010.PAISCSV", COLUNAS_AUXILIAR),
+        ];
+        for (nome, colunas) in casos {
+            assert_eq!(colunas_da_tabela(nome).unwrap(), colunas, "{nome}");
+            let linha = vec!["valor"; colunas.len()].join(";");
+            let zip = zip_com_csv(nome, linha.as_bytes());
+            let partes = DecodificadorCnpj
+                .decodificar(&zip, "application/zip")
+                .unwrap();
+            assert_eq!(partes.len(), 1, "{nome}");
+            let (obtidas, linhas) = ler_parte(&partes[0]);
+            assert_eq!(obtidas, colunas, "{nome}");
+            assert_eq!(linhas.len(), 1, "{nome}");
+        }
     }
 
     #[test]
