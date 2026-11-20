@@ -29,6 +29,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `ana` | ANA/SNIRH — inventário de estações hidrológicas (fluviométricas e pluviométricas) | |
 | `b3` | B3 COTAHIST — cotações históricas diárias da bolsa, de 1986 a 2026 | |
 | `bcb` | Banco Central — séries macro do SGS (juros, câmbio, inflação, atividade, crédito, fiscal) | |
+| `bolsas-globais` | FRED — índices de bolsa (S&P 500, DJIA, NASDAQ, Nikkei), câmbio, VIX e petróleo (15 séries diárias, sob demanda) | [doc da fonte](docs/fontes/bolsas-globais.md) |
 | `camara` | legislaturas, partidos, deputados em exercício | [Dados Abertos da Câmara](https://dadosabertos.camara.leg.br/swagger/api.html) |
 | `camara-despesas` | despesas da CEAP, por ano desde 2008 (sob demanda) | [doc da fonte](docs/fontes/camara-despesas.md) · [CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) |
 | `camara-tramitacoes` | histórico de tramitações das proposições da Câmara, por ano desde 2001 (sob demanda, volume alto) | [doc da fonte](docs/fontes/camara-tramitacoes.md) |
