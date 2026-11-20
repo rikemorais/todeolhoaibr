@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.124.2] - 2026-11-20
+
+### Corrigido
+
+- Silver do Mapa de Empresas deriva o período do manifesto Bronze, permitindo publicar os quatro meses quando o Parquet não contém uma coluna física `periodo`.
+
 ## [0.124.1] - 2026-11-20
 
 ### Corrigido
