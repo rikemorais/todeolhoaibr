@@ -43,7 +43,6 @@ mod testes {
 
     fn parquet(rows: &[Vec<&str>]) -> Vec<u8> {
         let mut colunas = vec![
-            "periodo",
             "dt_referencia",
             "dt_geracao",
             "cod_ibge",
@@ -63,7 +62,7 @@ mod testes {
             Field::new("_tdoa_origem_ordinal", DataType::UInt64, false),
         ]);
         let schema = Arc::new(Schema::new(colunas));
-        let mut arrays = (0..9)
+        let mut arrays = (0..8)
             .map(|indice| {
                 Arc::new(StringArray::from(
                     rows.iter().map(|row| row[indice]).collect::<Vec<_>>(),
@@ -71,7 +70,7 @@ mod testes {
             })
             .collect::<Vec<_>>();
         arrays.extend([
-            Arc::new(StringArray::from(vec!["manifesto"; rows.len()])) as _,
+            Arc::new(StringArray::from(vec!["mapa_empresas/movimentacao/periodo=2026-08/data_ingestao=2026-09-04/execucao=teste/_manifesto.json"; rows.len()])) as _,
             Arc::new(StringArray::from(vec!["parte"; rows.len()])) as _,
             Arc::new(StringArray::from(vec!["url"; rows.len()])) as _,
             Arc::new(arrow::array::UInt64Array::from_iter_values(
@@ -116,7 +115,6 @@ mod testes {
 
     fn linha(uf: &str) -> Vec<&str> {
         vec![
-            "2026-08",
             "46265",
             "46269",
             "31",
@@ -148,6 +146,15 @@ mod testes {
                 .collect::<Vec<_>>()
         );
         assert_eq!(lote.num_rows(), 1);
+        assert_eq!(
+            lote.column_by_name("periodo")
+                .unwrap()
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap()
+                .value(0),
+            "2026-08"
+        );
         assert_eq!(
             lote.column_by_name("data_referencia")
                 .unwrap()
@@ -200,7 +207,7 @@ mod testes {
     async fn rejeita_metricas_fora_do_tipo_declarado() {
         let diretorio = tempfile::tempdir().unwrap();
         let mut invalida = linha("MG");
-        invalida[6] = "muitos";
+        invalida[5] = "muitos";
         let erro = consultar(diretorio.path(), &[invalida]).await.unwrap_err();
 
         assert!(erro.to_string().contains("empresas_abertas_obrigatorio"));
