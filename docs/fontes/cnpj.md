@@ -29,6 +29,11 @@ grandes (em fluxo, sem carregar na memória) e gravados opacos na Raw:
 | Motivos de Situação Cadastral | `Motivos.zip` (1) | codigo, descricao |
 
 **Formato CSV:** separador `;`, encoding **ISO-8859-1** (Latin-1), **sem cabeçalho**.
+O Bronze decodifica a fonte como Windows-1252, compatível com os bytes Latin-1
+publicados, sem depender de uma amostra inicial que pode conter apenas ASCII.
+Os nomes internos dos ZIPs usam sufixos próprios da Receita, como `.EMPRECSV`,
+`.ESTABELE`, `.SOCIOCSV` e `.SIMPLES.CSV.D61010`; o Bronze reconhece esses
+nomes ao selecionar o esquema de cada tabela.
 
 ## Layout na Raw
 
