@@ -13,6 +13,8 @@ pub mod camara_votacoes;
 pub mod cnpj_empresas;
 /// Contrato Silver para o cadastro de estabelecimentos da Receita Federal (CNPJ).
 pub mod cnpj_estabelecimentos;
+/// Contrato Silver para a tabela de eventos do CNPJ (diff entre snapshots).
+pub mod cnpj_eventos;
 /// Contrato Silver para opção pelo Simples/MEI da Receita Federal (CNPJ).
 pub mod cnpj_simples;
 /// Contrato Silver para o quadro societário da Receita Federal (CNPJ).
@@ -52,6 +54,8 @@ pub mod tarefa_camara_despesas;
 pub mod tarefa_camara_legislaturas;
 pub mod tarefa_camara_tramitacoes;
 pub mod tarefa_camara_votacoes;
+/// Tarefa Silver que compara dois snapshots Bronze e produz eventos de diff.
+pub mod tarefa_cnpj_eventos;
 pub mod tarefa_ibge;
 /// Tarefas que publicam localidades do IBGE na camada Silver.
 pub mod tarefa_ibge_localidades;
@@ -148,6 +152,7 @@ pub use camara_tramitacoes::{ErroCamaraTramitacoesSilver, transformar_camara_tra
 pub use camara_tramitacoes::{ano_do_recurso, esquema_camara_tramitacoes};
 pub use cnpj_empresas::{SQL_CNPJ_EMPRESAS, esquema_cnpj_empresas};
 pub use cnpj_estabelecimentos::{SQL_CNPJ_ESTABELECIMENTOS, esquema_cnpj_estabelecimentos};
+pub use cnpj_eventos::{SQL_CNPJ_EVENTOS_EMPRESAS, esquema_cnpj_eventos};
 pub use cnpj_simples::{SQL_CNPJ_SIMPLES, esquema_cnpj_simples};
 pub use cnpj_socios::{SQL_CNPJ_SOCIOS, esquema_cnpj_socios};
 pub use ibge_agregados::esquema_ibge_agregados;
@@ -191,6 +196,7 @@ pub use tarefa_camara_legislaturas::{
 };
 pub use tarefa_camara_tramitacoes::{TarefaDeSilverCamaraTramitacoes, publicar_camara_tramitacoes};
 pub use tarefa_camara_votacoes::{TarefaDeSilverCamaraVotacoes, publicar_camara_votacoes};
+pub use tarefa_cnpj_eventos::TarefaDeSilverCnpjEventos;
 pub use tarefa_ibge::{TarefaDeSilverIbge, publicar_ibge_agregados};
 pub use tarefa_ibge_localidades::{TarefaDeSilverIbgeLocalidades, TipoLocalidadeIbge};
 pub use tarefa_ibge_renda_per_capita::{
