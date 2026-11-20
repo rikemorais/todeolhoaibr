@@ -88,6 +88,21 @@ séries temporais (aberturas/fechamentos ao longo do tempo):
 3. Dentro de um único snapshot, usar `data_inicio_atividade` e
    `data_situacao_cadastral` como aproximações históricas.
 
+### Implementação Silver (`cnpj-eventos`)
+
+O comando `silver cnpj-eventos` executa o diff acima:
+
+- **Entrada**: dois snapshots Bronze consecutivos do mesmo recurso (`vigente` e
+  `anterior`), localizados via `SnapshotBronze::anterior()`.
+- **SQL**: `cnpj_eventos_empresas.sql` — 8 blocos UNION ALL (1 abertura +
+  1 fechamento + 6 alterações campo a campo) com comparação NULL-safe via
+  `COALESCE`.
+- **Schema de saída**: `tipo_evento`, `tabela`, `cnpj_basico`,
+  `campo_alterado`, `valor_anterior`, `valor_novo`, `manifesto_anterior`,
+  `manifesto_novo` + linhagem.
+- **Cobertura**: tabela `empresas` (MVP). Issues futuras expandem para
+  `estabelecimentos`, `socios` e `simples`.
+
 ## Observações
 
 - **CNPJ alfanumérico a partir de jul/2026** para novas empresas. O CNPJ deve ser
