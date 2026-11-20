@@ -65,7 +65,7 @@
 <a href=#65 id=65 data-nosnippet>65</a>}
 <a href=#66 id=66 data-nosnippet>66</a>
 <a href=#67 id=67 data-nosnippet>67</a><span class="doccomment">/// Cria um leitor que decodifica explicitamente Windows-1252, sem depender de amostra.
-<a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">fn </span>leitor_windows1252&lt;R: Read&gt;(fonte: R) -&gt; LeitorAutoEncoding&lt;R&gt; {
+<a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>leitor_windows1252&lt;R: Read&gt;(fonte: R) -&gt; LeitorAutoEncoding&lt;R&gt; {
 <a href=#69 id=69 data-nosnippet>69</a>    LeitorAutoEncoding::Latin1(
 <a href=#70 id=70 data-nosnippet>70</a>        encoding_rs_io::DecodeReaderBytesBuilder::new()
 <a href=#71 id=71 data-nosnippet>71</a>            .encoding(<span class="prelude-val">Some</span>(encoding_rs::WINDOWS_1252))

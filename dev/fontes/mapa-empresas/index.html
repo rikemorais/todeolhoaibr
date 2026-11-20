@@ -1971,6 +1971,10 @@ estado. Para materializar a tabela estadual no Bronze sem modificar o XLSX da Ra
 </code></pre></div>
 <p>O decodificador seleciona o bloco estadual da aba <code>Abertas, Fechadas e Ativas</code>, valida
 que as 27 UFs estão presentes uma vez cada e publica <code>bronze_mapa_empresas_movimentacao</code>.
+Nos arquivos de maio a julho de 2026, o bloco estadual traz apenas <code>Estado</code> no
+formato <code>Nome - UF</code>; o Bronze extrai a sigla desse campo. A partir de agosto, usa
+a coluna <code>UF</code> publicada diretamente. A tabela Bronze tem o mesmo esquema nos
+dois layouts.
 O caminho acrescenta a coluna de partição <code>periodo</code>, que pode ser combinada com a UF:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">SELECT</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">periodo</span><span class="p">,</span>

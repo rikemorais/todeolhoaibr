@@ -1962,7 +1962,12 @@ grandes (em fluxo, sem carregar na memória) e gravados opacos na Raw:</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Formato CSV:</strong> separador <code>;</code>, encoding <strong>ISO-8859-1</strong> (Latin-1), <strong>sem cabeçalho</strong>.</p>
+<p><strong>Formato CSV:</strong> separador <code>;</code>, encoding <strong>ISO-8859-1</strong> (Latin-1), <strong>sem cabeçalho</strong>.
+O Bronze decodifica a fonte como Windows-1252, compatível com os bytes Latin-1
+publicados, sem depender de uma amostra inicial que pode conter apenas ASCII.
+Os nomes internos dos ZIPs usam sufixos próprios da Receita, como <code>.EMPRECSV</code>,
+<code>.ESTABELE</code>, <code>.SOCIOCSV</code> e <code>.SIMPLES.CSV.D61010</code>; o Bronze reconhece esses
+nomes ao selecionar o esquema de cada tabela.</p>
 <h2 id="layout-na-raw">Layout na Raw<a class="headerlink" href="#layout-na-raw" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>raw/cnpj/{competencia}/{tabela}/          (ex.: raw/cnpj/2026-10/empresas/0/)
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  _ultima_versao.json
