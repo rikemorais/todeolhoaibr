@@ -582,6 +582,15 @@ mod testes {
             "faltou a parte parquet: {:?}",
             objetos.keys().collect::<Vec<_>>()
         );
+        let manifesto = objetos
+            .iter()
+            .find(|(chave, _)| chave.ends_with("/_manifesto.json"))
+            .map(|(_, bytes)| serde_json::from_slice::<ManifestoRaw>(bytes).unwrap())
+            .unwrap();
+        let parte = &manifesto.partes[0];
+        let parquet = objetos.get(&parte.chave).unwrap();
+        assert_eq!(parte.bytes, parquet.len() as u64);
+        assert_eq!(parte.sha256, hex::encode(Sha256::digest(parquet)));
         assert!(objetos.contains_key(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO)));
     }
 
