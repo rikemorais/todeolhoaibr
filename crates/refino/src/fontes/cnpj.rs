@@ -5,7 +5,7 @@
 
 use std::io::{Cursor, Read, Seek};
 
-use crate::csv_zip::{leitor_auto_encoding, parte_de_csv_com_colunas};
+use crate::csv_zip::{leitor_windows1252, parte_de_csv_com_colunas};
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::ErroDeRefino;
 
@@ -128,7 +128,7 @@ fn decodificar_zip<F: Read + Seek>(fonte: F) -> Result<Vec<ParteBronze>, ErroDeR
         // A Receita também publica os CSVs com extensões próprias, como
         // `.EMPRECSV`, `.ESTABELE` e `.CSV.D61010`.
         let colunas = colunas_da_tabela(&nome_interno)?;
-        let leitor = leitor_auto_encoding(entrada);
+        let leitor = leitor_windows1252(entrada);
         let nome = nome_logico(&nome_interno);
         partes.push(parte_de_csv_com_colunas(&nome, leitor, b';', colunas)?);
     }
@@ -226,6 +226,18 @@ mod testes {
             assert_eq!(obtidas, colunas, "{nome}");
             assert_eq!(linhas.len(), 1, "{nome}");
         }
+    }
+
+    #[test]
+    fn converte_latin1_mesmo_quando_a_amostra_inicial_e_ascii() {
+        let mut csv = b"1;Descricao\n".repeat(2_000);
+        csv.extend_from_slice(b"2;Concei\xe7\xe3o\n");
+        let zip = zip_com_csv("F.K03200$Z.D61010.CNAECSV", &csv);
+        let partes = DecodificadorCnpj
+            .decodificar(&zip, "application/zip")
+            .unwrap();
+        let (_, linhas) = ler_parte(&partes[0]);
+        assert_eq!(linhas.last().unwrap()[1], Some("Conceição".to_owned()));
     }
 
     #[test]
