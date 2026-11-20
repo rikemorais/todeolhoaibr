@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Não lançado]
+
+### Corrigido
+
+- Downloads com GET `chunked` completo não falham quando o tamanho informado anteriormente pelo HEAD diverge, como nos ZIPs gerados sob demanda pelo WFS do CAR.
+
 ## [0.124.3] - 2026-11-20
 
 ### Corrigido
