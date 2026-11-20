@@ -1,6 +1,7 @@
 pub mod ana;
 pub mod b3;
 pub mod bcb;
+pub mod bolsas_globais;
 pub mod camara;
 pub mod car;
 pub mod cnpj;

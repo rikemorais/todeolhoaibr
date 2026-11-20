@@ -16,6 +16,7 @@ use todeolho_nucleo::FonteDeDados;
 pub use fontes::ana::FonteAna;
 pub use fontes::b3::FonteB3;
 pub use fontes::bcb::FonteBcb;
+pub use fontes::bolsas_globais::FonteBolsasGlobais;
 pub use fontes::camara::{
     FonteCamara, FonteCamaraDespesas, FonteCamaraTramitacoes, FonteCamaraVotacoes,
 };
@@ -85,6 +86,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteRemuneracaoEstadualMs),
         Box::new(FonteRemuneracaoEstadualSc),
         Box::new(FonteBcb),
+        Box::new(FonteBolsasGlobais),
         Box::new(FonteCar),
         Box::new(FonteCnpj),
         Box::new(FonteComex),
