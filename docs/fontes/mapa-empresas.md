@@ -52,7 +52,8 @@ Nos arquivos de maio a julho de 2026, o bloco estadual traz apenas `Estado` no
 formato `Nome - UF`; o Bronze extrai a sigla desse campo. A partir de agosto, usa
 a coluna `UF` publicada diretamente. A tabela Bronze tem o mesmo esquema nos
 dois layouts.
-O caminho acrescenta a coluna de partição `periodo`, que pode ser combinada com a UF:
+O período identifica o recurso e aparece como partição na consulta DuckDB pelo caminho;
+ele não é uma coluna física do Parquet Bronze. Pode ser combinado com a UF:
 
 ```sql
 SELECT
@@ -73,7 +74,8 @@ Para publicar a camada Silver tipada, rode:
 docker compose run --rm refino refinar silver mapa_empresas
 ```
 
-A Silver mantém uma linha por mês e UF, converte as datas seriais do Excel para `DATE`,
+A Silver extrai `periodo` da linhagem do manifesto Bronze. Ela mantém uma linha por mês
+e UF, converte as datas seriais do Excel para `DATE`,
 as contagens para `BIGINT` e calcula `saldo = empresas_abertas - empresas_fechadas`.
 Ela valida período, campos obrigatórios, contagens não negativas e a chave (`periodo`,
 `uf`) antes de publicar. No DuckDB, a view é `silver_mapa_empresas_movimentacao`:
