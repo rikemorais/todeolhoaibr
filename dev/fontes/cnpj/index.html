@@ -1840,6 +1840,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Estratégia de diff entre snapshots">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementacao-silver-cnpj-eventos" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementação Silver (cnpj-eventos)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1995,6 +2010,20 @@ séries temporais (aberturas/fechamentos ao longo do tempo):</p>
 <li>Dentro de um único snapshot, usar <code>data_inicio_atividade</code> e
    <code>data_situacao_cadastral</code> como aproximações históricas.</li>
 </ol>
+<h3 id="implementacao-silver-cnpj-eventos">Implementação Silver (<code>cnpj-eventos</code>)<a class="headerlink" href="#implementacao-silver-cnpj-eventos" title="Permanent link">&para;</a></h3>
+<p>O comando <code>silver cnpj-eventos</code> executa o diff acima:</p>
+<ul>
+<li><strong>Entrada</strong>: dois snapshots Bronze consecutivos do mesmo recurso (<code>vigente</code> e
+  <code>anterior</code>), localizados via <code>SnapshotBronze::anterior()</code>.</li>
+<li><strong>SQL</strong>: <code>cnpj_eventos_empresas.sql</code> — 8 blocos UNION ALL (1 abertura +
+  1 fechamento + 6 alterações campo a campo) com comparação NULL-safe via
+  <code>COALESCE</code>.</li>
+<li><strong>Schema de saída</strong>: <code>tipo_evento</code>, <code>tabela</code>, <code>cnpj_basico</code>,
+  <code>campo_alterado</code>, <code>valor_anterior</code>, <code>valor_novo</code>, <code>manifesto_anterior</code>,
+  <code>manifesto_novo</code> + linhagem.</li>
+<li><strong>Cobertura</strong>: tabela <code>empresas</code> (MVP). Issues futuras expandem para
+  <code>estabelecimentos</code>, <code>socios</code> e <code>simples</code>.</li>
+</ul>
 <h2 id="observacoes">Observações<a class="headerlink" href="#observacoes" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>CNPJ alfanumérico a partir de jul/2026</strong> para novas empresas. O CNPJ deve ser
