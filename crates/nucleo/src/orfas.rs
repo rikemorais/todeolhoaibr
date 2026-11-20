@@ -197,7 +197,7 @@ pub async fn limpar_orfas_do_recurso(
                         < RETENCAO_EXECUCAO_ATIVA =>
                 {
                     execucoes_ativas.insert(prefixo_da_execucao(chave));
-                    proteger_execucao(chave, &chaves, &mut protegidas);
+                    proteger_execucao_conhecida(chave, &chaves, &mut protegidas);
                 }
                 Ok(_) => {}
                 Err(_) => proteger_execucao(chave, &chaves, &mut protegidas),
@@ -344,6 +344,10 @@ pub async fn limpar_orfas_do_recurso(
 
 fn proteger_execucao(chave: &str, chaves: &[String], protegidas: &mut HashSet<String>) {
     warn!(manifesto = %chave, "estado do snapshot incerto; protegendo a execução inteira");
+    proteger_execucao_conhecida(chave, chaves, protegidas);
+}
+
+fn proteger_execucao_conhecida(chave: &str, chaves: &[String], protegidas: &mut HashSet<String>) {
     let prefixo_exec = prefixo_da_execucao(chave);
     for outra in chaves {
         if outra.starts_with(&prefixo_exec) {
