@@ -114,9 +114,14 @@ impl TarefaDeArquivo {
         }
         let tipo_de_conteudo = primeiro.tipo_de_conteudo.clone();
         let versao = primeiro.versao.clone();
-        // Total autoritativo: o do GET ou, se ele omitir, o que o HEAD informou.
-        // É o que a guarda final e a checagem de completude usam.
-        let total_esperado = primeiro.tamanho_total.or(tamanho_informado);
+        // O HEAD pode descrever outra geração de um arquivo dinâmico. Se o GET
+        // termina com framing verificável (chunked ou HTTP/2), não usamos o
+        // tamanho do HEAD como guarda do corpo recebido.
+        let total_esperado = if primeiro.enquadramento_verificavel {
+            primeiro.tamanho_total
+        } else {
+            primeiro.tamanho_total.or(tamanho_informado)
+        };
         let enquadramento_verificavel =
             primeiro.enquadramento_verificavel || total_esperado.is_some();
         let chave = local.parte(1, extensao(&tipo_de_conteudo));
@@ -788,6 +793,7 @@ mod testes {
         downloads: Mutex<u32>,
         consultas: Mutex<u32>,
         sem_tamanho: bool,
+        tamanho_head: Option<u64>,
         enquadramento_verificavel: bool,
         tipo_de_conteudo: String,
         status: u16,
@@ -809,6 +815,7 @@ mod testes {
                 downloads: Mutex::new(0),
                 consultas: Mutex::new(0),
                 sem_tamanho: false,
+                tamanho_head: None,
                 enquadramento_verificavel: true,
                 tipo_de_conteudo: "application/zip".into(),
                 status: 200,
@@ -859,7 +866,9 @@ mod testes {
             }
             Ok(InformacoesDoArquivo {
                 versao: self.versao.lock().unwrap().clone(),
-                tamanho: (!self.sem_tamanho).then_some(self.conteudo.len() as u64),
+                tamanho: self
+                    .tamanho_head
+                    .or_else(|| (!self.sem_tamanho).then_some(self.conteudo.len() as u64)),
             })
         }
 
@@ -1115,6 +1124,18 @@ mod testes {
             manifesto.partes[0].sha256,
             hex::encode(Sha256::digest(CONTEUDO))
         );
+    }
+
+    #[tokio::test]
+    async fn aceita_get_chunked_quando_head_tem_tamanho_diferente() {
+        let mut http = HttpFalso::novo(None);
+        http.sem_tamanho = true;
+        http.tamanho_head = Some(CONTEUDO.len() as u64 - 1);
+        let cenario = cenario(http);
+        let resumo = tarefa().executar(&cenario.contexto).await.unwrap();
+
+        assert_eq!(resumo.bytes, CONTEUDO.len() as u64);
+        assert_eq!(parte_gravada(&cenario), CONTEUDO);
     }
 
     #[tokio::test]
