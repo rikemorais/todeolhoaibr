@@ -1975,7 +1975,8 @@ Nos arquivos de maio a julho de 2026, o bloco estadual traz apenas <code>Estado<
 formato <code>Nome - UF</code>; o Bronze extrai a sigla desse campo. A partir de agosto, usa
 a coluna <code>UF</code> publicada diretamente. A tabela Bronze tem o mesmo esquema nos
 dois layouts.
-O caminho acrescenta a coluna de partição <code>periodo</code>, que pode ser combinada com a UF:</p>
+O período identifica o recurso e aparece como partição na consulta DuckDB pelo caminho;
+ele não é uma coluna física do Parquet Bronze. Pode ser combinado com a UF:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">SELECT</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">periodo</span><span class="p">,</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="ss">"UF"</span><span class="p">,</span>
@@ -1990,7 +1991,8 @@ O caminho acrescenta a coluna de partição <code>periodo</code>, que pode ser c
 <p>Para publicar a camada Silver tipada, rode:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>refino<span class="w"> </span>refinar<span class="w"> </span>silver<span class="w"> </span>mapa_empresas
 </code></pre></div>
-<p>A Silver mantém uma linha por mês e UF, converte as datas seriais do Excel para <code>DATE</code>,
+<p>A Silver extrai <code>periodo</code> da linhagem do manifesto Bronze. Ela mantém uma linha por mês
+e UF, converte as datas seriais do Excel para <code>DATE</code>,
 as contagens para <code>BIGINT</code> e calcula <code>saldo = empresas_abertas - empresas_fechadas</code>.
 Ela valida período, campos obrigatórios, contagens não negativas e a chave (<code>periodo</code>,
 <code>uf</code>) antes de publicar. No DuckDB, a view é <code>silver_mapa_empresas_movimentacao</code>:</p>
