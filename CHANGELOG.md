@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.124.3] - 2026-11-20
+
+### Corrigido
+
+- A limpeza de snapshots preserva execuções ativas sem registrar o aviso falso de estado incerto; avisos continuam para controles realmente ilegíveis ou indisponíveis.
+
 ## [0.124.2] - 2026-11-20
 
 ### Corrigido
