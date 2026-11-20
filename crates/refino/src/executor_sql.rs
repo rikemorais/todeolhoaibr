@@ -558,6 +558,176 @@ pub async fn executar_sql_com_filtros(
     Ok(dataframe.execute_stream().await?)
 }
 
+/// Snapshot duplo preparado em disco para comparação SQL entre dois snapshots.
+pub struct EntradaSqlDupla {
+    temporario: tempfile::TempDir,
+    diretorio_vigente: PathBuf,
+    diretorio_anterior: PathBuf,
+}
+
+impl EntradaSqlDupla {
+    /// Diretório lido pela tabela SQL `vigente`.
+    pub fn diretorio_vigente(&self) -> &Path {
+        &self.diretorio_vigente
+    }
+
+    /// Diretório lido pela tabela SQL `anterior`.
+    pub fn diretorio_anterior(&self) -> &Path {
+        &self.diretorio_anterior
+    }
+
+    /// Raiz temporária desta execução, usada também como base do spill.
+    pub fn diretorio_execucao(&self) -> &Path {
+        self.temporario.path()
+    }
+}
+
+/// Baixa as partes de dois snapshots Bronze em subdiretórios separados.
+pub async fn preparar_snapshot_duplo(
+    bronze: &dyn ArmazenamentoRaw,
+    vigente: &SnapshotBronze,
+    anterior: &SnapshotBronze,
+    limite_entrada_bytes: u64,
+) -> Result<EntradaSqlDupla, ErroExecutorSql> {
+    let total_vigente: u64 = vigente
+        .manifesto()
+        .partes
+        .iter()
+        .try_fold(0u64, |total, parte| total.checked_add(parte.bytes))
+        .ok_or_else(|| ErroExecutorSql::Configuracao("tamanho vigente excede u64".into()))?;
+    let total_anterior: u64 = anterior
+        .manifesto()
+        .partes
+        .iter()
+        .try_fold(0u64, |total, parte| total.checked_add(parte.bytes))
+        .ok_or_else(|| ErroExecutorSql::Configuracao("tamanho anterior excede u64".into()))?;
+    let total = total_vigente
+        .checked_add(total_anterior)
+        .ok_or_else(|| ErroExecutorSql::Configuracao("tamanho combinado excede u64".into()))?;
+    if limite_entrada_bytes == 0 || total > limite_entrada_bytes {
+        return Err(ErroExecutorSql::Configuracao(format!(
+            "snapshots somam {total} bytes e excedem o limite de entrada {limite_entrada_bytes}"
+        )));
+    }
+
+    let temporario = tempfile::tempdir()?;
+    let diretorio_vigente = temporario.path().join("vigente");
+    let diretorio_anterior = temporario.path().join("anterior");
+    std::fs::create_dir(&diretorio_vigente)?;
+    std::fs::create_dir(&diretorio_anterior)?;
+
+    for (snapshot, diretorio) in [
+        (vigente, &diretorio_vigente),
+        (anterior, &diretorio_anterior),
+    ] {
+        for (indice, parte) in snapshot.manifesto().partes.iter().enumerate() {
+            let baixada = snapshot
+                .baixar_parte(bronze, &parte.chave)
+                .await
+                .map_err(|erro| ErroExecutorSql::Snapshot(erro.to_string()))?;
+            let leitor = baixada.abrir_lotes(65_536)?;
+            let caminho = diretorio.join(format!("parte-{indice:08}.parquet"));
+            let mut escritor: Option<EscritorParquetTipado<File>> = None;
+            for lote in leitor {
+                let lote = lote?;
+                let registros = anexar_linhagem(
+                    &lote.registros,
+                    &lote.origem.manifesto,
+                    &lote.origem.parte,
+                    &lote.origem.tabela,
+                    lote.primeiro_ordinal,
+                    false,
+                    false,
+                )?;
+                if escritor.is_none() {
+                    escritor = Some(EscritorParquetTipado::novo_em(
+                        File::create(&caminho)?,
+                        registros.schema(),
+                    )?);
+                }
+                escritor
+                    .as_mut()
+                    .expect("writer initialized")
+                    .escrever_lote(&registros)?;
+            }
+            if let Some(escritor) = escritor {
+                escritor.fechar()?;
+            }
+        }
+    }
+
+    Ok(EntradaSqlDupla {
+        temporario,
+        diretorio_vigente,
+        diretorio_anterior,
+    })
+}
+
+/// Executa SQL sobre dois snapshots registrados como tabelas `vigente` e `anterior`.
+pub async fn executar_sql_duplo(
+    diretorio_vigente: &Path,
+    diretorio_anterior: &Path,
+    diretorio_spill: &Path,
+    sql: &str,
+    configuracao: &ConfiguracaoExecutorSql,
+) -> Result<SendableRecordBatchStream, ErroExecutorSql> {
+    if configuracao.limite_memoria_bytes == 0
+        || configuracao.limite_spill_bytes == 0
+        || configuracao.particoes == 0
+        || configuracao.tamanho_lote == 0
+    {
+        return Err(ErroExecutorSql::Configuracao(
+            "memória, spill, partições e tamanho de lote devem ser maiores que zero".into(),
+        ));
+    }
+
+    let mut config = SessionConfig::new()
+        .with_target_partitions(configuracao.particoes)
+        .with_batch_size(configuracao.tamanho_lote);
+    config.options_mut().sql_parser.map_string_types_to_utf8view = false;
+    config
+        .options_mut()
+        .execution
+        .parquet
+        .schema_force_view_types = false;
+    let runtime = RuntimeEnvBuilder::new()
+        .with_temp_file_path(diretorio_spill)
+        .with_max_temp_directory_size(configuracao.limite_spill_bytes)
+        .with_memory_limit(configuracao.limite_memoria_bytes, 1.0)
+        .build_arc()?;
+    let contexto = SessionContext::new_with_config_rt(config, runtime);
+    contexto.register_udf(create_udf(
+        "tdoa_assert_true",
+        vec![DataType::Boolean],
+        DataType::Boolean,
+        Volatility::Immutable,
+        Arc::new(assert_true),
+    ));
+    contexto.register_udf(create_udf(
+        "tdoa_assert_true_named",
+        vec![DataType::Boolean, DataType::Utf8],
+        DataType::Boolean,
+        Volatility::Immutable,
+        Arc::new(assert_true_named),
+    ));
+    contexto
+        .register_parquet(
+            "vigente",
+            diretorio_vigente.to_string_lossy().as_ref(),
+            ParquetReadOptions::default(),
+        )
+        .await?;
+    contexto
+        .register_parquet(
+            "anterior",
+            diretorio_anterior.to_string_lossy().as_ref(),
+            ParquetReadOptions::default(),
+        )
+        .await?;
+    let dataframe = contexto.sql(sql).await?;
+    Ok(dataframe.execute_stream().await?)
+}
+
 fn filtrar_emendas(
     argumentos: &[ColumnarValue],
     filtros: &FiltrosSqlEmendas,
