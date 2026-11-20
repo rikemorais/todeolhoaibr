@@ -5,6 +5,14 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.124.1] - 2026-11-20
+
+### Corrigido
+
+- Bronze CNPJ reconhece os nomes internos dos ZIPs da Receita e decodifica o CSV integralmente como Windows-1252.
+- Bronze Mapa de Empresas extrai a UF de `Estado` nas planilhas de maio a julho de 2026.
+- Publicação Bronze transfere Parquet em fluxo, evitando carregar partes grandes do CNPJ inteiras na memória.
+
 ## [0.124.0] - 2026-11-20
 
 ### Adicionado
