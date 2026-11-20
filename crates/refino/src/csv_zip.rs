@@ -65,7 +65,7 @@ pub(crate) fn leitor_auto_encoding<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
 }
 
 /// Cria um leitor que decodifica explicitamente Windows-1252, sem depender de amostra.
-fn leitor_windows1252<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
+pub(crate) fn leitor_windows1252<R: Read>(fonte: R) -> LeitorAutoEncoding<R> {
     LeitorAutoEncoding::Latin1(
         encoding_rs_io::DecodeReaderBytesBuilder::new()
             .encoding(Some(encoding_rs::WINDOWS_1252))
