@@ -31,8 +31,8 @@ const ULTIMO_MES_CNES: u8 = 1;
 
 /// Indicadores de saúde do DATASUS — SIM, SINASC, SIH e CNES.
 ///
-/// - **SIM** (1996–2023): declarações de óbito (DORES) e óbitos fetais
-///   (DOFET), anuais por UF, formato DBC.
+/// - **SIM** (1996–2023): declarações de óbito (DORES) anuais por UF e
+///   óbitos fetais (DOFET) anuais em arquivo nacional, formato DBC.
 /// - **SINASC** (1996–2023): declarações de nascidos vivos (DN), anuais
 ///   por UF, formato DBC.
 /// - **SIH** (2008-01 a 2024-12): internações hospitalares (RD), mensais
@@ -69,7 +69,7 @@ impl FonteDeDados for FonteDataSus {
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        let mut tarefas = Vec::with_capacity(14100);
+        let mut tarefas = Vec::with_capacity(13366);
         tarefas.extend(tarefas_sim_dores());
         tarefas.extend(tarefas_sim_dofet());
         tarefas.extend(tarefas_sinasc());
@@ -111,7 +111,36 @@ fn tarefas_sim_dores() -> Vec<TarefaPlanejada> {
 }
 
 fn tarefas_sim_dofet() -> Vec<TarefaPlanejada> {
-    tarefas_sim("dofet", "DOFET")
+    let mut tarefas = Vec::with_capacity(28);
+    for ano in PRIMEIRO_ANO_SIM..=ULTIMO_ANO_SIM {
+        let ano_s = ano.to_string();
+        let mut tarefa = TarefaDeArquivo::nova(
+            format!("sim_dofet_{ano}"),
+            NOME,
+            format!("sim/dofet/ano={ano}"),
+            url_sim_dofet(ano),
+        );
+        if ano == ULTIMO_ANO_SIM {
+            tarefa = tarefa.aceitar_ausencia();
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
+            ("registro", "sim"),
+            ("subset", "dofet"),
+            ("ano", &ano_s),
+        ]));
+    }
+    tarefas
+}
+
+fn url_sim_dofet(ano: u16) -> String {
+    // O FTP publica os arquivos nacionais DOFET com dois dígitos no ano e
+    // extensão maiúscula apenas de 2007 a 2012.
+    let extensao = if (2007..=2012).contains(&ano) {
+        "DBC"
+    } else {
+        "dbc"
+    };
+    format!("{FTP}/SIM/CID10/DOFET/DOFET{:02}.{extensao}", ano % 100)
 }
 
 fn tarefas_sinasc() -> Vec<TarefaPlanejada> {
@@ -239,15 +268,15 @@ mod testes {
 
     #[test]
     fn contagem_fixa_por_registro() {
-        assert_eq!(contagem("sim"), 1512);
+        assert_eq!(contagem("sim"), 784);
         assert_eq!(contagem("sinasc"), 756);
         assert_eq!(contagem("sih"), 5508);
         assert_eq!(contagem("cnes"), 6318);
     }
 
     #[test]
-    fn total_14094_tarefas() {
-        assert_eq!(tarefas().len(), 14094);
+    fn total_13366_tarefas() {
+        assert_eq!(tarefas().len(), 13366);
     }
 
     #[test]
@@ -267,12 +296,22 @@ mod testes {
     }
 
     #[test]
-    fn sim_dofet_rj_2020_existe() {
-        assert!(
-            tarefas()
-                .iter()
-                .any(|t| t.tarefa.nome() == "sim_dofet_rj_2020")
-        );
+    fn sim_dofet_tem_um_arquivo_nacional_por_ano() {
+        let dofet: Vec<_> = tarefas()
+            .into_iter()
+            .filter(|t| t.etiquetas.get("subset").is_some_and(|v| v == "dofet"))
+            .collect();
+        assert_eq!(dofet.len(), 28);
+        assert!(dofet.iter().any(|t| t.tarefa.nome() == "sim_dofet_2020"));
+        assert!(dofet.iter().all(|t| !t.etiquetas.contains_key("uf")));
+    }
+
+    #[test]
+    fn sim_dofet_usa_nome_e_extensao_publicados_no_ftp() {
+        assert!(url_sim_dofet(1996).ends_with("/DOFET96.dbc"));
+        assert!(url_sim_dofet(2007).ends_with("/DOFET07.DBC"));
+        assert!(url_sim_dofet(2013).ends_with("/DOFET13.dbc"));
+        assert!(url_sim_dofet(2023).ends_with("/DOFET23.dbc"));
     }
 
     #[test]
@@ -327,11 +366,15 @@ mod testes {
                 "{} sem etiqueta registro",
                 t.tarefa.nome()
             );
-            assert!(
-                etiq.contains_key("uf"),
-                "{} sem etiqueta uf",
-                t.tarefa.nome()
-            );
+            if etiq.get("subset").is_some_and(|v| v == "dofet") {
+                assert!(!etiq.contains_key("uf"));
+            } else {
+                assert!(
+                    etiq.contains_key("uf"),
+                    "{} sem etiqueta uf",
+                    t.tarefa.nome()
+                );
+            }
         }
     }
 

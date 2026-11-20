@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Não lançado]
+
+### Corrigido
+
+- DATASUS DOFET usa os arquivos nacionais anuais realmente publicados no FTP, com ano de dois dígitos e extensão correspondente, eliminando 404 para tarefas por UF inexistentes.
+
 ## [0.124.4] - 2026-11-20
 
 ### Corrigido
