@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.131.1] - 2026-11-21
+
+### Corrigido
+
+- O build da imagem Docker com `--locked` volta a funcionar após sincronizar as versões dos crates locais no `Cargo.lock`.
+
 ## [0.131.0] - 2026-11-21
 
 ### Removido
