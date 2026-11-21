@@ -11,6 +11,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 - DATASUS DOFET usa os arquivos nacionais anuais realmente publicados no FTP, com ano de dois dígitos e extensão correspondente, eliminando 404 para tarefas por UF inexistentes.
 
+## [0.125.0] - 2026-11-21
+
+### Adicionado
+
+- Ingestão de dados fiscais de estados e municípios via API SICONFI do Tesouro Nacional: cadastro de entes (`siconfi-entes`), Declaração de Contas Anuais (`siconfi-dca`), Relatório de Execução Orçamentária (`siconfi-rreo`) e Relatório de Gestão Fiscal (`siconfi-rgf`), com paginação por entidade e decodificador Bronze para o envelope ORDS (issue #55).
+
 ## [0.124.4] - 2026-11-20
 
 ### Corrigido

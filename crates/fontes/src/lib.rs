@@ -54,6 +54,7 @@ pub use fontes::senado::{
     FonteSenadoDespesas, FonteSenadoEmendas, FonteSenadoParlamentares, FonteSenadoProcessos,
     FonteSenadoProcessosDetalhes, FonteSenadoVotacoes,
 };
+pub use fontes::siconfi::{FonteSiconfiDca, FonteSiconfiEntes, FonteSiconfiRgf, FonteSiconfiRreo};
 pub use fontes::tce_ce::FonteRemuneracaoMunicipalTceCe;
 pub use fontes::trabalho::FonteTrabalho;
 pub use fontes::transparencia::FonteTransparenciaBeneficios;
@@ -128,6 +129,10 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteTseCandidaturas),
         Box::new(FonteUndp),
         Box::new(FonteWorldBank),
+        Box::new(FonteSiconfiEntes),
+        Box::new(FonteSiconfiDca),
+        Box::new(FonteSiconfiRreo),
+        Box::new(FonteSiconfiRgf),
     ]
 }
 
