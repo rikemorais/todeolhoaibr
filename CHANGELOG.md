@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.130.1] - 2026-11-21
+
+### Alterado
+
+- Atualiza pins de DataFusion para 55.3.0 e Arrow/Parquet para 59.3.3 (issue #259).
+
 ## [0.130.0] - 2026-11-21
 
 ### Adicionado
