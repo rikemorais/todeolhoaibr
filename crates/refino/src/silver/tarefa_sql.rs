@@ -1469,6 +1469,19 @@ mod testes {
             .unwrap();
         let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
         let bytes_manifesto = silver.ler(&ponteiro.manifesto).await.unwrap().unwrap();
+        let manifesto_json: serde_json::Value = serde_json::from_slice(&bytes_manifesto).unwrap();
+        assert_eq!(manifesto_json["qualidade"]["versao"], 1);
+        assert_eq!(
+            manifesto_json["qualidade"]["manifesto_bronze"],
+            snapshot.chave_manifesto()
+        );
+        assert_eq!(manifesto_json["qualidade"]["linhas_bronze_preparadas"], 4);
+        assert_eq!(manifesto_json["qualidade"]["linhas_saida"], 3);
+        assert_eq!(manifesto_json["qualidade"]["linhas_rejeitadas"], 0);
+        assert_eq!(
+            manifesto_json["qualidade"]["politica_rejeicao"],
+            "falha_total"
+        );
         let manifesto: ManifestoRaw = serde_json::from_slice(&bytes_manifesto).unwrap();
         assert_eq!(manifesto.partes.len(), 1);
         let bytes_parquet = silver

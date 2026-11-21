@@ -287,6 +287,7 @@ async fn publicar_transformacao_sql_interno(
         esquema_parquet,
     )
     .map_err(|_| erro_manifesto(recurso, "falha ao iniciar escritor Parquet Silver"))?;
+    let mut linhas_saida = 0u64;
     while let Some(lote) = fluxo.next().await {
         let lote = lote.map_err(|erro| {
             erro_manifesto(
@@ -299,6 +300,9 @@ async fn publicar_transformacao_sql_interno(
                 .map_err(|detalhe| erro_manifesto(recurso, detalhe))?,
             None => lote,
         };
+        linhas_saida = linhas_saida
+            .checked_add(lote.num_rows() as u64)
+            .ok_or_else(|| erro_manifesto(recurso, "contagem de linhas Silver excede u64"))?;
         escritor
             .escrever_lote(&lote)
             .map_err(|_| erro_manifesto(recurso, "resultado SQL diverge do schema de saída"))?;
@@ -368,10 +372,21 @@ async fn publicar_transformacao_sql_interno(
             )),
         }],
     };
+    let mut manifesto_json =
+        serde_json::to_value(&manifesto).map_err(|erro| erro_manifesto(recurso, erro))?;
+    manifesto_json["qualidade"] = serde_json::json!({
+        "versao": 1,
+        "manifesto_bronze": snapshot.chave_manifesto(),
+        "regra": regra,
+        "linhas_bronze_preparadas": entrada.linhas_bronze(),
+        "linhas_saida": linhas_saida,
+        "linhas_rejeitadas": 0,
+        "politica_rejeicao": "falha_total"
+    });
     silver
         .gravar(ObjetoRaw {
             chave: local.manifesto(),
-            conteudo: serde_json::to_vec_pretty(&manifesto)
+            conteudo: serde_json::to_vec_pretty(&manifesto_json)
                 .map_err(|erro| erro_manifesto(recurso, erro))?,
             tipo_de_conteudo: "application/json".into(),
         })
