@@ -272,14 +272,23 @@ nulo exige valor original preservado e contagem por motivo. Duplicata integral
 validada preservam todas as ocorrências com manifesto, parte e ordinal Bronze.
 Uma publicação SQL bem-sucedida inclui no manifesto Silver o objeto `qualidade`
 versão 1: `manifesto_bronze`, `regra`, `linhas_bronze_preparadas`, `linhas_saida`,
-`linhas_rejeitadas` (zero sob a política atual de falha total) e
-`politica_rejeicao`. A contagem Bronze inclui todas as partes preparadas; filtros,
-joins e expansão de relações podem fazer as duas contagens diferir sem que haja
-rejeição. A medição ocorre antes da troca do ponteiro, junto da publicação do
-manifesto. Uma falha mantém o ponteiro Silver anterior. Diagnóstico recuperável
-por linha, conversões opcionais por motivo e métricas de rejeição não nula ainda
-não são emitidos; não ativar um contrato que dependa dessa quarentena antes de
-implementá-la (issue #483).
+`linhas_rejeitadas`, `rejeicoes_por_motivo`, `politica_rejeicao` e `quarentena`.
+A contagem Bronze inclui todas as partes preparadas; filtros, joins e expansão
+de relações podem fazer as duas contagens diferir sem que haja rejeição.
+
+O padrão continua sendo falha total e zero linhas rejeitadas em publicações
+bem-sucedidas. Um contrato que precise aceitar até um limite absoluto por motivo
+pode projetar `_tdoa_rejeicao_motivo` (`Utf8`, nulo nas linhas válidas) e
+`_tdoa_origem_url`, além das colunas obrigatórias de linhagem, e configurar
+`TarefaDeSilverSql::com_limites_rejeicao`. O publicador remove a coluna de motivo
+da tabela Silver, grava as linhas rejeitadas em
+`silver/_quarentena/<fonte>/<recurso>/execucao=<id>/rejeicoes.jsonl` e registra
+no manifesto a chave, o tamanho e o SHA-256 do arquivo. Cada diagnóstico contém
+apenas motivo, regra e referência Bronze (manifesto, parte, tabela, ordinal),
+sem copiar os valores da linha. Uma rejeição acima do limite, motivo não declarado
+ou falha de upload impede a troca do ponteiro Silver. A segunda execução da mesma
+versão é reaproveitada. Ainda faltam contagens de conversões opcionais por motivo
+e exposição das métricas no painel/consulta (issue #483).
 
 A referência `(manifesto, parte, ordinal)` consta da linha Silver publicada,
 além do manifesto da execução. O leitor Bronze a fornece ao executor SQL; os

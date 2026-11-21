@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Não publicado]
+
+### Adicionado
+
+- Contratos Silver SQL podem declarar limites absolutos de rejeição por motivo; o publicador separa as linhas rejeitadas em quarentena com referência Bronze e preserva o ponteiro anterior em falhas (issue #483).
+
 ## [0.128.0] - 2026-11-21
 
 ### Adicionado
