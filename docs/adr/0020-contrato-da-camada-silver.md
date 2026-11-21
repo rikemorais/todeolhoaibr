@@ -35,16 +35,20 @@ as ocorrências com a referência técnica da linha. Hash de conteúdo não é c
 de negócio.
 
 O diagnóstico de rejeição contém motivo estável, versão da regra, manifesto
-Bronze, parte, tabela interna e ordinal. A linha original permanece no Bronze;
-o diagnóstico não precisa copiar identificadores pessoais. O destino planejado
-é `silver/_quarentena/<fonte>/<recurso>/tabela=<nome>/execucao=<id>/`, separado da tabela
-publicada. Contagens de entrada, saída, conversões opcionais, cópias removidas
-e rejeições por motivo pertencem ao manifesto da execução. O publicador SQL
-grava no manifesto contagens básicas de linhas Bronze preparadas e linhas Silver
-publicadas, sob limiar zero; ainda não grava diagnóstico estruturado por linha
-nem contagens de conversões e rejeições por motivo. Os
-contratos novos que dependam de rejeição recuperável precisam dessa capacidade
-antes da ativação.
+Bronze, parte e ordinal. A linha original permanece no Bronze;
+o diagnóstico não copia identificadores pessoais. O destino é
+`_quarentena/<fonte>/<recurso_destino>/execucao=<id>/diagnostico.parquet`, gravado
+no mesmo bucket Silver via `ArmazenamentoRaw::gravar`. Contagens de entrada,
+saída e rejeições por motivo pertencem ao manifesto da execução.
+
+O publicador SQL detecta a coluna `_tdoa_rejeicao_motivo` (Utf8, nullable) no
+schema de saída. Quando presente, separa linhas válidas (motivo null) das
+rejeitadas (motivo not null), grava o Parquet de quarentena antes da troca do
+ponteiro e emite qualidade v2 no manifesto com contagens detalhadas por motivo
+e referência à quarentena. Contratos sem essa coluna continuam emitindo
+qualidade v1 com `linhas_rejeitadas: 0` e `politica_rejeicao: "falha_total"`,
+sem mudança de comportamento. Os limites por motivo são declarados no contrato
+que invoca `publicar_transformacao_sql_com_limites`.
 
 A unidade de publicação é a tabela Silver de um recurso. Partes e manifesto
 são gravados antes de seu ponteiro; falha ou cancelamento antes dessa troca
