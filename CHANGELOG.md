@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.125.0] - 2026-11-21
+
+### Adicionado
+
+- Ingestão de dados fiscais de estados e municípios via API SICONFI do Tesouro Nacional: cadastro de entes (`siconfi-entes`), Declaração de Contas Anuais (`siconfi-dca`), Relatório de Execução Orçamentária (`siconfi-rreo`) e Relatório de Gestão Fiscal (`siconfi-rgf`), com paginação por entidade e decodificador Bronze para o envelope ORDS (issue #55).
+
 ## [0.124.4] - 2026-11-20
 
 ### Corrigido
