@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AvaliacaoDeEspaco"],"fn":["estimar","formatar_bytes"],"struct":["EspacoNecessario"]};
