@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.126.0] - 2026-11-21
+
+### Adicionado
+
+- Ingestão de dados de saneamento por município do SINISA (ex-SNIS): abastecimento de água (`snis-agua`), esgotamento sanitário (`snis-esgoto`), resíduos sólidos (`snis-residuos`) e águas pluviais (`snis-pluviais`), com decodificador Bronze para ZIP/XLSX de Base Municipal (issue #49).
+
 ## [0.125.1] - 2026-11-21
 
 ### Corrigido
