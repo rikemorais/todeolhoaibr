@@ -36,15 +36,16 @@ de negócio.
 
 O diagnóstico de rejeição contém motivo estável, versão da regra, manifesto
 Bronze, parte, tabela interna e ordinal. A linha original permanece no Bronze;
-o diagnóstico não precisa copiar identificadores pessoais. O destino planejado
-é `silver/_quarentena/<fonte>/<recurso>/tabela=<nome>/execucao=<id>/`, separado da tabela
-publicada. Contagens de entrada, saída, conversões opcionais, cópias removidas
-e rejeições por motivo pertencem ao manifesto da execução. O publicador SQL
-grava no manifesto contagens básicas de linhas Bronze preparadas e linhas Silver
-publicadas, sob limiar zero; ainda não grava diagnóstico estruturado por linha
-nem contagens de conversões e rejeições por motivo. Os
-contratos novos que dependam de rejeição recuperável precisam dessa capacidade
-antes da ativação.
+o diagnóstico não precisa copiar identificadores pessoais. O destino implementado
+é `silver/_quarentena/<fonte>/<recurso>/execucao=<id>/rejeicoes.jsonl`, separado
+da tabela publicada; o manifesto Silver guarda a chave, o tamanho e o SHA-256.
+Contagens de entrada, saída, conversões opcionais, cópias removidas e rejeições
+por motivo pertencem ao manifesto da execução. O publicador SQL grava as contagens
+de linhas Bronze preparadas, linhas Silver publicadas e rejeições por motivo
+para contratos que configuram limites absolutos. O diagnóstico inclui motivo,
+regra, manifesto, parte, tabela e ordinal Bronze. Não copia valores da linha.
+Contagens de conversões opcionais e cópias removidas ainda não são emitidas
+genericamente; contratos que dependam dessas contagens devem aguardar a capacidade.
 
 A unidade de publicação é a tabela Silver de um recurso. Partes e manifesto
 são gravados antes de seu ponteiro; falha ou cancelamento antes dessa troca
