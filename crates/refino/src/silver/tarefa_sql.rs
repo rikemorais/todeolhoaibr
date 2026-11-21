@@ -281,6 +281,9 @@ mod testes {
     const REGRA: &str = "teste-v1";
     const SQL: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto AS _tdoa_origem_manifesto, a._tdoa_origem_parte AS _tdoa_origem_parte, a._tdoa_origem_ordinal AS _tdoa_origem_ordinal FROM bronze AS a INNER JOIN bronze AS b ON a.id = b.id WHERE CAST(a.valor AS BIGINT) >= 20";
     const SQL_REJEICAO: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto, a._tdoa_origem_parte, a._tdoa_origem_ordinal, a._tdoa_origem_url, CASE WHEN CAST(a.valor AS BIGINT) < 20 THEN 'valor_baixo' ELSE NULL END AS _tdoa_rejeicao_motivo FROM bronze AS a ORDER BY a._tdoa_origem_parte, a._tdoa_origem_ordinal";
+    const SQL_CONVERSOES: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto, a._tdoa_origem_parte, a._tdoa_origem_ordinal, a._tdoa_origem_url, CAST(NULL AS VARCHAR) AS _tdoa_rejeicao_motivo, CASE WHEN CAST(a.valor AS BIGINT) = 20 THEN '[\"valor_normalizado\",\"texto_original_preservado\"]' ELSE NULL END AS _tdoa_conversoes_motivos FROM bronze AS a ORDER BY a._tdoa_origem_parte, a._tdoa_origem_ordinal";
+    const SQL_COPIAS: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto, a._tdoa_origem_parte, a._tdoa_origem_ordinal, a._tdoa_origem_url, CAST(NULL AS VARCHAR) AS _tdoa_rejeicao_motivo, ROW_NUMBER() OVER (PARTITION BY a.id, a.valor ORDER BY a._tdoa_origem_parte, a._tdoa_origem_ordinal) > 1 AS _tdoa_copia_removida FROM bronze AS a ORDER BY a._tdoa_origem_parte, a._tdoa_origem_ordinal";
+    const SQL_CONVERSAO_INVALIDA: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto, a._tdoa_origem_parte, a._tdoa_origem_ordinal, a._tdoa_origem_url, CAST(NULL AS VARCHAR) AS _tdoa_rejeicao_motivo, 'motivo-sem-json' AS _tdoa_conversoes_motivos FROM bronze AS a";
 
     #[derive(Default)]
     struct Memoria {
@@ -1516,7 +1519,7 @@ mod testes {
         let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
         let bytes_manifesto = silver.ler(&ponteiro.manifesto).await.unwrap().unwrap();
         let manifesto_json: serde_json::Value = serde_json::from_slice(&bytes_manifesto).unwrap();
-        assert_eq!(manifesto_json["qualidade"]["versao"], 1);
+        assert_eq!(manifesto_json["qualidade"]["versao"], 2);
         assert_eq!(
             manifesto_json["qualidade"]["manifesto_bronze"],
             snapshot.chave_manifesto()
@@ -1719,6 +1722,102 @@ mod testes {
                 .unwrap()
                 .keys()
                 .any(|chave| chave.contains("_quarentena/"))
+        );
+    }
+
+    #[tokio::test]
+    async fn conta_conversoes_opcionais_sem_remover_linhas() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let tarefa = nova_tarefa(bronze, snapshot, REGRA, SQL_CONVERSOES)
+            .com_limites_rejeicao(BTreeMap::new());
+
+        tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-conversoes"))
+            .await
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: serde_json::Value =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        assert_eq!(manifesto["qualidade"]["linhas_saida"], 4);
+        assert_eq!(manifesto["qualidade"]["linhas_rejeitadas"], 0);
+        assert!(manifesto["qualidade"]["quarentena"].is_null());
+        assert_eq!(
+            manifesto["qualidade"]["conversoes_opcionais_por_motivo"]["valor_normalizado"],
+            1
+        );
+        assert_eq!(
+            manifesto["qualidade"]["conversoes_opcionais_por_motivo"]["texto_original_preservado"],
+            1
+        );
+        assert!(!tarefa.pendente(silver.as_ref()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn conta_copias_removidas_declaradas_pelo_contrato() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(
+            preparar_snapshot_com_versao(
+                &bronze,
+                "bronze-copias",
+                vec![vec![("1", "10"), ("1", "10")], vec![("2", "20")]],
+            )
+            .await,
+        );
+        let silver = Arc::new(Memoria::default());
+        let tarefa =
+            nova_tarefa(bronze, snapshot, REGRA, SQL_COPIAS).com_limites_rejeicao(BTreeMap::new());
+
+        tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-copias"))
+            .await
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: serde_json::Value =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        assert_eq!(manifesto["qualidade"]["linhas_bronze_preparadas"], 3);
+        assert_eq!(manifesto["qualidade"]["linhas_saida"], 2);
+        assert_eq!(manifesto["qualidade"]["copias_removidas"], 1);
+        assert_eq!(manifesto["qualidade"]["linhas_rejeitadas"], 0);
+        assert!(!tarefa.pendente(silver.as_ref()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn conversao_opcional_invalida_preserva_ponteiro_anterior() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let tarefa = nova_tarefa(bronze, snapshot, REGRA, SQL_CONVERSAO_INVALIDA)
+            .com_limites_rejeicao(BTreeMap::new());
+
+        let erro = tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-invalida"))
+            .await
+            .unwrap_err();
+        assert!(erro.to_string().contains("motivos de conversão inválidos"));
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .is_none()
         );
     }
 
