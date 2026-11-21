@@ -3560,4 +3560,342 @@ mod testes {
             "include_str! referencia SQLs inexistentes: {fantasmas:?}"
         );
     }
+
+    // --- Testes de rejeição recuperável e quarentena (#483) ---
+
+    const SQL_COM_REJEICAO: &str = "\
+        SELECT CAST(a.id AS BIGINT) AS id, \
+               CAST(a.valor AS BIGINT) AS valor, \
+               a._tdoa_origem_manifesto, \
+               a._tdoa_origem_parte, \
+               a._tdoa_origem_ordinal, \
+               CASE WHEN CAST(a.valor AS BIGINT) < 20 \
+                    THEN 'valor_abaixo_minimo' \
+                    ELSE NULL END AS _tdoa_rejeicao_motivo \
+        FROM bronze AS a";
+
+    #[tokio::test]
+    async fn rejeicao_abaixo_do_limite_publica_silver_e_quarentena() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+
+        let mut limites = HashMap::new();
+        limites.insert("valor_abaixo_minimo".into(), 10u64);
+
+        let resumo = super::super::publicacao::publicar_transformacao_sql_com_limites(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            ConfiguracaoDePublicacao {
+                fonte: FONTE,
+                recurso: RECURSO,
+                recurso_destino: None,
+                regra: REGRA,
+                esquema: Some(esquema_saida()),
+                iniciada_em: Utc.with_ymd_and_hms(2026, 11, 6, 12, 30, 0).unwrap(),
+                id_execucao: "silver-rej-1",
+            },
+            SQL_COM_REJEICAO,
+            &executor_pequeno(),
+            limites,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(resumo.partes, 1);
+        assert!(!resumo.reaproveitada);
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let bytes_manifesto = silver.ler(&ponteiro.manifesto).await.unwrap().unwrap();
+        let m: serde_json::Value = serde_json::from_slice(&bytes_manifesto).unwrap();
+
+        assert_eq!(m["qualidade"]["versao"], 2);
+        assert_eq!(m["qualidade"]["linhas_bronze_preparadas"], 4);
+        assert_eq!(m["qualidade"]["linhas_saida"], 3);
+        assert_eq!(m["qualidade"]["linhas_rejeitadas"], 1);
+        assert_eq!(
+            m["qualidade"]["rejeicoes_por_motivo"]["valor_abaixo_minimo"],
+            1
+        );
+        assert_eq!(m["qualidade"]["politica_rejeicao"], "por_limite");
+        assert!(m["qualidade"]["quarentena"].is_string());
+
+        let chave_q = m["qualidade"]["quarentena"].as_str().unwrap();
+        let bytes_q = silver.ler(chave_q).await.unwrap().unwrap();
+        let leitor = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_q))
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut motivos = Vec::new();
+        let mut regras_q = Vec::new();
+        for lote in leitor {
+            let lote = lote.unwrap();
+            let m_arr = lote
+                .column(0)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap();
+            let r_arr = lote
+                .column(1)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap();
+            for i in 0..lote.num_rows() {
+                motivos.push(m_arr.value(i).to_owned());
+                regras_q.push(r_arr.value(i).to_owned());
+            }
+        }
+        assert_eq!(motivos, ["valor_abaixo_minimo"]);
+        assert_eq!(regras_q, [REGRA]);
+
+        let manifesto: ManifestoRaw = serde_json::from_slice(&bytes_manifesto).unwrap();
+        let bytes_silver = silver
+            .ler(&manifesto.partes[0].chave)
+            .await
+            .unwrap()
+            .unwrap();
+        let builder_s = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_silver)).unwrap();
+        let schema_s = builder_s.schema().clone();
+        assert!(
+            schema_s.field_with_name("_tdoa_rejeicao_motivo").is_err(),
+            "coluna de rejeição não pode aparecer na saída Silver"
+        );
+        let mut ids = Vec::new();
+        for lote in ParquetRecordBatchReaderBuilder::try_new(Bytes::from(
+            silver
+                .ler(&manifesto.partes[0].chave)
+                .await
+                .unwrap()
+                .unwrap(),
+        ))
+        .unwrap()
+        .build()
+        .unwrap()
+        {
+            let lote = lote.unwrap();
+            ids.extend(
+                lote.column(0)
+                    .as_any()
+                    .downcast_ref::<Int64Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .copied(),
+            );
+        }
+        assert_eq!(ids, [2, 3, 4]);
+    }
+
+    #[tokio::test]
+    async fn rejeicao_acima_do_limite_preserva_ponteiro_silver_anterior() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+
+        let mut limites = HashMap::new();
+        limites.insert("valor_abaixo_minimo".into(), 0u64);
+
+        let resultado = super::super::publicacao::publicar_transformacao_sql_com_limites(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            ConfiguracaoDePublicacao {
+                fonte: FONTE,
+                recurso: RECURSO,
+                recurso_destino: None,
+                regra: REGRA,
+                esquema: Some(esquema_saida()),
+                iniciada_em: Utc.with_ymd_and_hms(2026, 11, 6, 12, 30, 0).unwrap(),
+                id_execucao: "silver-rej-2",
+            },
+            SQL_COM_REJEICAO,
+            &executor_pequeno(),
+            limites,
+        )
+        .await;
+
+        assert!(resultado.is_err(), "deveria falhar com limite excedido");
+        let err = resultado.unwrap_err().to_string();
+        assert!(
+            err.contains("valor_abaixo_minimo"),
+            "mensagem de erro deve citar o motivo: {err}"
+        );
+        assert!(
+            silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .is_none(),
+            "ponteiro Silver não deve existir após falha"
+        );
+    }
+
+    #[tokio::test]
+    async fn rejeicao_sem_limites_declarados_usa_politica_falha_total() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+
+        let resultado = super::super::publicacao::publicar_transformacao_sql_com_limites(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            ConfiguracaoDePublicacao {
+                fonte: FONTE,
+                recurso: RECURSO,
+                recurso_destino: None,
+                regra: REGRA,
+                esquema: Some(esquema_saida()),
+                iniciada_em: Utc.with_ymd_and_hms(2026, 11, 6, 12, 30, 0).unwrap(),
+                id_execucao: "silver-rej-3",
+            },
+            SQL_COM_REJEICAO,
+            &executor_pequeno(),
+            HashMap::new(),
+        )
+        .await;
+
+        assert!(
+            resultado.is_err(),
+            "política falha_total rejeita qualquer rejeição"
+        );
+    }
+
+    #[tokio::test]
+    async fn reexecucao_idempotente_nao_duplica_quarentena() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+
+        let mut limites = HashMap::new();
+        limites.insert("valor_abaixo_minimo".into(), 10u64);
+
+        let config = || ConfiguracaoDePublicacao {
+            fonte: FONTE,
+            recurso: RECURSO,
+            recurso_destino: None,
+            regra: REGRA,
+            esquema: Some(esquema_saida()),
+            iniciada_em: Utc.with_ymd_and_hms(2026, 11, 6, 12, 30, 0).unwrap(),
+            id_execucao: "silver-rej-4",
+        };
+
+        super::super::publicacao::publicar_transformacao_sql_com_limites(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            config(),
+            SQL_COM_REJEICAO,
+            &executor_pequeno(),
+            limites.clone(),
+        )
+        .await
+        .unwrap();
+
+        let segundo = super::super::publicacao::publicar_transformacao_sql_com_limites(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            config(),
+            SQL_COM_REJEICAO,
+            &executor_pequeno(),
+            limites,
+        )
+        .await
+        .unwrap();
+
+        assert!(segundo.reaproveitada, "segunda execução deve ser reaproveitada");
+    }
+
+    #[tokio::test]
+    async fn quarentena_nao_contem_dados_pessoais() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+
+        let mut limites = HashMap::new();
+        limites.insert("valor_abaixo_minimo".into(), 10u64);
+
+        super::super::publicacao::publicar_transformacao_sql_com_limites(
+            bronze.as_ref(),
+            silver.as_ref(),
+            &snapshot,
+            ConfiguracaoDePublicacao {
+                fonte: FONTE,
+                recurso: RECURSO,
+                recurso_destino: None,
+                regra: REGRA,
+                esquema: Some(esquema_saida()),
+                iniciada_em: Utc.with_ymd_and_hms(2026, 11, 6, 12, 30, 0).unwrap(),
+                id_execucao: "silver-rej-5",
+            },
+            SQL_COM_REJEICAO,
+            &executor_pequeno(),
+            limites,
+        )
+        .await
+        .unwrap();
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let bytes_manifesto = silver.ler(&ponteiro.manifesto).await.unwrap().unwrap();
+        let m: serde_json::Value = serde_json::from_slice(&bytes_manifesto).unwrap();
+        let chave_q = m["qualidade"]["quarentena"].as_str().unwrap();
+        let bytes_q = silver.ler(chave_q).await.unwrap().unwrap();
+        let builder_q = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes_q)).unwrap();
+        let schema = builder_q.schema().clone();
+        let nomes: Vec<&str> = schema.fields().iter().map(|f| f.name().as_str()).collect();
+        assert_eq!(
+            nomes,
+            ["motivo", "versao_regra", "manifesto_bronze", "parte_bronze", "ordinal"],
+            "quarentena não deve conter colunas de dados pessoais"
+        );
+        assert!(
+            !nomes.contains(&"id") && !nomes.contains(&"valor"),
+            "valores da linha Bronze não devem aparecer na quarentena"
+        );
+    }
+
+    #[tokio::test]
+    async fn sql_sem_rejeicao_continua_emitindo_qualidade_v1() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let tarefa = nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot), REGRA, SQL);
+        tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-v1"))
+            .await
+            .unwrap();
+
+        let bytes_ponteiro = silver
+            .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+            .await
+            .unwrap()
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(&bytes_ponteiro).unwrap();
+        let bytes_manifesto = silver.ler(&ponteiro.manifesto).await.unwrap().unwrap();
+        let m: serde_json::Value = serde_json::from_slice(&bytes_manifesto).unwrap();
+        assert_eq!(m["qualidade"]["versao"], 1, "SQL sem _tdoa_rejeicao_motivo deve emitir v1");
+        assert_eq!(m["qualidade"]["linhas_rejeitadas"], 0);
+    }
+
+    fn executor_pequeno() -> ConfiguracaoExecutorSql {
+        ConfiguracaoExecutorSql {
+            limite_entrada_bytes: 1_000_000,
+            limite_memoria_bytes: 64 * 1024 * 1024,
+            limite_spill_bytes: 64 * 1024 * 1024,
+            particoes: 1,
+            tamanho_lote: 8192,
+        }
+    }
 }
