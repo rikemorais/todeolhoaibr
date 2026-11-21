@@ -24,7 +24,7 @@ use crate::{ErroDeRefino, EscritorParquetTipado, SnapshotBronze};
 
 pub(crate) const COL_MANIFESTO: &str = "_tdoa_origem_manifesto";
 pub(crate) const COL_PARTE: &str = "_tdoa_origem_parte";
-const COL_URL: &str = "_tdoa_origem_url";
+pub(crate) const COL_URL: &str = "_tdoa_origem_url";
 pub(crate) const COL_ORDINAL: &str = "_tdoa_origem_ordinal";
 const COL_JSON_ORIGINAL: &str = "_tdoa_json_original";
 
