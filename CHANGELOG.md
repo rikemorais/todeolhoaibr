@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.131.0] - 2026-11-21
+
+### Removido
+
+- Estimativa de tamanho por tarefa que travava o menu (>10 s) e a seleção de todas as fontes (vários minutos). O menu exibe a lista instantaneamente e a execução inicia após a confirmação (issue #492).
+
 ## [0.130.1] - 2026-11-21
 
 ### Alterado
