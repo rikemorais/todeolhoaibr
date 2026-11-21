@@ -4,13 +4,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead, Write};
 
-use todeolho_nucleo::{EspacoNecessario, FiltroDeTarefas, formatar_bytes};
+use todeolho_nucleo::FiltroDeTarefas;
 
 /// O que o menu precisa saber de uma tarefa.
 #[derive(Debug, Clone)]
 pub struct OpcaoDeTarefa {
     pub etiquetas: BTreeMap<String, String>,
-    pub bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -33,42 +32,9 @@ pub fn escolher(
     entrada: &mut impl BufRead,
     saida: &mut impl Write,
 ) -> io::Result<Option<Escolha>> {
-    writeln!(saida, "\nFontes disponíveis:")?;
-    // A coluna "Falta baixar" começa uma coluna depois do nome mais longo, então calculamos a
-    // largura da coluna de nomes em tempo de execução em vez de fixá-la (nomes maiores que o
-    // palpite antigo transbordavam e empurravam os valores para a direita).
-    let largura_nome = fontes
-        .iter()
-        .map(|fonte| fonte.nome.chars().count())
-        .chain(["Fonte".chars().count()])
-        .max()
-        .unwrap_or(0);
-    writeln!(
-        saida,
-        "      {:<largura_nome$} {:>12}",
-        "Fonte", "Falta baixar"
-    )?;
+    writeln!(saida, "\nFontes disponíveis:\n")?;
     for (indice, fonte) in fontes.iter().enumerate() {
-        writeln!(
-            saida,
-            "  {:>2}) {:<largura_nome$} {:>12}",
-            indice + 1,
-            fonte.nome,
-            tamanho(&fonte.tarefas)
-        )?;
-    }
-    let espaco = EspacoNecessario::somar(
-        fontes
-            .iter()
-            .flat_map(|fonte| fonte.tarefas.iter().map(|tarefa| &tarefa.bytes)),
-    );
-    writeln!(saida, "\nTotal conhecido: {}", formatar_bytes(espaco.bytes))?;
-    if espaco.sem_estimativa > 0 {
-        writeln!(
-            saida,
-            "Tarefas sem estimativa: {}. + indica valor parcial.",
-            espaco.sem_estimativa
-        )?;
+        writeln!(saida, "  {:>2}) {}", indice + 1, fonte.nome)?;
     }
 
     let Some(resposta) = perguntar_fontes(fontes.len(), entrada, saida)? else {
@@ -92,14 +58,14 @@ pub fn escolher(
         let mut restantes: Vec<&OpcaoDeTarefa> = fonte.tarefas.iter().collect();
 
         for dimensao in dimensoes(&fonte.tarefas) {
-            let valores = valores_com_tamanho(&restantes, &dimensao);
+            let valores = valores_da_dimensao(&restantes, &dimensao);
             if valores.len() < 2 {
                 continue;
             }
 
             writeln!(saida, "\n{}: escolha {dimensao}\n", fonte.nome)?;
-            for (posicao, (valor, bytes)) in valores.iter().enumerate() {
-                writeln!(saida, "  {:>2}) {valor:<6} {bytes:>9}", posicao + 1)?;
+            for (posicao, valor) in valores.iter().enumerate() {
+                writeln!(saida, "  {:>2}) {valor}", posicao + 1)?;
             }
 
             let Some(numeros) = perguntar_numeros(
@@ -113,7 +79,7 @@ pub fn escolher(
             };
 
             let escolhidos: BTreeSet<&str> =
-                numeros.iter().map(|&n| valores[n].0.as_str()).collect();
+                numeros.iter().map(|&n| valores[n].as_str()).collect();
             filtro.restringir(&dimensao, escolhidos.iter().copied());
             restantes.retain(|tarefa| {
                 tarefa
@@ -204,28 +170,14 @@ fn dimensoes(tarefas: &[OpcaoDeTarefa]) -> BTreeSet<String> {
         .collect()
 }
 
-fn valores_com_tamanho(tarefas: &[&OpcaoDeTarefa], dimensao: &str) -> Vec<(String, String)> {
-    let mut grupos: BTreeMap<&str, Vec<OpcaoDeTarefa>> = BTreeMap::new();
+fn valores_da_dimensao(tarefas: &[&OpcaoDeTarefa], dimensao: &str) -> Vec<String> {
+    let mut valores: BTreeSet<&str> = BTreeSet::new();
     for tarefa in tarefas {
         if let Some(valor) = tarefa.etiquetas.get(dimensao) {
-            grupos.entry(valor).or_default().push((*tarefa).clone());
+            valores.insert(valor);
         }
     }
-    grupos
-        .into_iter()
-        .map(|(valor, tarefas)| (valor.to_owned(), tamanho(&tarefas)))
-        .collect()
-}
-
-fn tamanho(tarefas: &[OpcaoDeTarefa]) -> String {
-    let espaco = EspacoNecessario::somar(tarefas.iter().map(|tarefa| &tarefa.bytes));
-    if espaco.sem_estimativa > 0 {
-        if espaco.bytes == 0 {
-            return "desconhecido".to_owned();
-        }
-        return format!("{}+", formatar_bytes(espaco.bytes));
-    }
-    formatar_bytes(espaco.bytes)
+    valores.into_iter().map(|v| v.to_owned()).collect()
 }
 
 #[cfg(test)]
@@ -234,13 +186,12 @@ mod testes {
 
     use super::*;
 
-    fn tarefa(ano: &str, uf: &str, bytes: u64) -> OpcaoDeTarefa {
+    fn tarefa(ano: &str, uf: &str) -> OpcaoDeTarefa {
         OpcaoDeTarefa {
             etiquetas: BTreeMap::from([
                 ("ano".to_owned(), ano.to_owned()),
                 ("uf".to_owned(), uf.to_owned()),
             ]),
-            bytes: Some(bytes),
         }
     }
 
@@ -250,15 +201,14 @@ mod testes {
                 nome: "ibge".into(),
                 tarefas: vec![OpcaoDeTarefa {
                     etiquetas: BTreeMap::new(),
-                    bytes: Some(2_000_000),
                 }],
             },
             OpcaoDeFonte {
                 nome: "tse".into(),
                 tarefas: vec![
-                    tarefa("2022", "AC", 1024),
-                    tarefa("2022", "SP", 1_048_576),
-                    tarefa("2024", "AC", 2048),
+                    tarefa("2022", "AC"),
+                    tarefa("2022", "SP"),
+                    tarefa("2024", "AC"),
                 ],
             },
         ]
@@ -312,15 +262,6 @@ mod testes {
     }
 
     #[test]
-    fn mostra_o_tamanho_de_cada_opcao() {
-        let (_, saida) = responder("2\n\n\n");
-
-        assert!(saida.contains("1,0 MB"), "{saida}");
-        assert!(saida.contains("2024"), "{saida}");
-        assert!(saida.contains("2,0 KB"), "{saida}");
-    }
-
-    #[test]
     fn filtra_por_ano_e_uf() {
         let (escolha, _) = responder("2\n1\n2\n");
 
@@ -361,103 +302,4 @@ mod testes {
         assert_eq!(indices, [0, 1]);
     }
 
-    #[test]
-    fn tamanho_desconhecido_nao_aparece_como_zero() {
-        let tarefas = [OpcaoDeTarefa {
-            etiquetas: BTreeMap::new(),
-            bytes: None,
-        }];
-        assert_eq!(tamanho(&tarefas), "desconhecido");
-    }
-
-    #[test]
-    fn tarefa_sem_estimativa_aparece_como_desconhecido() {
-        let mut fontes = fontes();
-        for tarefa in &mut fontes[1].tarefas {
-            tarefa.bytes = None;
-        }
-        let mut saida = Vec::new();
-        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
-        let texto = String::from_utf8(saida).unwrap();
-        assert!(
-            texto.contains("tse") && texto.contains("desconhecido"),
-            "{texto}"
-        );
-        assert!(!texto.contains("a consultar"), "{texto}");
-    }
-
-    #[test]
-    fn a_coluna_falta_baixar_alinha_uma_coluna_depois_do_nome_mais_longo() {
-        // O nome mais longo passa da largura antiga fixa (16/19) e empurrava os valores para a
-        // direita. A coluna de valores deve começar sempre na mesma posição, logo após o nome.
-        let fontes = vec![
-            OpcaoDeFonte {
-                nome: "ibge".into(),
-                tarefas: vec![OpcaoDeTarefa {
-                    etiquetas: BTreeMap::new(),
-                    bytes: Some(2_000_000),
-                }],
-            },
-            OpcaoDeFonte {
-                nome: "senado-processos-detalhes".into(),
-                tarefas: vec![OpcaoDeTarefa {
-                    etiquetas: BTreeMap::new(),
-                    bytes: Some(0),
-                }],
-            },
-        ];
-        let mut saida = Vec::new();
-        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
-        let texto = String::from_utf8(saida).unwrap();
-
-        let coluna_valor = |linha: &str, marca: &str| linha.rfind(marca);
-        let linha = |marca: &str| {
-            texto
-                .lines()
-                .find(|l| l.contains(marca))
-                .unwrap_or_else(|| panic!("sem a linha de {marca}:\n{texto}"))
-                .to_owned()
-        };
-
-        let cabecalho = linha("Falta baixar");
-        let linha_curta = linha(") ibge");
-        let linha_longa = linha("senado-processos-detalhes");
-
-        let col_cabecalho = coluna_valor(&cabecalho, "Falta baixar").unwrap();
-        let col_curta = coluna_valor(&linha_curta, "1,9 MB").unwrap();
-        let col_longa = coluna_valor(&linha_longa, "0 B").unwrap();
-
-        // O fim das colunas de valor (borda direita do campo) coincide em todas as linhas.
-        assert_eq!(
-            col_cabecalho + "Falta baixar".len(),
-            col_curta + "1,9 MB".len(),
-            "cabeçalho x linha curta desalinhados:\n{texto}"
-        );
-        assert_eq!(
-            col_curta + "1,9 MB".len(),
-            col_longa + "0 B".len(),
-            "linha curta x linha longa desalinhadas:\n{texto}"
-        );
-    }
-
-    #[test]
-    fn menu_mostra_total_conhecido_e_distingue_estimativas_parciais() {
-        let mut fontes = fontes();
-        fontes[0].tarefas.push(OpcaoDeTarefa {
-            etiquetas: BTreeMap::new(),
-            bytes: None,
-        });
-        let mut saida = Vec::new();
-        escolher(&fontes, &mut Cursor::new("\n"), &mut saida).unwrap();
-        let texto = String::from_utf8(saida).unwrap();
-
-        assert!(texto.contains("Falta baixar"), "{texto}");
-        // Linha do ibge: 2 MB conhecidos + 1 tarefa sem estimativa -> parcial.
-        assert!(texto.contains("1,9 MB+"), "{texto}");
-        // tse agora é estimado no menu, em vez de "a consultar".
-        assert!(!texto.contains("a consultar"), "{texto}");
-        // Total conhecido inclui todas as fontes (ibge 2 MB + tse ~1 MB).
-        assert!(texto.contains("Total conhecido: 2,9 MB"), "{texto}");
-        assert!(texto.contains("Tarefas sem estimativa: 1"), "{texto}");
-    }
 }

@@ -8,8 +8,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use serde::Deserialize;
 use todeolho_nucleo::{
-    ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, PrecisaoDaEstimativa,
-    ResumoDaTarefa, Tarefa, TarefaPlanejada,
+    ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, ResumoDaTarefa,
+    Tarefa, TarefaPlanejada,
 };
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
@@ -132,20 +132,6 @@ fn tarefa_de_arquivo(arquivo: ArquivoMensal) -> TarefaDeArquivo {
 impl Tarefa for TarefaRemuneracaoGo {
     fn nome(&self) -> &str {
         "ultima-competencia"
-    }
-
-    async fn bytes_a_baixar(
-        &self,
-        contexto: &ContextoDeExecucao,
-        precisao: PrecisaoDaEstimativa,
-    ) -> Result<Option<u64>, ErroDeIngestao> {
-        if precisao == PrecisaoDaEstimativa::Rapida {
-            return Ok(None);
-        }
-        let arquivo = arquivo_atual(contexto).await?;
-        tarefa_de_arquivo(arquivo)
-            .bytes_a_baixar(contexto, precisao)
-            .await
     }
 
     async fn executar(
