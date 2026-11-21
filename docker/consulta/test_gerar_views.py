@@ -24,12 +24,14 @@ class TesteViewsVigentes(unittest.TestCase):
             manifesto_antigo = recurso / "data=2025" / "_manifesto.json"
             manifesto_atual.parent.mkdir(parents=True)
             manifesto_antigo.parent.mkdir(parents=True)
+            qualidade_atual = {"versao": 1, "linhas_saida": 7}
             manifesto_atual.write_text(
                 json.dumps(
                     {
                         "fonte": "ana",
                         "recurso": "estacoes",
                         "partes": [{"chave": "ana/estacoes/data=2026/parte-1.parquet"}],
+                        "qualidade": qualidade_atual,
                     }
                 ),
                 encoding="utf-8",
@@ -49,15 +51,69 @@ class TesteViewsVigentes(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            tabelas = GERADOR.coletar(raiz, "silver")
+            metricas = {}
+            tabelas = GERADOR.coletar(raiz, "silver", metricas_silver=metricas)
 
             self.assertEqual(
                 tabelas["silver_ana_estacoes"],
                 [str(raiz / "ana/estacoes/data=2026/parte-1.parquet")],
             )
+            self.assertEqual(metricas["silver_ana_estacoes"], [qualidade_atual])
 
 
 class TesteRelatorioQualidade(unittest.TestCase):
+    def test_agrega_contagens_dos_manifestos_vigentes(self) -> None:
+        metricas = GERADOR.agregar_metricas([
+            {
+                "versao": 2,
+                "linhas_bronze_preparadas": 4,
+                "linhas_saida": 3,
+                "linhas_rejeitadas": 1,
+                "copias_removidas": 1,
+                "rejeicoes_por_motivo": {"invalido": 1},
+                "conversoes_opcionais_por_motivo": {"data": 2},
+            },
+            {
+                "versao": 2,
+                "linhas_bronze_preparadas": 2,
+                "linhas_saida": 2,
+                "linhas_rejeitadas": 0,
+                "copias_removidas": 0,
+                "rejeicoes_por_motivo": {},
+                "conversoes_opcionais_por_motivo": {"data": 1},
+            },
+        ])
+
+        self.assertEqual(metricas["linhas_bronze_preparadas"], 6)
+        self.assertEqual(metricas["linhas_saida"], 5)
+        self.assertEqual(metricas["linhas_rejeitadas"], 1)
+        self.assertEqual(metricas["copias_removidas"], 1)
+        self.assertEqual(metricas["rejeicoes_por_motivo"], {"invalido": 1})
+        self.assertEqual(metricas["conversoes_opcionais_por_motivo"], {"data": 3})
+        sql = GERADOR.sql_qualidade("silver_ana_estacoes", ["codigo"], None, metricas)
+        self.assertIn("6 AS linhas_bronze_preparadas_manifesto", sql)
+        self.assertIn("5 AS linhas_saida_manifesto", sql)
+        self.assertIn("1 AS linhas_rejeitadas_manifesto", sql)
+        self.assertIn("1 AS copias_removidas_manifesto", sql)
+
+    def test_nao_exibe_total_parcial_com_manifesto_antigo(self) -> None:
+        self.assertIsNone(GERADOR.agregar_metricas([{"versao": 1}]))
+        self.assertIsNone(GERADOR.agregar_metricas([
+            {
+                "versao": 2,
+                "linhas_bronze_preparadas": 4,
+                "linhas_saida": 4,
+                "linhas_rejeitadas": 0,
+                "copias_removidas": 0,
+                "rejeicoes_por_motivo": {},
+                "conversoes_opcionais_por_motivo": {},
+            },
+            None,
+        ]))
+        sql = GERADOR.sql_qualidade("silver_ana_estacoes", ["codigo"], None, None)
+        self.assertIn("CAST(NULL AS BIGINT) AS linhas_saida_manifesto", sql)
+        self.assertIn("sem métricas em algum manifesto", sql)
+
     def test_chave_mensal_de_uf_do_mapa_de_empresas(self) -> None:
         self.assertEqual(
             GERADOR.chave_candidata("mapa_empresas", "movimentacao"),
