@@ -287,174 +287,189 @@
 <a href=#287 id=287 data-nosnippet>287</a>        esquema_parquet,
 <a href=#288 id=288 data-nosnippet>288</a>    )
 <a href=#289 id=289 data-nosnippet>289</a>    .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao iniciar escritor Parquet Silver"</span>))<span class="question-mark">?</span>;
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(lote) = fluxo.next().<span class="kw">await </span>{
-<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span>lote = lote.map_err(|erro| {
-<a href=#292 id=292 data-nosnippet>292</a>            erro_manifesto(
-<a href=#293 id=293 data-nosnippet>293</a>                recurso,
-<a href=#294 id=294 data-nosnippet>294</a>                <span class="macro">format!</span>(<span class="string">"falha na execução do contrato SQL Silver: {erro}"</span>),
-<a href=#295 id=295 data-nosnippet>295</a>            )
-<a href=#296 id=296 data-nosnippet>296</a>        })<span class="question-mark">?</span>;
-<a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span>lote = <span class="kw">match </span><span class="kw-2">&amp;</span>esquema {
-<a href=#298 id=298 data-nosnippet>298</a>            <span class="prelude-val">Some</span>(esquema) =&gt; normalizar_schema_lote(lote, esquema)
-<a href=#299 id=299 data-nosnippet>299</a>                .map_err(|detalhe| erro_manifesto(recurso, detalhe))<span class="question-mark">?</span>,
-<a href=#300 id=300 data-nosnippet>300</a>            <span class="prelude-val">None </span>=&gt; lote,
-<a href=#301 id=301 data-nosnippet>301</a>        };
-<a href=#302 id=302 data-nosnippet>302</a>        escritor
-<a href=#303 id=303 data-nosnippet>303</a>            .escrever_lote(<span class="kw-2">&amp;</span>lote)
-<a href=#304 id=304 data-nosnippet>304</a>            .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"resultado SQL diverge do schema de saída"</span>))<span class="question-mark">?</span>;
-<a href=#305 id=305 data-nosnippet>305</a>    }
-<a href=#306 id=306 data-nosnippet>306</a>    drop(fluxo);
-<a href=#307 id=307 data-nosnippet>307</a>    escritor
-<a href=#308 id=308 data-nosnippet>308</a>        .fechar()
-<a href=#309 id=309 data-nosnippet>309</a>        .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao finalizar Parquet Silver"</span>))<span class="question-mark">?</span>;
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a>    <span class="kw">let </span>bytes = arquivo
-<a href=#312 id=312 data-nosnippet>312</a>        .as_file()
-<a href=#313 id=313 data-nosnippet>313</a>        .metadata()
-<a href=#314 id=314 data-nosnippet>314</a>        .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao medir Parquet Silver"</span>))<span class="question-mark">?
-<a href=#315 id=315 data-nosnippet>315</a>        </span>.len();
-<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">let </span><span class="kw-2">mut </span>hash = Sha256::new();
-<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">let </span><span class="kw-2">mut </span>leitura = arquivo
-<a href=#318 id=318 data-nosnippet>318</a>        .reopen()
-<a href=#319 id=319 data-nosnippet>319</a>        .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao ler Parquet Silver temporário"</span>))<span class="question-mark">?</span>;
-<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">let </span><span class="kw-2">mut </span>bloco = [<span class="number">0u8</span>; <span class="number">64 </span>* <span class="number">1024</span>];
-<a href=#321 id=321 data-nosnippet>321</a>    <span class="kw">loop </span>{
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>lidos = leitura
-<a href=#323 id=323 data-nosnippet>323</a>            .read(<span class="kw-2">&amp;mut </span>bloco)
-<a href=#324 id=324 data-nosnippet>324</a>            .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao calcular hash do Parquet Silver"</span>))<span class="question-mark">?</span>;
-<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">if </span>lidos == <span class="number">0 </span>{
-<a href=#326 id=326 data-nosnippet>326</a>            <span class="kw">break</span>;
-<a href=#327 id=327 data-nosnippet>327</a>        }
-<a href=#328 id=328 data-nosnippet>328</a>        hash.update(<span class="kw-2">&amp;</span>bloco[..lidos]);
-<a href=#329 id=329 data-nosnippet>329</a>    }
-<a href=#330 id=330 data-nosnippet>330</a>    <span class="kw">let </span>chave = local.parte(<span class="number">1</span>, <span class="string">"parquet"</span>);
-<a href=#331 id=331 data-nosnippet>331</a>    <span class="kw">let </span><span class="kw-2">mut </span>fluxo_upload = tokio::fs::File::from_std(
-<a href=#332 id=332 data-nosnippet>332</a>        arquivo
-<a href=#333 id=333 data-nosnippet>333</a>            .reopen()
-<a href=#334 id=334 data-nosnippet>334</a>            .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao reabrir Parquet Silver"</span>))<span class="question-mark">?</span>,
-<a href=#335 id=335 data-nosnippet>335</a>    );
-<a href=#336 id=336 data-nosnippet>336</a>    silver
-<a href=#337 id=337 data-nosnippet>337</a>        .gravar_fluxo(<span class="kw-2">&amp;</span>chave, TIPO_PARQUET, <span class="kw-2">&amp;mut </span>fluxo_upload)
-<a href=#338 id=338 data-nosnippet>338</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#339 id=339 data-nosnippet>339</a>
-<a href=#340 id=340 data-nosnippet>340</a>    <span class="kw">let </span>guarda = bloquear_publicacao(fonte, recurso).<span class="kw">await</span>;
-<a href=#341 id=341 data-nosnippet>341</a>    <span class="kw">if </span>!snapshot
-<a href=#342 id=342 data-nosnippet>342</a>        .ainda_vigente(bronze, opcoes.fonte_bronze.unwrap_or(fonte), recurso)
-<a href=#343 id=343 data-nosnippet>343</a>        .<span class="kw">await
-<a href=#344 id=344 data-nosnippet>344</a>        </span>.map_err(|erro| erro_manifesto(recurso, erro))<span class="question-mark">?
-<a href=#345 id=345 data-nosnippet>345</a>    </span>{
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(erro_manifesto(
-<a href=#347 id=347 data-nosnippet>347</a>            recurso,
-<a href=#348 id=348 data-nosnippet>348</a>            <span class="string">"ponteiro Bronze mudou durante a transformação; Silver não publicada"</span>,
-<a href=#349 id=349 data-nosnippet>349</a>        ));
-<a href=#350 id=350 data-nosnippet>350</a>    }
-<a href=#351 id=351 data-nosnippet>351</a>
-<a href=#352 id=352 data-nosnippet>352</a>    <span class="kw">let </span>manifesto = ManifestoRaw {
-<a href=#353 id=353 data-nosnippet>353</a>        fonte: fonte.into(),
-<a href=#354 id=354 data-nosnippet>354</a>        recurso: recurso_destino.into(),
-<a href=#355 id=355 data-nosnippet>355</a>        id_execucao: id_execucao.into(),
-<a href=#356 id=356 data-nosnippet>356</a>        url_inicial: <span class="macro">format!</span>(<span class="string">"bronze/{recurso}"</span>),
-<a href=#357 id=357 data-nosnippet>357</a>        iniciada_em,
-<a href=#358 id=358 data-nosnippet>358</a>        concluida_em: Utc::now(),
-<a href=#359 id=359 data-nosnippet>359</a>        partes: <span class="macro">vec!</span>[ParteRaw {
-<a href=#360 id=360 data-nosnippet>360</a>            chave,
-<a href=#361 id=361 data-nosnippet>361</a>            url: recurso.into(),
-<a href=#362 id=362 data-nosnippet>362</a>            bytes,
-<a href=#363 id=363 data-nosnippet>363</a>            sha256: hex::encode(hash.finalize()),
-<a href=#364 id=364 data-nosnippet>364</a>            tipo_de_conteudo: TIPO_PARQUET.into(),
-<a href=#365 id=365 data-nosnippet>365</a>            versao: <span class="prelude-val">Some</span>(<span class="macro">format!</span>(
-<a href=#366 id=366 data-nosnippet>366</a>                <span class="string">"{}|regra={regra}"</span>,
-<a href=#367 id=367 data-nosnippet>367</a>                snapshot.manifesto().id_execucao
-<a href=#368 id=368 data-nosnippet>368</a>            )),
-<a href=#369 id=369 data-nosnippet>369</a>        }],
-<a href=#370 id=370 data-nosnippet>370</a>    };
-<a href=#371 id=371 data-nosnippet>371</a>    silver
-<a href=#372 id=372 data-nosnippet>372</a>        .gravar(ObjetoRaw {
-<a href=#373 id=373 data-nosnippet>373</a>            chave: local.manifesto(),
-<a href=#374 id=374 data-nosnippet>374</a>            conteudo: serde_json::to_vec_pretty(<span class="kw-2">&amp;</span>manifesto)
-<a href=#375 id=375 data-nosnippet>375</a>                .map_err(|erro| erro_manifesto(recurso, erro))<span class="question-mark">?</span>,
-<a href=#376 id=376 data-nosnippet>376</a>            tipo_de_conteudo: <span class="string">"application/json"</span>.into(),
-<a href=#377 id=377 data-nosnippet>377</a>        })
-<a href=#378 id=378 data-nosnippet>378</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">let </span>publicou = publicar_ponteiro_sob_guarda(
-<a href=#380 id=380 data-nosnippet>380</a>        silver,
-<a href=#381 id=381 data-nosnippet>381</a>        fonte,
-<a href=#382 id=382 data-nosnippet>382</a>        recurso_destino,
-<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw-2">&amp;</span>UltimaVersao {
-<a href=#384 id=384 data-nosnippet>384</a>            versao: <span class="prelude-val">Some</span>(versao_silver),
-<a href=#385 id=385 data-nosnippet>385</a>            manifesto: local.manifesto(),
-<a href=#386 id=386 data-nosnippet>386</a>            iniciada_em: <span class="prelude-val">Some</span>(iniciada_em),
-<a href=#387 id=387 data-nosnippet>387</a>        },
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw-2">&amp;</span>guarda,
-<a href=#389 id=389 data-nosnippet>389</a>    )
-<a href=#390 id=390 data-nosnippet>390</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#391 id=391 data-nosnippet>391</a>    <span class="kw">if </span>!publicou {
-<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(erro_manifesto(
-<a href=#393 id=393 data-nosnippet>393</a>            recurso,
-<a href=#394 id=394 data-nosnippet>394</a>            <span class="string">"ponteiro Silver mais recente preservado; esta execução não foi publicada"</span>,
-<a href=#395 id=395 data-nosnippet>395</a>        ));
-<a href=#396 id=396 data-nosnippet>396</a>    }
-<a href=#397 id=397 data-nosnippet>397</a>    <span class="prelude-val">Ok</span>(ResumoDaTarefa {
-<a href=#398 id=398 data-nosnippet>398</a>        partes: <span class="number">1</span>,
-<a href=#399 id=399 data-nosnippet>399</a>        bytes,
-<a href=#400 id=400 data-nosnippet>400</a>        ..ResumoDaTarefa::default()
-<a href=#401 id=401 data-nosnippet>401</a>    })
-<a href=#402 id=402 data-nosnippet>402</a>}
-<a href=#403 id=403 data-nosnippet>403</a>
-<a href=#404 id=404 data-nosnippet>404</a><span class="doccomment">/// Compara o contrato SQL sem exigir que o planejador prove nulabilidade a partir do Parquet.
-<a href=#405 id=405 data-nosnippet>405</a></span><span class="kw">fn </span>schemas_compativeis(esperado: <span class="kw-2">&amp;</span>SchemaRef, recebido: <span class="kw-2">&amp;</span>SchemaRef) -&gt; bool {
-<a href=#406 id=406 data-nosnippet>406</a>    esperado.metadata() == recebido.metadata()
-<a href=#407 id=407 data-nosnippet>407</a>        &amp;&amp; esperado.fields().len() == recebido.fields().len()
-<a href=#408 id=408 data-nosnippet>408</a>        &amp;&amp; esperado
-<a href=#409 id=409 data-nosnippet>409</a>            .fields()
-<a href=#410 id=410 data-nosnippet>410</a>            .iter()
-<a href=#411 id=411 data-nosnippet>411</a>            .zip(recebido.fields())
-<a href=#412 id=412 data-nosnippet>412</a>            .all(|(esperado, recebido)| {
-<a href=#413 id=413 data-nosnippet>413</a>                esperado.name() == recebido.name()
-<a href=#414 id=414 data-nosnippet>414</a>                    &amp;&amp; esperado.data_type() == recebido.data_type()
-<a href=#415 id=415 data-nosnippet>415</a>                    &amp;&amp; esperado.metadata() == recebido.metadata()
-<a href=#416 id=416 data-nosnippet>416</a>            })
+<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">let </span><span class="kw-2">mut </span>linhas_saida = <span class="number">0u64</span>;
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(lote) = fluxo.next().<span class="kw">await </span>{
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">let </span>lote = lote.map_err(|erro| {
+<a href=#293 id=293 data-nosnippet>293</a>            erro_manifesto(
+<a href=#294 id=294 data-nosnippet>294</a>                recurso,
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="macro">format!</span>(<span class="string">"falha na execução do contrato SQL Silver: {erro}"</span>),
+<a href=#296 id=296 data-nosnippet>296</a>            )
+<a href=#297 id=297 data-nosnippet>297</a>        })<span class="question-mark">?</span>;
+<a href=#298 id=298 data-nosnippet>298</a>        <span class="kw">let </span>lote = <span class="kw">match </span><span class="kw-2">&amp;</span>esquema {
+<a href=#299 id=299 data-nosnippet>299</a>            <span class="prelude-val">Some</span>(esquema) =&gt; normalizar_schema_lote(lote, esquema)
+<a href=#300 id=300 data-nosnippet>300</a>                .map_err(|detalhe| erro_manifesto(recurso, detalhe))<span class="question-mark">?</span>,
+<a href=#301 id=301 data-nosnippet>301</a>            <span class="prelude-val">None </span>=&gt; lote,
+<a href=#302 id=302 data-nosnippet>302</a>        };
+<a href=#303 id=303 data-nosnippet>303</a>        linhas_saida = linhas_saida
+<a href=#304 id=304 data-nosnippet>304</a>            .checked_add(lote.num_rows() <span class="kw">as </span>u64)
+<a href=#305 id=305 data-nosnippet>305</a>            .ok_or_else(|| erro_manifesto(recurso, <span class="string">"contagem de linhas Silver excede u64"</span>))<span class="question-mark">?</span>;
+<a href=#306 id=306 data-nosnippet>306</a>        escritor
+<a href=#307 id=307 data-nosnippet>307</a>            .escrever_lote(<span class="kw-2">&amp;</span>lote)
+<a href=#308 id=308 data-nosnippet>308</a>            .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"resultado SQL diverge do schema de saída"</span>))<span class="question-mark">?</span>;
+<a href=#309 id=309 data-nosnippet>309</a>    }
+<a href=#310 id=310 data-nosnippet>310</a>    drop(fluxo);
+<a href=#311 id=311 data-nosnippet>311</a>    escritor
+<a href=#312 id=312 data-nosnippet>312</a>        .fechar()
+<a href=#313 id=313 data-nosnippet>313</a>        .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao finalizar Parquet Silver"</span>))<span class="question-mark">?</span>;
+<a href=#314 id=314 data-nosnippet>314</a>
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="kw">let </span>bytes = arquivo
+<a href=#316 id=316 data-nosnippet>316</a>        .as_file()
+<a href=#317 id=317 data-nosnippet>317</a>        .metadata()
+<a href=#318 id=318 data-nosnippet>318</a>        .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao medir Parquet Silver"</span>))<span class="question-mark">?
+<a href=#319 id=319 data-nosnippet>319</a>        </span>.len();
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">let </span><span class="kw-2">mut </span>hash = Sha256::new();
+<a href=#321 id=321 data-nosnippet>321</a>    <span class="kw">let </span><span class="kw-2">mut </span>leitura = arquivo
+<a href=#322 id=322 data-nosnippet>322</a>        .reopen()
+<a href=#323 id=323 data-nosnippet>323</a>        .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao ler Parquet Silver temporário"</span>))<span class="question-mark">?</span>;
+<a href=#324 id=324 data-nosnippet>324</a>    <span class="kw">let </span><span class="kw-2">mut </span>bloco = [<span class="number">0u8</span>; <span class="number">64 </span>* <span class="number">1024</span>];
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="kw">loop </span>{
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>lidos = leitura
+<a href=#327 id=327 data-nosnippet>327</a>            .read(<span class="kw-2">&amp;mut </span>bloco)
+<a href=#328 id=328 data-nosnippet>328</a>            .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao calcular hash do Parquet Silver"</span>))<span class="question-mark">?</span>;
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">if </span>lidos == <span class="number">0 </span>{
+<a href=#330 id=330 data-nosnippet>330</a>            <span class="kw">break</span>;
+<a href=#331 id=331 data-nosnippet>331</a>        }
+<a href=#332 id=332 data-nosnippet>332</a>        hash.update(<span class="kw-2">&amp;</span>bloco[..lidos]);
+<a href=#333 id=333 data-nosnippet>333</a>    }
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">let </span>chave = local.parte(<span class="number">1</span>, <span class="string">"parquet"</span>);
+<a href=#335 id=335 data-nosnippet>335</a>    <span class="kw">let </span><span class="kw-2">mut </span>fluxo_upload = tokio::fs::File::from_std(
+<a href=#336 id=336 data-nosnippet>336</a>        arquivo
+<a href=#337 id=337 data-nosnippet>337</a>            .reopen()
+<a href=#338 id=338 data-nosnippet>338</a>            .map_err(|<span class="kw">_</span>| erro_manifesto(recurso, <span class="string">"falha ao reabrir Parquet Silver"</span>))<span class="question-mark">?</span>,
+<a href=#339 id=339 data-nosnippet>339</a>    );
+<a href=#340 id=340 data-nosnippet>340</a>    silver
+<a href=#341 id=341 data-nosnippet>341</a>        .gravar_fluxo(<span class="kw-2">&amp;</span>chave, TIPO_PARQUET, <span class="kw-2">&amp;mut </span>fluxo_upload)
+<a href=#342 id=342 data-nosnippet>342</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a>    <span class="kw">let </span>guarda = bloquear_publicacao(fonte, recurso).<span class="kw">await</span>;
+<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">if </span>!snapshot
+<a href=#346 id=346 data-nosnippet>346</a>        .ainda_vigente(bronze, opcoes.fonte_bronze.unwrap_or(fonte), recurso)
+<a href=#347 id=347 data-nosnippet>347</a>        .<span class="kw">await
+<a href=#348 id=348 data-nosnippet>348</a>        </span>.map_err(|erro| erro_manifesto(recurso, erro))<span class="question-mark">?
+<a href=#349 id=349 data-nosnippet>349</a>    </span>{
+<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(erro_manifesto(
+<a href=#351 id=351 data-nosnippet>351</a>            recurso,
+<a href=#352 id=352 data-nosnippet>352</a>            <span class="string">"ponteiro Bronze mudou durante a transformação; Silver não publicada"</span>,
+<a href=#353 id=353 data-nosnippet>353</a>        ));
+<a href=#354 id=354 data-nosnippet>354</a>    }
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">let </span>manifesto = ManifestoRaw {
+<a href=#357 id=357 data-nosnippet>357</a>        fonte: fonte.into(),
+<a href=#358 id=358 data-nosnippet>358</a>        recurso: recurso_destino.into(),
+<a href=#359 id=359 data-nosnippet>359</a>        id_execucao: id_execucao.into(),
+<a href=#360 id=360 data-nosnippet>360</a>        url_inicial: <span class="macro">format!</span>(<span class="string">"bronze/{recurso}"</span>),
+<a href=#361 id=361 data-nosnippet>361</a>        iniciada_em,
+<a href=#362 id=362 data-nosnippet>362</a>        concluida_em: Utc::now(),
+<a href=#363 id=363 data-nosnippet>363</a>        partes: <span class="macro">vec!</span>[ParteRaw {
+<a href=#364 id=364 data-nosnippet>364</a>            chave,
+<a href=#365 id=365 data-nosnippet>365</a>            url: recurso.into(),
+<a href=#366 id=366 data-nosnippet>366</a>            bytes,
+<a href=#367 id=367 data-nosnippet>367</a>            sha256: hex::encode(hash.finalize()),
+<a href=#368 id=368 data-nosnippet>368</a>            tipo_de_conteudo: TIPO_PARQUET.into(),
+<a href=#369 id=369 data-nosnippet>369</a>            versao: <span class="prelude-val">Some</span>(<span class="macro">format!</span>(
+<a href=#370 id=370 data-nosnippet>370</a>                <span class="string">"{}|regra={regra}"</span>,
+<a href=#371 id=371 data-nosnippet>371</a>                snapshot.manifesto().id_execucao
+<a href=#372 id=372 data-nosnippet>372</a>            )),
+<a href=#373 id=373 data-nosnippet>373</a>        }],
+<a href=#374 id=374 data-nosnippet>374</a>    };
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">let </span><span class="kw-2">mut </span>manifesto_json =
+<a href=#376 id=376 data-nosnippet>376</a>        serde_json::to_value(<span class="kw-2">&amp;</span>manifesto).map_err(|erro| erro_manifesto(recurso, erro))<span class="question-mark">?</span>;
+<a href=#377 id=377 data-nosnippet>377</a>    manifesto_json[<span class="string">"qualidade"</span>] = <span class="macro">serde_json::json!</span>({
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="string">"versao"</span>: <span class="number">1</span>,
+<a href=#379 id=379 data-nosnippet>379</a>        <span class="string">"manifesto_bronze"</span>: snapshot.chave_manifesto(),
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="string">"regra"</span>: regra,
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="string">"linhas_bronze_preparadas"</span>: entrada.linhas_bronze(),
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="string">"linhas_saida"</span>: linhas_saida,
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="string">"linhas_rejeitadas"</span>: <span class="number">0</span>,
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="string">"politica_rejeicao"</span>: <span class="string">"falha_total"
+<a href=#385 id=385 data-nosnippet>385</a>    </span>});
+<a href=#386 id=386 data-nosnippet>386</a>    silver
+<a href=#387 id=387 data-nosnippet>387</a>        .gravar(ObjetoRaw {
+<a href=#388 id=388 data-nosnippet>388</a>            chave: local.manifesto(),
+<a href=#389 id=389 data-nosnippet>389</a>            conteudo: serde_json::to_vec_pretty(<span class="kw-2">&amp;</span>manifesto_json)
+<a href=#390 id=390 data-nosnippet>390</a>                .map_err(|erro| erro_manifesto(recurso, erro))<span class="question-mark">?</span>,
+<a href=#391 id=391 data-nosnippet>391</a>            tipo_de_conteudo: <span class="string">"application/json"</span>.into(),
+<a href=#392 id=392 data-nosnippet>392</a>        })
+<a href=#393 id=393 data-nosnippet>393</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">let </span>publicou = publicar_ponteiro_sob_guarda(
+<a href=#395 id=395 data-nosnippet>395</a>        silver,
+<a href=#396 id=396 data-nosnippet>396</a>        fonte,
+<a href=#397 id=397 data-nosnippet>397</a>        recurso_destino,
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw-2">&amp;</span>UltimaVersao {
+<a href=#399 id=399 data-nosnippet>399</a>            versao: <span class="prelude-val">Some</span>(versao_silver),
+<a href=#400 id=400 data-nosnippet>400</a>            manifesto: local.manifesto(),
+<a href=#401 id=401 data-nosnippet>401</a>            iniciada_em: <span class="prelude-val">Some</span>(iniciada_em),
+<a href=#402 id=402 data-nosnippet>402</a>        },
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw-2">&amp;</span>guarda,
+<a href=#404 id=404 data-nosnippet>404</a>    )
+<a href=#405 id=405 data-nosnippet>405</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#406 id=406 data-nosnippet>406</a>    <span class="kw">if </span>!publicou {
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(erro_manifesto(
+<a href=#408 id=408 data-nosnippet>408</a>            recurso,
+<a href=#409 id=409 data-nosnippet>409</a>            <span class="string">"ponteiro Silver mais recente preservado; esta execução não foi publicada"</span>,
+<a href=#410 id=410 data-nosnippet>410</a>        ));
+<a href=#411 id=411 data-nosnippet>411</a>    }
+<a href=#412 id=412 data-nosnippet>412</a>    <span class="prelude-val">Ok</span>(ResumoDaTarefa {
+<a href=#413 id=413 data-nosnippet>413</a>        partes: <span class="number">1</span>,
+<a href=#414 id=414 data-nosnippet>414</a>        bytes,
+<a href=#415 id=415 data-nosnippet>415</a>        ..ResumoDaTarefa::default()
+<a href=#416 id=416 data-nosnippet>416</a>    })
 <a href=#417 id=417 data-nosnippet>417</a>}
 <a href=#418 id=418 data-nosnippet>418</a>
-<a href=#419 id=419 data-nosnippet>419</a><span class="doccomment">/// Restaura a nulabilidade declarada e impede que SQL publique nulos proibidos pelo contrato.
-<a href=#420 id=420 data-nosnippet>420</a></span><span class="kw">fn </span>normalizar_schema_lote(
-<a href=#421 id=421 data-nosnippet>421</a>    lote: RecordBatch,
-<a href=#422 id=422 data-nosnippet>422</a>    esperado: <span class="kw-2">&amp;</span>SchemaRef,
-<a href=#423 id=423 data-nosnippet>423</a>) -&gt; <span class="prelude-ty">Result</span>&lt;RecordBatch, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-<a href=#424 id=424 data-nosnippet>424</a>    <span class="kw">if </span>esperado
-<a href=#425 id=425 data-nosnippet>425</a>        .fields()
-<a href=#426 id=426 data-nosnippet>426</a>        .iter()
-<a href=#427 id=427 data-nosnippet>427</a>        .zip(lote.columns())
-<a href=#428 id=428 data-nosnippet>428</a>        .any(|(campo, coluna)| !campo.is_nullable() &amp;&amp; coluna.null_count() &gt; <span class="number">0</span>)
-<a href=#429 id=429 data-nosnippet>429</a>    {
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"resultado SQL contém nulos em campos obrigatórios do contrato Silver"</span>);
-<a href=#431 id=431 data-nosnippet>431</a>    }
-<a href=#432 id=432 data-nosnippet>432</a>    RecordBatch::try_new(esperado.clone(), lote.columns().to_vec())
-<a href=#433 id=433 data-nosnippet>433</a>        .map_err(|<span class="kw">_</span>| <span class="string">"resultado SQL não pode usar a nulabilidade declarada pelo contrato"</span>)
-<a href=#434 id=434 data-nosnippet>434</a>}
-<a href=#435 id=435 data-nosnippet>435</a>
-<a href=#436 id=436 data-nosnippet>436</a><span class="kw">fn </span>validar_linhagem(esquema: <span class="kw-2">&amp;</span>SchemaRef) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">for </span>(nome, tipo) <span class="kw">in </span>[
-<a href=#438 id=438 data-nosnippet>438</a>        (COL_MANIFESTO, arrow::datatypes::DataType::Utf8),
-<a href=#439 id=439 data-nosnippet>439</a>        (COL_PARTE, arrow::datatypes::DataType::Utf8),
-<a href=#440 id=440 data-nosnippet>440</a>        (COL_ORDINAL, arrow::datatypes::DataType::UInt64),
-<a href=#441 id=441 data-nosnippet>441</a>    ] {
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">match </span>esquema.field_with_name(nome) {
-<a href=#443 id=443 data-nosnippet>443</a>            <span class="prelude-val">Ok</span>(campo) <span class="kw">if </span>campo.data_type() == <span class="kw-2">&amp;</span>tipo =&gt; {}
-<a href=#444 id=444 data-nosnippet>444</a>            <span class="kw">_ </span>=&gt; {
-<a href=#445 id=445 data-nosnippet>445</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#446 id=446 data-nosnippet>446</a>                    <span class="string">"contrato SQL Silver deve projetar {nome} ({tipo:?})"
-<a href=#447 id=447 data-nosnippet>447</a>                </span>));
-<a href=#448 id=448 data-nosnippet>448</a>            }
-<a href=#449 id=449 data-nosnippet>449</a>        }
-<a href=#450 id=450 data-nosnippet>450</a>    }
-<a href=#451 id=451 data-nosnippet>451</a>    <span class="prelude-val">Ok</span>(())
-<a href=#452 id=452 data-nosnippet>452</a>}
-<a href=#453 id=453 data-nosnippet>453</a>
-<a href=#454 id=454 data-nosnippet>454</a><span class="kw">fn </span>erro_manifesto(recurso: <span class="kw-2">&amp;</span>str, erro: <span class="kw">impl </span>std::fmt::Display) -&gt; ErroDeIngestao {
-<a href=#455 id=455 data-nosnippet>455</a>    ErroDeIngestao::Manifesto {
-<a href=#456 id=456 data-nosnippet>456</a>        recurso: recurso.to_owned(),
-<a href=#457 id=457 data-nosnippet>457</a>        detalhe: erro.to_string(),
-<a href=#458 id=458 data-nosnippet>458</a>    }
-<a href=#459 id=459 data-nosnippet>459</a>}
+<a href=#419 id=419 data-nosnippet>419</a><span class="doccomment">/// Compara o contrato SQL sem exigir que o planejador prove nulabilidade a partir do Parquet.
+<a href=#420 id=420 data-nosnippet>420</a></span><span class="kw">fn </span>schemas_compativeis(esperado: <span class="kw-2">&amp;</span>SchemaRef, recebido: <span class="kw-2">&amp;</span>SchemaRef) -&gt; bool {
+<a href=#421 id=421 data-nosnippet>421</a>    esperado.metadata() == recebido.metadata()
+<a href=#422 id=422 data-nosnippet>422</a>        &amp;&amp; esperado.fields().len() == recebido.fields().len()
+<a href=#423 id=423 data-nosnippet>423</a>        &amp;&amp; esperado
+<a href=#424 id=424 data-nosnippet>424</a>            .fields()
+<a href=#425 id=425 data-nosnippet>425</a>            .iter()
+<a href=#426 id=426 data-nosnippet>426</a>            .zip(recebido.fields())
+<a href=#427 id=427 data-nosnippet>427</a>            .all(|(esperado, recebido)| {
+<a href=#428 id=428 data-nosnippet>428</a>                esperado.name() == recebido.name()
+<a href=#429 id=429 data-nosnippet>429</a>                    &amp;&amp; esperado.data_type() == recebido.data_type()
+<a href=#430 id=430 data-nosnippet>430</a>                    &amp;&amp; esperado.metadata() == recebido.metadata()
+<a href=#431 id=431 data-nosnippet>431</a>            })
+<a href=#432 id=432 data-nosnippet>432</a>}
+<a href=#433 id=433 data-nosnippet>433</a>
+<a href=#434 id=434 data-nosnippet>434</a><span class="doccomment">/// Restaura a nulabilidade declarada e impede que SQL publique nulos proibidos pelo contrato.
+<a href=#435 id=435 data-nosnippet>435</a></span><span class="kw">fn </span>normalizar_schema_lote(
+<a href=#436 id=436 data-nosnippet>436</a>    lote: RecordBatch,
+<a href=#437 id=437 data-nosnippet>437</a>    esperado: <span class="kw-2">&amp;</span>SchemaRef,
+<a href=#438 id=438 data-nosnippet>438</a>) -&gt; <span class="prelude-ty">Result</span>&lt;RecordBatch, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">if </span>esperado
+<a href=#440 id=440 data-nosnippet>440</a>        .fields()
+<a href=#441 id=441 data-nosnippet>441</a>        .iter()
+<a href=#442 id=442 data-nosnippet>442</a>        .zip(lote.columns())
+<a href=#443 id=443 data-nosnippet>443</a>        .any(|(campo, coluna)| !campo.is_nullable() &amp;&amp; coluna.null_count() &gt; <span class="number">0</span>)
+<a href=#444 id=444 data-nosnippet>444</a>    {
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"resultado SQL contém nulos em campos obrigatórios do contrato Silver"</span>);
+<a href=#446 id=446 data-nosnippet>446</a>    }
+<a href=#447 id=447 data-nosnippet>447</a>    RecordBatch::try_new(esperado.clone(), lote.columns().to_vec())
+<a href=#448 id=448 data-nosnippet>448</a>        .map_err(|<span class="kw">_</span>| <span class="string">"resultado SQL não pode usar a nulabilidade declarada pelo contrato"</span>)
+<a href=#449 id=449 data-nosnippet>449</a>}
+<a href=#450 id=450 data-nosnippet>450</a>
+<a href=#451 id=451 data-nosnippet>451</a><span class="kw">fn </span>validar_linhagem(esquema: <span class="kw-2">&amp;</span>SchemaRef) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#452 id=452 data-nosnippet>452</a>    <span class="kw">for </span>(nome, tipo) <span class="kw">in </span>[
+<a href=#453 id=453 data-nosnippet>453</a>        (COL_MANIFESTO, arrow::datatypes::DataType::Utf8),
+<a href=#454 id=454 data-nosnippet>454</a>        (COL_PARTE, arrow::datatypes::DataType::Utf8),
+<a href=#455 id=455 data-nosnippet>455</a>        (COL_ORDINAL, arrow::datatypes::DataType::UInt64),
+<a href=#456 id=456 data-nosnippet>456</a>    ] {
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">match </span>esquema.field_with_name(nome) {
+<a href=#458 id=458 data-nosnippet>458</a>            <span class="prelude-val">Ok</span>(campo) <span class="kw">if </span>campo.data_type() == <span class="kw-2">&amp;</span>tipo =&gt; {}
+<a href=#459 id=459 data-nosnippet>459</a>            <span class="kw">_ </span>=&gt; {
+<a href=#460 id=460 data-nosnippet>460</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#461 id=461 data-nosnippet>461</a>                    <span class="string">"contrato SQL Silver deve projetar {nome} ({tipo:?})"
+<a href=#462 id=462 data-nosnippet>462</a>                </span>));
+<a href=#463 id=463 data-nosnippet>463</a>            }
+<a href=#464 id=464 data-nosnippet>464</a>        }
+<a href=#465 id=465 data-nosnippet>465</a>    }
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="prelude-val">Ok</span>(())
+<a href=#467 id=467 data-nosnippet>467</a>}
+<a href=#468 id=468 data-nosnippet>468</a>
+<a href=#469 id=469 data-nosnippet>469</a><span class="kw">fn </span>erro_manifesto(recurso: <span class="kw-2">&amp;</span>str, erro: <span class="kw">impl </span>std::fmt::Display) -&gt; ErroDeIngestao {
+<a href=#470 id=470 data-nosnippet>470</a>    ErroDeIngestao::Manifesto {
+<a href=#471 id=471 data-nosnippet>471</a>        recurso: recurso.to_owned(),
+<a href=#472 id=472 data-nosnippet>472</a>        detalhe: erro.to_string(),
+<a href=#473 id=473 data-nosnippet>473</a>    }
+<a href=#474 id=474 data-nosnippet>474</a>}
 </code></pre></div></section></main></body></html>
