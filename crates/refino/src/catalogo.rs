@@ -10,7 +10,7 @@ use crate::fontes::{
     DecodificadorAssentamentosIncra, DecodificadorCnpj, DecodificadorConabSafra,
     DecodificadorCotahist, DecodificadorCsv, DecodificadorEmendasSiga, DecodificadorIbgeAgregados,
     DecodificadorJson, DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes,
-    DecodificadorXmlDataset, DecodificadorZipCsv,
+    DecodificadorSiconfi, DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -378,6 +378,31 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "b3",
             prefixo_recurso: "cotahist/",
             cria_decodificador: || Arc::new(DecodificadorCotahist),
+        },
+        // --- SICONFI (Tesouro Nacional): JSON com envelope ORDS {items} ---
+        FonteDeRefino {
+            nome: "siconfi-entes",
+            fonte_raw: "siconfi",
+            prefixo_recurso: "entes",
+            cria_decodificador: || Arc::new(DecodificadorJson::com_caminho("entes", &["items"])),
+        },
+        FonteDeRefino {
+            nome: "siconfi-dca",
+            fonte_raw: "siconfi",
+            prefixo_recurso: "dca/",
+            cria_decodificador: || Arc::new(DecodificadorSiconfi::novo("dca")),
+        },
+        FonteDeRefino {
+            nome: "siconfi-rreo",
+            fonte_raw: "siconfi",
+            prefixo_recurso: "rreo/",
+            cria_decodificador: || Arc::new(DecodificadorSiconfi::novo("rreo")),
+        },
+        FonteDeRefino {
+            nome: "siconfi-rgf",
+            fonte_raw: "siconfi",
+            prefixo_recurso: "rgf/",
+            cria_decodificador: || Arc::new(DecodificadorSiconfi::novo("rgf")),
         },
         // --- CNPJ Receita Federal: ZIP de CSV sem cabeçalho, Latin-1, separador `;` ---
         FonteDeRefino {
