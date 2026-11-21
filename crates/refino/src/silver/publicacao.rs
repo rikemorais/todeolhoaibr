@@ -1,16 +1,24 @@
 //! Fluxo comum de publicação de transformações Silver tipadas.
 
-use arrow::datatypes::SchemaRef;
+use std::collections::HashMap;
+use std::io::Read;
+use std::sync::Arc;
+
+use arrow::array::{Array, AsArray};
+use arrow::compute::{filter_record_batch, is_not_null, is_null};
+use arrow::datatypes::{SchemaRef, UInt64Type};
 use arrow::record_batch::RecordBatch;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use sha2::{Digest, Sha256};
-use std::io::Read;
 use todeolho_nucleo::{
     ArmazenamentoRaw, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, ObjetoRaw, ParteRaw,
     ResumoDaTarefa, UltimaVersao, bloquear_publicacao, estado_na_raw, publicar_ponteiro_sob_guarda,
 };
 
+use super::diagnostico::{
+    AcumuladorDeRejeicoes, COL_REJEICAO_MOTIVO, chave_quarentena, verificar_limites,
+};
 use crate::{
     EscritorParquetTipado, SnapshotBronze,
     executor_sql::{
@@ -38,6 +46,7 @@ struct OpcoesDeTransformacao<'a> {
     json_original_aninhado: Option<bool>,
     fonte_bronze: Option<&'a str>,
     filtros_emendas: Option<&'a FiltrosSqlEmendas>,
+    limites_rejeicao: HashMap<String, u64>,
 }
 
 /// Executa um contrato SQL sobre o snapshot inteiro e publica sua saída em fluxo.
@@ -60,6 +69,7 @@ pub(crate) async fn publicar_transformacao_sql(
             json_original_aninhado: None,
             fonte_bronze: None,
             filtros_emendas: None,
+            limites_rejeicao: HashMap::new(),
         },
     )
     .await
@@ -86,6 +96,7 @@ pub(crate) async fn publicar_transformacao_sql_com_fonte_bronze(
             json_original_aninhado: None,
             fonte_bronze: Some(fonte_bronze),
             filtros_emendas: None,
+            limites_rejeicao: HashMap::new(),
         },
     )
     .await
@@ -111,6 +122,7 @@ pub(crate) async fn publicar_transformacao_sql_com_json_original(
             json_original_aninhado: Some(true),
             fonte_bronze: None,
             filtros_emendas: None,
+            limites_rejeicao: HashMap::new(),
         },
     )
     .await
@@ -136,6 +148,34 @@ pub(crate) async fn publicar_transformacao_sql_com_json_string_original(
             json_original_aninhado: Some(false),
             fonte_bronze: None,
             filtros_emendas: None,
+            limites_rejeicao: HashMap::new(),
+        },
+    )
+    .await
+}
+
+/// Executa SQL com limites de rejeição por motivo declarados pelo contrato.
+pub(crate) async fn publicar_transformacao_sql_com_limites(
+    bronze: &dyn ArmazenamentoRaw,
+    silver: &dyn ArmazenamentoRaw,
+    snapshot: &SnapshotBronze,
+    configuracao: ConfiguracaoDePublicacao<'_>,
+    sql: &str,
+    executor: &ConfiguracaoExecutorSql,
+    limites_rejeicao: HashMap<String, u64>,
+) -> Result<ResumoDaTarefa, ErroDeIngestao> {
+    publicar_transformacao_sql_interno(
+        bronze,
+        silver,
+        snapshot,
+        configuracao,
+        sql,
+        executor,
+        OpcoesDeTransformacao {
+            json_original_aninhado: None,
+            fonte_bronze: None,
+            filtros_emendas: None,
+            limites_rejeicao,
         },
     )
     .await
@@ -162,6 +202,7 @@ pub(crate) async fn publicar_transformacao_sql_com_filtros_emendas(
             json_original_aninhado: None,
             fonte_bronze: None,
             filtros_emendas: Some(filtros),
+            limites_rejeicao: HashMap::new(),
         },
     )
     .await
@@ -260,18 +301,49 @@ async fn publicar_transformacao_sql_interno(
     })?;
     let esquema_saida = fluxo.schema();
     validar_linhagem(&esquema_saida).map_err(|detalhe| erro_manifesto(recurso, detalhe))?;
+
+    let indice_rejeicao = esquema_saida
+        .fields()
+        .iter()
+        .position(|f| f.name() == COL_REJEICAO_MOTIVO);
+    let esquema_silver = match indice_rejeicao {
+        Some(_) => {
+            let campos: Vec<_> = esquema_saida
+                .fields()
+                .iter()
+                .filter(|f| f.name() != COL_REJEICAO_MOTIVO)
+                .cloned()
+                .collect();
+            Arc::new(arrow::datatypes::Schema::new(campos))
+        }
+        None => esquema_saida.clone(),
+    };
+
     if esquema
         .as_ref()
-        .is_some_and(|esperado| !schemas_compativeis(esperado, &esquema_saida))
+        .is_some_and(|esperado| !schemas_compativeis(esperado, &esquema_silver))
     {
         let esquema_esperado = esquema.as_ref().expect("schema checked above");
         return Err(erro_manifesto(
             recurso,
             format!(
-                "schema SQL {esquema_saida:?} não corresponde ao schema declarado {esquema_esperado:?}"
+                "schema SQL {esquema_silver:?} não corresponde ao schema declarado {esquema_esperado:?}"
             ),
         ));
     }
+
+    let indices_silver: Vec<usize> = (0..esquema_saida.fields().len())
+        .filter(|i| Some(*i) != indice_rejeicao)
+        .collect();
+    let idx_manifesto = esquema_saida
+        .index_of(COL_MANIFESTO)
+        .map_err(|_| erro_manifesto(recurso, "coluna de linhagem ausente"))?;
+    let idx_parte = esquema_saida
+        .index_of(COL_PARTE)
+        .map_err(|_| erro_manifesto(recurso, "coluna de linhagem ausente"))?;
+    let idx_ordinal = esquema_saida
+        .index_of(COL_ORDINAL)
+        .map_err(|_| erro_manifesto(recurso, "coluna de linhagem ausente"))?;
 
     let local = LocalizacaoRaw::nova(fonte, recurso_destino, iniciada_em, id_execucao);
     let arquivo = tempfile::Builder::new()
@@ -279,7 +351,7 @@ async fn publicar_transformacao_sql_interno(
         .suffix(".parquet")
         .tempfile_in(entrada.diretorio_execucao())
         .map_err(|_| erro_manifesto(recurso, "falha ao criar Parquet Silver temporário"))?;
-    let esquema_parquet = esquema.clone().unwrap_or(esquema_saida);
+    let esquema_parquet = esquema.clone().unwrap_or(esquema_silver);
     let mut escritor = EscritorParquetTipado::novo_em(
         arquivo
             .reopen()
@@ -287,7 +359,10 @@ async fn publicar_transformacao_sql_interno(
         esquema_parquet,
     )
     .map_err(|_| erro_manifesto(recurso, "falha ao iniciar escritor Parquet Silver"))?;
+
     let mut linhas_saida = 0u64;
+    let mut acumulador = indice_rejeicao.map(|_| AcumuladorDeRejeicoes::novo(regra));
+
     while let Some(lote) = fluxo.next().await {
         let lote = lote.map_err(|erro| {
             erro_manifesto(
@@ -295,19 +370,61 @@ async fn publicar_transformacao_sql_interno(
                 format!("falha na execução do contrato SQL Silver: {erro}"),
             )
         })?;
-        let lote = match &esquema {
-            Some(esquema) => normalizar_schema_lote(lote, esquema)
+
+        let lote_silver = if let Some((idx_rej, ref mut acum)) =
+            indice_rejeicao.zip(acumulador.as_mut())
+        {
+            let col_motivo = lote.column(idx_rej);
+            let mascara_valida = is_null(col_motivo)
+                .map_err(|e| erro_manifesto(recurso, format!("filtro de rejeição: {e}")))?;
+            let mascara_rejeitada = is_not_null(col_motivo)
+                .map_err(|e| erro_manifesto(recurso, format!("filtro de rejeição: {e}")))?;
+
+            let rejeitado = filter_record_batch(&lote, &mascara_rejeitada)
+                .map_err(|e| erro_manifesto(recurso, format!("filtro de rejeição: {e}")))?;
+            if rejeitado.num_rows() > 0 {
+                let motivos = rejeitado.column(idx_rej).as_string::<i32>();
+                let manifestos = rejeitado.column(idx_manifesto).as_string::<i32>();
+                let partes = rejeitado.column(idx_parte).as_string::<i32>();
+                let ordinais = rejeitado
+                    .column(idx_ordinal)
+                    .as_primitive::<UInt64Type>();
+                acum.acumular(motivos, manifestos, partes, ordinais);
+            }
+
+            let valido = filter_record_batch(&lote, &mascara_valida)
+                .map_err(|e| erro_manifesto(recurso, format!("filtro de rejeição: {e}")))?;
+            if valido.num_rows() == 0 {
+                continue;
+            }
+            valido
+                .project(&indices_silver)
+                .map_err(|e| erro_manifesto(recurso, format!("projeção Silver: {e}")))?
+        } else {
+            lote
+        };
+
+        let lote_silver = match &esquema {
+            Some(esquema) => normalizar_schema_lote(lote_silver, esquema)
                 .map_err(|detalhe| erro_manifesto(recurso, detalhe))?,
-            None => lote,
+            None => lote_silver,
         };
         linhas_saida = linhas_saida
-            .checked_add(lote.num_rows() as u64)
+            .checked_add(lote_silver.num_rows() as u64)
             .ok_or_else(|| erro_manifesto(recurso, "contagem de linhas Silver excede u64"))?;
         escritor
-            .escrever_lote(&lote)
+            .escrever_lote(&lote_silver)
             .map_err(|_| erro_manifesto(recurso, "resultado SQL diverge do schema de saída"))?;
     }
     drop(fluxo);
+
+    if let Some(ref acum) = acumulador {
+        if !acum.esta_vazio() {
+            verificar_limites(acum.contagens(), &opcoes.limites_rejeicao)
+                .map_err(|msg| erro_manifesto(recurso, msg))?;
+        }
+    }
+
     escritor
         .fechar()
         .map_err(|_| erro_manifesto(recurso, "falha ao finalizar Parquet Silver"))?;
@@ -340,6 +457,22 @@ async fn publicar_transformacao_sql_interno(
     silver
         .gravar_fluxo(&chave, TIPO_PARQUET, &mut fluxo_upload)
         .await?;
+
+    if let Some(ref acum) = acumulador {
+        if !acum.esta_vazio() {
+            let bytes_quarentena = acum
+                .para_parquet()
+                .map_err(|_| erro_manifesto(recurso, "falha ao gerar Parquet de quarentena"))?;
+            let chave_q = chave_quarentena(fonte, recurso_destino, id_execucao);
+            silver
+                .gravar(ObjetoRaw {
+                    chave: chave_q,
+                    conteudo: bytes_quarentena,
+                    tipo_de_conteudo: TIPO_PARQUET.into(),
+                })
+                .await?;
+        }
+    }
 
     let guarda = bloquear_publicacao(fonte, recurso).await;
     if !snapshot
@@ -374,15 +507,43 @@ async fn publicar_transformacao_sql_interno(
     };
     let mut manifesto_json =
         serde_json::to_value(&manifesto).map_err(|erro| erro_manifesto(recurso, erro))?;
-    manifesto_json["qualidade"] = serde_json::json!({
-        "versao": 1,
-        "manifesto_bronze": snapshot.chave_manifesto(),
-        "regra": regra,
-        "linhas_bronze_preparadas": entrada.linhas_bronze(),
-        "linhas_saida": linhas_saida,
-        "linhas_rejeitadas": 0,
-        "politica_rejeicao": "falha_total"
-    });
+    manifesto_json["qualidade"] = match &acumulador {
+        Some(acum) => {
+            let politica = if opcoes.limites_rejeicao.is_empty() {
+                "falha_total"
+            } else {
+                "por_limite"
+            };
+            let mut q = serde_json::json!({
+                "versao": 2,
+                "manifesto_bronze": snapshot.chave_manifesto(),
+                "regra": regra,
+                "linhas_bronze_preparadas": entrada.linhas_bronze(),
+                "linhas_saida": linhas_saida,
+                "linhas_rejeitadas": acum.total(),
+                "rejeicoes_por_motivo": acum.contagens(),
+                "politica_rejeicao": politica,
+            });
+            if !opcoes.limites_rejeicao.is_empty() {
+                q["limites_rejeicao"] = serde_json::to_value(&opcoes.limites_rejeicao)
+                    .expect("HashMap<String, u64> é serializável");
+            }
+            if !acum.esta_vazio() {
+                q["quarentena"] =
+                    serde_json::json!(chave_quarentena(fonte, recurso_destino, id_execucao));
+            }
+            q
+        }
+        None => serde_json::json!({
+            "versao": 1,
+            "manifesto_bronze": snapshot.chave_manifesto(),
+            "regra": regra,
+            "linhas_bronze_preparadas": entrada.linhas_bronze(),
+            "linhas_saida": linhas_saida,
+            "linhas_rejeitadas": 0,
+            "politica_rejeicao": "falha_total"
+        }),
+    };
     silver
         .gravar(ObjetoRaw {
             chave: local.manifesto(),
