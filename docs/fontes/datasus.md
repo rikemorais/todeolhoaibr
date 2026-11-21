@@ -10,12 +10,12 @@ Quatro sistemas do portal de microdados do DATASUS:
 | Sistema | Subset | Período | Cadência | Arquivos | Formato |
 |---------|--------|---------|----------|----------|---------|
 | **SIM** | DORES (óbitos) | 1996–2023 | anual × UF | 756 | DBC |
-| **SIM** | DOFET (fetais) | 1996–2023 | anual × UF | 756 | DBC |
+| **SIM** | DOFET (fetais) | 1996–2023 | anual nacional | 28 | DBC |
 | **SINASC** | DN (nascidos) | 1996–2023 | anual × UF | 756 | DBC |
 | **SIH** | RD (internações) | 2008-01 a 2024-12 | mensal × UF | 5 508 | DBC |
 | **CNES** | ST (estabelecimentos) | 2005-08 a 2025-01 | mensal × UF | 6 318 | DBC |
 
-**Total: 14 094 tarefas, sob demanda.**
+**Total: 13 366 tarefas, sob demanda.**
 
 ## Sobre a fonte
 
@@ -37,8 +37,12 @@ via FTP. Os dados são públicos e agregados por município/UF. Sistemas:
 
 ```
 ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DO{UF}{AAAA}.dbc
-ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DOFET/DO{UF}{AAAA}.dbc
+ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DOFET/DOFET{AA}.{ext}
 ```
+
+DOFET contém um arquivo nacional por ano, sem UF no nome ou no recurso Raw.
+O ano usa dois dígitos (`DOFET96.dbc` para 1996). A extensão é `.DBC` de
+2007 a 2012 e `.dbc` nos demais anos do período ingerido.
 
 ### SINASC
 
@@ -79,8 +83,12 @@ Ferramentas de referência para conversão: `blast-dbf` (C), `read.dbc` (R),
 ## Idempotência
 
 **Raw (ingestão):** por recurso (`sim/dores/ano=2023/uf=sp`,
+`sim/dofet/ano=1996`,
 `sih/competencia=202401/uf=sp`, `cnes/competencia=202501/uf=ba`).
 Re-ingerir sobrescreve o snapshot anterior (manifesto com tamanho/data FTP).
+
+Para ingerir apenas DOFET de 1996, filtre por `registro=sim`,
+`subset=dofet` e `ano=1996`; esse subset não aceita filtro de UF.
 
 **Silver (follow-up):** chave `município + competência` (SIH/CNES) ou
 `município + ano` (SIM/SINASC).
