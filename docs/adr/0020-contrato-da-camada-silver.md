@@ -41,11 +41,17 @@ o diagnóstico não precisa copiar identificadores pessoais. O destino implement
 da tabela publicada; o manifesto Silver guarda a chave, o tamanho e o SHA-256.
 Contagens de entrada, saída, conversões opcionais, cópias removidas e rejeições
 por motivo pertencem ao manifesto da execução. O publicador SQL grava as contagens
-de linhas Bronze preparadas, linhas Silver publicadas e rejeições por motivo
-para contratos que configuram limites absolutos. O diagnóstico inclui motivo,
+de linhas Bronze preparadas e linhas Silver publicadas em toda publicação;
+rejeições por motivo exigem limites absolutos configurados. O diagnóstico inclui motivo,
 regra, manifesto, parte, tabela e ordinal Bronze. Não copia valores da linha.
-Contagens de conversões opcionais e cópias removidas ainda não são emitidas
-genericamente; contratos que dependam dessas contagens devem aguardar a capacidade.
+Contagens de conversões opcionais são emitidas quando o contrato SQL projeta
+`_tdoa_conversoes_motivos` como array JSON de motivos em cada linha válida.
+Sem essa anotação, o mapa fica vazio e não deve ser interpretado como prova de
+que não houve conversões. O contrato pode projetar `_tdoa_copia_removida`
+(`Boolean`) após comprovar a comparação completa entre ocorrências; o publicador
+omite as linhas marcadas e conta as cópias removidas no manifesto `qualidade` v2.
+Sem essa anotação, zero indica ausência de remoções declaradas, não ausência de
+cópias nos dados. Uma linha não pode ser simultaneamente cópia e rejeição.
 
 A unidade de publicação é a tabela Silver de um recurso. Partes e manifesto
 são gravados antes de seu ponteiro; falha ou cancelamento antes dessa troca

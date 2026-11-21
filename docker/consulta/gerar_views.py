@@ -112,6 +112,7 @@ def coletar(
     raiz: Path,
     camada: str,
     catalogo: dict[str, dict[str, str]] | None = None,
+    metricas_silver: dict[str, list[dict | None]] | None = None,
 ) -> dict[str, list[str]]:
     """Mapeia as views de uma camada para os Parquets da versão vigente."""
     tabelas: dict[str, list[str]] = {}
@@ -134,11 +135,50 @@ def coletar(
                 "fonte": fonte,
                 "recurso": recurso,
             }
+        tem_parte = False
         for parte in manifesto.get("partes", []):
             chave = parte.get("chave")
             if chave:
                 tabelas.setdefault(nome, []).append(str(raiz / chave))
+                tem_parte = True
+        if camada == "silver" and metricas_silver is not None and tem_parte:
+            metricas_silver.setdefault(nome, []).append(manifesto.get("qualidade"))
     return tabelas
+
+
+def agregar_metricas(manifestos: list[dict | None]) -> dict | None:
+    """Soma apenas métricas de todos os manifestos vigentes de uma view."""
+    if not manifestos:
+        return None
+    totais: dict = {
+        "linhas_bronze_preparadas": 0,
+        "linhas_saida": 0,
+        "linhas_rejeitadas": 0,
+        "copias_removidas": 0,
+        "rejeicoes_por_motivo": {},
+        "conversoes_opcionais_por_motivo": {},
+    }
+    for qualidade in manifestos:
+        if not isinstance(qualidade, dict) or qualidade.get("versao") != 2:
+            return None
+        for campo in ("linhas_bronze_preparadas", "linhas_saida", "linhas_rejeitadas", "copias_removidas"):
+            valor = qualidade.get(campo)
+            if type(valor) is not int or valor < 0:
+                return None
+            totais[campo] += valor
+        for campo in ("rejeicoes_por_motivo", "conversoes_opcionais_por_motivo"):
+            contagens = qualidade.get(campo)
+            if not isinstance(contagens, dict):
+                return None
+            for motivo, quantidade in contagens.items():
+                if not isinstance(motivo, str) or type(quantidade) is not int or quantidade < 0:
+                    return None
+                totais[campo][motivo] = totais[campo].get(motivo, 0) + quantidade
+    return totais
+
+
+def literal_sql(valor: str) -> str:
+    return "'" + valor.replace("'", "''") + "'"
 
 
 def inspecionar_colunas(arquivos: list[str]) -> list[str]:
@@ -166,6 +206,7 @@ def sql_qualidade(
     nome_view: str,
     colunas: list[str],
     chave: tuple[str, ...] | None,
+    metricas: dict | None = None,
 ) -> str:
     """Gera uma view de perfil lazy sobre uma única tabela Silver vigente."""
     expressoes = ["count(*) AS linhas"]
@@ -215,6 +256,21 @@ def sql_qualidade(
             ]
         )
 
+    for campo in ("linhas_bronze_preparadas", "linhas_saida", "linhas_rejeitadas", "copias_removidas"):
+        valor = "CAST(NULL AS BIGINT)" if metricas is None else str(metricas[campo])
+        expressoes.append(f"{valor} AS {campo}_manifesto")
+    for campo in ("rejeicoes_por_motivo", "conversoes_opcionais_por_motivo"):
+        valor = (
+            "CAST(NULL AS VARCHAR)"
+            if metricas is None
+            else literal_sql(json.dumps(metricas[campo], ensure_ascii=False, sort_keys=True))
+        )
+        expressoes.append(f"{valor} AS {campo}_manifesto")
+    expressoes.append(
+        literal_sql("completo" if metricas is not None else "sem métricas em algum manifesto")
+        + " AS status_metricas_manifesto"
+    )
+
     return (
         f"CREATE OR REPLACE VIEW qualidade_{nome_view} AS\n"
         f"SELECT {', '.join(expressoes)}\nFROM {nome_view};"
@@ -223,8 +279,9 @@ def sql_qualidade(
 
 def main() -> int:
     catalogo: dict[str, dict[str, str]] = {}
+    metricas_silver: dict[str, list[dict | None]] = {}
     tabelas_bronze = coletar(BRONZE, "bronze", catalogo)
-    tabelas_silver = coletar(SILVER, "silver", catalogo)
+    tabelas_silver = coletar(SILVER, "silver", catalogo, metricas_silver)
     tabelas = tabelas_bronze | tabelas_silver
     for nome_view, metadados in list(catalogo.items()):
         if metadados["camada"] != "silver" or nome_view not in tabelas_silver:
@@ -262,7 +319,7 @@ def main() -> int:
         chave = chave_candidata(metadados["fonte"], recurso)
         colunas = inspecionar_colunas(sorted(set(tabelas_silver[nome])))
         if colunas:
-            print(sql_qualidade(nome, colunas, chave))
+            print(sql_qualidade(nome, colunas, chave, agregar_metricas(metricas_silver.get(nome, []))))
     print(f"-- {len(tabelas)} view(s) Bronze/Silver geradas", file=sys.stderr)
     return 0
 

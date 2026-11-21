@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Não publicado]
+
+### Adicionado
+
+- Manifestos Silver `qualidade` v2 contam conversões opcionais por motivo e cópias removidas quando contratos SQL as declaram; o console de consulta agrega as métricas dos manifestos vigentes sem mostrar totais parciais (issue #483).
+
 ## [0.129.0] - 2026-11-21
 
 ### Adicionado

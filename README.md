@@ -274,7 +274,7 @@ SELECT count(*) FROM read_parquet('s3://bronze/camara/despesas/ano=2024/**/*.par
 
 > O **console web** (`localhost:4213`) é nosso, self-hosted: não depende de serviço externo e as queries rodam 100% locais. A DuckDB Local UI oficial (`docker compose run --rm --service-ports consulta ui`) existe, mas depende da nuvem MotherDuck e costuma falhar na inicialização ([issue #167](https://github.com/rikemorais/todeolhoaibr/issues/167)); prefira o console web ou o `consulta sql`.
 
-No console web, o catálogo organiza as views por camada e fonte. Além das views Bronze e Silver vigentes, a camada `Qualidade` lista um perfil para cada tabela Silver atual. Abrir `qualidade_silver_<fonte>_<recurso>` calcula linhas, nulos por coluna, linhagem incompleta e, quando a matriz declara chave candidata, chaves incompletas e linhas excedentes por duplicidade. Essa consulta lê a tabela selecionada; em tabelas grandes pode levar mais tempo. Métricas de chave não configurada aparecem como nulas, sem inferir uma chave.
+No console web, o catálogo organiza as views por camada e fonte. Além das views Bronze e Silver vigentes, a camada `Qualidade` lista um perfil para cada tabela Silver atual. Abrir `qualidade_silver_<fonte>_<recurso>` calcula linhas, nulos por coluna, linhagem incompleta e, quando a matriz declara chave candidata, chaves incompletas e linhas excedentes por duplicidade. O perfil também mostra contagens de entrada, saída, rejeições e conversões opcionais dos manifestos vigentes; métricas de manifestos antigos aparecem como nulas até o reprocessamento. Essa consulta lê a tabela selecionada; em tabelas grandes pode levar mais tempo. Métricas de chave não configurada aparecem como nulas, sem inferir uma chave.
 
 ### Encerrando
 
