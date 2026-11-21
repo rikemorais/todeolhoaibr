@@ -12,7 +12,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
-    ParteRaw, PrecisaoDaEstimativa, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao,
+    ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao,
     estado_na_raw, manifesto_vigente, marcar_execucao_ativa, publicar_ponteiro_compartilhado,
 };
 use tracing::warn;
@@ -369,23 +369,6 @@ impl TarefaDeIngestaoHttp {
 impl Tarefa for TarefaDeIngestaoHttp {
     fn nome(&self) -> &str {
         &self.recurso
-    }
-
-    async fn bytes_a_baixar(
-        &self,
-        contexto: &ContextoDeExecucao,
-        _precisao: PrecisaoDaEstimativa,
-    ) -> Result<Option<u64>, ErroDeIngestao> {
-        // Uma rodada sobre uma ingestão completa e íntegra não baixa dado novo no
-        // caso comum (páginas reaproveitadas via requisição condicional), então
-        // não pede espaço novo. Só a primeira ingestão — ou uma reparação, quando
-        // o estado está ausente/incompleto — usa a estimativa típica.
-        let estado =
-            estado_na_raw(contexto.armazenamento.as_ref(), &self.fonte, &self.recurso).await?;
-        match estado {
-            Some(estado) if estado.completa && estado.integra => Ok(Some(0)),
-            _ => Ok(self.tamanho_tipico),
-        }
     }
 
     async fn executar(

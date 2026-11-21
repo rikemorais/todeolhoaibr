@@ -7,8 +7,8 @@ use async_trait::async_trait;
 use chrono::{Datelike, NaiveDate, Utc};
 use serde::Deserialize;
 use todeolho_nucleo::{
-    CredencialHttp, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, PrecisaoDaEstimativa,
-    ResumoDaTarefa, Tarefa, TarefaPlanejada, estado_na_raw, manifesto_vigente,
+    CredencialHttp, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, ResumoDaTarefa, Tarefa,
+    TarefaPlanejada, estado_na_raw, manifesto_vigente,
 };
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
@@ -249,13 +249,6 @@ impl Tarefa for TarefaProgramaCompetencia {
         Ok(resumo)
     }
 
-    async fn bytes_a_baixar(
-        &self,
-        _contexto: &todeolho_nucleo::ContextoDeExecucao,
-        _precisao: PrecisaoDaEstimativa,
-    ) -> Result<Option<u64>, ErroDeIngestao> {
-        Ok(None)
-    }
 }
 
 /// Benefícios sociais em partições mensais e municipais, na Raw do Portal da Transparência.

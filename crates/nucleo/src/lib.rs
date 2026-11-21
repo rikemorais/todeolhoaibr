@@ -9,7 +9,6 @@ pub mod contexto;
 pub mod dag;
 pub mod decisao;
 pub mod erros;
-pub mod espaco;
 pub mod estado_raw;
 pub mod executor;
 pub mod fonte;
@@ -24,7 +23,6 @@ pub use contexto::{ContextoDeExecucao, ProgressoDaTarefa};
 pub use dag::DagDeIngestao;
 pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};
 pub use erros::{ErroDeDag, ErroDeIngestao};
-pub use espaco::{AvaliacaoDeEspaco, EspacoNecessario, estimar, formatar_bytes};
 pub use estado_raw::{
     GuardaPublicacao, bloquear_publicacao, estado_na_raw, estado_na_raw_com_origem,
     manifesto_vigente, publicar_ponteiro, publicar_ponteiro_bronze_se_raw_vigente,
@@ -48,4 +46,4 @@ pub use portas::{
 };
 pub use raw::{LocalizacaoRaw, ManifestoRaw, ParteRaw, UltimaVersao};
 pub use selecao::{ErroDeSelecao, FiltroDeTarefas, dimensoes};
-pub use tarefa::{PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada};
+pub use tarefa::{ResumoDaTarefa, Tarefa, TarefaPlanejada};

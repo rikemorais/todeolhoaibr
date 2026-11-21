@@ -8,8 +8,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use serde::Deserialize;
 use todeolho_nucleo::{
-    ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, PrecisaoDaEstimativa,
-    ResumoDaTarefa, Tarefa, TarefaPlanejada,
+    ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, ResumoDaTarefa,
+    Tarefa, TarefaPlanejada,
 };
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
@@ -164,30 +164,6 @@ impl Tarefa for TarefaRemuneracaoSc {
             "ativos" => "ativos-ultima-competencia",
             _ => "inativos-ultima-competencia",
         }
-    }
-
-    async fn bytes_a_baixar(
-        &self,
-        contexto: &ContextoDeExecucao,
-        precisao: PrecisaoDaEstimativa,
-    ) -> Result<Option<u64>, ErroDeIngestao> {
-        if precisao == PrecisaoDaEstimativa::Rapida {
-            return Ok(None);
-        }
-        let arquivos = arquivos_atuais(contexto).await?;
-        let arquivo = arquivos
-            .into_iter()
-            .find(|a| a.categoria == self.categoria)
-            .ok_or_else(|| ErroDeIngestao::Http {
-                url: CATALOGO.to_owned(),
-                detalhe: format!(
-                    "o catálogo não contém CSV de {} na competência mais recente",
-                    self.categoria
-                ),
-            })?;
-        tarefa_de_arquivo(arquivo)
-            .bytes_a_baixar(contexto, precisao)
-            .await
     }
 
     async fn executar(

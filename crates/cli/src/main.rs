@@ -5,7 +5,6 @@ mod menu;
 use std::env;
 use std::io::{self, IsTerminal, Write};
 use std::net::SocketAddr;
-use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,17 +12,15 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use chrono::{Datelike, Utc};
 use clap::{Args, Parser, Subcommand};
-use futures::stream::{self, StreamExt};
 use todeolho_fontes::catalogo;
 use todeolho_infraestrutura::{
     ArmazenamentoS3, ClienteDespacho, ClienteFtp, ClienteHttpComRetentativas, ConfiguracaoS3,
-    HistoricoS3, PoliticaDeRetentativas, espaco_livre_em,
+    HistoricoS3, PoliticaDeRetentativas,
 };
 use todeolho_nucleo::{
-    ArmazenamentoRaw, AvaliacaoDeEspaco, Camada, ContextoDeExecucao, DagDeIngestao,
-    EspacoNecessario, EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas, FonteDeDados, PerfilHttp,
-    PrecisaoDaEstimativa, RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao, Tarefa,
-    TarefaPlanejada, estimar, formatar_bytes,
+    ArmazenamentoRaw, Camada, ContextoDeExecucao, DagDeIngestao, EstadoDaTarefa, ExecutorDeDag,
+    FiltroDeTarefas, FonteDeDados, PerfilHttp, RegistradorDeExecucao, RegistroDeExecucao,
+    RelatorioDaExecucao, Tarefa, TarefaPlanejada,
 };
 use todeolho_refino::{
     FiltrosSqlEmendas, FonteDeRefino, SQL_CNPJ_EMPRESAS, SQL_CNPJ_ESTABELECIMENTOS,
@@ -56,10 +53,6 @@ use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
 const ERRO_DE_ARMAZENAMENTO: &str = "não foi possível acessar o armazenamento; ele está no ar?";
-
-/// Quantas fontes têm o tamanho estimado ao mesmo tempo ao montar o menu. Hosts distintos
-/// trabalham em paralelo sem exagerar na carga do gateway de armazenamento local.
-const FONTES_SIMULTANEAS: usize = 4;
 
 #[derive(Parser)]
 #[command(
@@ -208,26 +201,20 @@ async fn selecionar() -> Result<bool> {
         bail!("o menu precisa de um terminal. Sem terminal, use: todeolho executar <fonte> --sim");
     }
 
-    let contexto = preparar_contexto().await?;
-    println!("Consultando o tamanho dos dados...");
-
     let fontes = catalogo();
-    // As fontes consultam hosts diferentes (e lêem o estado na Raw), então estimá-las em
-    // paralelo sobrepõe o trabalho em vez de somá-lo; `buffered` preserva a ordem do catálogo.
-    let opcoes: Vec<menu::OpcaoDeFonte> = stream::iter(fontes.iter())
-        .map(|fonte| {
-            let contexto = &contexto;
-            async move {
-                let tarefas = fonte.criar_tarefas();
-                montar_opcao_de_menu(fonte.as_ref(), &tarefas, async {
-                    estimar_tarefas_por_perfil(fonte.as_ref(), &tarefas, contexto).await
+    let opcoes: Vec<menu::OpcaoDeFonte> = fontes
+        .iter()
+        .map(|fonte| menu::OpcaoDeFonte {
+            nome: fonte.nome().to_owned(),
+            tarefas: fonte
+                .criar_tarefas()
+                .iter()
+                .map(|tarefa| menu::OpcaoDeTarefa {
+                    etiquetas: tarefa.etiquetas.clone(),
                 })
-                .await
-            }
+                .collect(),
         })
-        .buffered(FONTES_SIMULTANEAS)
-        .collect()
-        .await;
+        .collect();
 
     let mut entrada = io::stdin().lock();
     let Some(escolha) = menu::escolher(&opcoes, &mut entrada, &mut io::stdout())? else {
@@ -235,6 +222,8 @@ async fn selecionar() -> Result<bool> {
         return Ok(true);
     };
     drop(entrada);
+
+    let contexto = preparar_contexto().await?;
 
     let mut selecionadas = Vec::with_capacity(escolha.len());
     for (indice, filtro) in escolha {
@@ -250,70 +239,6 @@ async fn selecionar() -> Result<bool> {
     executar(selecionadas, contexto, false).await
 }
 
-async fn estimar_tarefas_por_perfil(
-    fonte: &dyn FonteDeDados,
-    tarefas: &[TarefaPlanejada],
-    contexto: &ContextoDeExecucao,
-) -> Vec<Option<u64>> {
-    type GrupoDeEstimativas = (PerfilHttp, Vec<(usize, Arc<dyn Tarefa>)>);
-
-    let mut grupos: Vec<GrupoDeEstimativas> = Vec::new();
-    for (indice, tarefa) in tarefas.iter().enumerate() {
-        let perfil = fonte.perfil_http_das_tarefas(std::slice::from_ref(tarefa));
-        let indice_grupo = grupos
-            .iter()
-            .position(|(existente, _)| *existente == perfil);
-        let grupo = match indice_grupo {
-            Some(indice) => &mut grupos[indice].1,
-            None => {
-                grupos.push((perfil, Vec::new()));
-                &mut grupos.last_mut().expect("grupo inserido").1
-            }
-        };
-        grupo.push((indice, Arc::clone(&tarefa.tarefa)));
-    }
-
-    let mut estimativas = vec![None; tarefas.len()];
-    for (perfil, grupo) in grupos {
-        let Ok(contexto_da_fonte) = contexto_para_fonte(contexto, perfil, fonte.usar_tls_nativo())
-        else {
-            continue;
-        };
-        let tarefas_do_grupo: Vec<_> = grupo.iter().map(|(_, tarefa)| Arc::clone(tarefa)).collect();
-        let resultado = estimar(
-            &tarefas_do_grupo,
-            &contexto_da_fonte,
-            PrecisaoDaEstimativa::Rapida,
-        )
-        .await;
-        for ((indice, _), bytes) in grupo.into_iter().zip(resultado) {
-            estimativas[indice] = bytes;
-        }
-    }
-    estimativas
-}
-
-async fn montar_opcao_de_menu(
-    fonte: &dyn FonteDeDados,
-    tarefas: &[TarefaPlanejada],
-    consulta: impl std::future::Future<Output = Vec<Option<u64>>>,
-) -> menu::OpcaoDeFonte {
-    // Estimar é barato mesmo nas fontes sob_demanda: as tarefas HTTP só leem o
-    // estado local na Raw e as de arquivo fazem um HEAD. O crawl pesado só ocorre
-    // no `executar`, nunca aqui.
-    let estimativas = consulta.await;
-    menu::OpcaoDeFonte {
-        nome: fonte.nome().to_owned(),
-        tarefas: tarefas
-            .iter()
-            .zip(estimativas)
-            .map(|(tarefa, bytes)| menu::OpcaoDeTarefa {
-                etiquetas: tarefa.etiquetas.clone(),
-                bytes,
-            })
-            .collect(),
-    }
-}
 
 async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
     let selecionadas = match (argumentos.fonte, argumentos.todas) {
@@ -401,7 +326,6 @@ fn contexto_para_fonte(
     })
 }
 
-/// Mostra o espaço necessário, recusa o que não cabe, pede confirmação e executa.
 async fn executar(
     selecionadas: Vec<FonteSelecionada>,
     contexto: ContextoDeExecucao,
@@ -409,31 +333,19 @@ async fn executar(
 ) -> Result<bool> {
     let mut dags = Vec::with_capacity(selecionadas.len());
     let mut contextos = Vec::with_capacity(selecionadas.len());
-    let mut estimativas = Vec::new();
     for fonte in selecionadas {
         let contexto_da_fonte =
             contexto_para_fonte(&contexto, fonte.perfil_http, fonte.tls_nativo)?;
-        estimativas.extend(
-            estimar(
-                &tarefas_de(&fonte.tarefas),
-                &contexto_da_fonte,
-                PrecisaoDaEstimativa::Exata,
-            )
-            .await,
-        );
         dags.push(DagDeIngestao::construir(&fonte.nome, fonte.tarefas)?);
         contextos.push(contexto_da_fonte);
     }
 
-    let quantidade = estimativas.len();
-    let espaco = EspacoNecessario::somar(&estimativas);
-    let livre = env::var("TODEOLHO_DIR_DADOS")
-        .ok()
-        .and_then(|caminho| espaco_livre_em(Path::new(&caminho)));
+    let quantidade: usize = dags
+        .iter()
+        .map(|d| d.niveis().map_or(0, |n| n.iter().map(|l| l.len()).sum()))
+        .sum();
+    println!("\nSelecionado: {quantidade} tarefa(s)");
 
-    if !avisar_sobre_espaco(quantidade, &espaco, livre) {
-        return Ok(false);
-    }
     if !sem_confirmacao && !confirmar()? {
         println!("Nada foi executado.");
         return Ok(true);
@@ -2817,42 +2729,6 @@ async fn passada(
     Ok(sucesso)
 }
 
-/// Devolve `false` quando a seleção não cabe no disco.
-fn avisar_sobre_espaco(quantidade: usize, espaco: &EspacoNecessario, livre: Option<u64>) -> bool {
-    println!("\nSelecionado: {quantidade} tarefa(s)");
-    println!("Falta baixar (estimado): {}", formatar_bytes(espaco.bytes));
-    if espaco.maior_arquivo > 0 {
-        println!(
-            "Pico durante a gravação: {} (o maior arquivo ocupa o dobro enquanto é gravado)",
-            formatar_bytes(espaco.pico())
-        );
-    }
-    if espaco.sem_estimativa > 0 {
-        println!(
-            "Atenção: {} tarefa(s) sem tamanho conhecido. O espaço real pode ser maior.",
-            espaco.sem_estimativa
-        );
-    }
-    if let Some(livre) = livre {
-        println!("Espaço livre: {}", formatar_bytes(livre));
-    }
-
-    match espaco.avaliar(livre) {
-        AvaliacaoDeEspaco::Cabe => true,
-        AvaliacaoDeEspaco::Desconhecido => {
-            println!("Atenção: não foi possível verificar o espaço livre em disco.");
-            true
-        }
-        AvaliacaoDeEspaco::NaoCabe { faltam } => {
-            eprintln!(
-                "\nNão cabe: faltam {}. Escolha menos dados ou libere espaço em disco.",
-                formatar_bytes(faltam)
-            );
-            false
-        }
-    }
-}
-
 fn confirmar() -> Result<bool> {
     if !io::stdin().is_terminal() {
         bail!("sem terminal para confirmar. Use --sim para executar sem a pergunta");
@@ -2866,13 +2742,6 @@ fn confirmar() -> Result<bool> {
         resposta.trim().to_lowercase().as_str(),
         "s" | "sim"
     ))
-}
-
-fn tarefas_de(tarefas: &[TarefaPlanejada]) -> Vec<Arc<dyn Tarefa>> {
-    tarefas
-        .iter()
-        .map(|tarefa| Arc::clone(&tarefa.tarefa))
-        .collect()
 }
 
 fn historico() -> Result<HistoricoS3> {
@@ -3704,23 +3573,4 @@ mod testes {
         assert!(fontes_ibge_silver(Some("ibge-estados"), false).is_empty());
     }
 
-    #[tokio::test]
-    async fn fonte_sob_demanda_tambem_estima_tamanho_ao_abrir_menu() {
-        let fonte = FonteTse;
-        let tarefas = fonte.criar_tarefas();
-        let estimativas = vec![Some(7); tarefas.len()];
-        let opcao = montar_opcao_de_menu(&fonte, &tarefas, async { estimativas }).await;
-        assert_eq!(opcao.tarefas.len(), tarefas.len());
-        assert!(opcao.tarefas.iter().all(|tarefa| tarefa.bytes == Some(7)));
-    }
-
-    #[tokio::test]
-    async fn fonte_pequena_mostra_estimativas_no_menu() {
-        let fonte = FonteIbge;
-        let tarefas = fonte.criar_tarefas();
-        let estimativas = vec![Some(42); tarefas.len()];
-        let opcao = montar_opcao_de_menu(&fonte, &tarefas, async { estimativas }).await;
-        assert_eq!(opcao.tarefas.len(), tarefas.len());
-        assert!(opcao.tarefas.iter().all(|tarefa| tarefa.bytes == Some(42)));
-    }
 }
