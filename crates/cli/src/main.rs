@@ -3549,7 +3549,6 @@ async fn refinar_transparencia_servidores_ativos_silver(intervalo: Option<u64>) 
 #[cfg(test)]
 mod testes {
     use super::*;
-    use todeolho_fontes::{FonteIbge, FonteTse};
 
     #[test]
     fn ibge_silver_seleciona_apenas_fontes_com_contrato_de_agregados() {
