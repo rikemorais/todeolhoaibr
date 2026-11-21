@@ -31,6 +31,7 @@ pub mod remuneracao_estadual_sc;
 pub mod seeg;
 pub mod seguranca;
 pub mod senado;
+pub mod siconfi;
 pub mod tce_ce;
 pub mod trabalho;
 pub mod transparencia;
