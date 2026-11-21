@@ -1,5 +1,6 @@
 //! Adaptador de tarefa Dagron para contratos Silver SQL/DataFusion.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use arrow::datatypes::SchemaRef;
@@ -28,6 +29,7 @@ pub struct TarefaDeSilverSql {
     esquema: Option<SchemaRef>,
     executor: ConfiguracaoExecutorSql,
     filtros_emendas: Option<FiltrosSqlEmendas>,
+    limites_rejeicao: Option<BTreeMap<String, u64>>,
 }
 
 impl TarefaDeSilverSql {
@@ -55,6 +57,7 @@ impl TarefaDeSilverSql {
             esquema: Some(esquema),
             executor: ConfiguracaoExecutorSql::default(),
             filtros_emendas: None,
+            limites_rejeicao: None,
         }
     }
 
@@ -97,6 +100,7 @@ impl TarefaDeSilverSql {
             esquema,
             executor: ConfiguracaoExecutorSql::default(),
             filtros_emendas: None,
+            limites_rejeicao: None,
         }
     }
 
@@ -118,6 +122,12 @@ impl TarefaDeSilverSql {
         self
     }
 
+    /// Habilita rejeição recuperável para motivos declarados pelo contrato SQL.
+    pub fn com_limites_rejeicao(mut self, limites: BTreeMap<String, u64>) -> Self {
+        self.limites_rejeicao = Some(limites);
+        self
+    }
+
     /// Indica se a tabela publicada ainda precisa acompanhar o snapshot e a regra.
     pub async fn pendente(&self, silver: &dyn ArmazenamentoRaw) -> Result<bool, ErroDeIngestao> {
         let destino = self.recurso_destino.as_deref().unwrap_or(&self.recurso);
@@ -126,11 +136,20 @@ impl TarefaDeSilverSql {
             self.snapshot.manifesto().id_execucao,
             self.regra
         );
-        Ok(!matches!(
+        let atualizada = matches!(
             estado_na_raw(silver, &self.fonte, destino).await?,
             Some(ref estado)
                 if estado.completa && estado.integra && estado.versao.as_deref() == Some(versao.as_str())
-        ))
+        );
+        if !atualizada {
+            return Ok(true);
+        }
+        if self.limites_rejeicao.is_some() {
+            return Ok(
+                !super::publicacao::quarentena_disponivel(silver, &self.fonte, destino).await?,
+            );
+        }
+        Ok(false)
     }
 }
 
@@ -153,7 +172,24 @@ impl Tarefa for TarefaDeSilverSql {
             iniciada_em: contexto.iniciada_em,
             id_execucao: &contexto.id_execucao,
         };
-        if let Some(fonte_bronze) = self.fonte_bronze.as_deref() {
+        if let Some(limites) = self.limites_rejeicao.as_ref() {
+            if self.fonte_bronze.is_some() || self.filtros_emendas.is_some() {
+                return Err(ErroDeIngestao::Manifesto {
+                    recurso: self.recurso.clone(),
+                    detalhe: "rejeição recuperável não pode ser combinada com fonte Bronze alternativa ou filtros de emendas".into(),
+                });
+            }
+            super::publicacao::publicar_transformacao_sql_com_rejeicoes(
+                self.bronze.as_ref(),
+                contexto.armazenamento.as_ref(),
+                &self.snapshot,
+                configuracao,
+                self.sql,
+                &self.executor,
+                limites,
+            )
+            .await
+        } else if let Some(fonte_bronze) = self.fonte_bronze.as_deref() {
             super::publicacao::publicar_transformacao_sql_com_fonte_bronze(
                 self.bronze.as_ref(),
                 contexto.armazenamento.as_ref(),
@@ -191,9 +227,9 @@ impl Tarefa for TarefaDeSilverSql {
 
 #[cfg(test)]
 mod testes {
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
     use std::sync::Mutex;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
     use arrow::array::{
         Array, Date32Array, Decimal128Array, Int64Array, StringArray, UInt16Array, UInt32Array,
@@ -244,12 +280,14 @@ mod testes {
     const RECURSO: &str = "recurso";
     const REGRA: &str = "teste-v1";
     const SQL: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto AS _tdoa_origem_manifesto, a._tdoa_origem_parte AS _tdoa_origem_parte, a._tdoa_origem_ordinal AS _tdoa_origem_ordinal FROM bronze AS a INNER JOIN bronze AS b ON a.id = b.id WHERE CAST(a.valor AS BIGINT) >= 20";
+    const SQL_REJEICAO: &str = "SELECT CAST(a.id AS BIGINT) AS id, CAST(a.valor AS BIGINT) AS valor, a._tdoa_origem_manifesto, a._tdoa_origem_parte, a._tdoa_origem_ordinal, a._tdoa_origem_url, CASE WHEN CAST(a.valor AS BIGINT) < 20 THEN 'valor_baixo' ELSE NULL END AS _tdoa_rejeicao_motivo FROM bronze AS a ORDER BY a._tdoa_origem_parte, a._tdoa_origem_ordinal";
 
     #[derive(Default)]
     struct Memoria {
         objetos: Mutex<HashMap<String, Vec<u8>>>,
         leituras_de_partes: AtomicUsize,
         bloqueio_upload: Mutex<Option<Arc<ControleUpload>>>,
+        falha_upload_quarentena: AtomicBool,
     }
 
     #[derive(Default)]
@@ -278,6 +316,14 @@ mod testes {
             _: &str,
             fluxo: &mut (dyn AsyncRead + Send + Unpin),
         ) -> Result<(), ErroDeIngestao> {
+            if chave.starts_with("_quarentena/")
+                && self.falha_upload_quarentena.load(Ordering::Relaxed)
+            {
+                return Err(ErroDeIngestao::Armazenamento {
+                    chave: chave.to_owned(),
+                    detalhe: "falha simulada no upload da quarentena".into(),
+                });
+            }
             let mut conteudo = Vec::new();
             fluxo.read_to_end(&mut conteudo).await.map_err(|erro| {
                 ErroDeIngestao::Armazenamento {
@@ -1546,6 +1592,164 @@ mod testes {
         assert_eq!(
             bronze.leituras_de_partes.load(Ordering::Relaxed),
             leituras_antes
+        );
+    }
+
+    #[tokio::test]
+    async fn rejeicao_abaixo_do_limite_publica_diagnostico_sem_dados_da_linha() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let tarefa = nova_tarefa(
+            Arc::clone(&bronze),
+            Arc::clone(&snapshot),
+            REGRA,
+            SQL_REJEICAO,
+        )
+        .com_limites_rejeicao(BTreeMap::from([("valor_baixo".into(), 1)]));
+
+        tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-qualidade"))
+            .await
+            .unwrap();
+        let ponteiro: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto: serde_json::Value =
+            serde_json::from_slice(&silver.ler(&ponteiro.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        assert_eq!(manifesto["qualidade"]["linhas_bronze_preparadas"], 4);
+        assert_eq!(manifesto["qualidade"]["linhas_saida"], 3);
+        assert_eq!(manifesto["qualidade"]["linhas_rejeitadas"], 1);
+        assert_eq!(
+            manifesto["qualidade"]["rejeicoes_por_motivo"]["valor_baixo"],
+            1
+        );
+        let chave = manifesto["qualidade"]["quarentena"]["chave"]
+            .as_str()
+            .unwrap();
+        let diagnosticos = String::from_utf8(silver.ler(chave).await.unwrap().unwrap()).unwrap();
+        let linhas = diagnosticos.lines().collect::<Vec<_>>();
+        assert_eq!(linhas.len(), 1);
+        let diagnostico: serde_json::Value = serde_json::from_str(linhas[0]).unwrap();
+        assert_eq!(diagnostico["motivo"], "valor_baixo");
+        assert_eq!(diagnostico["regra"], REGRA);
+        assert_eq!(diagnostico["ordinal_bronze"], 1);
+        assert_eq!(diagnostico["tabela_bronze"], "parte-0");
+        assert!(diagnostico.get("valor").is_none());
+        assert!(diagnostico.get("id").is_none());
+
+        let repetido = tarefa
+            .executar(&contexto(Arc::clone(&silver), "silver-qualidade-2"))
+            .await
+            .unwrap();
+        assert!(repetido.reaproveitada);
+        assert_eq!(
+            silver
+                .objetos
+                .lock()
+                .unwrap()
+                .keys()
+                .filter(|chave| chave.contains("_quarentena/"))
+                .count(),
+            1
+        );
+        silver.objetos.lock().unwrap().get_mut(chave).unwrap()[0] ^= 1;
+        assert!(tarefa.pendente(silver.as_ref()).await.unwrap());
+        let mut contexto_novo = contexto(Arc::clone(&silver), "silver-recuperada");
+        contexto_novo.iniciada_em = Utc.with_ymd_and_hms(2026, 11, 6, 13, 0, 0).unwrap();
+        let recuperada = tarefa.executar(&contexto_novo).await.unwrap();
+        assert!(!recuperada.reaproveitada);
+        assert!(!tarefa.pendente(silver.as_ref()).await.unwrap());
+        let ponteiro_novo: UltimaVersao = serde_json::from_slice(
+            &silver
+                .ler(&LocalizacaoRaw::ultima_versao(FONTE, RECURSO))
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        let manifesto_novo: serde_json::Value =
+            serde_json::from_slice(&silver.ler(&ponteiro_novo.manifesto).await.unwrap().unwrap())
+                .unwrap();
+        let chave_nova = manifesto_novo["qualidade"]["quarentena"]["chave"]
+            .as_str()
+            .unwrap();
+        assert_ne!(chave, chave_nova);
+        silver.objetos.lock().unwrap().remove(chave_nova);
+        assert!(tarefa.pendente(silver.as_ref()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn rejeicao_acima_do_limite_preserva_ponteiro_anterior() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        let anterior = nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot), REGRA, SQL);
+        anterior
+            .executar(&contexto(Arc::clone(&silver), "silver-anterior"))
+            .await
+            .unwrap();
+        let chave_ponteiro = LocalizacaoRaw::ultima_versao(FONTE, RECURSO);
+        let ponteiro_anterior = silver.ler(&chave_ponteiro).await.unwrap().unwrap();
+        let tarefa = nova_tarefa(bronze, snapshot, "teste-v2", SQL_REJEICAO)
+            .com_limites_rejeicao(BTreeMap::from([("valor_baixo".into(), 0)]));
+
+        assert!(
+            tarefa
+                .executar(&contexto(Arc::clone(&silver), "silver-rejeitada"))
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("excedem o limite")
+        );
+        assert_eq!(
+            silver.ler(&chave_ponteiro).await.unwrap().unwrap(),
+            ponteiro_anterior
+        );
+        assert!(
+            !silver
+                .objetos
+                .lock()
+                .unwrap()
+                .keys()
+                .any(|chave| chave.contains("_quarentena/"))
+        );
+    }
+
+    #[tokio::test]
+    async fn falha_no_upload_da_quarentena_preserva_ponteiro_anterior() {
+        let bronze = Arc::new(Memoria::default());
+        let snapshot = Arc::new(preparar_snapshot(&bronze).await);
+        let silver = Arc::new(Memoria::default());
+        nova_tarefa(Arc::clone(&bronze), Arc::clone(&snapshot), REGRA, SQL)
+            .executar(&contexto(Arc::clone(&silver), "silver-anterior"))
+            .await
+            .unwrap();
+        let chave_ponteiro = LocalizacaoRaw::ultima_versao(FONTE, RECURSO);
+        let ponteiro_anterior = silver.ler(&chave_ponteiro).await.unwrap().unwrap();
+        silver
+            .falha_upload_quarentena
+            .store(true, Ordering::Relaxed);
+        let tarefa = nova_tarefa(bronze, snapshot, "teste-v2", SQL_REJEICAO)
+            .com_limites_rejeicao(BTreeMap::from([("valor_baixo".into(), 1)]));
+
+        assert!(
+            tarefa
+                .executar(&contexto(Arc::clone(&silver), "silver-falha-upload"))
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("falha simulada")
+        );
+        assert_eq!(
+            silver.ler(&chave_ponteiro).await.unwrap().unwrap(),
+            ponteiro_anterior
         );
     }
 
