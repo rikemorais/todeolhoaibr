@@ -39,8 +39,10 @@ Bronze, parte, tabela interna e ordinal. A linha original permanece no Bronze;
 o diagnóstico não precisa copiar identificadores pessoais. O destino planejado
 é `silver/_quarentena/<fonte>/<recurso>/tabela=<nome>/execucao=<id>/`, separado da tabela
 publicada. Contagens de entrada, saída, conversões opcionais, cópias removidas
-e rejeições por motivo pertencem ao manifesto da execução. O publicador atual
-ainda não grava esse diagnóstico estruturado nem todas essas métricas; os
+e rejeições por motivo pertencem ao manifesto da execução. O publicador SQL
+grava no manifesto contagens básicas de linhas Bronze preparadas e linhas Silver
+publicadas, sob limiar zero; ainda não grava diagnóstico estruturado por linha
+nem contagens de conversões e rejeições por motivo. Os
 contratos novos que dependam de rejeição recuperável precisam dessa capacidade
 antes da ativação.
 

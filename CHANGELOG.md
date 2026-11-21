@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [Não publicado]
+
+### Adicionado
+
+- Manifestos Silver SQL registram a contagem de linhas Bronze preparadas e Silver publicadas, com a política de rejeição vigente e referência ao manifesto de origem (issue #483).
+
 ## [0.127.0] - 2026-11-21
 
 ### Adicionado

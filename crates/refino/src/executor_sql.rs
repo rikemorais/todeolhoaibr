@@ -124,6 +124,7 @@ pub struct EntradaSqlPreparada {
     diretorio_bronze: PathBuf,
     colunas_bronze: HashSet<String>,
     ordem_colunas_bronze: Vec<String>,
+    linhas_bronze: u64,
 }
 
 impl EntradaSqlPreparada {
@@ -135,6 +136,11 @@ impl EntradaSqlPreparada {
     /// Raiz temporária desta execução, usada também como base do spill.
     pub fn diretorio_execucao(&self) -> &Path {
         self.temporario.path()
+    }
+
+    /// Total de linhas das partes Bronze preparadas, antes de filtros ou joins SQL.
+    pub fn linhas_bronze(&self) -> u64 {
+        self.linhas_bronze
     }
 
     /// Expande placeholders de colunas opcionais e a projeção das colunas Bronze.
@@ -267,6 +273,7 @@ async fn preparar_snapshot_interno(
     std::fs::create_dir(&diretorio_bronze)?;
     let mut colunas_bronze = HashSet::new();
     let mut ordem_colunas_bronze = Vec::new();
+    let mut linhas_bronze = 0u64;
     for (indice, parte) in snapshot.manifesto().partes.iter().enumerate() {
         let baixada = snapshot
             .baixar_parte(bronze, &parte.chave)
@@ -277,6 +284,11 @@ async fn preparar_snapshot_interno(
         let mut escritor = None;
         for lote in leitor {
             let lote = lote?;
+            linhas_bronze = linhas_bronze
+                .checked_add(lote.registros.num_rows() as u64)
+                .ok_or_else(|| {
+                    ErroExecutorSql::Configuracao("contagem de linhas Bronze excede u64".into())
+                })?;
             for campo in lote.registros.schema().fields() {
                 if colunas_bronze.insert(campo.name().clone()) {
                     ordem_colunas_bronze.push(campo.name().clone());
@@ -316,6 +328,7 @@ async fn preparar_snapshot_interno(
         diretorio_bronze,
         colunas_bronze,
         ordem_colunas_bronze,
+        linhas_bronze,
     })
 }
 
