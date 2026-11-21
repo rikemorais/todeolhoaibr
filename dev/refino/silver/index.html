@@ -3199,14 +3199,22 @@ nulo exige valor original preservado e contagem por motivo. Duplicata integral
 validada preservam todas as ocorrências com manifesto, parte e ordinal Bronze.
 Uma publicação SQL bem-sucedida inclui no manifesto Silver o objeto <code>qualidade</code>
 versão 1: <code>manifesto_bronze</code>, <code>regra</code>, <code>linhas_bronze_preparadas</code>, <code>linhas_saida</code>,
-<code>linhas_rejeitadas</code> (zero sob a política atual de falha total) e
-<code>politica_rejeicao</code>. A contagem Bronze inclui todas as partes preparadas; filtros,
-joins e expansão de relações podem fazer as duas contagens diferir sem que haja
-rejeição. A medição ocorre antes da troca do ponteiro, junto da publicação do
-manifesto. Uma falha mantém o ponteiro Silver anterior. Diagnóstico recuperável
-por linha, conversões opcionais por motivo e métricas de rejeição não nula ainda
-não são emitidos; não ativar um contrato que dependa dessa quarentena antes de
-implementá-la (issue #483).</p>
+<code>linhas_rejeitadas</code>, <code>rejeicoes_por_motivo</code>, <code>politica_rejeicao</code> e <code>quarentena</code>.
+A contagem Bronze inclui todas as partes preparadas; filtros, joins e expansão
+de relações podem fazer as duas contagens diferir sem que haja rejeição.</p>
+<p>O padrão continua sendo falha total e zero linhas rejeitadas em publicações
+bem-sucedidas. Um contrato que precise aceitar até um limite absoluto por motivo
+pode projetar <code>_tdoa_rejeicao_motivo</code> (<code>Utf8</code>, nulo nas linhas válidas) e
+<code>_tdoa_origem_url</code>, além das colunas obrigatórias de linhagem, e configurar
+<code>TarefaDeSilverSql::com_limites_rejeicao</code>. O publicador remove a coluna de motivo
+da tabela Silver, grava as linhas rejeitadas em
+<code>silver/_quarentena/&lt;fonte&gt;/&lt;recurso&gt;/execucao=&lt;id&gt;/rejeicoes.jsonl</code> e registra
+no manifesto a chave, o tamanho e o SHA-256 do arquivo. Cada diagnóstico contém
+apenas motivo, regra e referência Bronze (manifesto, parte, tabela, ordinal),
+sem copiar os valores da linha. Uma rejeição acima do limite, motivo não declarado
+ou falha de upload impede a troca do ponteiro Silver. A segunda execução da mesma
+versão é reaproveitada. Ainda faltam contagens de conversões opcionais por motivo
+e exposição das métricas no painel/consulta (issue #483).</p>
 <p>A referência <code>(manifesto, parte, ordinal)</code> consta da linha Silver publicada,
 além do manifesto da execução. O leitor Bronze a fornece ao executor SQL; os
 contratos ativados a projetam e o publicador rejeita referência ausente ou
