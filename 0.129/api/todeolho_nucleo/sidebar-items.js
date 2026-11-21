@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["contexto","dag","decisao","erros","espaco","estado_raw","executor","fonte","historico","orfas","portas","raw","selecao","tarefa"]};
