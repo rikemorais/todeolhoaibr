@@ -9,11 +9,13 @@ use serde_json::Value;
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::{ErroDeRefino, Tabela};
 
+/// Agrega os `items` do envelope ORDS do SICONFI, pulando a primeira parte (entes).
 pub struct DecodificadorSiconfi {
     nome: &'static str,
 }
 
 impl DecodificadorSiconfi {
+    /// Cria o decodificador com o nome lógico da tabela Bronze resultante.
     pub const fn novo(nome: &'static str) -> Self {
         Self { nome }
     }
