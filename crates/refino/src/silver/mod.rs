@@ -11,6 +11,7 @@ pub mod camara_tramitacoes;
 pub mod camara_votacoes;
 /// Contrato Silver para o cadastro de empresas da Receita Federal (CNPJ).
 pub mod cnpj_empresas;
+pub(crate) mod diagnostico;
 /// Contrato Silver para o cadastro de estabelecimentos da Receita Federal (CNPJ).
 pub mod cnpj_estabelecimentos;
 /// Contrato Silver para a tabela de eventos do CNPJ (diff entre snapshots).
