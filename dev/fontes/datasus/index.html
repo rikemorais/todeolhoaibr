@@ -1945,8 +1945,8 @@ Atualização: anual (SIM, SINASC) e mensal (SIH, CNES) · Licença: dados abert
 <td><strong>SIM</strong></td>
 <td>DOFET (fetais)</td>
 <td>1996–2023</td>
-<td>anual × UF</td>
-<td>756</td>
+<td>anual nacional</td>
+<td>28</td>
 <td>DBC</td>
 </tr>
 <tr>
@@ -1975,7 +1975,7 @@ Atualização: anual (SIM, SINASC) e mensal (SIH, CNES) · Licença: dados abert
 </tr>
 </tbody>
 </table>
-<p><strong>Total: 14 094 tarefas, sob demanda.</strong></p>
+<p><strong>Total: 13 366 tarefas, sob demanda.</strong></p>
 <h2 id="sobre-a-fonte">Sobre a fonte<a class="headerlink" href="#sobre-a-fonte" title="Permanent link">&para;</a></h2>
 <p>O DATASUS (Departamento de Informática do SUS) publica microdados de saúde
 via FTP. Os dados são públicos e agregados por município/UF. Sistemas:</p>
@@ -1992,8 +1992,11 @@ via FTP. Os dados são públicos e agregados por município/UF. Sistemas:</p>
 <h2 id="nomenclatura-dos-arquivos">Nomenclatura dos arquivos<a class="headerlink" href="#nomenclatura-dos-arquivos" title="Permanent link">&para;</a></h2>
 <h3 id="sim">SIM<a class="headerlink" href="#sim" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DO{UF}{AAAA}.dbc
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DOFET/DO{UF}{AAAA}.dbc
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DOFET/DOFET{AA}.{ext}
 </code></pre></div>
+<p>DOFET contém um arquivo nacional por ano, sem UF no nome ou no recurso Raw.
+O ano usa dois dígitos (<code>DOFET96.dbc</code> para 1996). A extensão é <code>.DBC</code> de
+2007 a 2012 e <code>.dbc</code> nos demais anos do período ingerido.</p>
 <h3 id="sinasc">SINASC<a class="headerlink" href="#sinasc" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>ftp://ftp.datasus.gov.br/dissemin/publicos/SINASC/1996_/Dados/DNRES/DN{UF}{AAAA}.dbc
 </code></pre></div>
@@ -2016,8 +2019,11 @@ acontece na camada Bronze (follow-up).</p>
 <code>PySUS</code> (Python), <code>datasus-fetcher</code> (Python).</p>
 <h2 id="idempotencia">Idempotência<a class="headerlink" href="#idempotencia" title="Permanent link">&para;</a></h2>
 <p><strong>Raw (ingestão):</strong> por recurso (<code>sim/dores/ano=2023/uf=sp</code>,
+<code>sim/dofet/ano=1996</code>,
 <code>sih/competencia=202401/uf=sp</code>, <code>cnes/competencia=202501/uf=ba</code>).
 Re-ingerir sobrescreve o snapshot anterior (manifesto com tamanho/data FTP).</p>
+<p>Para ingerir apenas DOFET de 1996, filtre por <code>registro=sim</code>,
+<code>subset=dofet</code> e <code>ano=1996</code>; esse subset não aceita filtro de UF.</p>
 <p><strong>Silver (follow-up):</strong> chave <code>município + competência</code> (SIH/CNES) ou
 <code>município + ano</code> (SIM/SINASC).</p>
 <h2 id="follow-up">Follow-up<a class="headerlink" href="#follow-up" title="Permanent link">&para;</a></h2>
