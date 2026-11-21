@@ -10,7 +10,7 @@ use crate::fontes::{
     DecodificadorAssentamentosIncra, DecodificadorCnpj, DecodificadorConabSafra,
     DecodificadorCotahist, DecodificadorCsv, DecodificadorEmendasSiga, DecodificadorIbgeAgregados,
     DecodificadorJson, DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes,
-    DecodificadorSiconfi, DecodificadorXmlDataset, DecodificadorZipCsv,
+    DecodificadorSiconfi, DecodificadorSnis, DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -403,6 +403,31 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "siconfi",
             prefixo_recurso: "rgf/",
             cria_decodificador: || Arc::new(DecodificadorSiconfi::novo("rgf")),
+        },
+        // --- SINISA (ex-SNIS): ZIP com XLSX de saneamento por município ---
+        FonteDeRefino {
+            nome: "snis-agua",
+            fonte_raw: "snis",
+            prefixo_recurso: "agua/",
+            cria_decodificador: || Arc::new(DecodificadorSnis),
+        },
+        FonteDeRefino {
+            nome: "snis-esgoto",
+            fonte_raw: "snis",
+            prefixo_recurso: "esgoto/",
+            cria_decodificador: || Arc::new(DecodificadorSnis),
+        },
+        FonteDeRefino {
+            nome: "snis-residuos",
+            fonte_raw: "snis",
+            prefixo_recurso: "residuos/",
+            cria_decodificador: || Arc::new(DecodificadorSnis),
+        },
+        FonteDeRefino {
+            nome: "snis-pluviais",
+            fonte_raw: "snis",
+            prefixo_recurso: "pluviais/",
+            cria_decodificador: || Arc::new(DecodificadorSnis),
         },
         // --- CNPJ Receita Federal: ZIP de CSV sem cabeçalho, Latin-1, separador `;` ---
         FonteDeRefino {

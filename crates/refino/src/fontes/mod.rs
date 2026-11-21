@@ -11,6 +11,7 @@ pub mod json;
 pub mod mapa_empresas;
 pub mod senado_processos_detalhes;
 pub mod siconfi;
+pub mod snis;
 pub mod xml_dataset;
 pub mod zip_csv;
 
@@ -25,5 +26,6 @@ pub use json::DecodificadorJson;
 pub use mapa_empresas::DecodificadorMapaEmpresas;
 pub use senado_processos_detalhes::DecodificadorSenadoProcessosDetalhes;
 pub use siconfi::DecodificadorSiconfi;
+pub use snis::DecodificadorSnis;
 pub use xml_dataset::DecodificadorXmlDataset;
 pub use zip_csv::DecodificadorZipCsv;
