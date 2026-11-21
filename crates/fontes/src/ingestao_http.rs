@@ -12,8 +12,8 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw,
-    ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao,
-    estado_na_raw, manifesto_vigente, marcar_execucao_ativa, publicar_ponteiro_compartilhado,
+    ParteRaw, RespostaCondicional, ResumoDaTarefa, Tarefa, UltimaVersao, estado_na_raw,
+    manifesto_vigente, marcar_execucao_ativa, publicar_ponteiro_compartilhado,
 };
 use tracing::warn;
 

@@ -78,8 +78,7 @@ pub fn escolher(
                 continue;
             };
 
-            let escolhidos: BTreeSet<&str> =
-                numeros.iter().map(|&n| valores[n].as_str()).collect();
+            let escolhidos: BTreeSet<&str> = numeros.iter().map(|&n| valores[n].as_str()).collect();
             filtro.restringir(&dimensao, escolhidos.iter().copied());
             restantes.retain(|tarefa| {
                 tarefa
@@ -301,5 +300,4 @@ mod testes {
         let indices: Vec<usize> = escolha.unwrap().iter().map(|(i, _)| *i).collect();
         assert_eq!(indices, [0, 1]);
     }
-
 }

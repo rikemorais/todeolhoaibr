@@ -14,8 +14,8 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ClienteHttp, ContextoDeExecucao, DecisaoDeIngestao, DownloadHttp, ErroDeIngestao, FluxoDeBytes,
-    LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw,
-    ProgressoDaTarefa, ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, decidir,
+    LocalizacaoRaw, ManifestoRaw, MotivoDeIngestao, ObjetoRaw, ParteRaw, ProgressoDaTarefa,
+    ResumoDaTarefa, Tarefa, UltimaVersao, agendar_limpeza_snapshot, decidir,
     estado_na_raw_com_origem, limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
     publicar_ponteiro_compartilhado,
 };

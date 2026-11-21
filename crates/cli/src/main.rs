@@ -239,7 +239,6 @@ async fn selecionar() -> Result<bool> {
     executar(selecionadas, contexto, false).await
 }
 
-
 async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
     let selecionadas = match (argumentos.fonte, argumentos.todas) {
         (Some(_), true) => bail!("informe uma fonte ou --todas, não os dois"),
@@ -3572,5 +3571,4 @@ mod testes {
         );
         assert!(fontes_ibge_silver(Some("ibge-estados"), false).is_empty());
     }
-
 }

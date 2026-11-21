@@ -248,7 +248,6 @@ impl Tarefa for TarefaProgramaCompetencia {
         }
         Ok(resumo)
     }
-
 }
 
 /// Benefícios sociais em partições mensais e municipais, na Raw do Portal da Transparência.
