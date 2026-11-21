@@ -25,13 +25,15 @@ impl FonteDeDados for FonteSnisPluviais {
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        vec![TarefaPlanejada::nova(TarefaDeArquivo::nova(
-            "pluviais_2024".into(),
-            api::FONTE_RAW,
-            "pluviais/ano=2024".into(),
-            api::PLUVIAIS_2024.into(),
-        ))
-        .com_etiquetas([("ano", "2024")])]
+        vec![
+            TarefaPlanejada::nova(TarefaDeArquivo::nova(
+                "pluviais_2024".into(),
+                api::FONTE_RAW,
+                "pluviais/ano=2024".into(),
+                api::PLUVIAIS_2024.into(),
+            ))
+            .com_etiquetas([("ano", "2024")]),
+        ]
     }
 }
 

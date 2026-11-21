@@ -1,7 +1,7 @@
 //! SINISA (ex-SNIS) — dados de saneamento por município.
 
-mod api;
 pub mod agua;
+mod api;
 pub mod esgoto;
 pub mod pluviais;
 pub mod residuos;

@@ -142,10 +142,7 @@ fn celula_para_texto(celula: &Data) -> Option<String> {
 }
 
 fn nome_de_parte(caminho_no_zip: &str) -> String {
-    let nome = caminho_no_zip
-        .rsplit('/')
-        .next()
-        .unwrap_or(caminho_no_zip);
+    let nome = caminho_no_zip.rsplit('/').next().unwrap_or(caminho_no_zip);
     nome.strip_suffix(".xlsx")
         .or_else(|| nome.strip_suffix(".XLSX"))
         .unwrap_or(nome)
@@ -156,8 +153,8 @@ fn nome_de_parte(caminho_no_zip: &str) -> String {
 mod testes {
     use std::io::{Cursor, Write};
 
-    use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
+    use zip::write::SimpleFileOptions;
 
     use super::*;
     use crate::csv_zip::testes::ler_parte;
@@ -199,20 +196,16 @@ mod testes {
 
             // Preâmbulo (linhas 1-10)
             for r in 1..=10 {
-                xml.push_str(&format!(r#"<row r="{r}"><c r="A{r}" t="inlineStr"><is><t>preambulo</t></is></c></row>"#));
+                xml.push_str(&format!(
+                    r#"<row r="{r}"><c r="A{r}" t="inlineStr"><is><t>preambulo</t></is></c></row>"#
+                ));
             }
 
             // Linha 11: cabeçalho com códigos máquina
             xml.push_str(r#"<row r="11">"#);
-            xml.push_str(
-                r#"<c r="A11" t="inlineStr"><is><t>cod_IBGE</t></is></c>"#,
-            );
-            xml.push_str(
-                r#"<c r="B11" t="inlineStr"><is><t>Município</t></is></c>"#,
-            );
-            xml.push_str(
-                r#"<c r="C11" t="inlineStr"><is><t>IAG0001</t></is></c>"#,
-            );
+            xml.push_str(r#"<c r="A11" t="inlineStr"><is><t>cod_IBGE</t></is></c>"#);
+            xml.push_str(r#"<c r="B11" t="inlineStr"><is><t>Município</t></is></c>"#);
+            xml.push_str(r#"<c r="C11" t="inlineStr"><is><t>IAG0001</t></is></c>"#);
             xml.push_str("</row>");
 
             // Dados
@@ -288,8 +281,7 @@ mod testes {
                 .unwrap();
             zip.write_all(&xlsx_bytes).unwrap();
 
-            zip.start_file("Base Municipal/dados.xlsx", opcoes)
-                .unwrap();
+            zip.start_file("Base Municipal/dados.xlsx", opcoes).unwrap();
             zip.write_all(&xlsx_bytes).unwrap();
 
             zip.finish().unwrap();
