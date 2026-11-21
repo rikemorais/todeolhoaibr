@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use todeolho_nucleo::{
     ContextoDeExecucao, ErroDeIngestao, FonteDeDados, LocalizacaoRaw, ManifestoRaw, ObjetoRaw,
-    ParteRaw, PrecisaoDaEstimativa, ResumoDaTarefa, Tarefa, TarefaPlanejada, UltimaVersao,
+    ParteRaw, ResumoDaTarefa, Tarefa, TarefaPlanejada, UltimaVersao,
     agendar_limpeza_snapshot, limpar_orfas_do_recurso, manifesto_vigente, marcar_execucao_ativa,
     publicar_ponteiro_compartilhado,
 };
@@ -515,15 +515,6 @@ async fn publicar_snapshot(
 impl Tarefa for TarefaSigaBrasil {
     fn nome(&self) -> &str {
         NOME_TAREFA
-    }
-
-    async fn bytes_a_baixar(
-        &self,
-        _contexto: &ContextoDeExecucao,
-        _precisao: PrecisaoDaEstimativa,
-    ) -> Result<Option<u64>, ErroDeIngestao> {
-        // O Qlik cria a URL temporária apenas após abrir uma sessão e exportar o snapshot.
-        Ok(None)
     }
 
     async fn executar(
