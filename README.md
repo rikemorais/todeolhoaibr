@@ -39,7 +39,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `comex` | Comex Stat (MDIC) — comércio exterior por NCM e município, de 1997 a 2026 | |
 | `conab` | CONAB — séries de safra de grãos (levantamentos mensais, XLSX) | |
 | `cvm` | CVM — demonstrações financeiras de companhias abertas (DFP/ITR), de 2010 a 2026 | |
-| `datasus` | indicadores de saúde — SIM, SINASC, SIH e CNES via FTP (DBC), 14 094 tarefas (sob demanda) | [doc da fonte](docs/fontes/datasus.md) |
+| `datasus` | indicadores de saúde — SIM, SINASC, SIH e CNES via FTP (DBC), 13 366 tarefas (sob demanda) | [doc da fonte](docs/fontes/datasus.md) |
 | `emendas` | autoria/localidade/valores anuais na CGU e repasses municipais mensais do Tesouro (sob demanda; CGU requer token) | [doc da fonte](docs/fontes/emendas.md) |
 | `emendas-siga-brasil` | favorecidos e valores “Pago + RP” do painel público do Senado (sob demanda; sem credenciais) | [doc da fonte](docs/fontes/emendas.md) |
 | `energia` | ANEEL (tarifas, SIGA, geração distribuída) + EPE (BEN, consumo por classe) + ONS (balanço carga/geração por subsistema, 2000–2026), 36 tarefas (sob demanda) | [doc da fonte](docs/fontes/energia.md) |
