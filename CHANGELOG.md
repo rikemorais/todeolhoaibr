@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.127.0] - 2026-11-21
+
+### Adicionado
+
+- Ingestão de transações do cartão de pagamento do governo federal (CPGF/CPCC/CPDC) via API v2 do Portal da Transparência, particionada por competência mensal desde 2014-01, com autenticação por token e rate limit compartilhados (issue #27).
+
 ## [0.126.0] - 2026-11-21
 
 ### Adicionado
