@@ -26,6 +26,8 @@ use crate::{
 
 const TIPO_PARQUET: &str = "application/vnd.apache.parquet";
 const COL_REJEICAO: &str = "_tdoa_rejeicao_motivo";
+const COL_CONVERSOES: &str = "_tdoa_conversoes_motivos";
+const COL_COPIA: &str = "_tdoa_copia_removida";
 
 /// Identidade e contrato da tabela produzida por uma transformação Silver.
 pub(crate) struct ConfiguracaoDePublicacao<'a> {
@@ -340,6 +342,8 @@ async fn publicar_transformacao_sql_interno(
         .transpose()
         .map_err(|_| erro_manifesto(recurso, "falha ao criar arquivo de diagnósticos Silver"))?;
     let mut rejeicoes_por_motivo = BTreeMap::new();
+    let mut conversoes_por_motivo = BTreeMap::new();
+    let mut copias_removidas = 0u64;
     let mut linhas_saida = 0u64;
     while let Some(lote) = fluxo.next().await {
         let lote = lote.map_err(|erro| {
@@ -354,6 +358,8 @@ async fn publicar_transformacao_sql_interno(
                 regra,
                 limites,
                 &mut rejeicoes_por_motivo,
+                &mut conversoes_por_motivo,
+                &mut copias_removidas,
                 arquivo_diagnosticos
                     .as_mut()
                     .expect("arquivo criado")
@@ -489,13 +495,15 @@ async fn publicar_transformacao_sql_interno(
     let mut manifesto_json =
         serde_json::to_value(&manifesto).map_err(|erro| erro_manifesto(recurso, erro))?;
     manifesto_json["qualidade"] = serde_json::json!({
-        "versao": 1,
+        "versao": 2,
         "manifesto_bronze": snapshot.chave_manifesto(),
         "regra": regra,
         "linhas_bronze_preparadas": entrada.linhas_bronze(),
         "linhas_saida": linhas_saida,
         "linhas_rejeitadas": linhas_rejeitadas,
         "rejeicoes_por_motivo": rejeicoes_por_motivo,
+        "conversoes_opcionais_por_motivo": conversoes_por_motivo,
+        "copias_removidas": copias_removidas,
         "politica_rejeicao": if opcoes.limites_rejeicao.is_some() { "limites_absolutos" } else { "falha_total" },
         "quarentena": quarentena,
     });
@@ -637,10 +645,25 @@ fn esquema_publicado(recebido: &SchemaRef, com_rejeicao: bool) -> Result<SchemaR
     if url.data_type() != &DataType::Utf8 {
         return Err("_tdoa_origem_url deve ser Utf8");
     }
+    if let Ok(conversoes) = recebido.field_with_name(COL_CONVERSOES)
+        && conversoes.data_type() != &DataType::Utf8
+    {
+        return Err("_tdoa_conversoes_motivos deve ser Utf8");
+    }
+    if let Ok(copia) = recebido.field_with_name(COL_COPIA)
+        && copia.data_type() != &DataType::Boolean
+    {
+        return Err("_tdoa_copia_removida deve ser Boolean");
+    }
     let campos = recebido
         .fields()
         .iter()
-        .filter(|campo| campo.name() != COL_REJEICAO && campo.name() != COL_URL)
+        .filter(|campo| {
+            campo.name() != COL_REJEICAO
+                && campo.name() != COL_URL
+                && campo.name() != COL_CONVERSOES
+                && campo.name() != COL_COPIA
+        })
         .cloned()
         .collect::<Vec<_>>();
     Ok(std::sync::Arc::new(Schema::new(campos)))
@@ -651,6 +674,8 @@ fn separar_rejeicoes(
     regra: &str,
     limites: &BTreeMap<String, u64>,
     contagens: &mut BTreeMap<String, u64>,
+    conversoes: &mut BTreeMap<String, u64>,
+    copias_removidas: &mut u64,
     diagnosticos: &mut std::fs::File,
 ) -> Result<RecordBatch, String> {
     let esquema = lote.schema();
@@ -660,6 +685,24 @@ fn separar_rejeicoes(
         .as_any()
         .downcast_ref::<StringArray>()
         .ok_or("motivo de rejeição não é Utf8")?;
+    let motivos_conversao = match esquema.index_of(COL_CONVERSOES) {
+        Ok(indice) => Some(
+            lote.column(indice)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .ok_or("motivos de conversão não são Utf8")?,
+        ),
+        Err(_) => None,
+    };
+    let copias = match esquema.index_of(COL_COPIA) {
+        Ok(indice) => Some(
+            lote.column(indice)
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .ok_or("indicador de cópia não é Boolean")?,
+        ),
+        Err(_) => None,
+    };
     let texto = |nome: &str| -> Result<&StringArray, String> {
         let indice = esquema.index_of(nome).map_err(|e| e.to_string())?;
         lote.column(indice)
@@ -678,7 +721,42 @@ fn separar_rejeicoes(
         .ok_or("ordinal não é UInt64")?;
     let mut validas = Vec::with_capacity(lote.num_rows());
     for linha in 0..lote.num_rows() {
+        if let Some(copias) = copias
+            && !copias.is_null(linha)
+            && copias.value(linha)
+        {
+            if !motivos.is_null(linha) {
+                return Err("linha não pode ser cópia removida e rejeição".into());
+            }
+            if manifestos.is_null(linha)
+                || partes.is_null(linha)
+                || urls.is_null(linha)
+                || ordinais.is_null(linha)
+            {
+                return Err("cópia removida não tem referência Bronze completa".into());
+            }
+            *copias_removidas = copias_removidas
+                .checked_add(1)
+                .ok_or("contagem de cópias removidas excede u64")?;
+            validas.push(false);
+            continue;
+        }
         if motivos.is_null(linha) {
+            if let Some(motivos_conversao) = motivos_conversao
+                && !motivos_conversao.is_null(linha)
+            {
+                let nomes: Vec<String> = serde_json::from_str(motivos_conversao.value(linha))
+                    .map_err(|e| format!("motivos de conversão inválidos: {e}"))?;
+                for nome in nomes {
+                    if nome.is_empty() {
+                        return Err("motivo de conversão vazio".into());
+                    }
+                    let contagem = conversoes.entry(nome).or_default();
+                    *contagem = contagem
+                        .checked_add(1)
+                        .ok_or("contagem de conversões excede u64")?;
+                }
+            }
             validas.push(true);
             continue;
         }
@@ -721,7 +799,12 @@ fn separar_rejeicoes(
         .fields()
         .iter()
         .enumerate()
-        .filter(|(_, campo)| campo.name() != COL_REJEICAO && campo.name() != COL_URL)
+        .filter(|(_, campo)| {
+            campo.name() != COL_REJEICAO
+                && campo.name() != COL_URL
+                && campo.name() != COL_CONVERSOES
+                && campo.name() != COL_COPIA
+        })
         .map(|(indice, _)| indice)
         .collect::<Vec<_>>();
     filtrado.project(&indices).map_err(|e| e.to_string())

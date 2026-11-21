@@ -52,13 +52,15 @@ FROM silver_bcb_series
 GROUP BY serie, data
 HAVING count(*) > 1;
 
--- Perfil atual com nulos por coluna, linhagem e chave candidata
-SELECT * FROM qualidade_silver_bcb_series;
+-- Perfil atual com nulos, linhagem, chave candidata e contagens do manifesto
+SELECT linhas, linhas_saida_manifesto, linhas_rejeitadas_manifesto, copias_removidas_manifesto,
+       conversoes_opcionais_por_motivo_manifesto, status_metricas_manifesto
+FROM qualidade_silver_bcb_series;
 ```
 
 O perfil calcula contagem de linhas, nulos por coluna, linhas com linhagem incompleta e, para chaves candidatas registradas, linhas com chave incompleta e linhas excedentes por duplicidade. Chaves não registradas aparecem como não validadas; use a matriz em [silver.md](silver.md#cobertura-do-catálogo-bronze) para a política por tabela. O perfil é lazy: executar uma view faz a varredura da tabela atual selecionada e pode levar mais tempo em recursos volumosos. Ele nunca remove linhas. `DESCRIBE`, o perfil, a verificação de unicidade pela chave e a conferência da linhagem constituem o smoke por tabela.
 
-O painel de execução mostra estado, duração, partes e bytes; o console DuckDB expõe os perfis das tabelas vigentes. A distribuição de rejeições ainda não é emitida: as consultas SQL dos contratos falham antes da troca do ponteiro quando uma asserção obrigatória não é satisfeita.
+O painel de execução mostra estado, duração, partes e bytes; o console DuckDB expõe os perfis das tabelas vigentes. Os campos `*_manifesto` somam somente manifestos vigentes com `qualidade` v2 completo. Se algum recurso ainda usa um manifesto antigo, ficam nulos e `status_metricas_manifesto` explica por quê; reprocessar com uma nova versão de regra cria métricas. Rejeições e conversões aparecem em mapas JSON por motivo quando o contrato SQL as anota; cópias removidas são contadas apenas se o contrato as marcar. Asserções obrigatórias continuam falhando antes da troca do ponteiro.
 
 ## Reprocessar
 

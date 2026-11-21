@@ -206,7 +206,7 @@ As quatro famílias Silver já existentes do TSE usam SQL versionado executado p
 
 ## Cobertura do catálogo Bronze
 
-Os perfis operacionais de qualidade no console DuckDB são gerados para cada view Silver apontada pelos manifestos vigentes. Eles mostram contagem de linhas, nulos por coluna e linhagem incompleta; para chaves candidatas declaradas nesta matriz, também mostram chaves incompletas e linhas excedentes por duplicidade. A lista de chaves usada pelo gerador é explícita e fica em `docker/consulta/gerar_views.py`: chaves não configuradas ou sem todas as colunas permanecem como “não validadas”. O perfil é uma consulta lazy sobre uma tabela selecionada, não altera nem deduplica dados e não substitui os smokes documentados por família abaixo. Assim, snapshots antigos não entram na medição operacional da view vigente.
+Os perfis operacionais de qualidade no console DuckDB são gerados para cada view Silver apontada pelos manifestos vigentes. Eles mostram contagem de linhas, nulos por coluna e linhagem incompleta; para chaves candidatas declaradas nesta matriz, também mostram chaves incompletas e linhas excedentes por duplicidade. O perfil inclui as somas das contagens dos manifestos vigentes (`*_manifesto`), inclusive cópias removidas, e os mapas JSON de rejeições e conversões opcionais por motivo. Se algum manifesto vigente ainda não tem `qualidade` v2 completo, essas métricas aparecem como nulas com `status_metricas_manifesto` explicativo; não se exibe uma soma parcial. A lista de chaves usada pelo gerador é explícita e fica em `docker/consulta/gerar_views.py`: chaves não configuradas ou sem todas as colunas permanecem como “não validadas”. O perfil é uma consulta lazy sobre uma tabela selecionada, não altera nem deduplica dados e não substitui os smokes documentados por família abaixo. Assim, snapshots antigos não entram na medição operacional da view vigente.
 
 
 O [catálogo](../../crates/refino/src/catalogo.rs) tem 36 entradas. Uma entrada ZIP pode produzir várias tabelas internas; cada relação interna precisa de contrato próprio ou de exclusão com justificativa explícita. `recurso` e `versão bronze` fazem parte da procedência, mas não substituem a chave de negócio.
@@ -272,7 +272,8 @@ nulo exige valor original preservado e contagem por motivo. Duplicata integral
 validada preservam todas as ocorrências com manifesto, parte e ordinal Bronze.
 Uma publicação SQL bem-sucedida inclui no manifesto Silver o objeto `qualidade`
 versão 1: `manifesto_bronze`, `regra`, `linhas_bronze_preparadas`, `linhas_saida`,
-`linhas_rejeitadas`, `rejeicoes_por_motivo`, `politica_rejeicao` e `quarentena`.
+`linhas_rejeitadas`, `rejeicoes_por_motivo`,
+`conversoes_opcionais_por_motivo`, `politica_rejeicao` e `quarentena`.
 A contagem Bronze inclui todas as partes preparadas; filtros, joins e expansão
 de relações podem fazer as duas contagens diferir sem que haja rejeição.
 
@@ -287,8 +288,19 @@ no manifesto a chave, o tamanho e o SHA-256 do arquivo. Cada diagnóstico conté
 apenas motivo, regra e referência Bronze (manifesto, parte, tabela, ordinal),
 sem copiar os valores da linha. Uma rejeição acima do limite, motivo não declarado
 ou falha de upload impede a troca do ponteiro Silver. A segunda execução da mesma
-versão é reaproveitada. Ainda faltam contagens de conversões opcionais por motivo
-e exposição das métricas no painel/consulta (issue #483).
+versão é reaproveitada. Para contar conversões opcionais em linhas válidas, o SQL
+opt-in também pode projetar `_tdoa_conversoes_motivos` como texto JSON contendo
+um array de motivos estáveis; o publicador conta cada motivo e remove essa coluna
+do Parquet Silver. Um contrato que só precise dessas contagens pode declarar
+limites de rejeição vazios, projetando `_tdoa_rejeicao_motivo` nulo e
+`_tdoa_origem_url`. Para remover cópias comprovadas, o contrato pode projetar
+`_tdoa_copia_removida` como `Boolean`; as linhas marcadas não são publicadas e
+entram em `copias_removidas`. O contrato deve documentar os campos comparados
+e a escolha determinística da ocorrência preservada. Zero sem anotação não
+prova ausência de cópias. Os perfis `qualidade_silver_*` da consulta exibem as contagens
+dos manifestos vigentes. Contratos existentes sem anotação de conversões não
+ganham contagens retroativas; é preciso atualizar cada regra e reprocessar a
+fonte para obtê-las.
 
 A referência `(manifesto, parte, ordinal)` consta da linha Silver publicada,
 além do manifesto da execução. O leitor Bronze a fornece ao executor SQL; os
