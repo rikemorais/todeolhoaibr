@@ -5,9 +5,30 @@ use todeolho_nucleo::{FonteDeDados, LimiteHttp, PerfilHttp, TarefaPlanejada};
 
 use crate::ingestao_arquivo::TarefaDeArquivo;
 
-const NOME: &str = "turismo-chegadas";
-const DATASET: &str = "184e0ddd-7eaf-488d-ad84-0331219d6e99";
 const HOST: &str = "dados.turismo.gov.br";
+
+fn perfil() -> PerfilHttp {
+    PerfilHttp {
+        redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
+        credencial: None,
+        limite: Some(LimiteHttp {
+            host: HOST,
+            requisicoes: 2,
+            intervalo: Duration::from_secs(1),
+        }),
+        agente: None,
+        aceitar_certificado_invalido: false,
+    }
+}
+
+fn url_ckan(dataset: &str, recurso_id: &str, arquivo: &str) -> String {
+    format!("https://{HOST}/dataset/{dataset}/resource/{recurso_id}/download/{arquivo}")
+}
+
+// ── Chegadas internacionais ─────────────────────────────────────────
+
+const NOME_CHEGADAS: &str = "turismo-chegadas";
+const DATASET_CHEGADAS: &str = "184e0ddd-7eaf-488d-ad84-0331219d6e99";
 
 struct AnoChegadas {
     ano: u16,
@@ -208,19 +229,12 @@ const ANOS: &[AnoChegadas] = &[
     },
 ];
 
-fn url_do_recurso(ano: &AnoChegadas) -> String {
-    format!(
-        "https://{HOST}/dataset/{DATASET}/resource/{}/download/{}",
-        ano.recurso_id, ano.arquivo
-    )
-}
-
 /// Chegada de turistas internacionais ao Brasil (Ministério do Turismo).
 pub struct FonteTurismoChegadas;
 
 impl FonteDeDados for FonteTurismoChegadas {
     fn nome(&self) -> &str {
-        NOME
+        NOME_CHEGADAS
     }
 
     fn descricao(&self) -> &str {
@@ -232,17 +246,7 @@ impl FonteDeDados for FonteTurismoChegadas {
     }
 
     fn perfil_http(&self) -> PerfilHttp {
-        PerfilHttp {
-            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
-            credencial: None,
-            limite: Some(LimiteHttp {
-                host: HOST,
-                requisicoes: 2,
-                intervalo: Duration::from_secs(1),
-            }),
-            agente: None,
-            aceitar_certificado_invalido: false,
-        }
+        perfil()
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
@@ -251,9 +255,9 @@ impl FonteDeDados for FonteTurismoChegadas {
                 let ano_str = ano.ano.to_string();
                 let mut tarefa = TarefaDeArquivo::nova(
                     ano_str.clone(),
-                    NOME,
+                    NOME_CHEGADAS,
                     format!("ano={}", ano.ano),
-                    url_do_recurso(ano),
+                    url_ckan(DATASET_CHEGADAS, ano.recurso_id, ano.arquivo),
                 );
                 if ano.ano == 2026 {
                     tarefa = tarefa.aceitar_ausencia();
@@ -265,34 +269,162 @@ impl FonteDeDados for FonteTurismoChegadas {
     }
 }
 
+// ── Meios de hospedagem ─────────────────────────────────────────────
+
+const NOME_HOSPEDAGEM: &str = "turismo-hospedagem";
+const DATASET_HOSPEDAGEM: &str = "d2333d1b-db1e-438b-955a-028db80a031e";
+
+struct RecursoHospedagem {
+    ano: u16,
+    trimestre: Option<u8>,
+    recurso_id: &'static str,
+    arquivo: &'static str,
+}
+
+const HOSPEDAGEM: &[RecursoHospedagem] = &[
+    // 2006–2015: anuais
+    RecursoHospedagem { ano: 2006, trimestre: None, recurso_id: "fb7eeca9-fc3c-4e40-a3f8-bfe666755780", arquivo: "meiodehospedagem2006cadasturpj.csv" },
+    RecursoHospedagem { ano: 2007, trimestre: None, recurso_id: "12222735-b609-4f6c-9c8b-a83c2b6a4a02", arquivo: "meiodehospedagem2007cadasturpj.csv" },
+    RecursoHospedagem { ano: 2008, trimestre: None, recurso_id: "8a7c534a-ab65-474c-8bdf-d27fe25638d9", arquivo: "meiodehospedagem2008cadasturpj.csv" },
+    RecursoHospedagem { ano: 2009, trimestre: None, recurso_id: "dd6c0c19-cadf-47cf-94b0-845df8801902", arquivo: "meiodehospedagem2009cadasturpj.csv" },
+    RecursoHospedagem { ano: 2010, trimestre: None, recurso_id: "bdb3f2a9-be7f-4b86-a87b-5e3d2bca3365", arquivo: "meiodehospedagem2010cadasturpj.csv" },
+    RecursoHospedagem { ano: 2011, trimestre: None, recurso_id: "03fd1c5b-6c6d-47ee-ba87-d9354844f802", arquivo: "meiodehospedagem2011cadasturpj.csv" },
+    RecursoHospedagem { ano: 2012, trimestre: None, recurso_id: "c89efc8a-f61c-4ac4-8e27-8b87002dc175", arquivo: "meiodehospedagem2012cadasturpj.csv" },
+    RecursoHospedagem { ano: 2013, trimestre: None, recurso_id: "e6b6f05a-14c3-4dc0-bcdf-9fb5b6429526", arquivo: "meiodehospedagem2013cadasturpj.csv" },
+    RecursoHospedagem { ano: 2014, trimestre: None, recurso_id: "ae539eb4-059b-4aee-bc9f-74e8cb98b403", arquivo: "meiodehospedagem2014cadasturpj.csv" },
+    RecursoHospedagem { ano: 2015, trimestre: None, recurso_id: "6977faf0-9066-49b1-bf30-32bee9027570", arquivo: "meiodehospedagem2015cadasturpj.csv" },
+    // 2016: trimestral
+    RecursoHospedagem { ano: 2016, trimestre: Some(1), recurso_id: "04babccb-7daf-4694-8624-cd12caf385c7", arquivo: "meiodehospedagem201601trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2016, trimestre: Some(2), recurso_id: "d370eb0f-d6f8-4718-95d0-6c5f8cb2556b", arquivo: "meiodehospedagem201602trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2016, trimestre: Some(3), recurso_id: "5e4e9859-ec4e-4067-9bed-1881d2f2f924", arquivo: "meiodehospedagem201603trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2016, trimestre: Some(4), recurso_id: "a57d648e-ffaf-40fa-8272-b180ce01c5c6", arquivo: "meiodehospedagem201604trimestrecadasturpj.csv" },
+    // 2017
+    RecursoHospedagem { ano: 2017, trimestre: Some(1), recurso_id: "fe2ca6f1-8f55-4ec4-b73f-8e631c95ed13", arquivo: "meiodehospedagem201701trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2017, trimestre: Some(2), recurso_id: "cbdab625-2d15-4c18-8247-23fdc8682ba9", arquivo: "meiodehospedagem201702trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2017, trimestre: Some(3), recurso_id: "0607dfde-67ae-4b33-944c-53022cc2ff03", arquivo: "meiodehospedagem201703trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2017, trimestre: Some(4), recurso_id: "1d8cf427-abaf-4f00-881a-b52fcd53f46c", arquivo: "meiodehospedagem201704trimestrecadasturpj.csv" },
+    // 2018
+    RecursoHospedagem { ano: 2018, trimestre: Some(1), recurso_id: "68fbaf2d-d7bb-445f-926f-a7ffe94895fe", arquivo: "meiodehospedagem201801trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2018, trimestre: Some(2), recurso_id: "31533c45-9ef9-48cf-8001-f3a59741c676", arquivo: "meiodehospedagem201802trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2018, trimestre: Some(3), recurso_id: "a12e8f63-82ad-496c-a290-a829e5e2bd98", arquivo: "meiodehospedagem201803trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2018, trimestre: Some(4), recurso_id: "71a466b7-aa2d-4e5d-b084-817b984626e1", arquivo: "meiodehospedagem201804trimestrecadasturpj.csv" },
+    // 2019
+    RecursoHospedagem { ano: 2019, trimestre: Some(1), recurso_id: "971ceb98-7066-479b-8a42-f764ebcf4795", arquivo: "meiodehospedagem201901trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2019, trimestre: Some(2), recurso_id: "569cf182-2f64-4ffb-9a62-26f167b90fa8", arquivo: "meiodehospedagem201902trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2019, trimestre: Some(3), recurso_id: "6ccb906e-4b18-4de7-b9fb-a9593f916e22", arquivo: "meiodehospedagem201903trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2019, trimestre: Some(4), recurso_id: "23286999-972d-4f64-8108-190956001e5d", arquivo: "meiodehospedagem201904trimestrecadasturpj.csv" },
+    // 2020
+    RecursoHospedagem { ano: 2020, trimestre: Some(1), recurso_id: "3a889034-b544-493d-b1ee-866a470b763e", arquivo: "meiodehospedagem202001trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2020, trimestre: Some(2), recurso_id: "7bca2b83-303d-4bc7-b28f-2638527230dd", arquivo: "meiodehospedagem202002trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2020, trimestre: Some(3), recurso_id: "fbbb8947-fabd-4bdb-a166-41230cd66ca3", arquivo: "meiodehospedagem202003trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2020, trimestre: Some(4), recurso_id: "1bd1346d-950d-4f5f-b5dd-8214a2c8e5db", arquivo: "meiodehospedagem202004trimestrecadasturpj.csv" },
+    // 2021
+    RecursoHospedagem { ano: 2021, trimestre: Some(1), recurso_id: "bce30034-d2dc-4b2b-bc07-ed7b3f03437c", arquivo: "meiodehospedagem202101trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2021, trimestre: Some(2), recurso_id: "bd4640b6-d98b-46f1-9ce9-0219f4dc8dba", arquivo: "meiodehospedagem202102trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2021, trimestre: Some(3), recurso_id: "a59bb412-6ee8-4309-bc27-56e205602dd7", arquivo: "meiodehospedagem202103trimestrecadasturpj.csv" },
+    RecursoHospedagem { ano: 2021, trimestre: Some(4), recurso_id: "5edb741b-502c-4ded-be8e-8dcff9d8d157", arquivo: "meio-de-hospedagem-.csv" },
+    // 2022
+    RecursoHospedagem { ano: 2022, trimestre: Some(1), recurso_id: "0ab4dbc3-5f55-43b0-b3a5-b37239a9b23f", arquivo: "meio-de-hospedagem-.csv" },
+    RecursoHospedagem { ano: 2022, trimestre: Some(2), recurso_id: "7a9e1605-11af-4fe2-a0ce-994dafa83e29", arquivo: "meio-de-hospedagem-.xlsx" },
+    RecursoHospedagem { ano: 2022, trimestre: Some(3), recurso_id: "4794e774-66e7-42b9-8bbf-9cf19a1d7694", arquivo: "meio-de-hospedagem-.xlsx" },
+    RecursoHospedagem { ano: 2022, trimestre: Some(4), recurso_id: "28ea0906-6681-4059-9a3f-a532913f91b3", arquivo: "meio-de-hospedagem.xls" },
+    // 2023
+    RecursoHospedagem { ano: 2023, trimestre: Some(1), recurso_id: "4f4edad8-2670-429e-b438-47bc6ce9f724", arquivo: "meio-de-hospedagem.xls" },
+    RecursoHospedagem { ano: 2023, trimestre: Some(2), recurso_id: "4f8e3cba-8070-4715-8420-cdb7424f2340", arquivo: "meio-de-hospedagem.xls" },
+    RecursoHospedagem { ano: 2023, trimestre: Some(3), recurso_id: "6d5cb937-d66c-404d-9a02-7b7e59702d20", arquivo: "meio-de-hospedagem.xls" },
+    RecursoHospedagem { ano: 2023, trimestre: Some(4), recurso_id: "26e0f639-97eb-4682-8ebd-9856a7ff0610", arquivo: "meio-de-hospedagem.xls" },
+    // 2024
+    RecursoHospedagem { ano: 2024, trimestre: Some(1), recurso_id: "8e8d5e6e-dadf-47fc-9e41-15915422020f", arquivo: "meio-de-hospedagem-.xls" },
+    RecursoHospedagem { ano: 2024, trimestre: Some(2), recurso_id: "357776b4-4da1-4238-9b3a-3c3599a08a22", arquivo: "meio-de-hospedagem.xls" },
+    RecursoHospedagem { ano: 2024, trimestre: Some(3), recurso_id: "6d5aa8ff-9ed8-4bca-8704-17fb89f71eb7", arquivo: "meio-de-hospedagem.xlsx" },
+    RecursoHospedagem { ano: 2024, trimestre: Some(4), recurso_id: "ea5f4986-c468-4e2c-a873-12f35b7d04f1", arquivo: "relatorio-meios-de-hospedagem_-situacao_4-trimestre.xlsx" },
+    // 2025
+    RecursoHospedagem { ano: 2025, trimestre: Some(1), recurso_id: "c733c3c1-2451-4473-916b-7e436b77a40d", arquivo: "meios-de-hospedagem-data-situacao_-31_03_2025.xlsx" },
+    RecursoHospedagem { ano: 2025, trimestre: Some(2), recurso_id: "7c35e6e0-b261-4f8f-ab51-b6adb6db0900", arquivo: "meios-de-hospedagem-data-situacao_-30_06_2025.xlsx" },
+    RecursoHospedagem { ano: 2025, trimestre: Some(3), recurso_id: "6a9643e6-6372-4d11-9b3d-51f8fd4cfa92", arquivo: "meios-de-hospedagem-data-situacao_-30_09_2025.xlsx" },
+    RecursoHospedagem { ano: 2025, trimestre: Some(4), recurso_id: "efeb6b18-dd5a-48e7-83c3-2f53fd422476", arquivo: "meio-de-hospedagem.xlsx" },
+    // 2026
+    RecursoHospedagem { ano: 2026, trimestre: Some(1), recurso_id: "938cb620-7252-4cd0-9def-443dd2fe3f3b", arquivo: "meio-de-hospedagem-1-trimestre-2026.xlsx" },
+    RecursoHospedagem { ano: 2026, trimestre: Some(2), recurso_id: "7e385ec2-57d8-446c-9cc0-f5f7dadd1fdf", arquivo: "meios-de-hospedagem-2-trimestre-2026.xlsx" },
+];
+
+/// Meios de hospedagem cadastrados no Cadastur (Ministério do Turismo).
+pub struct FonteTurismoHospedagem;
+
+impl FonteDeDados for FonteTurismoHospedagem {
+    fn nome(&self) -> &str {
+        NOME_HOSPEDAGEM
+    }
+
+    fn descricao(&self) -> &str {
+        "Turismo - meios de hospedagem cadastrados no Cadastur (2006–2026, anual/trimestral)"
+    }
+
+    fn sob_demanda(&self) -> bool {
+        true
+    }
+
+    fn perfil_http(&self) -> PerfilHttp {
+        perfil()
+    }
+
+    fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
+        HOSPEDAGEM
+            .iter()
+            .map(|r| {
+                let ano_str = r.ano.to_string();
+                let (nome, recurso) = match r.trimestre {
+                    Some(q) => (
+                        format!("{}-Q{q}", r.ano),
+                        format!("ano={}/trimestre={q}", r.ano),
+                    ),
+                    None => (ano_str.clone(), format!("ano={}", r.ano)),
+                };
+                let tarefa = TarefaDeArquivo::nova(
+                    nome,
+                    NOME_HOSPEDAGEM,
+                    recurso,
+                    url_ckan(DATASET_HOSPEDAGEM, r.recurso_id, r.arquivo),
+                );
+                TarefaPlanejada::nova(tarefa).com_etiquetas([
+                    ("dataset", "meios-de-hospedagem"),
+                    ("ano", &ano_str),
+                ])
+            })
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
     use todeolho_nucleo::FiltroDeTarefas;
 
+    // ── Chegadas ────────────────────────────────────────────────────
+
     #[test]
-    fn total_de_tarefas() {
+    fn chegadas_total_de_tarefas() {
         assert_eq!(FonteTurismoChegadas.criar_tarefas().len(), ANOS.len());
         assert_eq!(ANOS.len(), 38);
     }
 
     #[test]
-    fn nomes_sao_unicos() {
+    fn chegadas_nomes_sao_unicos() {
         let tarefas = FonteTurismoChegadas.criar_tarefas();
         let nomes: std::collections::HashSet<_> = tarefas.iter().map(|t| t.tarefa.nome()).collect();
         assert_eq!(nomes.len(), tarefas.len());
     }
 
     #[test]
-    fn url_segue_padrao_ckan() {
-        let url = url_do_recurso(&ANOS[0]);
+    fn chegadas_url_segue_padrao_ckan() {
+        let url = url_ckan(DATASET_CHEGADAS, ANOS[0].recurso_id, ANOS[0].arquivo);
         assert!(url.starts_with("https://dados.turismo.gov.br/dataset/"));
         assert!(url.contains("/resource/"));
         assert!(url.ends_with(".csv"));
     }
 
     #[test]
-    fn filtra_por_ano() {
+    fn chegadas_filtra_por_ano() {
         let tarefas = FonteTurismoChegadas.criar_tarefas();
         let filtro = FiltroDeTarefas::a_partir_de(&["ano=2019".to_owned()]).unwrap();
         let filtradas = filtro.aplicar(tarefas).unwrap();
@@ -301,7 +433,7 @@ mod testes {
     }
 
     #[test]
-    fn etiquetas_presentes() {
+    fn chegadas_etiquetas_presentes() {
         let tarefas = FonteTurismoChegadas.criar_tarefas();
         for tarefa in &tarefas {
             assert_eq!(
@@ -313,12 +445,12 @@ mod testes {
     }
 
     #[test]
-    fn e_sob_demanda() {
+    fn chegadas_e_sob_demanda() {
         assert!(FonteTurismoChegadas.sob_demanda());
     }
 
     #[test]
-    fn sem_credencial_e_segue_redirecionamento() {
+    fn chegadas_sem_credencial_e_segue_redirecionamento() {
         let perfil = FonteTurismoChegadas.perfil_http();
         assert!(perfil.credencial.is_none());
         assert!(matches!(
@@ -328,9 +460,56 @@ mod testes {
     }
 
     #[test]
-    fn ano_2026_tem_nome_especial() {
+    fn chegadas_ano_2026_tem_nome_especial() {
         let ultimo = ANOS.last().unwrap();
         assert_eq!(ultimo.ano, 2026);
         assert!(ultimo.arquivo.contains("acum"));
+    }
+
+    // ── Hospedagem ──────────────────────────────────────────────────
+
+    #[test]
+    fn hospedagem_total_de_tarefas() {
+        assert_eq!(FonteTurismoHospedagem.criar_tarefas().len(), HOSPEDAGEM.len());
+        assert_eq!(HOSPEDAGEM.len(), 52);
+    }
+
+    #[test]
+    fn hospedagem_nomes_sao_unicos() {
+        let tarefas = FonteTurismoHospedagem.criar_tarefas();
+        let nomes: std::collections::HashSet<_> = tarefas.iter().map(|t| t.tarefa.nome()).collect();
+        assert_eq!(nomes.len(), tarefas.len());
+    }
+
+    #[test]
+    fn hospedagem_filtra_por_ano() {
+        let tarefas = FonteTurismoHospedagem.criar_tarefas();
+        let filtro = FiltroDeTarefas::a_partir_de(&["ano=2020".to_owned()]).unwrap();
+        let filtradas = filtro.aplicar(tarefas).unwrap();
+        assert_eq!(filtradas.len(), 4);
+        assert!(filtradas.iter().all(|t| t.tarefa.nome().starts_with("2020")));
+    }
+
+    #[test]
+    fn hospedagem_anuais_sem_trimestre_no_nome() {
+        let tarefas = FonteTurismoHospedagem.criar_tarefas();
+        let filtro = FiltroDeTarefas::a_partir_de(&["ano=2010".to_owned()]).unwrap();
+        let filtradas = filtro.aplicar(tarefas).unwrap();
+        assert_eq!(filtradas.len(), 1);
+        assert_eq!(filtradas[0].tarefa.nome(), "2010");
+    }
+
+    #[test]
+    fn hospedagem_etiquetas_presentes() {
+        let tarefas = FonteTurismoHospedagem.criar_tarefas();
+        for tarefa in &tarefas {
+            assert_eq!(tarefa.etiquetas.get("dataset").unwrap(), "meios-de-hospedagem");
+            assert!(tarefa.etiquetas.contains_key("ano"));
+        }
+    }
+
+    #[test]
+    fn hospedagem_e_sob_demanda() {
+        assert!(FonteTurismoHospedagem.sob_demanda());
     }
 }
