@@ -812,6 +812,56 @@ impl FonteDeDados for FonteTurismoMapa {
     }
 }
 
+// ── Empregos formais no turismo (RAIS) ──────────────────────────────
+// NOTA: este dataset não tem licença explícita no CKAN (isopen=false).
+
+const NOME_EMPREGOS: &str = "turismo-empregos";
+const DATASET_EMPREGOS: &str = "0daca045-aa31-4c31-8e41-b36bc1d64c5c";
+
+const EMPREGOS: &[RecursoCkan] = &[
+    RecursoCkan { ano: "2024", recurso_id: "5bf8cead-e5e6-4391-8d37-c16f61a4ca90", arquivo: "rais_turismo_2024.zip" },
+    RecursoCkan { ano: "2025", recurso_id: "8aeb5b44-91e4-4762-8f1b-4285e6f44182", arquivo: "rais_turismo_2025.zip" },
+];
+
+/// Empregos formais nas Atividades Características do Turismo — RAIS/MTE.
+pub struct FonteTurismoEmpregos;
+
+impl FonteDeDados for FonteTurismoEmpregos {
+    fn nome(&self) -> &str {
+        NOME_EMPREGOS
+    }
+
+    fn descricao(&self) -> &str {
+        "Turismo - empregos formais nas ACTs via RAIS/MTE (2024–2025, ZIP)"
+    }
+
+    fn sob_demanda(&self) -> bool {
+        true
+    }
+
+    fn perfil_http(&self) -> PerfilHttp {
+        perfil()
+    }
+
+    fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
+        EMPREGOS
+            .iter()
+            .map(|r| {
+                let tarefa = TarefaDeArquivo::nova(
+                    r.ano.to_owned(),
+                    NOME_EMPREGOS,
+                    format!("ano={}", r.ano),
+                    url_ckan(DATASET_EMPREGOS, r.recurso_id, r.arquivo),
+                );
+                TarefaPlanejada::nova(tarefa).com_etiquetas([
+                    ("dataset", "empregos-rais"),
+                    ("ano", r.ano),
+                ])
+            })
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -975,5 +1025,33 @@ mod testes {
     #[test]
     fn mapa_e_sob_demanda() {
         assert!(FonteTurismoMapa.sob_demanda());
+    }
+
+    // ── Empregos RAIS ───────────────────────────────────────────────
+
+    #[test]
+    fn empregos_total_de_tarefas() {
+        assert_eq!(FonteTurismoEmpregos.criar_tarefas().len(), 2);
+    }
+
+    #[test]
+    fn empregos_nomes_sao_unicos() {
+        let tarefas = FonteTurismoEmpregos.criar_tarefas();
+        let nomes: std::collections::HashSet<_> = tarefas.iter().map(|t| t.tarefa.nome()).collect();
+        assert_eq!(nomes.len(), tarefas.len());
+    }
+
+    #[test]
+    fn empregos_etiquetas_presentes() {
+        let tarefas = FonteTurismoEmpregos.criar_tarefas();
+        for tarefa in &tarefas {
+            assert_eq!(tarefa.etiquetas.get("dataset").unwrap(), "empregos-rais");
+            assert!(tarefa.etiquetas.contains_key("ano"));
+        }
+    }
+
+    #[test]
+    fn empregos_e_sob_demanda() {
+        assert!(FonteTurismoEmpregos.sob_demanda());
     }
 }
