@@ -249,12 +249,15 @@ impl FonteDeDados for FonteTurismoChegadas {
         ANOS.iter()
             .map(|ano| {
                 let ano_str = ano.ano.to_string();
-                let tarefa = TarefaDeArquivo::nova(
+                let mut tarefa = TarefaDeArquivo::nova(
                     ano_str.clone(),
                     NOME,
                     format!("ano={}", ano.ano),
                     url_do_recurso(ano),
                 );
+                if ano.ano == 2026 {
+                    tarefa = tarefa.aceitar_ausencia();
+                }
                 TarefaPlanejada::nova(tarefa)
                     .com_etiquetas([("dataset", "chegadas-internacionais"), ("ano", &ano_str)])
             })
