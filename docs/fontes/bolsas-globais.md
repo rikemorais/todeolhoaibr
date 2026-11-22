@@ -63,18 +63,19 @@ https://fred.stlouisfed.org/graph/fredgraph.csv?id={CODIGO_FRED}
 docker compose run --rm --build ingestao executar bolsas-globais --sim
 
 # Apenas índices de bolsa
-docker compose run --rm --build ingestao executar bolsas-globais categoria=indice --sim
+docker compose run --rm --build ingestao executar bolsas-globais --filtro categoria=indice --sim
 
 # Apenas câmbio
-docker compose run --rm --build ingestao executar bolsas-globais categoria=cambio --sim
+docker compose run --rm --build ingestao executar bolsas-globais --filtro categoria=cambio --sim
 
 # Apenas S&P 500
-docker compose run --rm --build ingestao executar bolsas-globais serie=sp500 --sim
+docker compose run --rm --build ingestao executar bolsas-globais --filtro serie=sp500 --sim
 ```
 
 ## Observações
 
 - **Sob demanda**: os CSVs são pequenos (< 1 MB cada). Volume total < 10 MB.
 - **Sem API de metadados**: as URLs são estáticas; o código FRED de cada série é fixo.
+- **Identificação HTTP**: a borda do FRED deixa requisições com o agente padrão sem resposta; esta fonte usa um agente compatível com curl que também identifica o projeto.
 - **Dias sem valor**: o FRED preenche com "." nos feriados/fins de semana.
 - **Alternativas descartadas**: Stooq (proteção anti-bot com PoW/JS), Yahoo Finance (requer login), Alpha Vantage (requer chave API).
