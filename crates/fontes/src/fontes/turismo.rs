@@ -667,29 +667,97 @@ struct RecursoCkan {
 }
 
 const MAPA: &[RecursoCkan] = &[
-    RecursoCkan { ano: "2004", recurso_id: "835ad7d3-41e4-4c38-8d54-07aa3886f943", arquivo: "2004-mapa-turismo.csv" },
-    RecursoCkan { ano: "2006", recurso_id: "d5e0168d-d752-49c0-857e-435840ce1584", arquivo: "2006-mapa-turismo.csv" },
-    RecursoCkan { ano: "2009", recurso_id: "cc93abe2-cf3d-401d-87d7-81dc85e9a043", arquivo: "2009-mapa-turismo.csv" },
-    RecursoCkan { ano: "2013", recurso_id: "1f122bd3-1a65-46db-9707-4a9b4b7d0c1b", arquivo: "2013-mapa-turismo.csv" },
-    RecursoCkan { ano: "2016", recurso_id: "2363118f-0528-42e1-80c3-3bc161a37434", arquivo: "2016-mapa-turismo.csv" },
-    RecursoCkan { ano: "2017", recurso_id: "ce93dd47-aea9-44c2-b1ec-faf933bfb892", arquivo: "2017-mapa-turismo.csv" },
-    RecursoCkan { ano: "2019", recurso_id: "dd05d926-ceaf-4259-87bc-541e159151e7", arquivo: "relatorio_mapa_2019_layout_mkt.xls" },
+    RecursoCkan {
+        ano: "2004",
+        recurso_id: "835ad7d3-41e4-4c38-8d54-07aa3886f943",
+        arquivo: "2004-mapa-turismo.csv",
+    },
+    RecursoCkan {
+        ano: "2006",
+        recurso_id: "d5e0168d-d752-49c0-857e-435840ce1584",
+        arquivo: "2006-mapa-turismo.csv",
+    },
+    RecursoCkan {
+        ano: "2009",
+        recurso_id: "cc93abe2-cf3d-401d-87d7-81dc85e9a043",
+        arquivo: "2009-mapa-turismo.csv",
+    },
+    RecursoCkan {
+        ano: "2013",
+        recurso_id: "1f122bd3-1a65-46db-9707-4a9b4b7d0c1b",
+        arquivo: "2013-mapa-turismo.csv",
+    },
+    RecursoCkan {
+        ano: "2016",
+        recurso_id: "2363118f-0528-42e1-80c3-3bc161a37434",
+        arquivo: "2016-mapa-turismo.csv",
+    },
+    RecursoCkan {
+        ano: "2017",
+        recurso_id: "ce93dd47-aea9-44c2-b1ec-faf933bfb892",
+        arquivo: "2017-mapa-turismo.csv",
+    },
+    RecursoCkan {
+        ano: "2019",
+        recurso_id: "dd05d926-ceaf-4259-87bc-541e159151e7",
+        arquivo: "relatorio_mapa_2019_layout_mkt.xls",
+    },
 ];
 
 const CATEGORIZACAO: &[RecursoCkan] = &[
-    RecursoCkan { ano: "2015", recurso_id: "0a960534-a1f0-4035-8b82-34bc724333e6", arquivo: "2016-categorizacao.csv" },
-    RecursoCkan { ano: "2018", recurso_id: "07c4f97a-888f-4ab7-ad2e-d5f040d627a0", arquivo: "2017-categorizacao-v2.csv" },
-    RecursoCkan { ano: "2019", recurso_id: "13e5cbd9-e18d-4c3f-aa47-8cf9c04ab32f", arquivo: "relatorio_categorizacao_2019-portal.xls" },
+    RecursoCkan {
+        ano: "2015",
+        recurso_id: "0a960534-a1f0-4035-8b82-34bc724333e6",
+        arquivo: "2016-categorizacao.csv",
+    },
+    RecursoCkan {
+        ano: "2018",
+        recurso_id: "07c4f97a-888f-4ab7-ad2e-d5f040d627a0",
+        arquivo: "2017-categorizacao-v2.csv",
+    },
+    RecursoCkan {
+        ano: "2019",
+        recurso_id: "13e5cbd9-e18d-4c3f-aa47-8cf9c04ab32f",
+        arquivo: "relatorio_categorizacao_2019-portal.xls",
+    },
 ];
 
 const COMPETITIVIDADE: &[RecursoCkan] = &[
-    RecursoCkan { ano: "2008", recurso_id: "d62565da-d38f-4380-aa61-d1f53a9e28c4", arquivo: "2008-icompetitividade.csv" },
-    RecursoCkan { ano: "2009", recurso_id: "7da6a0d9-6734-49b3-81d8-088b81b2b64a", arquivo: "2009-icompetitividade.csv" },
-    RecursoCkan { ano: "2010", recurso_id: "d91c7032-aaa2-47e6-aa5c-58637e04e02c", arquivo: "2010-icompetitividade.csv" },
-    RecursoCkan { ano: "2011", recurso_id: "ebc43787-080f-4bd1-8a6c-cf8eed1e22f2", arquivo: "2011-icompetitividade.csv" },
-    RecursoCkan { ano: "2013", recurso_id: "f28f4622-0177-4093-8bba-21a6e75cf5a9", arquivo: "2013-icompetitividade.csv" },
-    RecursoCkan { ano: "2014", recurso_id: "f85a8e93-393b-455f-9325-9e90ae3e03d0", arquivo: "2014-icompetitividade.csv" },
-    RecursoCkan { ano: "2015", recurso_id: "4f1a693e-ef1d-41bc-ad53-3ef96459b6ca", arquivo: "2015-icompetitividade.csv" },
+    RecursoCkan {
+        ano: "2008",
+        recurso_id: "d62565da-d38f-4380-aa61-d1f53a9e28c4",
+        arquivo: "2008-icompetitividade.csv",
+    },
+    RecursoCkan {
+        ano: "2009",
+        recurso_id: "7da6a0d9-6734-49b3-81d8-088b81b2b64a",
+        arquivo: "2009-icompetitividade.csv",
+    },
+    RecursoCkan {
+        ano: "2010",
+        recurso_id: "d91c7032-aaa2-47e6-aa5c-58637e04e02c",
+        arquivo: "2010-icompetitividade.csv",
+    },
+    RecursoCkan {
+        ano: "2011",
+        recurso_id: "ebc43787-080f-4bd1-8a6c-cf8eed1e22f2",
+        arquivo: "2011-icompetitividade.csv",
+    },
+    RecursoCkan {
+        ano: "2013",
+        recurso_id: "f28f4622-0177-4093-8bba-21a6e75cf5a9",
+        arquivo: "2013-icompetitividade.csv",
+    },
+    RecursoCkan {
+        ano: "2014",
+        recurso_id: "f85a8e93-393b-455f-9325-9e90ae3e03d0",
+        arquivo: "2014-icompetitividade.csv",
+    },
+    RecursoCkan {
+        ano: "2015",
+        recurso_id: "4f1a693e-ef1d-41bc-ad53-3ef96459b6ca",
+        arquivo: "2015-icompetitividade.csv",
+    },
 ];
 
 fn tarefas_subdataset<'a>(
@@ -704,10 +772,7 @@ fn tarefas_subdataset<'a>(
             format!("{subdataset}/ano={}", r.ano),
             url_ckan(dataset_id, r.recurso_id, r.arquivo),
         );
-        TarefaPlanejada::nova(tarefa).com_etiquetas([
-            ("dataset", subdataset),
-            ("ano", r.ano),
-        ])
+        TarefaPlanejada::nova(tarefa).com_etiquetas([("dataset", subdataset), ("ano", r.ano)])
     })
 }
 
@@ -733,8 +798,16 @@ impl FonteDeDados for FonteTurismoMapa {
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
         tarefas_subdataset(DATASET_MAPA, "mapa", MAPA)
-            .chain(tarefas_subdataset(DATASET_CATEGORIZACAO, "categorizacao", CATEGORIZACAO))
-            .chain(tarefas_subdataset(DATASET_COMPETITIVIDADE, "competitividade", COMPETITIVIDADE))
+            .chain(tarefas_subdataset(
+                DATASET_CATEGORIZACAO,
+                "categorizacao",
+                CATEGORIZACAO,
+            ))
+            .chain(tarefas_subdataset(
+                DATASET_COMPETITIVIDADE,
+                "competitividade",
+                COMPETITIVIDADE,
+            ))
             .collect()
     }
 }
