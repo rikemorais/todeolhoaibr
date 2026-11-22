@@ -63,7 +63,7 @@ pub use fontes::transparencia_cpgf::FonteTransparenciaCpgf;
 pub use fontes::transparencia_inativos::FonteTransparenciaInativos;
 pub use fontes::transparencia_servidores::FonteTransparenciaServidoresAtivos;
 pub use fontes::tse::{FonteTse, FonteTseCandidaturas, FonteTsePrestacaoContas};
-pub use fontes::turismo::{FonteTurismoChegadas, FonteTurismoHospedagem};
+pub use fontes::turismo::{FonteTurismoChegadas, FonteTurismoHospedagem, FonteTurismoMapa};
 pub use fontes::undp::FonteUndp;
 pub use fontes::world_bank::FonteWorldBank;
 
@@ -143,6 +143,7 @@ pub fn catalogo() -> Vec<Box<dyn FonteDeDados>> {
         Box::new(FonteSnisPluviais),
         Box::new(FonteTurismoChegadas),
         Box::new(FonteTurismoHospedagem),
+        Box::new(FonteTurismoMapa),
     ]
 }
 
