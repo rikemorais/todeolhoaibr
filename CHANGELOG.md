@@ -5,6 +5,15 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.0] - 2026-11-22
+
+### Adicionado
+
+- Fonte `turismo-chegadas`: chegadas de turistas internacionais ao Brasil (38 CSVs anuais, 2001–2026, Ministério do Turismo via CKAN). Issue #501.
+- Fonte `turismo-hospedagem`: meios de hospedagem cadastrados no Cadastur (52 recursos trimestrais/anuais, 2006–2026). Issue #502.
+- Fonte `turismo-mapa`: Mapa do Turismo Brasileiro, Categorização e Índice de Competitividade (17 recursos CKAN). Issue #503.
+- Fonte `turismo-empregos`: empregos formais no turismo via RAIS/MTE (2 ZIPs). Issue #504.
+
 ## [0.131.2] - 2026-11-22
 
 ### Corrigido
