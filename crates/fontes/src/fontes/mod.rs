@@ -37,6 +37,7 @@ pub mod tce_ce;
 pub mod trabalho;
 pub mod transparencia;
 pub mod transparencia_cpgf;
+pub mod turismo;
 pub mod transparencia_inativos;
 pub mod transparencia_servidores;
 pub mod tse;
