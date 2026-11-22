@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.131.2] - 2026-11-22
+
+### Corrigido
+
+- A ingestão das 15 séries de bolsas globais pelo FRED volta a concluir ao usar uma identificação HTTP aceita pelo servidor. Os exemplos de filtros da fonte também usam a sintaxe atual da CLI.
+
 ## [0.131.1] - 2026-11-21
 
 ### Corrigido
