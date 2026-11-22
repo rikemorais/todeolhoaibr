@@ -12,6 +12,12 @@ use crate::ingestao_http::TarefaDeIngestaoHttp;
 
 const NOME: &str = "bolsas-globais";
 const HOST: &str = "fred.stlouisfed.org";
+// A borda do FRED não responde ao agente padrão, mas aceita este identificador.
+const AGENTE: &str = concat!(
+    "curl-compatible/1.0 (todeolhoai/",
+    env!("CARGO_PKG_VERSION"),
+    ")"
+);
 
 struct Serie {
     slug: &'static str,
@@ -129,7 +135,7 @@ impl FonteDeDados for FonteBolsasGlobais {
                 requisicoes: 1,
                 intervalo: Duration::from_secs(2),
             }),
-            agente: None,
+            agente: Some(AGENTE),
             aceitar_certificado_invalido: false,
         }
     }
