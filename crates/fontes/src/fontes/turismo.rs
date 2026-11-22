@@ -819,8 +819,16 @@ const NOME_EMPREGOS: &str = "turismo-empregos";
 const DATASET_EMPREGOS: &str = "0daca045-aa31-4c31-8e41-b36bc1d64c5c";
 
 const EMPREGOS: &[RecursoCkan] = &[
-    RecursoCkan { ano: "2024", recurso_id: "5bf8cead-e5e6-4391-8d37-c16f61a4ca90", arquivo: "rais_turismo_2024.zip" },
-    RecursoCkan { ano: "2025", recurso_id: "8aeb5b44-91e4-4762-8f1b-4285e6f44182", arquivo: "rais_turismo_2025.zip" },
+    RecursoCkan {
+        ano: "2024",
+        recurso_id: "5bf8cead-e5e6-4391-8d37-c16f61a4ca90",
+        arquivo: "rais_turismo_2024.zip",
+    },
+    RecursoCkan {
+        ano: "2025",
+        recurso_id: "8aeb5b44-91e4-4762-8f1b-4285e6f44182",
+        arquivo: "rais_turismo_2025.zip",
+    },
 ];
 
 /// Empregos formais nas Atividades Características do Turismo — RAIS/MTE.
@@ -853,10 +861,8 @@ impl FonteDeDados for FonteTurismoEmpregos {
                     format!("ano={}", r.ano),
                     url_ckan(DATASET_EMPREGOS, r.recurso_id, r.arquivo),
                 );
-                TarefaPlanejada::nova(tarefa).com_etiquetas([
-                    ("dataset", "empregos-rais"),
-                    ("ano", r.ano),
-                ])
+                TarefaPlanejada::nova(tarefa)
+                    .com_etiquetas([("dataset", "empregos-rais"), ("ano", r.ano)])
             })
             .collect()
     }
