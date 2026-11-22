@@ -40,5 +40,6 @@ pub mod transparencia_cpgf;
 pub mod transparencia_inativos;
 pub mod transparencia_servidores;
 pub mod tse;
+pub mod turismo;
 pub mod undp;
 pub mod world_bank;

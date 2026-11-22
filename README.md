@@ -79,6 +79,7 @@ para consultar quando estiver diante de assuntos da sociedade.
 | `tse` | votos por seção eleitoral, de 1998 a 2026 (16,4 GB) | [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) |
 | `tse-candidaturas` | TSE — candidaturas (desde 1994) e bens declarados dos candidatos (desde 2006), por eleição | |
 | `tse-prestacao-contas` | TSE — prestação de contas de campanha (receitas e despesas), um arquivo por eleição desde 2002 | |
+| `turismo-chegadas` | chegada de turistas internacionais ao Brasil por país de residência (1989–2026), 38 CSVs do Ministério do Turismo (sob demanda) | |
 | `undp` | UNDP Human Development Report — IDH global e índices compostos por país | |
 | `world-bank` | World Bank Open Data — indicadores de desenvolvimento por país | |
 
