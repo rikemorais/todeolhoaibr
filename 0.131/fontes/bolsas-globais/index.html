@@ -2033,18 +2033,19 @@ autenticação, com atualização diária nos dias úteis.</p>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span>--sim
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Apenas índices de bolsa</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span><span class="nv">categoria</span><span class="o">=</span>indice<span class="w"> </span>--sim
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">categoria</span><span class="o">=</span>indice<span class="w"> </span>--sim
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Apenas câmbio</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span><span class="nv">categoria</span><span class="o">=</span>cambio<span class="w"> </span>--sim
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">categoria</span><span class="o">=</span>cambio<span class="w"> </span>--sim
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Apenas S&amp;P 500</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span><span class="nv">serie</span><span class="o">=</span>sp500<span class="w"> </span>--sim
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--build<span class="w"> </span>ingestao<span class="w"> </span>executar<span class="w"> </span>bolsas-globais<span class="w"> </span>--filtro<span class="w"> </span><span class="nv">serie</span><span class="o">=</span>sp500<span class="w"> </span>--sim
 </code></pre></div>
 <h2 id="observacoes">Observações<a class="headerlink" href="#observacoes" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Sob demanda</strong>: os CSVs são pequenos (&lt; 1 MB cada). Volume total &lt; 10 MB.</li>
 <li><strong>Sem API de metadados</strong>: as URLs são estáticas; o código FRED de cada série é fixo.</li>
+<li><strong>Identificação HTTP</strong>: a borda do FRED deixa requisições com o agente padrão sem resposta; esta fonte usa um agente compatível com curl que também identifica o projeto.</li>
 <li><strong>Dias sem valor</strong>: o FRED preenche com "." nos feriados/fins de semana.</li>
 <li><strong>Alternativas descartadas</strong>: Stooq (proteção anti-bot com PoW/JS), Yahoo Finance (requer login), Alpha Vantage (requer chave API).</li>
 </ul>
