@@ -283,69 +283,329 @@ struct RecursoHospedagem {
 
 const HOSPEDAGEM: &[RecursoHospedagem] = &[
     // 2006–2015: anuais
-    RecursoHospedagem { ano: 2006, trimestre: None, recurso_id: "fb7eeca9-fc3c-4e40-a3f8-bfe666755780", arquivo: "meiodehospedagem2006cadasturpj.csv" },
-    RecursoHospedagem { ano: 2007, trimestre: None, recurso_id: "12222735-b609-4f6c-9c8b-a83c2b6a4a02", arquivo: "meiodehospedagem2007cadasturpj.csv" },
-    RecursoHospedagem { ano: 2008, trimestre: None, recurso_id: "8a7c534a-ab65-474c-8bdf-d27fe25638d9", arquivo: "meiodehospedagem2008cadasturpj.csv" },
-    RecursoHospedagem { ano: 2009, trimestre: None, recurso_id: "dd6c0c19-cadf-47cf-94b0-845df8801902", arquivo: "meiodehospedagem2009cadasturpj.csv" },
-    RecursoHospedagem { ano: 2010, trimestre: None, recurso_id: "bdb3f2a9-be7f-4b86-a87b-5e3d2bca3365", arquivo: "meiodehospedagem2010cadasturpj.csv" },
-    RecursoHospedagem { ano: 2011, trimestre: None, recurso_id: "03fd1c5b-6c6d-47ee-ba87-d9354844f802", arquivo: "meiodehospedagem2011cadasturpj.csv" },
-    RecursoHospedagem { ano: 2012, trimestre: None, recurso_id: "c89efc8a-f61c-4ac4-8e27-8b87002dc175", arquivo: "meiodehospedagem2012cadasturpj.csv" },
-    RecursoHospedagem { ano: 2013, trimestre: None, recurso_id: "e6b6f05a-14c3-4dc0-bcdf-9fb5b6429526", arquivo: "meiodehospedagem2013cadasturpj.csv" },
-    RecursoHospedagem { ano: 2014, trimestre: None, recurso_id: "ae539eb4-059b-4aee-bc9f-74e8cb98b403", arquivo: "meiodehospedagem2014cadasturpj.csv" },
-    RecursoHospedagem { ano: 2015, trimestre: None, recurso_id: "6977faf0-9066-49b1-bf30-32bee9027570", arquivo: "meiodehospedagem2015cadasturpj.csv" },
+    RecursoHospedagem {
+        ano: 2006,
+        trimestre: None,
+        recurso_id: "fb7eeca9-fc3c-4e40-a3f8-bfe666755780",
+        arquivo: "meiodehospedagem2006cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2007,
+        trimestre: None,
+        recurso_id: "12222735-b609-4f6c-9c8b-a83c2b6a4a02",
+        arquivo: "meiodehospedagem2007cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2008,
+        trimestre: None,
+        recurso_id: "8a7c534a-ab65-474c-8bdf-d27fe25638d9",
+        arquivo: "meiodehospedagem2008cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2009,
+        trimestre: None,
+        recurso_id: "dd6c0c19-cadf-47cf-94b0-845df8801902",
+        arquivo: "meiodehospedagem2009cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2010,
+        trimestre: None,
+        recurso_id: "bdb3f2a9-be7f-4b86-a87b-5e3d2bca3365",
+        arquivo: "meiodehospedagem2010cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2011,
+        trimestre: None,
+        recurso_id: "03fd1c5b-6c6d-47ee-ba87-d9354844f802",
+        arquivo: "meiodehospedagem2011cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2012,
+        trimestre: None,
+        recurso_id: "c89efc8a-f61c-4ac4-8e27-8b87002dc175",
+        arquivo: "meiodehospedagem2012cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2013,
+        trimestre: None,
+        recurso_id: "e6b6f05a-14c3-4dc0-bcdf-9fb5b6429526",
+        arquivo: "meiodehospedagem2013cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2014,
+        trimestre: None,
+        recurso_id: "ae539eb4-059b-4aee-bc9f-74e8cb98b403",
+        arquivo: "meiodehospedagem2014cadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2015,
+        trimestre: None,
+        recurso_id: "6977faf0-9066-49b1-bf30-32bee9027570",
+        arquivo: "meiodehospedagem2015cadasturpj.csv",
+    },
     // 2016: trimestral
-    RecursoHospedagem { ano: 2016, trimestre: Some(1), recurso_id: "04babccb-7daf-4694-8624-cd12caf385c7", arquivo: "meiodehospedagem201601trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2016, trimestre: Some(2), recurso_id: "d370eb0f-d6f8-4718-95d0-6c5f8cb2556b", arquivo: "meiodehospedagem201602trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2016, trimestre: Some(3), recurso_id: "5e4e9859-ec4e-4067-9bed-1881d2f2f924", arquivo: "meiodehospedagem201603trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2016, trimestre: Some(4), recurso_id: "a57d648e-ffaf-40fa-8272-b180ce01c5c6", arquivo: "meiodehospedagem201604trimestrecadasturpj.csv" },
+    RecursoHospedagem {
+        ano: 2016,
+        trimestre: Some(1),
+        recurso_id: "04babccb-7daf-4694-8624-cd12caf385c7",
+        arquivo: "meiodehospedagem201601trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2016,
+        trimestre: Some(2),
+        recurso_id: "d370eb0f-d6f8-4718-95d0-6c5f8cb2556b",
+        arquivo: "meiodehospedagem201602trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2016,
+        trimestre: Some(3),
+        recurso_id: "5e4e9859-ec4e-4067-9bed-1881d2f2f924",
+        arquivo: "meiodehospedagem201603trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2016,
+        trimestre: Some(4),
+        recurso_id: "a57d648e-ffaf-40fa-8272-b180ce01c5c6",
+        arquivo: "meiodehospedagem201604trimestrecadasturpj.csv",
+    },
     // 2017
-    RecursoHospedagem { ano: 2017, trimestre: Some(1), recurso_id: "fe2ca6f1-8f55-4ec4-b73f-8e631c95ed13", arquivo: "meiodehospedagem201701trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2017, trimestre: Some(2), recurso_id: "cbdab625-2d15-4c18-8247-23fdc8682ba9", arquivo: "meiodehospedagem201702trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2017, trimestre: Some(3), recurso_id: "0607dfde-67ae-4b33-944c-53022cc2ff03", arquivo: "meiodehospedagem201703trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2017, trimestre: Some(4), recurso_id: "1d8cf427-abaf-4f00-881a-b52fcd53f46c", arquivo: "meiodehospedagem201704trimestrecadasturpj.csv" },
+    RecursoHospedagem {
+        ano: 2017,
+        trimestre: Some(1),
+        recurso_id: "fe2ca6f1-8f55-4ec4-b73f-8e631c95ed13",
+        arquivo: "meiodehospedagem201701trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2017,
+        trimestre: Some(2),
+        recurso_id: "cbdab625-2d15-4c18-8247-23fdc8682ba9",
+        arquivo: "meiodehospedagem201702trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2017,
+        trimestre: Some(3),
+        recurso_id: "0607dfde-67ae-4b33-944c-53022cc2ff03",
+        arquivo: "meiodehospedagem201703trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2017,
+        trimestre: Some(4),
+        recurso_id: "1d8cf427-abaf-4f00-881a-b52fcd53f46c",
+        arquivo: "meiodehospedagem201704trimestrecadasturpj.csv",
+    },
     // 2018
-    RecursoHospedagem { ano: 2018, trimestre: Some(1), recurso_id: "68fbaf2d-d7bb-445f-926f-a7ffe94895fe", arquivo: "meiodehospedagem201801trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2018, trimestre: Some(2), recurso_id: "31533c45-9ef9-48cf-8001-f3a59741c676", arquivo: "meiodehospedagem201802trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2018, trimestre: Some(3), recurso_id: "a12e8f63-82ad-496c-a290-a829e5e2bd98", arquivo: "meiodehospedagem201803trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2018, trimestre: Some(4), recurso_id: "71a466b7-aa2d-4e5d-b084-817b984626e1", arquivo: "meiodehospedagem201804trimestrecadasturpj.csv" },
+    RecursoHospedagem {
+        ano: 2018,
+        trimestre: Some(1),
+        recurso_id: "68fbaf2d-d7bb-445f-926f-a7ffe94895fe",
+        arquivo: "meiodehospedagem201801trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2018,
+        trimestre: Some(2),
+        recurso_id: "31533c45-9ef9-48cf-8001-f3a59741c676",
+        arquivo: "meiodehospedagem201802trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2018,
+        trimestre: Some(3),
+        recurso_id: "a12e8f63-82ad-496c-a290-a829e5e2bd98",
+        arquivo: "meiodehospedagem201803trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2018,
+        trimestre: Some(4),
+        recurso_id: "71a466b7-aa2d-4e5d-b084-817b984626e1",
+        arquivo: "meiodehospedagem201804trimestrecadasturpj.csv",
+    },
     // 2019
-    RecursoHospedagem { ano: 2019, trimestre: Some(1), recurso_id: "971ceb98-7066-479b-8a42-f764ebcf4795", arquivo: "meiodehospedagem201901trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2019, trimestre: Some(2), recurso_id: "569cf182-2f64-4ffb-9a62-26f167b90fa8", arquivo: "meiodehospedagem201902trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2019, trimestre: Some(3), recurso_id: "6ccb906e-4b18-4de7-b9fb-a9593f916e22", arquivo: "meiodehospedagem201903trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2019, trimestre: Some(4), recurso_id: "23286999-972d-4f64-8108-190956001e5d", arquivo: "meiodehospedagem201904trimestrecadasturpj.csv" },
+    RecursoHospedagem {
+        ano: 2019,
+        trimestre: Some(1),
+        recurso_id: "971ceb98-7066-479b-8a42-f764ebcf4795",
+        arquivo: "meiodehospedagem201901trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2019,
+        trimestre: Some(2),
+        recurso_id: "569cf182-2f64-4ffb-9a62-26f167b90fa8",
+        arquivo: "meiodehospedagem201902trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2019,
+        trimestre: Some(3),
+        recurso_id: "6ccb906e-4b18-4de7-b9fb-a9593f916e22",
+        arquivo: "meiodehospedagem201903trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2019,
+        trimestre: Some(4),
+        recurso_id: "23286999-972d-4f64-8108-190956001e5d",
+        arquivo: "meiodehospedagem201904trimestrecadasturpj.csv",
+    },
     // 2020
-    RecursoHospedagem { ano: 2020, trimestre: Some(1), recurso_id: "3a889034-b544-493d-b1ee-866a470b763e", arquivo: "meiodehospedagem202001trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2020, trimestre: Some(2), recurso_id: "7bca2b83-303d-4bc7-b28f-2638527230dd", arquivo: "meiodehospedagem202002trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2020, trimestre: Some(3), recurso_id: "fbbb8947-fabd-4bdb-a166-41230cd66ca3", arquivo: "meiodehospedagem202003trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2020, trimestre: Some(4), recurso_id: "1bd1346d-950d-4f5f-b5dd-8214a2c8e5db", arquivo: "meiodehospedagem202004trimestrecadasturpj.csv" },
+    RecursoHospedagem {
+        ano: 2020,
+        trimestre: Some(1),
+        recurso_id: "3a889034-b544-493d-b1ee-866a470b763e",
+        arquivo: "meiodehospedagem202001trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2020,
+        trimestre: Some(2),
+        recurso_id: "7bca2b83-303d-4bc7-b28f-2638527230dd",
+        arquivo: "meiodehospedagem202002trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2020,
+        trimestre: Some(3),
+        recurso_id: "fbbb8947-fabd-4bdb-a166-41230cd66ca3",
+        arquivo: "meiodehospedagem202003trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2020,
+        trimestre: Some(4),
+        recurso_id: "1bd1346d-950d-4f5f-b5dd-8214a2c8e5db",
+        arquivo: "meiodehospedagem202004trimestrecadasturpj.csv",
+    },
     // 2021
-    RecursoHospedagem { ano: 2021, trimestre: Some(1), recurso_id: "bce30034-d2dc-4b2b-bc07-ed7b3f03437c", arquivo: "meiodehospedagem202101trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2021, trimestre: Some(2), recurso_id: "bd4640b6-d98b-46f1-9ce9-0219f4dc8dba", arquivo: "meiodehospedagem202102trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2021, trimestre: Some(3), recurso_id: "a59bb412-6ee8-4309-bc27-56e205602dd7", arquivo: "meiodehospedagem202103trimestrecadasturpj.csv" },
-    RecursoHospedagem { ano: 2021, trimestre: Some(4), recurso_id: "5edb741b-502c-4ded-be8e-8dcff9d8d157", arquivo: "meio-de-hospedagem-.csv" },
+    RecursoHospedagem {
+        ano: 2021,
+        trimestre: Some(1),
+        recurso_id: "bce30034-d2dc-4b2b-bc07-ed7b3f03437c",
+        arquivo: "meiodehospedagem202101trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2021,
+        trimestre: Some(2),
+        recurso_id: "bd4640b6-d98b-46f1-9ce9-0219f4dc8dba",
+        arquivo: "meiodehospedagem202102trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2021,
+        trimestre: Some(3),
+        recurso_id: "a59bb412-6ee8-4309-bc27-56e205602dd7",
+        arquivo: "meiodehospedagem202103trimestrecadasturpj.csv",
+    },
+    RecursoHospedagem {
+        ano: 2021,
+        trimestre: Some(4),
+        recurso_id: "5edb741b-502c-4ded-be8e-8dcff9d8d157",
+        arquivo: "meio-de-hospedagem-.csv",
+    },
     // 2022
-    RecursoHospedagem { ano: 2022, trimestre: Some(1), recurso_id: "0ab4dbc3-5f55-43b0-b3a5-b37239a9b23f", arquivo: "meio-de-hospedagem-.csv" },
-    RecursoHospedagem { ano: 2022, trimestre: Some(2), recurso_id: "7a9e1605-11af-4fe2-a0ce-994dafa83e29", arquivo: "meio-de-hospedagem-.xlsx" },
-    RecursoHospedagem { ano: 2022, trimestre: Some(3), recurso_id: "4794e774-66e7-42b9-8bbf-9cf19a1d7694", arquivo: "meio-de-hospedagem-.xlsx" },
-    RecursoHospedagem { ano: 2022, trimestre: Some(4), recurso_id: "28ea0906-6681-4059-9a3f-a532913f91b3", arquivo: "meio-de-hospedagem.xls" },
+    RecursoHospedagem {
+        ano: 2022,
+        trimestre: Some(1),
+        recurso_id: "0ab4dbc3-5f55-43b0-b3a5-b37239a9b23f",
+        arquivo: "meio-de-hospedagem-.csv",
+    },
+    RecursoHospedagem {
+        ano: 2022,
+        trimestre: Some(2),
+        recurso_id: "7a9e1605-11af-4fe2-a0ce-994dafa83e29",
+        arquivo: "meio-de-hospedagem-.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2022,
+        trimestre: Some(3),
+        recurso_id: "4794e774-66e7-42b9-8bbf-9cf19a1d7694",
+        arquivo: "meio-de-hospedagem-.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2022,
+        trimestre: Some(4),
+        recurso_id: "28ea0906-6681-4059-9a3f-a532913f91b3",
+        arquivo: "meio-de-hospedagem.xls",
+    },
     // 2023
-    RecursoHospedagem { ano: 2023, trimestre: Some(1), recurso_id: "4f4edad8-2670-429e-b438-47bc6ce9f724", arquivo: "meio-de-hospedagem.xls" },
-    RecursoHospedagem { ano: 2023, trimestre: Some(2), recurso_id: "4f8e3cba-8070-4715-8420-cdb7424f2340", arquivo: "meio-de-hospedagem.xls" },
-    RecursoHospedagem { ano: 2023, trimestre: Some(3), recurso_id: "6d5cb937-d66c-404d-9a02-7b7e59702d20", arquivo: "meio-de-hospedagem.xls" },
-    RecursoHospedagem { ano: 2023, trimestre: Some(4), recurso_id: "26e0f639-97eb-4682-8ebd-9856a7ff0610", arquivo: "meio-de-hospedagem.xls" },
+    RecursoHospedagem {
+        ano: 2023,
+        trimestre: Some(1),
+        recurso_id: "4f4edad8-2670-429e-b438-47bc6ce9f724",
+        arquivo: "meio-de-hospedagem.xls",
+    },
+    RecursoHospedagem {
+        ano: 2023,
+        trimestre: Some(2),
+        recurso_id: "4f8e3cba-8070-4715-8420-cdb7424f2340",
+        arquivo: "meio-de-hospedagem.xls",
+    },
+    RecursoHospedagem {
+        ano: 2023,
+        trimestre: Some(3),
+        recurso_id: "6d5cb937-d66c-404d-9a02-7b7e59702d20",
+        arquivo: "meio-de-hospedagem.xls",
+    },
+    RecursoHospedagem {
+        ano: 2023,
+        trimestre: Some(4),
+        recurso_id: "26e0f639-97eb-4682-8ebd-9856a7ff0610",
+        arquivo: "meio-de-hospedagem.xls",
+    },
     // 2024
-    RecursoHospedagem { ano: 2024, trimestre: Some(1), recurso_id: "8e8d5e6e-dadf-47fc-9e41-15915422020f", arquivo: "meio-de-hospedagem-.xls" },
-    RecursoHospedagem { ano: 2024, trimestre: Some(2), recurso_id: "357776b4-4da1-4238-9b3a-3c3599a08a22", arquivo: "meio-de-hospedagem.xls" },
-    RecursoHospedagem { ano: 2024, trimestre: Some(3), recurso_id: "6d5aa8ff-9ed8-4bca-8704-17fb89f71eb7", arquivo: "meio-de-hospedagem.xlsx" },
-    RecursoHospedagem { ano: 2024, trimestre: Some(4), recurso_id: "ea5f4986-c468-4e2c-a873-12f35b7d04f1", arquivo: "relatorio-meios-de-hospedagem_-situacao_4-trimestre.xlsx" },
+    RecursoHospedagem {
+        ano: 2024,
+        trimestre: Some(1),
+        recurso_id: "8e8d5e6e-dadf-47fc-9e41-15915422020f",
+        arquivo: "meio-de-hospedagem-.xls",
+    },
+    RecursoHospedagem {
+        ano: 2024,
+        trimestre: Some(2),
+        recurso_id: "357776b4-4da1-4238-9b3a-3c3599a08a22",
+        arquivo: "meio-de-hospedagem.xls",
+    },
+    RecursoHospedagem {
+        ano: 2024,
+        trimestre: Some(3),
+        recurso_id: "6d5aa8ff-9ed8-4bca-8704-17fb89f71eb7",
+        arquivo: "meio-de-hospedagem.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2024,
+        trimestre: Some(4),
+        recurso_id: "ea5f4986-c468-4e2c-a873-12f35b7d04f1",
+        arquivo: "relatorio-meios-de-hospedagem_-situacao_4-trimestre.xlsx",
+    },
     // 2025
-    RecursoHospedagem { ano: 2025, trimestre: Some(1), recurso_id: "c733c3c1-2451-4473-916b-7e436b77a40d", arquivo: "meios-de-hospedagem-data-situacao_-31_03_2025.xlsx" },
-    RecursoHospedagem { ano: 2025, trimestre: Some(2), recurso_id: "7c35e6e0-b261-4f8f-ab51-b6adb6db0900", arquivo: "meios-de-hospedagem-data-situacao_-30_06_2025.xlsx" },
-    RecursoHospedagem { ano: 2025, trimestre: Some(3), recurso_id: "6a9643e6-6372-4d11-9b3d-51f8fd4cfa92", arquivo: "meios-de-hospedagem-data-situacao_-30_09_2025.xlsx" },
-    RecursoHospedagem { ano: 2025, trimestre: Some(4), recurso_id: "efeb6b18-dd5a-48e7-83c3-2f53fd422476", arquivo: "meio-de-hospedagem.xlsx" },
+    RecursoHospedagem {
+        ano: 2025,
+        trimestre: Some(1),
+        recurso_id: "c733c3c1-2451-4473-916b-7e436b77a40d",
+        arquivo: "meios-de-hospedagem-data-situacao_-31_03_2025.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2025,
+        trimestre: Some(2),
+        recurso_id: "7c35e6e0-b261-4f8f-ab51-b6adb6db0900",
+        arquivo: "meios-de-hospedagem-data-situacao_-30_06_2025.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2025,
+        trimestre: Some(3),
+        recurso_id: "6a9643e6-6372-4d11-9b3d-51f8fd4cfa92",
+        arquivo: "meios-de-hospedagem-data-situacao_-30_09_2025.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2025,
+        trimestre: Some(4),
+        recurso_id: "efeb6b18-dd5a-48e7-83c3-2f53fd422476",
+        arquivo: "meio-de-hospedagem.xlsx",
+    },
     // 2026
-    RecursoHospedagem { ano: 2026, trimestre: Some(1), recurso_id: "938cb620-7252-4cd0-9def-443dd2fe3f3b", arquivo: "meio-de-hospedagem-1-trimestre-2026.xlsx" },
-    RecursoHospedagem { ano: 2026, trimestre: Some(2), recurso_id: "7e385ec2-57d8-446c-9cc0-f5f7dadd1fdf", arquivo: "meios-de-hospedagem-2-trimestre-2026.xlsx" },
+    RecursoHospedagem {
+        ano: 2026,
+        trimestre: Some(1),
+        recurso_id: "938cb620-7252-4cd0-9def-443dd2fe3f3b",
+        arquivo: "meio-de-hospedagem-1-trimestre-2026.xlsx",
+    },
+    RecursoHospedagem {
+        ano: 2026,
+        trimestre: Some(2),
+        recurso_id: "7e385ec2-57d8-446c-9cc0-f5f7dadd1fdf",
+        arquivo: "meios-de-hospedagem-2-trimestre-2026.xlsx",
+    },
 ];
 
 /// Meios de hospedagem cadastrados no Cadastur (Ministério do Turismo).
@@ -386,10 +646,8 @@ impl FonteDeDados for FonteTurismoHospedagem {
                     recurso,
                     url_ckan(DATASET_HOSPEDAGEM, r.recurso_id, r.arquivo),
                 );
-                TarefaPlanejada::nova(tarefa).com_etiquetas([
-                    ("dataset", "meios-de-hospedagem"),
-                    ("ano", &ano_str),
-                ])
+                TarefaPlanejada::nova(tarefa)
+                    .com_etiquetas([("dataset", "meios-de-hospedagem"), ("ano", &ano_str)])
             })
             .collect()
     }
@@ -470,7 +728,10 @@ mod testes {
 
     #[test]
     fn hospedagem_total_de_tarefas() {
-        assert_eq!(FonteTurismoHospedagem.criar_tarefas().len(), HOSPEDAGEM.len());
+        assert_eq!(
+            FonteTurismoHospedagem.criar_tarefas().len(),
+            HOSPEDAGEM.len()
+        );
         assert_eq!(HOSPEDAGEM.len(), 52);
     }
 
@@ -487,7 +748,11 @@ mod testes {
         let filtro = FiltroDeTarefas::a_partir_de(&["ano=2020".to_owned()]).unwrap();
         let filtradas = filtro.aplicar(tarefas).unwrap();
         assert_eq!(filtradas.len(), 4);
-        assert!(filtradas.iter().all(|t| t.tarefa.nome().starts_with("2020")));
+        assert!(
+            filtradas
+                .iter()
+                .all(|t| t.tarefa.nome().starts_with("2020"))
+        );
     }
 
     #[test]
@@ -503,7 +768,10 @@ mod testes {
     fn hospedagem_etiquetas_presentes() {
         let tarefas = FonteTurismoHospedagem.criar_tarefas();
         for tarefa in &tarefas {
-            assert_eq!(tarefa.etiquetas.get("dataset").unwrap(), "meios-de-hospedagem");
+            assert_eq!(
+                tarefa.etiquetas.get("dataset").unwrap(),
+                "meios-de-hospedagem"
+            );
             assert!(tarefa.etiquetas.contains_key("ano"));
         }
     }
