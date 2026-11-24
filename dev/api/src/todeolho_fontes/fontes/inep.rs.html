@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>            }),
 <a href=#61 id=61 data-nosnippet>61</a>            agente: <span class="prelude-val">None</span>,
 <a href=#62 id=62 data-nosnippet>62</a>            redirecionamento: RedirecionamentoHttp::Seguir,
-<a href=#63 id=63 data-nosnippet>63</a>            aceitar_certificado_invalido: <span class="bool-val">false</span>,
+<a href=#63 id=63 data-nosnippet>63</a>            aceitar_certificado_invalido: <span class="bool-val">true</span>,
 <a href=#64 id=64 data-nosnippet>64</a>        }
 <a href=#65 id=65 data-nosnippet>65</a>    }
 <a href=#66 id=66 data-nosnippet>66</a>
@@ -352,9 +352,14 @@
 <a href=#352 id=352 data-nosnippet>352</a>    }
 <a href=#353 id=353 data-nosnippet>353</a>
 <a href=#354 id=354 data-nosnippet>354</a>    <span class="attr">#[test]
-<a href=#355 id=355 data-nosnippet>355</a>    </span><span class="kw">fn </span>declara_limite_do_host() {
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>limite = FonteInep.perfil_http().limite.expect(<span class="string">"limite do host INEP"</span>);
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="macro">assert_eq!</span>(limite.host, <span class="string">"download.inep.gov.br"</span>);
-<a href=#358 id=358 data-nosnippet>358</a>    }
-<a href=#359 id=359 data-nosnippet>359</a>}
+<a href=#355 id=355 data-nosnippet>355</a>    </span><span class="kw">fn </span>aceita_certificado_invalido() {
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="macro">assert!</span>(FonteInep.perfil_http().aceitar_certificado_invalido);
+<a href=#357 id=357 data-nosnippet>357</a>    }
+<a href=#358 id=358 data-nosnippet>358</a>
+<a href=#359 id=359 data-nosnippet>359</a>    <span class="attr">#[test]
+<a href=#360 id=360 data-nosnippet>360</a>    </span><span class="kw">fn </span>declara_limite_do_host() {
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">let </span>limite = FonteInep.perfil_http().limite.expect(<span class="string">"limite do host INEP"</span>);
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="macro">assert_eq!</span>(limite.host, <span class="string">"download.inep.gov.br"</span>);
+<a href=#363 id=363 data-nosnippet>363</a>    }
+<a href=#364 id=364 data-nosnippet>364</a>}
 </code></pre></div></section></main></body></html>
