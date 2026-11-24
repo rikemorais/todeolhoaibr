@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.2] - 2026-11-24
+
+### Corrigido
+
+- A fonte INEP aceita o certificado do servidor `download.inep.gov.br`, que não envia o intermediário da RNP ICPEdu (GlobalSign) na cadeia TLS. O TLS nativo (v0.132.1) não bastou porque o intermediário está ausente de ambos os trust stores.
+
 ## [0.132.1] - 2026-11-24
 
 ### Corrigido
