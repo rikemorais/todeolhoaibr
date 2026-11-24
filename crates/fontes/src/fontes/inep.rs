@@ -46,6 +46,10 @@ impl FonteDeDados for FonteInep {
         true
     }
 
+    fn usar_tls_nativo(&self) -> bool {
+        true
+    }
+
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
             credencial: None,
@@ -340,6 +344,11 @@ mod testes {
     #[test]
     fn e_sob_demanda() {
         assert!(FonteInep.sob_demanda());
+    }
+
+    #[test]
+    fn usa_tls_nativo() {
+        assert!(FonteInep.usar_tls_nativo());
     }
 
     #[test]
