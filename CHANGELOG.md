@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.1] - 2026-11-24
+
+### Corrigido
+
+- A fonte INEP passa a usar TLS nativo do sistema, resolvendo a falha de verificação SSL causada pela cadeia incompleta do certificado da RNP ICPEdu no servidor `download.inep.gov.br`.
+
 ## [0.132.0] - 2026-11-22
 
 ### Adicionado
