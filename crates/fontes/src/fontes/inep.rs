@@ -60,7 +60,7 @@ impl FonteDeDados for FonteInep {
             }),
             agente: None,
             redirecionamento: RedirecionamentoHttp::Seguir,
-            aceitar_certificado_invalido: false,
+            aceitar_certificado_invalido: true,
         }
     }
 
@@ -349,6 +349,11 @@ mod testes {
     #[test]
     fn usa_tls_nativo() {
         assert!(FonteInep.usar_tls_nativo());
+    }
+
+    #[test]
+    fn aceita_certificado_invalido() {
+        assert!(FonteInep.perfil_http().aceitar_certificado_invalido);
     }
 
     #[test]
