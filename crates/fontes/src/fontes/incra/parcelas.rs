@@ -219,8 +219,10 @@ mod testes {
 
     #[test]
     fn tempo_sem_dados_ampliado() {
-        let tempo = FonteIncra.tempo_sem_dados().expect("INCRA precisa de timeout estendido");
-        assert!(tempo >= std::time::Duration::from_secs(180));
+        assert_eq!(
+            FonteIncra.tempo_sem_dados(),
+            Some(std::time::Duration::from_secs(300)),
+        );
     }
 
     #[test]
