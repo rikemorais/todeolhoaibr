@@ -83,21 +83,28 @@
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="bool-val">false
 <a href=#84 id=84 data-nosnippet>84</a>    </span>}
 <a href=#85 id=85 data-nosnippet>85</a>
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// Declara o perfil HTTP necessário pelas tarefas selecionadas.
-<a href=#87 id=87 data-nosnippet>87</a>    ///
-<a href=#88 id=88 data-nosnippet>88</a>    /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
-<a href=#89 id=89 data-nosnippet>89</a>    /// tarefas com requisitos HTTP diferentes podem ajustar o perfil após os
-<a href=#90 id=90 data-nosnippet>90</a>    /// filtros, por exemplo quando uma tarefa local não acessa a API autenticada.
-<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">fn </span>perfil_http_das_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>, _tarefas: <span class="kw-2">&amp;</span>[TarefaPlanejada]) -&gt; PerfilHttp {
-<a href=#92 id=92 data-nosnippet>92</a>        <span class="self">self</span>.perfil_http()
-<a href=#93 id=93 data-nosnippet>93</a>    }
-<a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// Factory Method: cria as tarefas concretas desta fonte.
-<a href=#96 id=96 data-nosnippet>96</a>    </span><span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt;;
-<a href=#97 id=97 data-nosnippet>97</a>
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="doccomment">/// Operação comum do criador: monta a DAG validada a partir do Factory Method.
-<a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">fn </span>montar_dag(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DagDeIngestao, ErroDeDag&gt; {
-<a href=#100 id=100 data-nosnippet>100</a>        DagDeIngestao::construir(<span class="self">self</span>.nome(), <span class="self">self</span>.criar_tarefas())
-<a href=#101 id=101 data-nosnippet>101</a>    }
-<a href=#102 id=102 data-nosnippet>102</a>}
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// Tempo máximo sem receber nenhum byte antes de desistir. `None` usa o
+<a href=#87 id=87 data-nosnippet>87</a>    /// padrão do cliente HTTP (120 s). Fontes cujo servidor gera o arquivo sob
+<a href=#88 id=88 data-nosnippet>88</a>    /// demanda (ex.: WFS GetFeature) podem precisar de um valor maior.
+<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">fn </span>tempo_sem_dados(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;std::time::Duration&gt; {
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="prelude-val">None
+<a href=#91 id=91 data-nosnippet>91</a>    </span>}
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Declara o perfil HTTP necessário pelas tarefas selecionadas.
+<a href=#94 id=94 data-nosnippet>94</a>    ///
+<a href=#95 id=95 data-nosnippet>95</a>    /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem
+<a href=#96 id=96 data-nosnippet>96</a>    /// tarefas com requisitos HTTP diferentes podem ajustar o perfil após os
+<a href=#97 id=97 data-nosnippet>97</a>    /// filtros, por exemplo quando uma tarefa local não acessa a API autenticada.
+<a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">fn </span>perfil_http_das_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>, _tarefas: <span class="kw-2">&amp;</span>[TarefaPlanejada]) -&gt; PerfilHttp {
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="self">self</span>.perfil_http()
+<a href=#100 id=100 data-nosnippet>100</a>    }
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="doccomment">/// Factory Method: cria as tarefas concretas desta fonte.
+<a href=#103 id=103 data-nosnippet>103</a>    </span><span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt;;
+<a href=#104 id=104 data-nosnippet>104</a>
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// Operação comum do criador: monta a DAG validada a partir do Factory Method.
+<a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">fn </span>montar_dag(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DagDeIngestao, ErroDeDag&gt; {
+<a href=#107 id=107 data-nosnippet>107</a>        DagDeIngestao::construir(<span class="self">self</span>.nome(), <span class="self">self</span>.criar_tarefas())
+<a href=#108 id=108 data-nosnippet>108</a>    }
+<a href=#109 id=109 data-nosnippet>109</a>}
 </code></pre></div></section></main></body></html>
