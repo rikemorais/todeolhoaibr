@@ -357,11 +357,13 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
         },
         // --- ZIP com CSV ---
         // Portal da Transparência - servidores ativos: ZIP com CSV (`;`).
+        // Forçado Windows-1252: os CSVs do BACEN misturam trechos ASCII longos com
+        // bytes Latin-1 esparsos que enganam a auto-detecção por amostra de 16 KB.
         FonteDeRefino {
             nome: "transparencia-servidores-ativos",
             fonte_raw: "transparencia",
             prefixo_recurso: "servidores-ativos/",
-            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo_windows1252(b';')),
         },
         // --- XML DataSet ---
         // ANA/SNIRH: estações hidrológicas em XML DataSet (dois recursos: fluvio e pluvio).

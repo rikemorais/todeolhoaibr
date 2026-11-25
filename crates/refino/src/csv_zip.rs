@@ -272,6 +272,24 @@ pub fn partes_de_zip_csv_em_fluxo<F: Read + Seek>(
     fonte: F,
     delimitador: u8,
 ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    partes_de_zip_csv_impl(fonte, delimitador, false)
+}
+
+/// Como [`partes_de_zip_csv_em_fluxo`], mas força Windows-1252 sem depender da
+/// auto-detecção por amostra — para origens cujos CSVs misturam trechos ASCII
+/// longos com bytes Latin-1 esparsos.
+pub fn partes_de_zip_csv_windows1252_em_fluxo<F: Read + Seek>(
+    fonte: F,
+    delimitador: u8,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
+    partes_de_zip_csv_impl(fonte, delimitador, true)
+}
+
+fn partes_de_zip_csv_impl<F: Read + Seek>(
+    fonte: F,
+    delimitador: u8,
+    forcar_windows1252: bool,
+) -> Result<Vec<ParteBronze>, ErroDeRefino> {
     let mut arquivo = zip::ZipArchive::new(fonte)?;
     let mut partes = Vec::new();
 
@@ -284,7 +302,11 @@ pub fn partes_de_zip_csv_em_fluxo<F: Read + Seek>(
         if !e_tabular(&nome_interno) {
             continue;
         }
-        let leitor = leitor_auto_encoding(entrada);
+        let leitor = if forcar_windows1252 {
+            leitor_windows1252(entrada)
+        } else {
+            leitor_auto_encoding(entrada)
+        };
         let nome = nome_logico(&nome_interno);
         partes.push(parte_em_arquivo(
             &nome,

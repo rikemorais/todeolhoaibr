@@ -19,7 +19,7 @@ const ULTIMO_ANO_ENEM: u16 = 2025;
 const PRIMEIRO_ANO_REDACAO: u16 = 2019;
 const ULTIMO_ANO_REDACAO: u16 = 2024;
 
-const EDICOES_IDEB: [u16; 5] = [2017, 2019, 2021, 2023, 2025];
+const EDICOES_IDEB: [u16; 2] = [2023, 2025];
 
 const STAGES_IDEB: [&str; 3] = ["anos_iniciais", "anos_finais", "ensino_medio"];
 
@@ -65,7 +65,7 @@ impl FonteDeDados for FonteInep {
     }
 
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
-        let mut tarefas = Vec::with_capacity(110);
+        let mut tarefas = Vec::with_capacity(86);
         tarefas.extend(tarefas_censo_escolar());
         tarefas.extend(tarefas_enem());
         tarefas.extend(tarefas_enem_redacao());
@@ -139,7 +139,7 @@ fn ext_ideb(ano: u16) -> &'static str {
 }
 
 fn tarefas_ideb() -> Vec<TarefaPlanejada> {
-    let mut tarefas = Vec::with_capacity(42);
+    let mut tarefas = Vec::with_capacity(18);
 
     for &ano in &EDICOES_IDEB {
         let ano_s = ano.to_string();
@@ -256,12 +256,12 @@ mod testes {
         assert_eq!(contagem("censo-escolar"), 31);
         assert_eq!(contagem("enem"), 28);
         assert_eq!(contagem("enem-redacao"), 6);
-        assert_eq!(contagem("ideb"), 42);
+        assert_eq!(contagem("ideb"), 18);
     }
 
     #[test]
-    fn total_107_tarefas() {
-        assert_eq!(tarefas().len(), 107);
+    fn total_83_tarefas() {
+        assert_eq!(tarefas().len(), 83);
     }
 
     #[test]
