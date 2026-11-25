@@ -5,6 +5,13 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.3] - 2026-11-25
+
+### Corrigido
+
+- Os CSVs do BACEN na fonte `transparencia-servidores-ativos` (competências 2024-09 e 2024-10) contêm bytes Latin-1 esparsos que enganavam a auto-detecção de encoding por amostra de 16 KB. O decodificador agora força Windows-1252 para essa fonte.
+- Removidas as edições 2017, 2019 e 2021 do IDEB na fonte INEP — o INEP retirou esses arquivos do ar (HTTP 404). Restam 2023 e 2025.
+
 ## [0.132.2] - 2026-11-24
 
 ### Corrigido
