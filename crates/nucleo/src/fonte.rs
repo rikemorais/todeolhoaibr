@@ -83,6 +83,13 @@ pub trait FonteDeDados: Send + Sync {
         false
     }
 
+    /// Tempo máximo sem receber nenhum byte antes de desistir. `None` usa o
+    /// padrão do cliente HTTP (120 s). Fontes cujo servidor gera o arquivo sob
+    /// demanda (ex.: WFS GetFeature) podem precisar de um valor maior.
+    fn tempo_sem_dados(&self) -> Option<std::time::Duration> {
+        None
+    }
+
     /// Declara o perfil HTTP necessário pelas tarefas selecionadas.
     ///
     /// A implementação padrão mantém o perfil único da fonte. Fontes que reúnem

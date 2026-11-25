@@ -90,6 +90,10 @@ impl FonteDeDados for FonteIncra {
         }
     }
 
+    fn tempo_sem_dados(&self) -> Option<std::time::Duration> {
+        Some(std::time::Duration::from_secs(300))
+    }
+
     fn criar_tarefas(&self) -> Vec<TarefaPlanejada> {
         let mut tarefas = Vec::with_capacity(82);
 
@@ -211,6 +215,14 @@ mod testes {
     #[test]
     fn valida_certificado_tls() {
         assert!(!FonteIncra.perfil_http().aceitar_certificado_invalido);
+    }
+
+    #[test]
+    fn tempo_sem_dados_ampliado() {
+        assert_eq!(
+            FonteIncra.tempo_sem_dados(),
+            Some(std::time::Duration::from_secs(300)),
+        );
     }
 
     #[test]

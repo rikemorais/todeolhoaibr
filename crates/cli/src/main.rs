@@ -124,6 +124,7 @@ struct FonteSelecionada {
     tarefas: Vec<TarefaPlanejada>,
     perfil_http: PerfilHttp,
     tls_nativo: bool,
+    tempo_sem_dados: Option<std::time::Duration>,
 }
 
 #[tokio::main]
@@ -233,6 +234,7 @@ async fn selecionar() -> Result<bool> {
             nome: fonte.nome().to_owned(),
             perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
             tls_nativo: fonte.usar_tls_nativo(),
+            tempo_sem_dados: fonte.tempo_sem_dados(),
             tarefas,
         });
     }
@@ -256,6 +258,7 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
                         nome: fonte.nome().to_owned(),
                         perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
                         tls_nativo: fonte.usar_tls_nativo(),
+                        tempo_sem_dados: fonte.tempo_sem_dados(),
                         tarefas,
                     }
                 })
@@ -269,6 +272,7 @@ async fn executar_sem_menu(argumentos: ArgumentosDeExecucao) -> Result<bool> {
                 nome,
                 perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
                 tls_nativo: fonte.usar_tls_nativo(),
+                tempo_sem_dados: fonte.tempo_sem_dados(),
                 tarefas,
             }]
         }
@@ -305,6 +309,7 @@ fn contexto_para_fonte(
     contexto: &ContextoDeExecucao,
     perfil: PerfilHttp,
     tls_nativo: bool,
+    tempo_sem_dados: Option<std::time::Duration>,
 ) -> Result<ContextoDeExecucao> {
     let segredo = perfil
         .credencial
@@ -317,6 +322,7 @@ fn contexto_para_fonte(
             perfil,
             segredo.as_deref(),
             tls_nativo,
+            tempo_sem_dados,
         )?);
     let ftp: Arc<dyn todeolho_nucleo::ClienteHttp> = Arc::new(ClienteFtp::novo(politica));
     Ok(ContextoDeExecucao {
@@ -333,8 +339,12 @@ async fn executar(
     let mut dags = Vec::with_capacity(selecionadas.len());
     let mut contextos = Vec::with_capacity(selecionadas.len());
     for fonte in selecionadas {
-        let contexto_da_fonte =
-            contexto_para_fonte(&contexto, fonte.perfil_http, fonte.tls_nativo)?;
+        let contexto_da_fonte = contexto_para_fonte(
+            &contexto,
+            fonte.perfil_http,
+            fonte.tls_nativo,
+            fonte.tempo_sem_dados,
+        )?;
         dags.push(DagDeIngestao::construir(&fonte.nome, fonte.tarefas)?);
         contextos.push(contexto_da_fonte);
     }
