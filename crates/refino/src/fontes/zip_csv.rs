@@ -5,7 +5,7 @@
 //! e com `;` como separador. O bronze só descompacta, reencoda para UTF-8 e põe em colunas;
 //! a interpretação dos campos é do silver.
 
-use crate::csv_zip::partes_de_zip_csv_em_fluxo;
+use crate::csv_zip::{partes_de_zip_csv_em_fluxo, partes_de_zip_csv_windows1252_em_fluxo};
 use crate::decodificador::{Decodificador, ParteBronze};
 use crate::escritor::ErroDeRefino;
 
@@ -16,12 +16,24 @@ use crate::escritor::ErroDeRefino;
 /// Auto-detecta UTF-8/Latin-1 via `utf8_passthrough`. Ver #164.
 pub struct DecodificadorZipCsv {
     separador: u8,
+    windows1252: bool,
 }
 
 impl DecodificadorZipCsv {
     /// Cria o decodificador para o `separador` dado (ex.: `b';'`).
     pub const fn novo(separador: u8) -> Self {
-        Self { separador }
+        Self {
+            separador,
+            windows1252: false,
+        }
+    }
+
+    /// Força decodificação Windows-1252 sem depender da auto-detecção por amostra.
+    pub const fn novo_windows1252(separador: u8) -> Self {
+        Self {
+            separador,
+            windows1252: true,
+        }
     }
 
     /// Alias para `novo`; mantido para compatibilidade — agora sempre streaming.
@@ -41,7 +53,11 @@ impl Decodificador for DecodificadorZipCsv {
         bytes: &[u8],
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        partes_de_zip_csv_em_fluxo(std::io::Cursor::new(bytes), self.separador)
+        if self.windows1252 {
+            partes_de_zip_csv_windows1252_em_fluxo(std::io::Cursor::new(bytes), self.separador)
+        } else {
+            partes_de_zip_csv_em_fluxo(std::io::Cursor::new(bytes), self.separador)
+        }
     }
 
     fn decodificar_arquivo(
@@ -49,7 +65,11 @@ impl Decodificador for DecodificadorZipCsv {
         caminho: &std::path::Path,
         _tipo_de_conteudo: &str,
     ) -> Result<Vec<ParteBronze>, ErroDeRefino> {
-        partes_de_zip_csv_em_fluxo(std::fs::File::open(caminho)?, self.separador)
+        if self.windows1252 {
+            partes_de_zip_csv_windows1252_em_fluxo(std::fs::File::open(caminho)?, self.separador)
+        } else {
+            partes_de_zip_csv_em_fluxo(std::fs::File::open(caminho)?, self.separador)
+        }
     }
 }
 
