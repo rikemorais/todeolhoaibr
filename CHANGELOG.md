@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.4] - 2026-11-25
+
+### Corrigido
+
+- O GeoPortal do INCRA leva ~160 s de processamento antes de enviar o primeiro byte do shapefile SIGEF privado de MG (WFS GetFeature). O `read_timeout` padrão de 120 s matava a conexão. O INCRA agora usa 300 s via o novo método `tempo_sem_dados()` do trait `FonteDeDados`.
+
 ## [0.132.3] - 2026-11-25
 
 ### Corrigido
