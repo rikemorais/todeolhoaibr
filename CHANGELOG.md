@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.6] - 2026-11-26
+
+### Corrigido
+
+- Omitidas 4 tarefas CAGED inexistentes (EXC 2020-01..03 e FOR 2020-01) que falhavam com 404 quando já existia Raw prévio — `aceitar_ausencia` não tolerava 404 nesse cenário.
+
 ## [0.132.5] - 2026-11-25
 
 ### Corrigido
