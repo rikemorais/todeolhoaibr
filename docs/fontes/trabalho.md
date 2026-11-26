@@ -12,7 +12,7 @@ empregador) e de **estabelecimentos**.
 
 | Período | Formato | Arquivos por ano | Total |
 |---------|---------|------------------|------:|
-| 1985–2017 | per-UF (`{UF}{ANO}.7z`) | 27 UFs + 1 ESTB | 924 |
+| 1985–2017 | per-UF (`{UF}{ANO}.7z`) | 27 UFs (– ausências) + ESTB desde 2007 | 895 |
 | 2018–2025 | per-região (`RAIS_VINC_PUB_{REG}.7z`) | 6 regiões + ESTAB (+ NI desde 2022) | 60 |
 
 ### Novo CAGED — Cadastro Geral de Empregados e Desempregados
@@ -22,9 +22,9 @@ janeiro de 2020.
 
 | Período | Tipos | Total |
 |---------|-------|------:|
-| 2020-01 a 2026-11 | MOV (desde 01), FOR (desde 02), EXC (desde 04) | 245 |
+| 2020-01 a 2026-09 | MOV (desde 01), FOR (desde 02), EXC (desde 04) | 239 |
 
-**Total: 1 229 tarefas, sob demanda.**
+**Total: 1 194 tarefas, sob demanda.**
 
 ## Sobre a fonte
 
@@ -41,8 +41,9 @@ A RAIS mudou o formato de distribuição em 2020: antes era um arquivo por UF
 `NI` (não identificado) só existe no FTP a partir de 2022; o ano mais
 recente usa `aceitar_ausencia()` porque a publicação pode atrasar.
 
-Tocantins (TO) foi criado em 1988 e só aparece no FTP a partir de 1990.
-Para os anos 1985–1989, o download de TO aceita ausência.
+Tocantins (TO) foi criado em 1988 e só aparece no FTP a partir de 1990;
+anos anteriores são omitidos. MA 1985 e PA 1986 também não constam no
+FTP. ESTB per-UF só existe desde 2007.
 
 ## Protocolo
 
