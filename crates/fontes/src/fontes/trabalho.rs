@@ -178,14 +178,17 @@ fn tarefas_caged() -> Vec<TarefaPlanejada> {
             let ym = format!("{ano}{mes:02}");
             let mes_s = format!("{mes:02}");
             for &(tipo_upper, tipo_lower) in &tipos {
+                // EXC começa em 2020-04, FOR começa em 2020-02.
+                if ano == 2020
+                    && ((tipo_lower == "exc" && mes < 4) || (tipo_lower == "for" && mes < 2))
+                {
+                    continue;
+                }
                 let nome = format!("caged_{tipo_lower}_{ym}");
                 let recurso = format!("caged/tipo={tipo_lower}/ano={ano}/mes={mes_s}");
                 let url = format!("{BASE}/NOVO%20CAGED/{ano}/{ym}/CAGED{tipo_upper}{ym}.7z");
                 let mut tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
-                let futuro = ano == ULTIMO_ANO_CAGED && mes > ULTIMO_MES_CAGED.saturating_sub(2);
-                let inicio_parcial = ano == 2020
-                    && ((tipo_lower == "exc" && mes < 4) || (tipo_lower == "for" && mes < 2));
-                if futuro || inicio_parcial {
+                if ano == ULTIMO_ANO_CAGED && mes > ULTIMO_MES_CAGED.saturating_sub(2) {
                     tarefa = tarefa.aceitar_ausencia();
                 }
                 tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
@@ -223,7 +226,8 @@ mod testes {
         let rais_per_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize * (REGIOES.len() + 2);
         let caged_meses =
             (ULTIMO_ANO_CAGED - PRIMEIRO_ANO_CAGED) as usize * 12 + ULTIMO_MES_CAGED as usize;
-        let caged_total = caged_meses * 3;
+        let caged_omitidas = 3 + 1; // EXC 2020-01..03, FOR 2020-01
+        let caged_total = caged_meses * 3 - caged_omitidas;
         let esperado = rais_per_uf + rais_per_regiao + caged_total;
         assert_eq!(
             t.len(),
