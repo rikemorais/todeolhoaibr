@@ -102,7 +102,8 @@ impl FonteDeDados for FonteMacroIntl {
                 requisicoes: 1,
                 intervalo: Duration::from_secs(2),
             }),
-            agente: None,
+            // data.imf.org (Akamai WAF) rejeita o user-agent padrão do projeto.
+            agente: Some("curl/8.0"),
             aceitar_certificado_invalido: false,
         }
     }
@@ -226,5 +227,10 @@ mod testes {
     #[test]
     fn nao_precisa_credencial() {
         assert!(FonteMacroIntl.perfil_http().credencial.is_none());
+    }
+
+    #[test]
+    fn agente_compativel_com_imf() {
+        assert!(FonteMacroIntl.perfil_http().agente.is_some());
     }
 }
