@@ -16,6 +16,7 @@ const ANO_CORTE_RAIS: u16 = 2018;
 
 const PRIMEIRO_ANO_CAGED: u16 = 2020;
 const ULTIMO_ANO_CAGED: u16 = 2026;
+/// Último mês publicado no FTP — atualizar quando o MTE liberar novos meses.
 const ULTIMO_MES_CAGED: u8 = 9;
 
 const UFS: [&str; 27] = [

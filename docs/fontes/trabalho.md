@@ -41,8 +41,9 @@ A RAIS mudou o formato de distribuição em 2020: antes era um arquivo por UF
 `NI` (não identificado) só existe no FTP a partir de 2022; o ano mais
 recente usa `aceitar_ausencia()` porque a publicação pode atrasar.
 
-Tocantins (TO) foi criado em 1988 e só aparece no FTP a partir de 1990.
-Para os anos 1985–1989, o download de TO aceita ausência.
+Tocantins (TO) foi criado em 1988 e só aparece no FTP a partir de 1990;
+anos anteriores são omitidos. MA 1985 e PA 1986 também não constam no
+FTP. ESTB per-UF só existe desde 2007.
 
 ## Protocolo
 
