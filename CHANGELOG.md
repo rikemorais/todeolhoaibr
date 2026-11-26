@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.9] - 2026-11-26
+
+### Corrigido
+
+- Fonte `trabalho`: omitidas todas as tarefas comprovadamente ausentes no FTP — TO < 1990, MA 1985, PA 1986, ESTB < 2007 e CAGED de meses ainda não publicados (10-11/2026). Elimina as 17 falhas restantes.
+
 ## [0.132.8] - 2026-11-26
 
 ### Corrigido
