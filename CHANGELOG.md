@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.8] - 2026-11-26
+
+### Corrigido
+
+- Fonte `trabalho`: omitidas tarefas RAIS NI para anos < 2022 — o FTP do MTE só publica `RAIS_VINC_PUB_NI.7z` a partir de 2022.
+
 ## [0.132.7] - 2026-11-26
 
 ### Corrigido
