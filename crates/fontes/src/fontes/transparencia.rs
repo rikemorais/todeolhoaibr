@@ -281,6 +281,10 @@ impl FonteDeDados for FonteTransparenciaBeneficios {
         true
     }
 
+    fn usar_tls_nativo(&self) -> bool {
+        true
+    }
+
     fn perfil_http(&self) -> PerfilHttp {
         PerfilHttp {
             redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
