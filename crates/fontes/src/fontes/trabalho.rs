@@ -133,7 +133,8 @@ fn tarefas_rais_per_regiao() -> Vec<TarefaPlanejada> {
                 ("regiao", &regiao_lower),
             ]));
         }
-        {
+        // NI (não identificados) só existe a partir de 2022.
+        if ano >= 2022 {
             let nome_ni = format!("rais_{ano}_ni");
             let recurso_ni = format!("rais/tipo=vinculo/ano={ano}/regiao=ni");
             let url_ni = format!("{BASE}/RAIS/{ano}/RAIS_VINC_PUB_NI.7z");
@@ -226,7 +227,9 @@ mod testes {
     fn gera_quantidade_esperada_de_tarefas() {
         let t = tarefas();
         let rais_per_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize * (UFS.len() + 1);
-        let rais_per_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize * (REGIOES.len() + 2);
+        let anos_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize;
+        let anos_ni = (ULTIMO_ANO_RAIS - 2022 + 1) as usize;
+        let rais_per_regiao = anos_regiao * (REGIOES.len() + 1) + anos_ni;
         let caged_meses =
             (ULTIMO_ANO_CAGED - PRIMEIRO_ANO_CAGED) as usize * 12 + ULTIMO_MES_CAGED as usize;
         let caged_omitidas = 3 + 1; // EXC 2020-01..03, FOR 2020-01
@@ -351,7 +354,9 @@ mod testes {
     #[test]
     fn contagem_rais_e_caged() {
         let rais_per_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize * (UFS.len() + 1);
-        let rais_per_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize * (REGIOES.len() + 2);
+        let anos_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize;
+        let anos_ni = (ULTIMO_ANO_RAIS - 2022 + 1) as usize;
+        let rais_per_regiao = anos_regiao * (REGIOES.len() + 1) + anos_ni;
         assert_eq!(contagem("rais"), rais_per_uf + rais_per_regiao);
         assert!(contagem("caged") > 200);
     }
