@@ -28,12 +28,33 @@ const TAMANHO_TIPICO: u64 = 64 * 1024;
 const LIMITE_PAGINAS: usize = 10_000;
 
 const CODIGOS_UF: [(u32, &str); 27] = [
-    (11, "ro"), (12, "ac"), (13, "am"), (14, "rr"), (15, "pa"), (16, "ap"), (17, "to"),
-    (21, "ma"), (22, "pi"), (23, "ce"), (24, "rn"), (25, "pb"), (26, "pe"), (27, "al"),
-    (28, "se"), (29, "ba"),
-    (31, "mg"), (32, "es"), (33, "rj"), (35, "sp"),
-    (41, "pr"), (42, "sc"), (43, "rs"),
-    (50, "ms"), (51, "mt"), (52, "go"), (53, "df"),
+    (11, "ro"),
+    (12, "ac"),
+    (13, "am"),
+    (14, "rr"),
+    (15, "pa"),
+    (16, "ap"),
+    (17, "to"),
+    (21, "ma"),
+    (22, "pi"),
+    (23, "ce"),
+    (24, "rn"),
+    (25, "pb"),
+    (26, "pe"),
+    (27, "al"),
+    (28, "se"),
+    (29, "ba"),
+    (31, "mg"),
+    (32, "es"),
+    (33, "rj"),
+    (35, "sp"),
+    (41, "pr"),
+    (42, "sc"),
+    (43, "rs"),
+    (50, "ms"),
+    (51, "mt"),
+    (52, "go"),
+    (53, "df"),
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -313,7 +334,9 @@ impl FonteDeDados for FonteTransparenciaBeneficios {
         ];
         let mut tarefas = Vec::new();
         for programa in programas {
-            for competencia in competencias(programa.competencia_inicial(), programa.competencia_final()) {
+            for competencia in
+                competencias(programa.competencia_inicial(), programa.competencia_final())
+            {
                 for &(uf_codigo, uf_slug) in &CODIGOS_UF {
                     tarefas.push(
                         TarefaPlanejada::nova(TarefaProgramaCompetenciaUf::nova(
@@ -432,8 +455,7 @@ mod testes {
     #[test]
     fn nomes_sao_unicos() {
         let tarefas = FonteTransparenciaBeneficios.criar_tarefas();
-        let nomes: std::collections::HashSet<_> =
-            tarefas.iter().map(|t| t.tarefa.nome()).collect();
+        let nomes: std::collections::HashSet<_> = tarefas.iter().map(|t| t.tarefa.nome()).collect();
         assert_eq!(nomes.len(), tarefas.len());
     }
 
