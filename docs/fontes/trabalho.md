@@ -12,8 +12,8 @@ empregador) e de **estabelecimentos**.
 
 | Período | Formato | Arquivos por ano | Total |
 |---------|---------|------------------|------:|
-| 1985–2019 | per-UF (`{UF}{ANO}.7z`) | 27 UFs + 1 ESTB | 980 |
-| 2020–2025 | per-região (`RAIS_VINC_PUB_{REG}.7z`) | 6 regiões + NI + ESTAB | 48 |
+| 1985–2017 | per-UF (`{UF}{ANO}.7z`) | 27 UFs + 1 ESTB | 924 |
+| 2018–2025 | per-região (`RAIS_VINC_PUB_{REG}.7z`) | 6 regiões + ESTAB (+ NI desde 2022) | 60 |
 
 ### Novo CAGED — Cadastro Geral de Empregados e Desempregados
 
@@ -22,9 +22,9 @@ janeiro de 2020.
 
 | Período | Tipos | Total |
 |---------|-------|------:|
-| 2020-01 a 2026-11 | MOV, FOR, EXC | 249 |
+| 2020-01 a 2026-11 | MOV (desde 01), FOR (desde 02), EXC (desde 04) | 245 |
 
-**Total: ~1 277 tarefas, sob demanda.**
+**Total: 1 229 tarefas, sob demanda.**
 
 ## Sobre a fonte
 
@@ -38,8 +38,8 @@ ftp://ftp.mtps.gov.br/pdet/microdados/NOVO CAGED/
 
 A RAIS mudou o formato de distribuição em 2020: antes era um arquivo por UF
 (27 × ano), depois passou a ser por região geográfica (6 × ano). O arquivo
-`NI` (não identificado) e o ano mais recente usam `aceitar_ausencia()` porque
-a publicação pode atrasar.
+`NI` (não identificado) só existe no FTP a partir de 2022; o ano mais
+recente usa `aceitar_ausencia()` porque a publicação pode atrasar.
 
 Tocantins (TO) foi criado em 1988 e só aparece no FTP a partir de 1990.
 Para os anos 1985–1989, o download de TO aceita ausência.
