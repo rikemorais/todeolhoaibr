@@ -231,6 +231,13 @@ mod testes {
 
     #[test]
     fn agente_compativel_com_imf() {
-        assert!(FonteMacroIntl.perfil_http().agente.is_some());
+        let agente = FonteMacroIntl
+            .perfil_http()
+            .agente
+            .expect("macro_intl precisa de agente customizado");
+        assert!(
+            !agente.contains("todeolhoai"),
+            "data.imf.org (Akamai WAF) rejeita user-agents com 'todeolhoai'"
+        );
     }
 }
