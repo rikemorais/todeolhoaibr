@@ -30,7 +30,7 @@ const REGIOES: [&str; 6] = ["CENTRO_OESTE", "MG_ES_RJ", "NORDESTE", "NORTE", "SP
 /// Microdados de vínculos (RAIS) e movimentações (Novo CAGED) disponíveis
 /// via FTP anônimo em `ftp://ftp.mtps.gov.br/pdet/microdados/`.
 ///
-/// A RAIS mudou o formato dos arquivos em 2020: de per-UF (27 arquivos)
+/// A RAIS mudou o formato dos arquivos em 2018: de per-UF (27 arquivos)
 /// para per-região (6 arquivos).
 pub struct FonteTrabalho;
 
@@ -343,7 +343,9 @@ mod testes {
 
     #[test]
     fn contagem_rais_e_caged() {
-        assert!(contagem("rais") > 900);
+        let rais_per_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize * (UFS.len() + 1);
+        let rais_per_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize * (REGIOES.len() + 2);
+        assert_eq!(contagem("rais"), rais_per_uf + rais_per_regiao);
         assert!(contagem("caged") > 200);
     }
 }
