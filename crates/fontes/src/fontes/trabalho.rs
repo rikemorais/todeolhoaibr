@@ -16,7 +16,7 @@ const ANO_CORTE_RAIS: u16 = 2018;
 
 const PRIMEIRO_ANO_CAGED: u16 = 2020;
 const ULTIMO_ANO_CAGED: u16 = 2026;
-const ULTIMO_MES_CAGED: u8 = 11;
+const ULTIMO_MES_CAGED: u8 = 9;
 
 const UFS: [&str; 27] = [
     "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE",
@@ -78,17 +78,17 @@ fn tarefas_rais_per_uf() -> Vec<TarefaPlanejada> {
     for ano in PRIMEIRO_ANO_RAIS..ANO_CORTE_RAIS {
         let ano_s = ano.to_string();
         for uf in UFS {
+            if (uf == "TO" && ano < 1990)
+                || (uf == "MA" && ano == 1985)
+                || (uf == "PA" && ano == 1986)
+            {
+                continue;
+            }
             let uf_lower = uf.to_ascii_lowercase();
             let nome = format!("rais_{ano}_{uf_lower}");
             let recurso = format!("rais/tipo=vinculo/ano={ano}/uf={uf_lower}");
             let url = format!("{BASE}/RAIS/{ano}/{uf}{ano}.7z");
-            let mut tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
-            let ausencia_historica = (uf == "TO" && ano < 1990)
-                || (uf == "MA" && ano == 1985)
-                || (uf == "PA" && ano == 1986);
-            if ausencia_historica {
-                tarefa = tarefa.aceitar_ausencia();
-            }
+            let tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
             tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
                 ("registro", "rais"),
                 ("tipo", "vinculo"),
@@ -96,18 +96,18 @@ fn tarefas_rais_per_uf() -> Vec<TarefaPlanejada> {
                 ("uf", &uf_lower),
             ]));
         }
-        let nome_estb = format!("rais_{ano}_estb");
-        let recurso_estb = format!("rais/tipo=estabelecimento/ano={ano}");
-        let url_estb = format!("{BASE}/RAIS/{ano}/ESTB{ano}.7z");
-        let mut tarefa_estb = TarefaDeArquivo::nova(nome_estb, NOME, recurso_estb, url_estb);
-        if ano < 2007 {
-            tarefa_estb = tarefa_estb.aceitar_ausencia();
+        // ESTB só existe a partir de 2007.
+        if ano >= 2007 {
+            let nome_estb = format!("rais_{ano}_estb");
+            let recurso_estb = format!("rais/tipo=estabelecimento/ano={ano}");
+            let url_estb = format!("{BASE}/RAIS/{ano}/ESTB{ano}.7z");
+            let tarefa_estb = TarefaDeArquivo::nova(nome_estb, NOME, recurso_estb, url_estb);
+            tarefas.push(TarefaPlanejada::nova(tarefa_estb).com_etiquetas([
+                ("registro", "rais"),
+                ("tipo", "estabelecimento"),
+                ("ano", &ano_s),
+            ]));
         }
-        tarefas.push(TarefaPlanejada::nova(tarefa_estb).com_etiquetas([
-            ("registro", "rais"),
-            ("tipo", "estabelecimento"),
-            ("ano", &ano_s),
-        ]));
     }
     tarefas
 }
@@ -191,10 +191,7 @@ fn tarefas_caged() -> Vec<TarefaPlanejada> {
                 let nome = format!("caged_{tipo_lower}_{ym}");
                 let recurso = format!("caged/tipo={tipo_lower}/ano={ano}/mes={mes_s}");
                 let url = format!("{BASE}/NOVO%20CAGED/{ano}/{ym}/CAGED{tipo_upper}{ym}.7z");
-                let mut tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
-                if ano == ULTIMO_ANO_CAGED && mes > ULTIMO_MES_CAGED.saturating_sub(2) {
-                    tarefa = tarefa.aceitar_ausencia();
-                }
+                let tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
                 tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
                     ("registro", "caged"),
                     ("tipo", tipo_lower),
@@ -226,7 +223,10 @@ mod testes {
     #[test]
     fn gera_quantidade_esperada_de_tarefas() {
         let t = tarefas();
-        let rais_per_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize * (UFS.len() + 1);
+        let anos_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize;
+        let uf_omitidas = 5 + 1 + 1; // TO < 1990 (5), MA 1985 (1), PA 1986 (1)
+        let estb_uf = anos_uf - 22; // ESTB só desde 2007 (2007..2017 = 11)
+        let rais_per_uf = anos_uf * UFS.len() - uf_omitidas + estb_uf;
         let anos_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize;
         let anos_ni = (ULTIMO_ANO_RAIS - 2022 + 1) as usize;
         let rais_per_regiao = anos_regiao * (REGIOES.len() + 1) + anos_ni;
@@ -353,7 +353,10 @@ mod testes {
 
     #[test]
     fn contagem_rais_e_caged() {
-        let rais_per_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize * (UFS.len() + 1);
+        let anos_uf = (ANO_CORTE_RAIS - PRIMEIRO_ANO_RAIS) as usize;
+        let uf_omitidas = 5 + 1 + 1;
+        let estb_uf = anos_uf - 22;
+        let rais_per_uf = anos_uf * UFS.len() - uf_omitidas + estb_uf;
         let anos_regiao = (ULTIMO_ANO_RAIS - ANO_CORTE_RAIS + 1) as usize;
         let anos_ni = (ULTIMO_ANO_RAIS - 2022 + 1) as usize;
         let rais_per_regiao = anos_regiao * (REGIOES.len() + 1) + anos_ni;
