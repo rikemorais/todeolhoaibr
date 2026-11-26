@@ -104,6 +104,7 @@ services:
     environment:
       <<: *ambiente-s3
       TODEOLHO_CONCORRENCIA: ${TODEOLHO_CONCORRENCIA:-1}
+      PORTAL_TRANSPARENCIA_TOKEN: ${PORTAL_TRANSPARENCIA_TOKEN:-}
     # Acomoda a maior fonte (TSE) para o laço não entrar em crash-loop por OOM; ver #164.
     mem_limit: 2g
     restart: unless-stopped

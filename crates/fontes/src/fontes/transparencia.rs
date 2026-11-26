@@ -27,6 +27,15 @@ const PRIMEIRA_COMPETENCIA_BPC: (i32, u32) = (2019, 1);
 const TAMANHO_TIPICO: u64 = 64 * 1024;
 const LIMITE_PAGINAS: usize = 10_000;
 
+const CODIGOS_UF: [(u32, &str); 27] = [
+    (11, "ro"), (12, "ac"), (13, "am"), (14, "rr"), (15, "pa"), (16, "ap"), (17, "to"),
+    (21, "ma"), (22, "pi"), (23, "ce"), (24, "rn"), (25, "pb"), (26, "pe"), (27, "al"),
+    (28, "se"), (29, "ba"),
+    (31, "mg"), (32, "es"), (33, "rj"), (35, "sp"),
+    (41, "pr"), (42, "sc"), (43, "rs"),
+    (50, "ms"), (51, "mt"), (52, "go"), (53, "df"),
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Programa {
     BolsaFamilia,
@@ -150,22 +159,24 @@ impl EstrategiaDePaginacao for PaginaPortal {
     }
 }
 
-struct TarefaProgramaCompetencia {
+struct TarefaProgramaCompetenciaUf {
     nome: String,
     programa: Programa,
     competencia: String,
+    uf_codigo: u32,
 }
 
-impl TarefaProgramaCompetencia {
-    fn nova(programa: Programa, competencia: &str) -> Self {
+impl TarefaProgramaCompetenciaUf {
+    fn nova(programa: Programa, competencia: &str, uf_codigo: u32, uf_slug: &str) -> Self {
         Self {
-            nome: format!("{}-{competencia}", programa.slug()),
+            nome: format!("{}-{competencia}-uf-{uf_slug}", programa.slug()),
             programa,
             competencia: competencia.to_owned(),
+            uf_codigo,
         }
     }
 
-    async fn municipios(
+    async fn municipios_da_uf(
         &self,
         contexto: &todeolho_nucleo::ContextoDeExecucao,
     ) -> Result<Vec<MunicipioIbge>, ErroDeIngestao> {
@@ -200,10 +211,14 @@ impl TarefaProgramaCompetencia {
                 })?;
             municipios.append(&mut pagina);
         }
+        municipios.retain(|m| m.id / 100_000 == self.uf_codigo);
         if municipios.is_empty() {
             return Err(ErroDeIngestao::Manifesto {
                 recurso: "ibge/municipios".to_owned(),
-                detalhe: "cadastro IBGE não contém municípios".to_owned(),
+                detalhe: format!(
+                    "cadastro IBGE não contém municípios para a UF {}",
+                    self.uf_codigo
+                ),
             });
         }
         Ok(municipios)
@@ -211,7 +226,7 @@ impl TarefaProgramaCompetencia {
 }
 
 #[async_trait]
-impl Tarefa for TarefaProgramaCompetencia {
+impl Tarefa for TarefaProgramaCompetenciaUf {
     fn nome(&self) -> &str {
         &self.nome
     }
@@ -220,7 +235,7 @@ impl Tarefa for TarefaProgramaCompetencia {
         &self,
         contexto: &todeolho_nucleo::ContextoDeExecucao,
     ) -> Result<ResumoDaTarefa, ErroDeIngestao> {
-        let municipios = self.municipios(contexto).await?;
+        let municipios = self.municipios_da_uf(contexto).await?;
         let mut resumo = ResumoDaTarefa {
             reaproveitada: true,
             ..ResumoDaTarefa::default()
@@ -292,23 +307,27 @@ impl FonteDeDados for FonteTransparenciaBeneficios {
             Programa::NovoBolsaFamilia,
             Programa::Bpc,
         ];
-        programas
-            .into_iter()
-            .flat_map(|programa| {
-                competencias(programa.competencia_inicial(), programa.competencia_final())
-                    .into_iter()
-                    .map(move |competencia| {
-                        TarefaPlanejada::nova(TarefaProgramaCompetencia::nova(
+        let mut tarefas = Vec::new();
+        for programa in programas {
+            for competencia in competencias(programa.competencia_inicial(), programa.competencia_final()) {
+                for &(uf_codigo, uf_slug) in &CODIGOS_UF {
+                    tarefas.push(
+                        TarefaPlanejada::nova(TarefaProgramaCompetenciaUf::nova(
                             programa,
                             &competencia,
+                            uf_codigo,
+                            uf_slug,
                         ))
                         .com_etiquetas([
                             ("programa", programa.slug()),
                             ("competencia", competencia.as_str()),
-                        ])
-                    })
-            })
-            .collect()
+                            ("uf", uf_slug),
+                        ]),
+                    );
+                }
+            }
+        }
+        tarefas
     }
 }
 
@@ -392,12 +411,35 @@ mod testes {
     #[test]
     fn tarefas_tem_etiquetas_para_filtros_e_recursos_por_programa() {
         let tarefas = FonteTransparenciaBeneficios.criar_tarefas();
-        assert!(tarefas.len() >= 250);
+        let n_competencias = 258; // soma das competências de todos os programas
+        assert_eq!(tarefas.len(), n_competencias * CODIGOS_UF.len());
         assert!(tarefas.iter().all(|t| {
-            t.etiquetas.contains_key("programa") && t.etiquetas.contains_key("competencia")
+            t.etiquetas.contains_key("programa")
+                && t.etiquetas.contains_key("competencia")
+                && t.etiquetas.contains_key("uf")
         }));
         assert!(tarefas.iter().any(|t| {
-            t.etiquetas["programa"] == "bpc" && t.etiquetas["competencia"] == "2019-01"
+            t.etiquetas["programa"] == "bpc"
+                && t.etiquetas["competencia"] == "2019-01"
+                && t.etiquetas["uf"] == "sp"
         }));
+    }
+
+    #[test]
+    fn nomes_sao_unicos() {
+        let tarefas = FonteTransparenciaBeneficios.criar_tarefas();
+        let nomes: std::collections::HashSet<_> =
+            tarefas.iter().map(|t| t.tarefa.nome()).collect();
+        assert_eq!(nomes.len(), tarefas.len());
+    }
+
+    #[test]
+    fn filtra_por_uf() {
+        let tarefas = FonteTransparenciaBeneficios.criar_tarefas();
+        let sp: Vec<_> = tarefas
+            .iter()
+            .filter(|t| t.etiquetas.get("uf").map(String::as_str) == Some("sp"))
+            .collect();
+        assert_eq!(sp.len(), 258);
     }
 }
