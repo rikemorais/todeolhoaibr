@@ -11,7 +11,8 @@ const BASE: &str = "ftp://ftp.mtps.gov.br/pdet/microdados";
 
 const PRIMEIRO_ANO_RAIS: u16 = 1985;
 const ULTIMO_ANO_RAIS: u16 = 2025;
-const ANO_CORTE_RAIS: u16 = 2020;
+/// A RAIS mudou de per-UF para per-região em 2018.
+const ANO_CORTE_RAIS: u16 = 2018;
 
 const PRIMEIRO_ANO_CAGED: u16 = 2020;
 const ULTIMO_ANO_CAGED: u16 = 2026;
@@ -79,7 +80,10 @@ fn tarefas_rais_per_uf() -> Vec<TarefaPlanejada> {
             let recurso = format!("rais/tipo=vinculo/ano={ano}/uf={uf_lower}");
             let url = format!("{BASE}/RAIS/{ano}/{uf}{ano}.7z");
             let mut tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
-            if uf == "TO" && ano < 1990 {
+            let ausencia_historica = (uf == "TO" && ano < 1990)
+                || (uf == "MA" && ano == 1985)
+                || (uf == "PA" && ano == 1986);
+            if ausencia_historica {
                 tarefa = tarefa.aceitar_ausencia();
             }
             tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
@@ -92,19 +96,15 @@ fn tarefas_rais_per_uf() -> Vec<TarefaPlanejada> {
         let nome_estb = format!("rais_{ano}_estb");
         let recurso_estb = format!("rais/tipo=estabelecimento/ano={ano}");
         let url_estb = format!("{BASE}/RAIS/{ano}/ESTB{ano}.7z");
-        tarefas.push(
-            TarefaPlanejada::nova(TarefaDeArquivo::nova(
-                nome_estb,
-                NOME,
-                recurso_estb,
-                url_estb,
-            ))
-            .com_etiquetas([
-                ("registro", "rais"),
-                ("tipo", "estabelecimento"),
-                ("ano", &ano_s),
-            ]),
-        );
+        let mut tarefa_estb = TarefaDeArquivo::nova(nome_estb, NOME, recurso_estb, url_estb);
+        if ano < 2007 {
+            tarefa_estb = tarefa_estb.aceitar_ausencia();
+        }
+        tarefas.push(TarefaPlanejada::nova(tarefa_estb).com_etiquetas([
+            ("registro", "rais"),
+            ("tipo", "estabelecimento"),
+            ("ano", &ano_s),
+        ]));
     }
     tarefas
 }
@@ -182,7 +182,10 @@ fn tarefas_caged() -> Vec<TarefaPlanejada> {
                 let recurso = format!("caged/tipo={tipo_lower}/ano={ano}/mes={mes_s}");
                 let url = format!("{BASE}/NOVO%20CAGED/{ano}/{ym}/CAGED{tipo_upper}{ym}.7z");
                 let mut tarefa = TarefaDeArquivo::nova(nome, NOME, recurso, url);
-                if ano == ULTIMO_ANO_CAGED && mes > ULTIMO_MES_CAGED.saturating_sub(2) {
+                let futuro = ano == ULTIMO_ANO_CAGED && mes > ULTIMO_MES_CAGED.saturating_sub(2);
+                let inicio_parcial = ano == 2020
+                    && ((tipo_lower == "exc" && mes < 4) || (tipo_lower == "for" && mes < 2));
+                if futuro || inicio_parcial {
                     tarefa = tarefa.aceitar_ausencia();
                 }
                 tarefas.push(TarefaPlanejada::nova(tarefa).com_etiquetas([
@@ -340,7 +343,7 @@ mod testes {
 
     #[test]
     fn contagem_rais_e_caged() {
-        assert!(contagem("rais") > 1000);
+        assert!(contagem("rais") > 900);
         assert!(contagem("caged") > 200);
     }
 }
