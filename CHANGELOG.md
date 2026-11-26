@@ -5,6 +5,13 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.133.0] - 2026-11-26
+
+### Adicionado
+
+- Fonte `transparencia-beneficios`: tarefas divididas por UF — cada subtarefa cobre ~200 municípios (~2 min) em vez de 5.570 (~62 min), permitindo progresso visível no painel e retomada granular após interrupções. Total: 6.966 tarefas (258 competências × 27 UFs).
+- `PORTAL_TRANSPARENCIA_TOKEN` adicionado ao serviço `agendador` no `docker-compose.yml`.
+
 ## [0.132.9] - 2026-11-26
 
 ### Corrigido
