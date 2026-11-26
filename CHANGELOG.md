@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.7] - 2026-11-26
+
+### Corrigido
+
+- Fonte `macro_intl`: user-agent customizado (`curl/8.0`) para contornar bloqueio do Akamai WAF em data.imf.org que rejeita o user-agent padrão do projeto com HTTP 403.
+
 ## [0.132.6] - 2026-11-26
 
 ### Corrigido
