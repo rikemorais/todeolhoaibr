@@ -5,6 +5,12 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.132.5] - 2026-11-25
+
+### Corrigido
+
+- Corrigidas 71 falhas 404 na fonte `trabalho`: a RAIS 2018-2019 migrou de per-UF para per-região no FTP do MTE (`ANO_CORTE_RAIS` baixado de 2020 para 2018); ESTB < 2007, MA 1985 e PA 1986 marcados como ausência tolerada; CAGED EXC < 2020-04 e FOR < 2020-02 idem (tipos não publicados nos meses iniciais).
+
 ## [0.132.4] - 2026-11-25
 
 ### Corrigido
