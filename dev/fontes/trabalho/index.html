@@ -1898,16 +1898,16 @@ empregador) e de <strong>estabelecimentos</strong>.</p>
 </thead>
 <tbody>
 <tr>
-<td>1985–2019</td>
+<td>1985–2017</td>
 <td>per-UF (<code>{UF}{ANO}.7z</code>)</td>
 <td>27 UFs + 1 ESTB</td>
-<td style="text-align: right;">980</td>
+<td style="text-align: right;">924</td>
 </tr>
 <tr>
-<td>2020–2025</td>
+<td>2018–2025</td>
 <td>per-região (<code>RAIS_VINC_PUB_{REG}.7z</code>)</td>
-<td>6 regiões + NI + ESTAB</td>
-<td style="text-align: right;">48</td>
+<td>6 regiões + ESTAB (+ NI desde 2022)</td>
+<td style="text-align: right;">60</td>
 </tr>
 </tbody>
 </table>
@@ -1925,12 +1925,12 @@ janeiro de 2020.</p>
 <tbody>
 <tr>
 <td>2020-01 a 2026-11</td>
-<td>MOV, FOR, EXC</td>
-<td style="text-align: right;">249</td>
+<td>MOV (desde 01), FOR (desde 02), EXC (desde 04)</td>
+<td style="text-align: right;">245</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Total: ~1 277 tarefas, sob demanda.</strong></p>
+<p><strong>Total: 1 229 tarefas, sob demanda.</strong></p>
 <h2 id="sobre-a-fonte">Sobre a fonte<a class="headerlink" href="#sobre-a-fonte" title="Permanent link">&para;</a></h2>
 <p>O PDET (Programa de Disseminação das Estatísticas do Trabalho) publica os
 microdados em um servidor FTP anônimo:</p>
@@ -1939,8 +1939,8 @@ microdados em um servidor FTP anônimo:</p>
 </code></pre></div>
 <p>A RAIS mudou o formato de distribuição em 2020: antes era um arquivo por UF
 (27 × ano), depois passou a ser por região geográfica (6 × ano). O arquivo
-<code>NI</code> (não identificado) e o ano mais recente usam <code>aceitar_ausencia()</code> porque
-a publicação pode atrasar.</p>
+<code>NI</code> (não identificado) só existe no FTP a partir de 2022; o ano mais
+recente usa <code>aceitar_ausencia()</code> porque a publicação pode atrasar.</p>
 <p>Tocantins (TO) foi criado em 1988 e só aparece no FTP a partir de 1990.
 Para os anos 1985–1989, o download de TO aceita ausência.</p>
 <h2 id="protocolo">Protocolo<a class="headerlink" href="#protocolo" title="Permanent link">&para;</a></h2>
