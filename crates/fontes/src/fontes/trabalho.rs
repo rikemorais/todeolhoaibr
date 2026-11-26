@@ -32,6 +32,9 @@ const REGIOES: [&str; 6] = ["CENTRO_OESTE", "MG_ES_RJ", "NORDESTE", "NORTE", "SP
 ///
 /// A RAIS mudou o formato dos arquivos em 2018: de per-UF (27 arquivos)
 /// para per-região (6 arquivos).
+///
+/// O Novo CAGED publica três tipos: MOV (desde 2020-01), FOR (desde
+/// 2020-02) e EXC (desde 2020-04).
 pub struct FonteTrabalho;
 
 impl FonteDeDados for FonteTrabalho {
