@@ -124,6 +124,10 @@ impl FonteDeDados for FonteTransparenciaServidoresAtivos {
         true
     }
 
+    fn usar_tls_nativo(&self) -> bool {
+        true
+    }
+
     fn perfil_http(&self) -> PerfilHttp {
         perfil_http_cgu()
     }

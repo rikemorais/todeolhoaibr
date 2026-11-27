@@ -63,7 +63,7 @@ services:
       <<: *ambiente-s3
     ports:
       - "127.0.0.1:${TODEOLHO_PAINEL_PORTA:-8080}:8080"
-    mem_limit: 64m
+    mem_limit: 512m
     restart: unless-stopped
 
   # Abre o menu de seleção: docker compose run --rm ingestao
