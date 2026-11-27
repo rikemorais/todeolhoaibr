@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ArmazenamentoS3","ClienteDespacho","ClienteFtp","ClienteHttpComRetentativas","ConfiguracaoS3","HistoricoS3","PoliticaDeRetentativas"]};
