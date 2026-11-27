@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+pub mod catalogo;
 pub mod contexto;
 pub mod dag;
 pub mod decisao;
@@ -19,6 +20,7 @@ pub mod raw;
 pub mod selecao;
 pub mod tarefa;
 
+pub use catalogo::{CatalogoDeFontes, DescricaoDeFonte, DescricaoDeTarefa};
 pub use contexto::{ContextoDeExecucao, ProgressoDaTarefa};
 pub use dag::DagDeIngestao;
 pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};

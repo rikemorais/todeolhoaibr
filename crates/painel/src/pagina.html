@@ -65,6 +65,14 @@ header {
 }
 .marca h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .marca p { color: var(--texto-2); font-size: 13px; }
+.abas-nav { display: flex; gap: 4px; margin-top: 6px; }
+.aba {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid transparent;
+  background: none; cursor: pointer; font-size: 13px; font-weight: 500;
+  color: var(--texto-2); transition: background 0.15s, color 0.15s;
+}
+.aba:hover { background: var(--superficie-2); }
+.aba-ativa { color: var(--destaque); border-color: var(--destaque); background: var(--superficie-2); }
 #conexao { color: var(--texto-2); font-size: 13px; text-align: right; }
 
 #aviso {
@@ -199,6 +207,38 @@ main {
 .btn-acao:disabled { opacity: 0.5; cursor: default; }
 .btn-acao.perigo { color: var(--falha); border-color: var(--falha); }
 .btn-acao.perigo:hover:not(:disabled) { background: var(--falha-fundo); }
+
+.grade-fontes {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px; padding: 16px 24px;
+}
+.cartao-fonte {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px;
+  padding: 16px 18px; cursor: pointer; transition: border-color 0.15s;
+}
+.cartao-fonte:hover { border-color: var(--texto-2); }
+.cartao-fonte-sel { border-color: var(--destaque); }
+.cartao-fonte h3 { font-size: 15px; font-weight: 700; }
+.cartao-fonte .descricao { color: var(--texto-2); font-size: 13px; margin-top: 2px; }
+.cartao-fonte .meta { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+.cartao-fonte .contagem-tarefas { color: var(--texto-2); font-size: 12px; }
+.tela-fontes { display: grid; grid-template-columns: 320px 1fr; gap: 0; min-height: calc(100vh - 70px); grid-column: 1 / -1; }
+.lista-fontes {
+  overflow-y: auto; max-height: calc(100vh - 70px); padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  border-right: 1px solid var(--borda);
+}
+.detalhe-fonte { overflow-y: auto; max-height: calc(100vh - 70px); padding: 16px 24px; }
+.busca-fontes {
+  width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--borda);
+  background: var(--superficie); color: var(--texto); font-size: 14px;
+  margin-bottom: 8px;
+}
+.busca-fontes::placeholder { color: var(--texto-2); }
+@media (max-width: 700px) {
+  .tela-fontes { grid-template-columns: 1fr; }
+  .lista-fontes { max-height: 40vh; border-right: none; border-bottom: 1px solid var(--borda); }
+}
 .paginacao .info-pagina { font-variant-numeric: tabular-nums; }
 
 @media (max-width: 860px) {
@@ -219,7 +259,10 @@ main {
 <header>
   <div class="marca">
     <h1>Tô De Olho Aí</h1>
-    <p>Execuções de ingestão</p>
+    <nav class="abas-nav">
+      <button class="aba aba-ativa" data-aba="execucoes" type="button">Execuções</button>
+      <button class="aba" data-aba="fontes" type="button">Fontes</button>
+    </nav>
   </div>
   <div id="conexao" role="status"></div>
 </header>
@@ -645,6 +688,7 @@ function controlesDePaginacao() {
 }
 
 function desenhar() {
+  if (abaAtiva !== "execucoes") return;
   const conteudo = document.getElementById("conteudo");
 
   if (execucoes.length === 0 && !filtroSituacao) {
@@ -750,6 +794,232 @@ async function atualizar() {
   }
 }
 
+// --- Navegação por abas ---
+let abaAtiva = "execucoes";
+let fontesCarregadas = [];
+let fonteSelecionada = null;
+let buscaFontes = "";
+
+document.querySelectorAll(".aba").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.aba === abaAtiva) return;
+    abaAtiva = btn.dataset.aba;
+    document.querySelectorAll(".aba").forEach((b) => b.classList.toggle("aba-ativa", b === btn));
+    if (abaAtiva === "fontes" && fontesCarregadas.length === 0) carregarFontes();
+    else desenharAba();
+  });
+});
+
+function desenharAba() {
+  if (abaAtiva === "execucoes") desenhar();
+  else desenharFontes();
+}
+
+async function carregarFontes() {
+  const conteudo = document.getElementById("conteudo");
+  conteudo.replaceChildren(el("div", { class: "painel vazio" },
+    el("h2", null, "Carregando fontes...")));
+  try {
+    const resp = await fetch("/api/fontes");
+    if (!resp.ok) throw new Error("Falha ao carregar fontes");
+    fontesCarregadas = await resp.json();
+    fontesCarregadas.sort((a, b) => a.nome.localeCompare(b.nome));
+    desenharFontes();
+  } catch (erro) {
+    conteudo.replaceChildren(el("div", { class: "painel vazio" },
+      el("h2", null, "Erro ao carregar fontes"),
+      el("p", null, erro.message)));
+  }
+}
+
+function fonteFiltrada() {
+  if (!buscaFontes) return fontesCarregadas;
+  const termo = buscaFontes.toLowerCase();
+  return fontesCarregadas.filter((f) =>
+    f.nome.toLowerCase().includes(termo) || f.descricao.toLowerCase().includes(termo));
+}
+
+function cartaoFonte(fonte) {
+  const sel = fonteSelecionada === fonte.nome;
+  const div = el("div", {
+    class: `cartao-fonte${sel ? " cartao-fonte-sel" : ""}`,
+  },
+    el("h3", null, fonte.nome),
+    el("p", { class: "descricao" }, fonte.descricao),
+    el("div", { class: "meta" },
+      ...fonte.camadas.map((c) => seloCamada(c)),
+      el("span", { class: "contagem-tarefas" },
+        `${fonte.tarefas.length} tarefa${fonte.tarefas.length !== 1 ? "s" : ""}`),
+      fonte.sob_demanda ? selo({ texto: "Sob demanda", classe: "alerta" }) : null));
+  div.addEventListener("click", () => {
+    fonteSelecionada = fonte.nome;
+    desenharFontes();
+  });
+  return div;
+}
+
+function detalheDaFonte(fonte) {
+  if (!fonte) {
+    return el("div", { class: "detalhe-fonte" },
+      el("div", { class: "painel vazio" },
+        el("h2", null, "Selecione uma fonte"),
+        el("p", null, "Clique em uma fonte à esquerda para ver suas tarefas.")));
+  }
+
+  const niveis = calcularNiveis(fonte.tarefas);
+  const grafo = desenharGrafoDeFonte(fonte.nome, fonte.tarefas, niveis);
+
+  return el("div", { class: "detalhe-fonte" },
+    el("section", { class: "painel" },
+      el("div", { class: "titulo-execucao" },
+        el("h2", null, fonte.nome),
+        ...fonte.camadas.map((c) => seloCamada(c)),
+        fonte.sob_demanda ? selo({ texto: "Sob demanda", classe: "alerta" }) : null),
+      el("p", { class: "detalhe-tarefa" }, fonte.descricao),
+      el("div", { class: "numeros" },
+        numero(String(fonte.tarefas.length), fonte.tarefas.length === 1 ? "tarefa" : "tarefas"),
+        numero(String(niveis.length), niveis.length === 1 ? "nível" : "níveis"),
+        numero(fonte.camadas.join(", "), fonte.camadas.length === 1 ? "camada" : "camadas"))),
+    el("section", { class: "painel" },
+      el("h3", { style: "margin-bottom: 12px" }, "Grafo de tarefas"),
+      el("div", { class: "grafo" }, grafo)),
+    el("section", { class: "painel" },
+      el("h3", { style: "margin-bottom: 8px" }, "Lista de tarefas"),
+      tabelaDeTarefasDaFonte(fonte)));
+}
+
+function calcularNiveis(tarefas) {
+  const dependentes = {};
+  const nomes = new Set();
+  for (const t of tarefas) {
+    nomes.add(t.nome);
+    dependentes[t.nome] = t.depende_de || [];
+  }
+  const nivelDe = {};
+  function nivel(nome) {
+    if (nivelDe[nome] !== undefined) return nivelDe[nome];
+    const deps = (dependentes[nome] || []).filter((d) => nomes.has(d));
+    if (deps.length === 0) { nivelDe[nome] = 0; return 0; }
+    const n = 1 + Math.max(...deps.map(nivel));
+    nivelDe[nome] = n;
+    return n;
+  }
+  for (const t of tarefas) nivel(t.nome);
+  const maxNivel = Math.max(0, ...Object.values(nivelDe));
+  const niveis = [];
+  for (let i = 0; i <= maxNivel; i++) {
+    niveis.push(tarefas.filter((t) => nivelDe[t.nome] === i).map((t) => t.nome));
+  }
+  return niveis;
+}
+
+function desenharGrafoDeFonte(fonte, tarefas, niveis) {
+  const nomesSet = new Set(tarefas.map((t) => t.nome));
+  const deps = {};
+  for (const t of tarefas) deps[t.nome] = (t.depende_de || []).filter((d) => nomesSet.has(d));
+
+  const LN = 160, AN = 32, EH = 48, EV = 50;
+  const totalLargura = niveis.length * (LN + EH) - EH + 40;
+  const maxAltura = Math.max(...niveis.map((n) => n.length));
+  const totalAltura = maxAltura * (AN + EV) - EV + 40;
+
+  const svgEl = svg("svg", {
+    viewBox: `0 0 ${totalLargura} ${totalAltura}`,
+    width: totalLargura, height: totalAltura,
+  });
+
+  const posicoes = {};
+  for (let i = 0; i < niveis.length; i++) {
+    const nivel = niveis[i];
+    const alturaGrupo = nivel.length * (AN + EV) - EV;
+    const y0 = (totalAltura - alturaGrupo) / 2;
+    for (let j = 0; j < nivel.length; j++) {
+      const x = 20 + i * (LN + EH);
+      const y = y0 + j * (AN + EV);
+      posicoes[nivel[j]] = { x, y };
+    }
+  }
+
+  for (const t of tarefas) {
+    for (const dep of deps[t.nome] || []) {
+      if (!posicoes[dep]) continue;
+      const de = posicoes[dep];
+      const para = posicoes[t.nome];
+      svgEl.appendChild(svg("line", {
+        x1: de.x + LN, y1: de.y + AN / 2,
+        x2: para.x, y2: para.y + AN / 2,
+        class: "aresta",
+      }));
+      svgEl.appendChild(svg("polygon", {
+        points: `${para.x},${para.y + AN / 2} ${para.x - 6},${para.y + AN / 2 - 4} ${para.x - 6},${para.y + AN / 2 + 4}`,
+        class: "ponta",
+      }));
+    }
+  }
+
+  for (const t of tarefas) {
+    const pos = posicoes[t.nome];
+    if (!pos) continue;
+    svgEl.appendChild(svg("rect", {
+      x: pos.x, y: pos.y, width: LN, height: AN, rx: 6,
+      class: "no no-neutro",
+    }));
+    const texto = svg("text", {
+      x: pos.x + LN / 2, y: pos.y + AN / 2 + 4,
+      "text-anchor": "middle",
+    });
+    texto.textContent = abreviar(t.nome);
+    svgEl.appendChild(texto);
+  }
+
+  return svgEl;
+}
+
+function tabelaDeTarefasDaFonte(fonte) {
+  const linhas = fonte.tarefas.map((t) =>
+    el("tr", null,
+      el("td", { class: "nome-tarefa" }, t.nome),
+      el("td", null,
+        (t.depende_de || []).length > 0
+          ? (t.depende_de || []).join(", ")
+          : el("span", { class: "detalhe-tarefa" }, "nenhuma"))));
+  return el("div", { class: "rolagem-tabela" },
+    el("table", { class: "tarefas" },
+      el("thead", null, el("tr", null,
+        el("th", { scope: "col" }, "Tarefa"),
+        el("th", { scope: "col" }, "Depende de"))),
+      el("tbody", null, ...linhas)));
+}
+
+function desenharFontes() {
+  const conteudo = document.getElementById("conteudo");
+  const visiveis = fonteFiltrada();
+  const fonte = fonteSelecionada
+    ? fontesCarregadas.find((f) => f.nome === fonteSelecionada) || null
+    : null;
+
+  const input = el("input", {
+    class: "busca-fontes",
+    type: "search",
+    placeholder: `Buscar entre ${fontesCarregadas.length} fontes...`,
+    value: buscaFontes,
+  });
+  input.addEventListener("input", (e) => {
+    buscaFontes = e.target.value;
+    desenharFontes();
+  });
+
+  const lista = el("div", { class: "lista-fontes" },
+    input,
+    ...visiveis.map(cartaoFonte));
+
+  conteudo.replaceChildren(el("div", { class: "tela-fontes" }, lista, detalheDaFonte(fonte)));
+  conteudo.querySelector(".busca-fontes")?.focus();
+  const sel = conteudo.querySelector(".busca-fontes");
+  if (sel) sel.selectionStart = sel.selectionEnd = buscaFontes.length;
+}
+
+// --- Inicialização ---
 selecionada = decodeURIComponent(location.hash.slice(1)) || null;
 atualizar();
 </script>
