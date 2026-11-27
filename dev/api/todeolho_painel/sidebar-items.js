@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["rotas","servir"]};
+window.SIDEBAR_ITEMS = {"fn":["rotas","rotas_com_sinalizador","servir","servir_com_sinalizador"]};
