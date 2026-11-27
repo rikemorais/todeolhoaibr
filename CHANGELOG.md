@@ -5,6 +5,22 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.134.0] - 2026-11-27
+
+### Adicionado
+
+- Painel: filtro por situação (Sucesso, Com falhas, Em andamento, Interrompida) e paginação da lista de execuções.
+- Painel: envelope paginado na API (`/api/execucoes?situacao=&pagina=&por_pagina=`) com campo `ha_andamento` para controle de polling.
+- Painel: validação de filtro — valores inválidos de `situacao` retornam 400 Bad Request.
+
+### Corrigido
+
+- Consulta analítica: views com mais de 10.000 arquivos Parquet (ex.: `bronze_transparencia_beneficios` com 93.369) são omitidas com aviso, evitando OOM do DuckDB. Configurável via `TODEOLHO_MAX_PARQUETS_POR_VIEW`.
+- Consulta analítica: `mem_limit` do container aumentado de 512 MB para 1 GB.
+- Painel: botões de paginação ficavam sempre desabilitados (`setAttribute("disabled", undefined)` criava o atributo).
+- Painel: troca rápida de filtro/página podia sobrescrever resultados com resposta obsoleta (adicionado contador de geração).
+- Painel: polling usava intervalo lento quando execução em andamento estava fora da página filtrada.
+
 ## [0.133.1] - 2026-11-27
 
 ### Corrigido
