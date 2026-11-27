@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DescricaoDeFonte","DescricaoDeTarefa"],"trait":["CatalogoDeFontes"]};
+window.SIDEBAR_ITEMS = {"struct":["DescricaoDeFonte","DescricaoDeTarefa","PedidoDeExecucao","RespostaDeDespacho"],"trait":["CatalogoDeFontes","DispachadorDeExecucoes"]};
