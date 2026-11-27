@@ -207,6 +207,8 @@ main {
 .btn-acao:disabled { opacity: 0.5; cursor: default; }
 .btn-acao.perigo { color: var(--falha); border-color: var(--falha); }
 .btn-acao.perigo:hover:not(:disabled) { background: var(--falha-fundo); }
+.btn-acao.primario { color: var(--destaque); border-color: var(--destaque); }
+.btn-acao.primario:hover:not(:disabled) { background: rgba(217, 164, 6, 0.12); }
 
 .grade-fontes {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -419,6 +421,30 @@ async function interromperExecucao(id, btn) {
   } catch {
     btn.textContent = "Falha na conexão";
     setTimeout(() => { btn.disabled = false; btn.textContent = "Interromper"; }, 3000);
+  }
+}
+
+async function executarFonte(nome, camadas, btn) {
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Despachando…";
+  try {
+    const resp = await fetch(`/api/fontes/${encodeURIComponent(nome)}/executar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ camadas }),
+    });
+    if (!resp.ok) {
+      const corpo = await resp.json().catch(() => ({}));
+      btn.textContent = corpo.erro || "Erro ao despachar";
+      setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 3000);
+      return;
+    }
+    btn.textContent = "Despachado ✓";
+    setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 4000);
+  } catch {
+    btn.textContent = "Falha na conexão";
+    setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 3000);
   }
 }
 
@@ -869,6 +895,20 @@ function detalheDaFonte(fonte) {
   const niveis = calcularNiveis(fonte.tarefas);
   const grafo = desenharGrafoDeFonte(fonte.nome, fonte.tarefas, niveis);
 
+  const botoesDeExecucao = [];
+  for (const camada of fonte.camadas) {
+    const btn = el("button", { class: "btn-acao primario", type: "button" },
+      `▶ Executar ${camada}`);
+    btn.addEventListener("click", () => executarFonte(fonte.nome, [camada], btn));
+    botoesDeExecucao.push(btn);
+  }
+  if (fonte.camadas.length > 1) {
+    const btnTudo = el("button", { class: "btn-acao primario", type: "button" },
+      "▶ Executar tudo");
+    btnTudo.addEventListener("click", () => executarFonte(fonte.nome, fonte.camadas, btnTudo));
+    botoesDeExecucao.push(btnTudo);
+  }
+
   return el("div", { class: "detalhe-fonte" },
     el("section", { class: "painel" },
       el("div", { class: "titulo-execucao" },
@@ -879,7 +919,8 @@ function detalheDaFonte(fonte) {
       el("div", { class: "numeros" },
         numero(String(fonte.tarefas.length), fonte.tarefas.length === 1 ? "tarefa" : "tarefas"),
         numero(String(niveis.length), niveis.length === 1 ? "nível" : "níveis"),
-        numero(fonte.camadas.join(", "), fonte.camadas.length === 1 ? "camada" : "camadas"))),
+        numero(fonte.camadas.join(", "), fonte.camadas.length === 1 ? "camada" : "camadas")),
+      el("div", { class: "acoes-execucao" }, ...botoesDeExecucao)),
     el("section", { class: "painel" },
       el("h3", { style: "margin-bottom: 12px" }, "Grafo de tarefas"),
       el("div", { class: "grafo" }, grafo)),

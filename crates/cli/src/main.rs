@@ -19,9 +19,9 @@ use todeolho_infraestrutura::{
 };
 use todeolho_nucleo::{
     ArmazenamentoRaw, Camada, CatalogoDeFontes, ContextoDeExecucao, DagDeIngestao,
-    DescricaoDeFonte, DescricaoDeTarefa, EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas,
-    FonteDeDados, PerfilHttp, RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao,
-    Tarefa, TarefaPlanejada,
+    DescricaoDeFonte, DescricaoDeTarefa, DispachadorDeExecucoes, EstadoDaTarefa, ExecutorDeDag,
+    FiltroDeTarefas, FonteDeDados, PedidoDeExecucao, PerfilHttp, RegistradorDeExecucao,
+    RegistroDeExecucao, RelatorioDaExecucao, RespostaDeDespacho, Tarefa, TarefaPlanejada,
 };
 use todeolho_refino::{
     FiltrosSqlEmendas, FonteDeRefino, SQL_CNPJ_EMPRESAS, SQL_CNPJ_ESTABELECIMENTOS,
@@ -185,6 +185,7 @@ async fn rodar(cli: Cli) -> Result<bool> {
                 historico.clone(),
                 Some(historico),
                 Some(Arc::new(CatalogoCombinado)),
+                Some(Arc::new(DispachadorCombinado)),
             )
             .await?;
             Ok(true)
@@ -228,6 +229,76 @@ impl CatalogoDeFontes for CatalogoCombinado {
             })
             .collect()
     }
+}
+
+struct DispachadorCombinado;
+
+#[async_trait::async_trait]
+impl DispachadorDeExecucoes for DispachadorCombinado {
+    async fn despachar(
+        &self,
+        fonte: &str,
+        pedido: &PedidoDeExecucao,
+    ) -> Result<RespostaDeDespacho, todeolho_nucleo::ErroDeIngestao> {
+        let nome = fonte.to_owned();
+        let camadas = pedido.camadas.clone();
+        let mut ids = Vec::new();
+
+        for camada in &camadas {
+            let id = format!(
+                "{}-{}",
+                Utc::now().format("%Y%m%dT%H%M%SZ"),
+                Uuid::new_v4().simple()
+            );
+            ids.push(id.clone());
+
+            let nome_clonado = nome.clone();
+            let camada = *camada;
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("falha ao criar runtime para despacho");
+                if let Err(erro) = rt.block_on(despachar_execucao(nome_clonado.clone(), camada)) {
+                    eprintln!("falha ao despachar execução {nome_clonado} ({camada:?}): {erro:#}");
+                }
+            });
+        }
+
+        Ok(RespostaDeDespacho { ids })
+    }
+}
+
+async fn despachar_execucao(nome: String, camada: Camada) -> Result<()> {
+    match camada {
+        Camada::Raw => {
+            let fonte = buscar_fonte(&nome)?;
+            let tarefas = fonte.criar_tarefas();
+            let selecionada = FonteSelecionada {
+                nome,
+                perfil_http: fonte.perfil_http_das_tarefas(&tarefas),
+                tls_nativo: fonte.usar_tls_nativo(),
+                tempo_sem_dados: fonte.tempo_sem_dados(),
+                tarefas,
+            };
+            let contexto = preparar_contexto().await?;
+            executar(vec![selecionada], contexto, true).await?;
+        }
+        Camada::Bronze => {
+            let fontes = fontes_de_refino(Some(nome), false)?;
+            let raw_s3 = ArmazenamentoS3::novo(configuracao_s3("raw")?)?;
+            let raw: Arc<dyn ArmazenamentoRaw> =
+                Arc::new(ArmazenamentoS3::novo(configuracao_s3("raw")?)?);
+            let bronze: Arc<dyn ArmazenamentoRaw> =
+                Arc::new(ArmazenamentoS3::novo(configuracao_s3("bronze")?)?);
+            bronze.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
+            passada(&fontes, &raw_s3, &raw, &bronze, false).await?;
+        }
+        Camada::Silver => {
+            eprintln!("despacho de silver pelo painel ainda não implementado: {nome}");
+        }
+    }
+    Ok(())
 }
 
 fn buscar_fonte(nome: &str) -> Result<Box<dyn FonteDeDados>> {
