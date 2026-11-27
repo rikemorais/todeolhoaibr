@@ -20,7 +20,10 @@ pub mod raw;
 pub mod selecao;
 pub mod tarefa;
 
-pub use catalogo::{CatalogoDeFontes, DescricaoDeFonte, DescricaoDeTarefa};
+pub use catalogo::{
+    CatalogoDeFontes, DescricaoDeFonte, DescricaoDeTarefa, DispachadorDeExecucoes,
+    PedidoDeExecucao, RespostaDeDespacho,
+};
 pub use contexto::{ContextoDeExecucao, ProgressoDaTarefa};
 pub use dag::DagDeIngestao;
 pub use decisao::{DecisaoDeIngestao, EstadoNaRaw, MotivoDeIngestao, decidir};

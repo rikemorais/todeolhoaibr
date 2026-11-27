@@ -1,7 +1,11 @@
 //! Informações estáticas do catálogo de fontes, usadas pelo painel para listar
 //! as fontes disponíveis sem depender das implementações concretas.
 
-use serde::Serialize;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+
+use crate::erros::ErroDeIngestao;
+use crate::historico::Camada;
 
 /// Descrição de uma fonte e suas tarefas, sem nenhuma lógica de execução.
 #[derive(Debug, Clone, Serialize)]
@@ -31,4 +35,30 @@ pub struct DescricaoDeTarefa {
 pub trait CatalogoDeFontes: Send + Sync {
     /// Todas as fontes conhecidas.
     fn fontes(&self) -> Vec<DescricaoDeFonte>;
+}
+
+/// Pedido de execução recebido pelo painel.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PedidoDeExecucao {
+    /// Camadas a executar (ex.: `[Raw]`, `[Raw, Bronze]`).
+    pub camadas: Vec<Camada>,
+}
+
+/// Resposta de um despacho bem-sucedido.
+#[derive(Debug, Clone, Serialize)]
+pub struct RespostaDeDespacho {
+    /// IDs das execuções iniciadas (uma por camada).
+    pub ids: Vec<String>,
+}
+
+/// Dispara execuções em background a partir do painel.
+#[async_trait]
+pub trait DispachadorDeExecucoes: Send + Sync {
+    /// Inicia a execução da fonte nas camadas pedidas. Retorna imediatamente
+    /// com os IDs das execuções iniciadas.
+    async fn despachar(
+        &self,
+        fonte: &str,
+        pedido: &PedidoDeExecucao,
+    ) -> Result<RespostaDeDespacho, ErroDeIngestao>;
 }

@@ -13,8 +13,8 @@ use axum::{Router, middleware};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use todeolho_nucleo::{
-    CatalogoDeFontes, ConsultaDeExecucoes, RegistroDeExecucao, SinalizadorDeExecucoes,
-    SituacaoDaExecucao,
+    CatalogoDeFontes, ConsultaDeExecucoes, DispachadorDeExecucoes, PedidoDeExecucao,
+    RegistroDeExecucao, SinalizadorDeExecucoes, SituacaoDaExecucao,
 };
 use tracing::{error, info, warn};
 
@@ -60,11 +60,12 @@ struct EstadoDoPainel {
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
     catalogo: Option<Arc<dyn CatalogoDeFontes>>,
+    dispachador: Option<Arc<dyn DispachadorDeExecucoes>>,
 }
 
 /// Monta as rotas do painel.
 pub fn rotas(consulta: Arc<dyn ConsultaDeExecucoes>) -> Router {
-    rotas_completas(consulta, None, None)
+    rotas_completas(consulta, None, None, None)
 }
 
 /// Monta as rotas do painel com suporte a interrupção de execuções.
@@ -72,7 +73,7 @@ pub fn rotas_com_sinalizador(
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
 ) -> Router {
-    rotas_completas(consulta, sinalizador, None)
+    rotas_completas(consulta, sinalizador, None, None)
 }
 
 /// Monta as rotas do painel com todas as capacidades opcionais.
@@ -80,17 +81,20 @@ pub fn rotas_completas(
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
     catalogo: Option<Arc<dyn CatalogoDeFontes>>,
+    dispachador: Option<Arc<dyn DispachadorDeExecucoes>>,
 ) -> Router {
     let estado = EstadoDoPainel {
         consulta,
         sinalizador,
         catalogo,
+        dispachador,
     };
     Router::new()
         .route("/", get(pagina))
         .route("/api/execucoes", get(execucoes))
         .route("/api/execucoes/{id}/interromper", post(interromper))
         .route("/api/fontes", get(listar_fontes))
+        .route("/api/fontes/{nome}/executar", post(executar_fonte))
         .layer(middleware::map_response(cabecalhos_de_seguranca))
         .with_state(estado)
 }
@@ -100,7 +104,7 @@ pub async fn servir(
     endereco: SocketAddr,
     consulta: Arc<dyn ConsultaDeExecucoes>,
 ) -> std::io::Result<()> {
-    servir_completo(endereco, consulta, None, None).await
+    servir_completo(endereco, consulta, None, None, None).await
 }
 
 /// Serve o painel com suporte a interrupção.
@@ -109,7 +113,7 @@ pub async fn servir_com_sinalizador(
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
 ) -> std::io::Result<()> {
-    servir_completo(endereco, consulta, sinalizador, None).await
+    servir_completo(endereco, consulta, sinalizador, None, None).await
 }
 
 /// Serve o painel com todas as capacidades opcionais.
@@ -118,10 +122,15 @@ pub async fn servir_completo(
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
     catalogo: Option<Arc<dyn CatalogoDeFontes>>,
+    dispachador: Option<Arc<dyn DispachadorDeExecucoes>>,
 ) -> std::io::Result<()> {
     let ouvinte = tokio::net::TcpListener::bind(endereco).await?;
     info!(%endereco, "painel disponível");
-    axum::serve(ouvinte, rotas_completas(consulta, sinalizador, catalogo)).await
+    axum::serve(
+        ouvinte,
+        rotas_completas(consulta, sinalizador, catalogo, dispachador),
+    )
+    .await
 }
 
 async fn pagina() -> Html<&'static str> {
@@ -251,6 +260,49 @@ async fn listar_fontes(State(estado): State<EstadoDoPainel>) -> Response {
     };
 
     Json(catalogo.fontes()).into_response()
+}
+
+async fn executar_fonte(
+    State(estado): State<EstadoDoPainel>,
+    Path(nome): Path<String>,
+    Json(pedido): Json<PedidoDeExecucao>,
+) -> Response {
+    let Some(dispachador) = &estado.dispachador else {
+        return (
+            StatusCode::NOT_IMPLEMENTED,
+            Json(RespostaDeErro {
+                erro: "Despacho de execuções não disponível nesta instância.",
+            }),
+        )
+            .into_response();
+    };
+
+    if pedido.camadas.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(RespostaDeErro {
+                erro: "Informe ao menos uma camada.",
+            }),
+        )
+            .into_response();
+    }
+
+    match dispachador.despachar(&nome, &pedido).await {
+        Ok(resposta) => {
+            info!(fonte = %nome, ?pedido.camadas, "execução despachada");
+            Json(resposta).into_response()
+        }
+        Err(erro) => {
+            warn!(fonte = %nome, %erro, "falha ao despachar execução");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RespostaDeErro {
+                    erro: "Não foi possível despachar a execução.",
+                }),
+            )
+                .into_response()
+        }
+    }
 }
 
 async fn cabecalhos_de_seguranca(mut resposta: Response) -> Response {
