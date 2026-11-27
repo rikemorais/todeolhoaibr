@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["catalogo","csv_zip","decodificador","escritor","executor_sql","fontes","linhagem","silver","snapshot_bronze","tarefa"]};
