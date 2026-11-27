@@ -5,6 +5,14 @@ Todas as mudanças relevantes do projeto ficam registradas aqui.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto segue o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/). Veja o [ADR 0011](docs/adr/0011-versionamento-e-commits.md).
 
+## [0.133.1] - 2026-11-27
+
+### Corrigido
+
+- Painel: `mem_limit` aumentado de 64 MB para 512 MB — com 6.966 tarefas por execução (per-UF), o container excedia 64 MB e entrava em crash loop por OOM.
+- Fontes do Portal da Transparência: TLS nativo (`usar_tls_nativo`) habilitado em emendas, CPGF, servidores e inativos, além de benefícios.
+- Fonte `transparencia-beneficios`: HTTP 400 do Portal (limite de ~1.600 páginas) tratado como fim de paginação — a tarefa prossegue para o próximo município em vez de falhar.
+
 ## [0.133.0] - 2026-11-26
 
 ### Adicionado
