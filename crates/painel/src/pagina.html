@@ -236,6 +236,7 @@ function svg(tag, atributos, ...filhos) {
 
 function aplicar(no, atributos) {
   for (const [nome, valor] of Object.entries(atributos || {})) {
+    if (valor === undefined) continue;
     if (nome === "class") no.className = valor;
     else if (nome.startsWith("on")) no.addEventListener(nome.slice(2), valor);
     else no.setAttribute(nome, valor);
@@ -654,22 +655,30 @@ function urlDaApi() {
 }
 
 let temporizador = null;
+let geracao = 0;
 
 function forcarAtualizacao() {
+  geracao++;
+  ultimaResposta = "";
   if (temporizador) { clearTimeout(temporizador); temporizador = null; }
   atualizar();
 }
 
+let haAndamentoGlobal = false;
+
 async function atualizar() {
+  const minhaGeracao = geracao;
   const aviso = document.getElementById("aviso");
   const conexao = document.getElementById("conexao");
   try {
     const resposta = await fetch(urlDaApi());
+    if (geracao !== minhaGeracao) return;
     if (!resposta.ok) {
       const corpo = await resposta.json().catch(() => ({}));
       throw new Error(corpo.erro || `O painel respondeu com o status ${resposta.status}.`);
     }
     const texto = await resposta.text();
+    if (geracao !== minhaGeracao) return;
     const mudou = texto !== ultimaResposta;
     ultimaResposta = texto;
     const envelope = JSON.parse(texto);
@@ -678,19 +687,25 @@ async function atualizar() {
     paginacao.pagina = envelope.pagina;
     paginacao.por_pagina = envelope.por_pagina;
     paginacao.total_paginas = envelope.total_paginas;
+    haAndamentoGlobal = !!envelope.ha_andamento;
     aviso.hidden = true;
-    conexao.textContent = haAlgoEmAndamento()
+    const aoVivo = haAndamentoGlobal || haAlgoEmAndamento();
+    conexao.textContent = aoVivo
       ? "Acompanhando ao vivo"
       : `Atualizado às ${new Date().toLocaleTimeString("pt-BR")}`;
-    if (mudou || haAlgoEmAndamento()) desenhar();
+    if (mudou || aoVivo) desenhar();
   } catch (erro) {
+    if (geracao !== minhaGeracao) return;
     aviso.textContent = erro instanceof TypeError
       ? "Sem conexão com o painel. Tentando novamente..."
       : erro.message;
     aviso.hidden = false;
     conexao.textContent = "";
   }
-  temporizador = setTimeout(atualizar, haAlgoEmAndamento() ? 2000 : 8000);
+  if (geracao === minhaGeracao) {
+    const intervalo = (haAndamentoGlobal || haAlgoEmAndamento()) ? 2000 : 8000;
+    temporizador = setTimeout(atualizar, intervalo);
+  }
 }
 
 selecionada = decodeURIComponent(location.hash.slice(1)) || null;

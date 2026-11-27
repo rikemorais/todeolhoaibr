@@ -37,6 +37,7 @@ struct RespostaPaginada {
     pagina: usize,
     por_pagina: usize,
     total_paginas: usize,
+    ha_andamento: bool,
 }
 
 #[derive(Deserialize)]
@@ -99,10 +100,23 @@ async fn execucoes(
                 })
                 .collect();
 
-            if let Some(ref valor) = filtro.situacao
-                && let Some(situacao) = parse_situacao(valor)
-            {
-                visiveis.retain(|e| e.situacao == situacao);
+            let ha_andamento = visiveis
+                .iter()
+                .any(|e| e.situacao == SituacaoDaExecucao::EmAndamento);
+
+            if let Some(ref valor) = filtro.situacao {
+                match parse_situacao(valor) {
+                    Some(situacao) => visiveis.retain(|e| e.situacao == situacao),
+                    None => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(RespostaDeErro {
+                                erro: "Valor de situação inválido.",
+                            }),
+                        )
+                            .into_response();
+                    }
+                }
             }
 
             let total = visiveis.len();
@@ -122,6 +136,7 @@ async fn execucoes(
                 pagina: pagina_num,
                 por_pagina,
                 total_paginas,
+                ha_andamento,
             })
             .into_response()
         }
@@ -238,6 +253,7 @@ mod testes {
         assert_eq!(resposta["dados"][0]["id"], "viva");
         assert_eq!(resposta["dados"][0]["situacao"], "em_andamento");
         assert_eq!(resposta["dados"][1]["situacao"], "interrompida");
+        assert_eq!(resposta["ha_andamento"], true);
     }
 
     #[tokio::test]
@@ -253,6 +269,7 @@ mod testes {
         let resposta: serde_json::Value = serde_json::from_str(&corpo).unwrap();
         assert_eq!(resposta["total"], 1);
         assert_eq!(resposta["dados"][0]["id"], "pronta");
+        assert_eq!(resposta["ha_andamento"], true);
     }
 
     #[tokio::test]
@@ -271,6 +288,17 @@ mod testes {
         assert_eq!(resposta["total_paginas"], 2);
         assert_eq!(resposta["dados"].as_array().unwrap().len(), 1);
         assert_eq!(resposta["dados"][0]["id"], "c");
+        assert_eq!(resposta["ha_andamento"], false);
+    }
+
+    #[tokio::test]
+    async fn api_rejeita_situacao_invalida() {
+        let consulta = ConsultaFalsa(Ok(vec![registro_concluido("a", TimeDelta::seconds(10))]));
+
+        let (status, corpo, _) = obter(consulta, "/api/execucoes?situacao=inexistente").await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(corpo.contains("inválido"));
     }
 
     #[tokio::test]

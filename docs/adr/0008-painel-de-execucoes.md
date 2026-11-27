@@ -35,7 +35,7 @@ estado é calculado na leitura, e nada precisa corrigir o registro depois.
   o mesmo da ingestão: `todeolho painel`.
 - Serve uma única página HTML, embutida no binário, sem etapa de build e sem nada carregado de fora.
 - A página consulta a API a cada 2 segundos com execução em andamento, e a cada 8 segundos fora disso.
-- Mostra as 50 execuções mais recentes e, em cada uma, a DAG, o estado, o volume, a duração e o erro das tarefas.
+- Mostra as 200 execuções mais recentes, com filtro por situação e paginação, e em cada uma a DAG, o estado, o volume, a duração e o erro das tarefas.
 - Sem escolha explícita, acompanha a execução mais recente.
 
 **Segurança**
