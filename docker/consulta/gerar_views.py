@@ -305,8 +305,13 @@ def main() -> int:
             )
         )
         return 0
+    max_arquivos = int(os.environ.get("TODEOLHO_MAX_PARQUETS_POR_VIEW", "10000"))
+    omitidas = []
     for nome in sorted(tabelas):
         arquivos = sorted(set(tabelas[nome]))
+        if len(arquivos) > max_arquivos:
+            omitidas.append((nome, len(arquivos)))
+            continue
         lista = ", ".join("'" + a.replace("'", "''") + "'" for a in arquivos)
         print(f"CREATE OR REPLACE VIEW {nome} AS")
         print(
@@ -320,7 +325,10 @@ def main() -> int:
         colunas = inspecionar_colunas(sorted(set(tabelas_silver[nome])))
         if colunas:
             print(sql_qualidade(nome, colunas, chave, agregar_metricas(metricas_silver.get(nome, []))))
-    print(f"-- {len(tabelas)} view(s) Bronze/Silver geradas", file=sys.stderr)
+    for nome, quantidade in omitidas:
+        print(f"-- OMITIDA: {nome} ({quantidade} arquivos > {max_arquivos})", file=sys.stderr)
+    geradas = len(tabelas) - len(omitidas)
+    print(f"-- {geradas} view(s) Bronze/Silver geradas", file=sys.stderr)
     return 0
 
 

@@ -133,7 +133,7 @@ services:
     ports:
       # Só acessível a partir da própria máquina.
       - "127.0.0.1:${TODEOLHO_CONSULTA_PORTA:-4213}:4213"
-    mem_limit: 512m
+    mem_limit: 1g
     restart: unless-stopped
 
 volumes:
