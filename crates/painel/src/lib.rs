@@ -13,7 +13,8 @@ use axum::{Router, middleware};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use todeolho_nucleo::{
-    ConsultaDeExecucoes, RegistroDeExecucao, SinalizadorDeExecucoes, SituacaoDaExecucao,
+    CatalogoDeFontes, ConsultaDeExecucoes, RegistroDeExecucao, SinalizadorDeExecucoes,
+    SituacaoDaExecucao,
 };
 use tracing::{error, info, warn};
 
@@ -58,11 +59,12 @@ struct RespostaDeErro {
 struct EstadoDoPainel {
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+    catalogo: Option<Arc<dyn CatalogoDeFontes>>,
 }
 
 /// Monta as rotas do painel.
 pub fn rotas(consulta: Arc<dyn ConsultaDeExecucoes>) -> Router {
-    rotas_com_sinalizador(consulta, None)
+    rotas_completas(consulta, None, None)
 }
 
 /// Monta as rotas do painel com suporte a interrupção de execuções.
@@ -70,14 +72,25 @@ pub fn rotas_com_sinalizador(
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
 ) -> Router {
+    rotas_completas(consulta, sinalizador, None)
+}
+
+/// Monta as rotas do painel com todas as capacidades opcionais.
+pub fn rotas_completas(
+    consulta: Arc<dyn ConsultaDeExecucoes>,
+    sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+    catalogo: Option<Arc<dyn CatalogoDeFontes>>,
+) -> Router {
     let estado = EstadoDoPainel {
         consulta,
         sinalizador,
+        catalogo,
     };
     Router::new()
         .route("/", get(pagina))
         .route("/api/execucoes", get(execucoes))
         .route("/api/execucoes/{id}/interromper", post(interromper))
+        .route("/api/fontes", get(listar_fontes))
         .layer(middleware::map_response(cabecalhos_de_seguranca))
         .with_state(estado)
 }
@@ -87,7 +100,7 @@ pub async fn servir(
     endereco: SocketAddr,
     consulta: Arc<dyn ConsultaDeExecucoes>,
 ) -> std::io::Result<()> {
-    servir_com_sinalizador(endereco, consulta, None).await
+    servir_completo(endereco, consulta, None, None).await
 }
 
 /// Serve o painel com suporte a interrupção.
@@ -96,9 +109,19 @@ pub async fn servir_com_sinalizador(
     consulta: Arc<dyn ConsultaDeExecucoes>,
     sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
 ) -> std::io::Result<()> {
+    servir_completo(endereco, consulta, sinalizador, None).await
+}
+
+/// Serve o painel com todas as capacidades opcionais.
+pub async fn servir_completo(
+    endereco: SocketAddr,
+    consulta: Arc<dyn ConsultaDeExecucoes>,
+    sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+    catalogo: Option<Arc<dyn CatalogoDeFontes>>,
+) -> std::io::Result<()> {
     let ouvinte = tokio::net::TcpListener::bind(endereco).await?;
     info!(%endereco, "painel disponível");
-    axum::serve(ouvinte, rotas_com_sinalizador(consulta, sinalizador)).await
+    axum::serve(ouvinte, rotas_completas(consulta, sinalizador, catalogo)).await
 }
 
 async fn pagina() -> Html<&'static str> {
@@ -214,6 +237,20 @@ async fn interromper(
                 .into_response()
         }
     }
+}
+
+async fn listar_fontes(State(estado): State<EstadoDoPainel>) -> Response {
+    let Some(catalogo) = &estado.catalogo else {
+        return (
+            StatusCode::NOT_IMPLEMENTED,
+            Json(RespostaDeErro {
+                erro: "Catálogo de fontes não disponível nesta instância.",
+            }),
+        )
+            .into_response();
+    };
+
+    Json(catalogo.fontes()).into_response()
 }
 
 async fn cabecalhos_de_seguranca(mut resposta: Response) -> Response {

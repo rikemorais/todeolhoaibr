@@ -18,9 +18,10 @@ use todeolho_infraestrutura::{
     HistoricoS3, PoliticaDeRetentativas,
 };
 use todeolho_nucleo::{
-    ArmazenamentoRaw, Camada, ContextoDeExecucao, DagDeIngestao, EstadoDaTarefa, ExecutorDeDag,
-    FiltroDeTarefas, FonteDeDados, PerfilHttp, RegistradorDeExecucao, RegistroDeExecucao,
-    RelatorioDaExecucao, Tarefa, TarefaPlanejada,
+    ArmazenamentoRaw, Camada, CatalogoDeFontes, ContextoDeExecucao, DagDeIngestao,
+    DescricaoDeFonte, DescricaoDeTarefa, EstadoDaTarefa, ExecutorDeDag, FiltroDeTarefas,
+    FonteDeDados, PerfilHttp, RegistradorDeExecucao, RegistroDeExecucao, RelatorioDaExecucao,
+    Tarefa, TarefaPlanejada,
 };
 use todeolho_refino::{
     FiltrosSqlEmendas, FonteDeRefino, SQL_CNPJ_EMPRESAS, SQL_CNPJ_ESTABELECIMENTOS,
@@ -179,14 +180,53 @@ async fn rodar(cli: Cli) -> Result<bool> {
         Comando::Painel { endereco } => {
             let historico = Arc::new(historico()?);
             historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
-            todeolho_painel::servir_com_sinalizador(
+            todeolho_painel::servir_completo(
                 endereco,
                 historico.clone(),
                 Some(historico),
+                Some(Arc::new(CatalogoCombinado)),
             )
             .await?;
             Ok(true)
         }
+    }
+}
+
+struct CatalogoCombinado;
+
+impl CatalogoDeFontes for CatalogoCombinado {
+    fn fontes(&self) -> Vec<DescricaoDeFonte> {
+        let refino = catalogo_refino();
+        let nomes_refino: std::collections::HashSet<&str> =
+            refino.iter().map(|f| f.fonte_raw).collect();
+
+        catalogo()
+            .into_iter()
+            .map(|fonte| {
+                let nome = fonte.nome().to_owned();
+                let tarefas: Vec<DescricaoDeTarefa> = fonte
+                    .criar_tarefas()
+                    .iter()
+                    .map(|t| DescricaoDeTarefa {
+                        nome: t.tarefa.nome().to_owned(),
+                        depende_de: t.depende_de.clone(),
+                    })
+                    .collect();
+
+                let mut camadas = vec!["raw".to_owned()];
+                if nomes_refino.contains(nome.as_str()) {
+                    camadas.push("bronze".to_owned());
+                }
+
+                DescricaoDeFonte {
+                    descricao: fonte.descricao().to_owned(),
+                    sob_demanda: fonte.sob_demanda(),
+                    nome,
+                    camadas,
+                    tarefas,
+                }
+            })
+            .collect()
     }
 }
 
