@@ -10,6 +10,7 @@ use todeolho_nucleo::{
     CredencialHttp, ErroDeIngestao, FonteDeDados, LimiteHttp, PerfilHttp, ResumoDaTarefa, Tarefa,
     TarefaPlanejada, estado_na_raw, manifesto_vigente,
 };
+use tracing::warn;
 
 use crate::ingestao_http::TarefaDeIngestaoHttp;
 use crate::paginacao::EstrategiaDePaginacao;
@@ -274,7 +275,19 @@ impl Tarefa for TarefaProgramaCompetenciaUf {
             )
             .com_tamanho_tipico(TAMANHO_TIPICO)
             .com_limite_de_paginas(LIMITE_PAGINAS);
-            let parcial = tarefa.executar(contexto).await?;
+            let parcial = match tarefa.executar(contexto).await {
+                Ok(p) => p,
+                Err(ErroDeIngestao::Http { ref detalhe, .. })
+                    if detalhe.contains("400 Bad Request") =>
+                {
+                    warn!(
+                        municipio = codigo.as_str(),
+                        "API retornou 400; limite de paginação do Portal atingido, prosseguindo"
+                    );
+                    continue;
+                }
+                Err(e) => return Err(e),
+            };
             resumo.partes += parcial.partes;
             resumo.bytes += parcial.bytes;
             resumo.reaproveitada &= parcial.reaproveitada;
