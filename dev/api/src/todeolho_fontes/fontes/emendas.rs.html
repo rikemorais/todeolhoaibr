@@ -165,126 +165,130 @@
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="bool-val">true
 <a href=#166 id=166 data-nosnippet>166</a>    </span>}
 <a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">fn </span>perfil_http(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PerfilHttp {
-<a href=#169 id=169 data-nosnippet>169</a>        PerfilHttp {
-<a href=#170 id=170 data-nosnippet>170</a>            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
-<a href=#171 id=171 data-nosnippet>171</a>            credencial: <span class="prelude-val">Some</span>(CredencialHttp {
-<a href=#172 id=172 data-nosnippet>172</a>                host: HOST_CGU,
-<a href=#173 id=173 data-nosnippet>173</a>                variavel: <span class="string">"PORTAL_TRANSPARENCIA_TOKEN"</span>,
-<a href=#174 id=174 data-nosnippet>174</a>                cabecalho: <span class="string">"chave-api-dados"</span>,
-<a href=#175 id=175 data-nosnippet>175</a>                prefixo: <span class="string">""</span>,
-<a href=#176 id=176 data-nosnippet>176</a>            }),
-<a href=#177 id=177 data-nosnippet>177</a>            limite: <span class="prelude-val">Some</span>(LimiteHttp {
-<a href=#178 id=178 data-nosnippet>178</a>                host: HOST_CGU,
-<a href=#179 id=179 data-nosnippet>179</a>                requisicoes: <span class="number">90</span>,
-<a href=#180 id=180 data-nosnippet>180</a>                intervalo: Duration::from_secs(<span class="number">60</span>),
-<a href=#181 id=181 data-nosnippet>181</a>            }),
-<a href=#182 id=182 data-nosnippet>182</a>            agente: <span class="prelude-val">None</span>,
-<a href=#183 id=183 data-nosnippet>183</a>            aceitar_certificado_invalido: <span class="bool-val">false</span>,
-<a href=#184 id=184 data-nosnippet>184</a>        }
-<a href=#185 id=185 data-nosnippet>185</a>    }
-<a href=#186 id=186 data-nosnippet>186</a>
-<a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">fn </span>perfil_http_das_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>, tarefas: <span class="kw-2">&amp;</span>[TarefaPlanejada]) -&gt; PerfilHttp {
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">if </span>tarefas
-<a href=#189 id=189 data-nosnippet>189</a>            .iter()
-<a href=#190 id=190 data-nosnippet>190</a>            .any(|tarefa| tarefa.etiquetas.get(<span class="string">"origem"</span>).map(String::as_str) == <span class="prelude-val">Some</span>(<span class="string">"cgu"</span>))
-<a href=#191 id=191 data-nosnippet>191</a>        {
-<a href=#192 id=192 data-nosnippet>192</a>            <span class="self">self</span>.perfil_http()
-<a href=#193 id=193 data-nosnippet>193</a>        } <span class="kw">else </span>{
-<a href=#194 id=194 data-nosnippet>194</a>            PerfilHttp {
-<a href=#195 id=195 data-nosnippet>195</a>                redirecionamento: RedirecionamentoHttp::Bloquear,
-<a href=#196 id=196 data-nosnippet>196</a>                ..PerfilHttp::default()
-<a href=#197 id=197 data-nosnippet>197</a>            }
-<a href=#198 id=198 data-nosnippet>198</a>        }
-<a href=#199 id=199 data-nosnippet>199</a>    }
-<a href=#200 id=200 data-nosnippet>200</a>
-<a href=#201 id=201 data-nosnippet>201</a>    <span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt; {
-<a href=#202 id=202 data-nosnippet>202</a>        tarefas()
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">fn </span>usar_tls_nativo(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#169 id=169 data-nosnippet>169</a>        <span class="bool-val">true
+<a href=#170 id=170 data-nosnippet>170</a>    </span>}
+<a href=#171 id=171 data-nosnippet>171</a>
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">fn </span>perfil_http(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PerfilHttp {
+<a href=#173 id=173 data-nosnippet>173</a>        PerfilHttp {
+<a href=#174 id=174 data-nosnippet>174</a>            redirecionamento: todeolho_nucleo::RedirecionamentoHttp::Seguir,
+<a href=#175 id=175 data-nosnippet>175</a>            credencial: <span class="prelude-val">Some</span>(CredencialHttp {
+<a href=#176 id=176 data-nosnippet>176</a>                host: HOST_CGU,
+<a href=#177 id=177 data-nosnippet>177</a>                variavel: <span class="string">"PORTAL_TRANSPARENCIA_TOKEN"</span>,
+<a href=#178 id=178 data-nosnippet>178</a>                cabecalho: <span class="string">"chave-api-dados"</span>,
+<a href=#179 id=179 data-nosnippet>179</a>                prefixo: <span class="string">""</span>,
+<a href=#180 id=180 data-nosnippet>180</a>            }),
+<a href=#181 id=181 data-nosnippet>181</a>            limite: <span class="prelude-val">Some</span>(LimiteHttp {
+<a href=#182 id=182 data-nosnippet>182</a>                host: HOST_CGU,
+<a href=#183 id=183 data-nosnippet>183</a>                requisicoes: <span class="number">90</span>,
+<a href=#184 id=184 data-nosnippet>184</a>                intervalo: Duration::from_secs(<span class="number">60</span>),
+<a href=#185 id=185 data-nosnippet>185</a>            }),
+<a href=#186 id=186 data-nosnippet>186</a>            agente: <span class="prelude-val">None</span>,
+<a href=#187 id=187 data-nosnippet>187</a>            aceitar_certificado_invalido: <span class="bool-val">false</span>,
+<a href=#188 id=188 data-nosnippet>188</a>        }
+<a href=#189 id=189 data-nosnippet>189</a>    }
+<a href=#190 id=190 data-nosnippet>190</a>
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">fn </span>perfil_http_das_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>, tarefas: <span class="kw-2">&amp;</span>[TarefaPlanejada]) -&gt; PerfilHttp {
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">if </span>tarefas
+<a href=#193 id=193 data-nosnippet>193</a>            .iter()
+<a href=#194 id=194 data-nosnippet>194</a>            .any(|tarefa| tarefa.etiquetas.get(<span class="string">"origem"</span>).map(String::as_str) == <span class="prelude-val">Some</span>(<span class="string">"cgu"</span>))
+<a href=#195 id=195 data-nosnippet>195</a>        {
+<a href=#196 id=196 data-nosnippet>196</a>            <span class="self">self</span>.perfil_http()
+<a href=#197 id=197 data-nosnippet>197</a>        } <span class="kw">else </span>{
+<a href=#198 id=198 data-nosnippet>198</a>            PerfilHttp {
+<a href=#199 id=199 data-nosnippet>199</a>                redirecionamento: RedirecionamentoHttp::Bloquear,
+<a href=#200 id=200 data-nosnippet>200</a>                ..PerfilHttp::default()
+<a href=#201 id=201 data-nosnippet>201</a>            }
+<a href=#202 id=202 data-nosnippet>202</a>        }
 <a href=#203 id=203 data-nosnippet>203</a>    }
-<a href=#204 id=204 data-nosnippet>204</a>}
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a><span class="attr">#[cfg(test)]
-<a href=#207 id=207 data-nosnippet>207</a></span><span class="kw">mod </span>testes {
-<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">use </span>todeolho_nucleo::{FiltroDeTarefas, FonteDeDados};
-<a href=#210 id=210 data-nosnippet>210</a>
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="attr">#[test]
-<a href=#212 id=212 data-nosnippet>212</a>    </span><span class="kw">fn </span>cgu_tem_uma_tarefa_por_ano_desde_2015_com_filtro() {
-<a href=#213 id=213 data-nosnippet>213</a>        <span class="kw">let </span>tarefas = FonteEmendas.criar_tarefas();
-<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">let </span>filtradas = FiltroDeTarefas::a_partir_de(<span class="kw-2">&amp;</span>[<span class="string">"ano=2020"</span>.to_owned()])
-<a href=#215 id=215 data-nosnippet>215</a>            .unwrap()
-<a href=#216 id=216 data-nosnippet>216</a>            .aplicar(tarefas)
-<a href=#217 id=217 data-nosnippet>217</a>            .unwrap();
-<a href=#218 id=218 data-nosnippet>218</a>
-<a href=#219 id=219 data-nosnippet>219</a>        <span class="macro">assert_eq!</span>(filtradas.len(), <span class="number">1</span>);
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="macro">assert_eq!</span>(filtradas[<span class="number">0</span>].tarefa.nome(), <span class="string">"cgu/ano=2020"</span>);
-<a href=#221 id=221 data-nosnippet>221</a>        <span class="macro">assert_eq!</span>(filtradas[<span class="number">0</span>].etiquetas[<span class="string">"origem"</span>], <span class="string">"cgu"</span>);
-<a href=#222 id=222 data-nosnippet>222</a>    }
-<a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>    <span class="attr">#[test]
-<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">fn </span>inclui_o_csv_integral_do_tesouro_sem_fragmentar_a_raw() {
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span>tarefas = FonteEmendas.criar_tarefas();
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>tesouro = tarefas
-<a href=#228 id=228 data-nosnippet>228</a>            .iter()
-<a href=#229 id=229 data-nosnippet>229</a>            .find(|tarefa| tarefa.etiquetas.get(<span class="string">"origem"</span>).map(String::as_str) == <span class="prelude-val">Some</span>(<span class="string">"tesouro"</span>))
-<a href=#230 id=230 data-nosnippet>230</a>            .unwrap();
-<a href=#231 id=231 data-nosnippet>231</a>
-<a href=#232 id=232 data-nosnippet>232</a>        <span class="macro">assert_eq!</span>(tesouro.tarefa.nome(), <span class="string">"tesouro-repasses"</span>);
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="macro">assert_eq!</span>(tesouro.etiquetas.len(), <span class="number">1</span>);
-<a href=#234 id=234 data-nosnippet>234</a>    }
+<a href=#204 id=204 data-nosnippet>204</a>
+<a href=#205 id=205 data-nosnippet>205</a>    <span class="kw">fn </span>criar_tarefas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;TarefaPlanejada&gt; {
+<a href=#206 id=206 data-nosnippet>206</a>        tarefas()
+<a href=#207 id=207 data-nosnippet>207</a>    }
+<a href=#208 id=208 data-nosnippet>208</a>}
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a><span class="attr">#[cfg(test)]
+<a href=#211 id=211 data-nosnippet>211</a></span><span class="kw">mod </span>testes {
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">use </span>todeolho_nucleo::{FiltroDeTarefas, FonteDeDados};
+<a href=#214 id=214 data-nosnippet>214</a>
+<a href=#215 id=215 data-nosnippet>215</a>    <span class="attr">#[test]
+<a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">fn </span>cgu_tem_uma_tarefa_por_ano_desde_2015_com_filtro() {
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>tarefas = FonteEmendas.criar_tarefas();
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>filtradas = FiltroDeTarefas::a_partir_de(<span class="kw-2">&amp;</span>[<span class="string">"ano=2020"</span>.to_owned()])
+<a href=#219 id=219 data-nosnippet>219</a>            .unwrap()
+<a href=#220 id=220 data-nosnippet>220</a>            .aplicar(tarefas)
+<a href=#221 id=221 data-nosnippet>221</a>            .unwrap();
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="macro">assert_eq!</span>(filtradas.len(), <span class="number">1</span>);
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="macro">assert_eq!</span>(filtradas[<span class="number">0</span>].tarefa.nome(), <span class="string">"cgu/ano=2020"</span>);
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="macro">assert_eq!</span>(filtradas[<span class="number">0</span>].etiquetas[<span class="string">"origem"</span>], <span class="string">"cgu"</span>);
+<a href=#226 id=226 data-nosnippet>226</a>    }
+<a href=#227 id=227 data-nosnippet>227</a>
+<a href=#228 id=228 data-nosnippet>228</a>    <span class="attr">#[test]
+<a href=#229 id=229 data-nosnippet>229</a>    </span><span class="kw">fn </span>inclui_o_csv_integral_do_tesouro_sem_fragmentar_a_raw() {
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let </span>tarefas = FonteEmendas.criar_tarefas();
+<a href=#231 id=231 data-nosnippet>231</a>        <span class="kw">let </span>tesouro = tarefas
+<a href=#232 id=232 data-nosnippet>232</a>            .iter()
+<a href=#233 id=233 data-nosnippet>233</a>            .find(|tarefa| tarefa.etiquetas.get(<span class="string">"origem"</span>).map(String::as_str) == <span class="prelude-val">Some</span>(<span class="string">"tesouro"</span>))
+<a href=#234 id=234 data-nosnippet>234</a>            .unwrap();
 <a href=#235 id=235 data-nosnippet>235</a>
-<a href=#236 id=236 data-nosnippet>236</a>    <span class="attr">#[test]
-<a href=#237 id=237 data-nosnippet>237</a>    </span><span class="kw">fn </span>cgu_usa_filtro_de_ano_paginado_e_mantem_url_deterministica() {
-<a href=#238 id=238 data-nosnippet>238</a>        <span class="macro">assert_eq!</span>(
-<a href=#239 id=239 data-nosnippet>239</a>            url_cgu(<span class="number">2025</span>, <span class="number">1</span>),
-<a href=#240 id=240 data-nosnippet>240</a>            <span class="string">"https://api.portaldatransparencia.gov.br/api-de-dados/emendas?ano=2025&amp;pagina=1"
-<a href=#241 id=241 data-nosnippet>241</a>        </span>);
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">let </span>paginacao = PaginaEmendas::nova(url_cgu(<span class="number">2025</span>, <span class="number">1</span>));
-<a href=#243 id=243 data-nosnippet>243</a>
-<a href=#244 id=244 data-nosnippet>244</a>        <span class="macro">assert_eq!</span>(
-<a href=#245 id=245 data-nosnippet>245</a>            paginacao.proxima_url(<span class="string">br#"[{"codigoEmenda":"1"}]"#</span>).unwrap(),
-<a href=#246 id=246 data-nosnippet>246</a>            <span class="prelude-val">Some</span>(url_cgu(<span class="number">2025</span>, <span class="number">2</span>))
-<a href=#247 id=247 data-nosnippet>247</a>        );
-<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">assert_eq!</span>(paginacao.proxima_url(<span class="string">b"[]"</span>).unwrap(), <span class="prelude-val">None</span>);
-<a href=#249 id=249 data-nosnippet>249</a>        <span class="macro">assert!</span>(paginacao.proxima_url(<span class="string">b"html"</span>).is_err());
-<a href=#250 id=250 data-nosnippet>250</a>    }
-<a href=#251 id=251 data-nosnippet>251</a>
-<a href=#252 id=252 data-nosnippet>252</a>    <span class="attr">#[test]
-<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="kw">fn </span>fonte_exige_token_cgu_e_e_sob_demanda() {
-<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span>fonte = FonteEmendas;
-<a href=#255 id=255 data-nosnippet>255</a>        <span class="macro">assert!</span>(fonte.sob_demanda());
-<a href=#256 id=256 data-nosnippet>256</a>        <span class="macro">assert_eq!</span>(fonte.nome(), NOME);
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span>perfil = fonte.perfil_http();
-<a href=#258 id=258 data-nosnippet>258</a>        <span class="kw">let </span>credencial = perfil.credencial.unwrap();
-<a href=#259 id=259 data-nosnippet>259</a>        <span class="macro">assert_eq!</span>(credencial.variavel, <span class="string">"PORTAL_TRANSPARENCIA_TOKEN"</span>);
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="macro">assert_eq!</span>(credencial.cabecalho, <span class="string">"chave-api-dados"</span>);
-<a href=#261 id=261 data-nosnippet>261</a>        <span class="macro">assert_eq!</span>(perfil.limite.unwrap().requisicoes, <span class="number">90</span>);
-<a href=#262 id=262 data-nosnippet>262</a>    }
-<a href=#263 id=263 data-nosnippet>263</a>
-<a href=#264 id=264 data-nosnippet>264</a>    <span class="attr">#[test]
-<a href=#265 id=265 data-nosnippet>265</a>    </span><span class="kw">fn </span>tarefas_somente_tesouro_nao_exigem_token_cgu() {
-<a href=#266 id=266 data-nosnippet>266</a>        <span class="kw">let </span>fonte = FonteEmendas;
-<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>tarefas = FiltroDeTarefas::a_partir_de(<span class="kw-2">&amp;</span>[<span class="string">"origem=tesouro"</span>.to_owned()])
-<a href=#268 id=268 data-nosnippet>268</a>            .unwrap()
-<a href=#269 id=269 data-nosnippet>269</a>            .aplicar(fonte.criar_tarefas())
-<a href=#270 id=270 data-nosnippet>270</a>            .unwrap();
-<a href=#271 id=271 data-nosnippet>271</a>
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="macro">assert!</span>(fonte.perfil_http_das_tarefas(<span class="kw-2">&amp;</span>tarefas).credencial.is_none());
-<a href=#273 id=273 data-nosnippet>273</a>    }
-<a href=#274 id=274 data-nosnippet>274</a>
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="attr">#[test]
-<a href=#276 id=276 data-nosnippet>276</a>    </span><span class="kw">fn </span>tarefas_cgu_mantem_requisito_de_token() {
-<a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">let </span>fonte = FonteEmendas;
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">let </span>tarefas = FiltroDeTarefas::a_partir_de(<span class="kw-2">&amp;</span>[<span class="string">"ano=2020"</span>.to_owned()])
-<a href=#279 id=279 data-nosnippet>279</a>            .unwrap()
-<a href=#280 id=280 data-nosnippet>280</a>            .aplicar(fonte.criar_tarefas())
-<a href=#281 id=281 data-nosnippet>281</a>            .unwrap();
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a>        <span class="kw">let </span>credencial = fonte
-<a href=#284 id=284 data-nosnippet>284</a>            .perfil_http_das_tarefas(<span class="kw-2">&amp;</span>tarefas)
-<a href=#285 id=285 data-nosnippet>285</a>            .credencial
-<a href=#286 id=286 data-nosnippet>286</a>            .expect(<span class="string">"tarefas CGU precisam do token"</span>);
-<a href=#287 id=287 data-nosnippet>287</a>        <span class="macro">assert_eq!</span>(credencial.variavel, <span class="string">"PORTAL_TRANSPARENCIA_TOKEN"</span>);
-<a href=#288 id=288 data-nosnippet>288</a>    }
-<a href=#289 id=289 data-nosnippet>289</a>}
+<a href=#236 id=236 data-nosnippet>236</a>        <span class="macro">assert_eq!</span>(tesouro.tarefa.nome(), <span class="string">"tesouro-repasses"</span>);
+<a href=#237 id=237 data-nosnippet>237</a>        <span class="macro">assert_eq!</span>(tesouro.etiquetas.len(), <span class="number">1</span>);
+<a href=#238 id=238 data-nosnippet>238</a>    }
+<a href=#239 id=239 data-nosnippet>239</a>
+<a href=#240 id=240 data-nosnippet>240</a>    <span class="attr">#[test]
+<a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">fn </span>cgu_usa_filtro_de_ano_paginado_e_mantem_url_deterministica() {
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="macro">assert_eq!</span>(
+<a href=#243 id=243 data-nosnippet>243</a>            url_cgu(<span class="number">2025</span>, <span class="number">1</span>),
+<a href=#244 id=244 data-nosnippet>244</a>            <span class="string">"https://api.portaldatransparencia.gov.br/api-de-dados/emendas?ano=2025&amp;pagina=1"
+<a href=#245 id=245 data-nosnippet>245</a>        </span>);
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="kw">let </span>paginacao = PaginaEmendas::nova(url_cgu(<span class="number">2025</span>, <span class="number">1</span>));
+<a href=#247 id=247 data-nosnippet>247</a>
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">assert_eq!</span>(
+<a href=#249 id=249 data-nosnippet>249</a>            paginacao.proxima_url(<span class="string">br#"[{"codigoEmenda":"1"}]"#</span>).unwrap(),
+<a href=#250 id=250 data-nosnippet>250</a>            <span class="prelude-val">Some</span>(url_cgu(<span class="number">2025</span>, <span class="number">2</span>))
+<a href=#251 id=251 data-nosnippet>251</a>        );
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="macro">assert_eq!</span>(paginacao.proxima_url(<span class="string">b"[]"</span>).unwrap(), <span class="prelude-val">None</span>);
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="macro">assert!</span>(paginacao.proxima_url(<span class="string">b"html"</span>).is_err());
+<a href=#254 id=254 data-nosnippet>254</a>    }
+<a href=#255 id=255 data-nosnippet>255</a>
+<a href=#256 id=256 data-nosnippet>256</a>    <span class="attr">#[test]
+<a href=#257 id=257 data-nosnippet>257</a>    </span><span class="kw">fn </span>fonte_exige_token_cgu_e_e_sob_demanda() {
+<a href=#258 id=258 data-nosnippet>258</a>        <span class="kw">let </span>fonte = FonteEmendas;
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="macro">assert!</span>(fonte.sob_demanda());
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="macro">assert_eq!</span>(fonte.nome(), NOME);
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span>perfil = fonte.perfil_http();
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">let </span>credencial = perfil.credencial.unwrap();
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="macro">assert_eq!</span>(credencial.variavel, <span class="string">"PORTAL_TRANSPARENCIA_TOKEN"</span>);
+<a href=#264 id=264 data-nosnippet>264</a>        <span class="macro">assert_eq!</span>(credencial.cabecalho, <span class="string">"chave-api-dados"</span>);
+<a href=#265 id=265 data-nosnippet>265</a>        <span class="macro">assert_eq!</span>(perfil.limite.unwrap().requisicoes, <span class="number">90</span>);
+<a href=#266 id=266 data-nosnippet>266</a>    }
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="attr">#[test]
+<a href=#269 id=269 data-nosnippet>269</a>    </span><span class="kw">fn </span>tarefas_somente_tesouro_nao_exigem_token_cgu() {
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="kw">let </span>fonte = FonteEmendas;
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="kw">let </span>tarefas = FiltroDeTarefas::a_partir_de(<span class="kw-2">&amp;</span>[<span class="string">"origem=tesouro"</span>.to_owned()])
+<a href=#272 id=272 data-nosnippet>272</a>            .unwrap()
+<a href=#273 id=273 data-nosnippet>273</a>            .aplicar(fonte.criar_tarefas())
+<a href=#274 id=274 data-nosnippet>274</a>            .unwrap();
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="macro">assert!</span>(fonte.perfil_http_das_tarefas(<span class="kw-2">&amp;</span>tarefas).credencial.is_none());
+<a href=#277 id=277 data-nosnippet>277</a>    }
+<a href=#278 id=278 data-nosnippet>278</a>
+<a href=#279 id=279 data-nosnippet>279</a>    <span class="attr">#[test]
+<a href=#280 id=280 data-nosnippet>280</a>    </span><span class="kw">fn </span>tarefas_cgu_mantem_requisito_de_token() {
+<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span>fonte = FonteEmendas;
+<a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">let </span>tarefas = FiltroDeTarefas::a_partir_de(<span class="kw-2">&amp;</span>[<span class="string">"ano=2020"</span>.to_owned()])
+<a href=#283 id=283 data-nosnippet>283</a>            .unwrap()
+<a href=#284 id=284 data-nosnippet>284</a>            .aplicar(fonte.criar_tarefas())
+<a href=#285 id=285 data-nosnippet>285</a>            .unwrap();
+<a href=#286 id=286 data-nosnippet>286</a>
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">let </span>credencial = fonte
+<a href=#288 id=288 data-nosnippet>288</a>            .perfil_http_das_tarefas(<span class="kw-2">&amp;</span>tarefas)
+<a href=#289 id=289 data-nosnippet>289</a>            .credencial
+<a href=#290 id=290 data-nosnippet>290</a>            .expect(<span class="string">"tarefas CGU precisam do token"</span>);
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="macro">assert_eq!</span>(credencial.variavel, <span class="string">"PORTAL_TRANSPARENCIA_TOKEN"</span>);
+<a href=#292 id=292 data-nosnippet>292</a>    }
+<a href=#293 id=293 data-nosnippet>293</a>}
 </code></pre></div></section></main></body></html>
