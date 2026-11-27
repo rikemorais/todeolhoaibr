@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use futures::{StreamExt, stream};
 use todeolho_nucleo::{
     ArmazenamentoRaw, ConsultaDeExecucoes, ErroDeIngestao, GravadorDeExecucoes, ObjetoRaw,
-    RegistroDeExecucao,
+    RegistroDeExecucao, SinalizadorDeExecucoes,
 };
 use tracing::warn;
 
@@ -87,6 +87,46 @@ impl ConsultaDeExecucoes for HistoricoS3 {
             .collect()
             .await)
     }
+}
+
+#[async_trait]
+impl SinalizadorDeExecucoes for HistoricoS3 {
+    async fn sinalizar_interrupcao(&self, id_execucao: &str) -> Result<(), ErroDeIngestao> {
+        let chave = chave_de_sinal(id_execucao);
+        self.destino
+            .gravar(ObjetoRaw {
+                chave,
+                conteudo: Vec::new(),
+                tipo_de_conteudo: "application/octet-stream".to_owned(),
+            })
+            .await
+    }
+
+    async fn ha_sinal_de_interrupcao(&self, id_execucao: &str) -> Result<bool, ErroDeIngestao> {
+        let chave = chave_de_sinal(id_execucao);
+        let resultado = self.destino.bucket.get_object(&chave).await;
+        match resultado {
+            Ok(_) => Ok(true),
+            Err(e) if e.to_string().contains("404") || e.to_string().contains("NoSuchKey") => {
+                Ok(false)
+            }
+            Err(e) => Err(self.destino.erro(&chave, e)),
+        }
+    }
+
+    async fn consumir_sinal(&self, id_execucao: &str) -> Result<(), ErroDeIngestao> {
+        let chave = chave_de_sinal(id_execucao);
+        self.destino
+            .bucket
+            .delete_object(&chave)
+            .await
+            .map_err(|e| self.destino.erro(&chave, e))?;
+        Ok(())
+    }
+}
+
+fn chave_de_sinal(id: &str) -> String {
+    format!("{id}._interromper")
 }
 
 fn chave_do_registro(id: &str) -> String {

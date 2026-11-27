@@ -177,9 +177,14 @@ async fn rodar(cli: Cli) -> Result<bool> {
             filtros,
         } => refinar(camada, fonte, todas, intervalo, filtros).await,
         Comando::Painel { endereco } => {
-            let historico = historico()?;
+            let historico = Arc::new(historico()?);
             historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
-            todeolho_painel::servir(endereco, Arc::new(historico)).await?;
+            todeolho_painel::servir_com_sinalizador(
+                endereco,
+                historico.clone(),
+                Some(historico),
+            )
+            .await?;
             Ok(true)
         }
     }
@@ -373,15 +378,19 @@ async fn executar(
     let historico = Arc::new(historico()?);
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
 
-    let registrador = Arc::new(RegistradorDeExecucao::novo(
-        RegistroDeExecucao::novo(
-            &contexto.id_execucao,
-            Camada::Raw,
-            contexto.iniciada_em,
-            &dags,
-        )?,
-        historico,
-    ));
+    let registrador = Arc::new(
+        RegistradorDeExecucao::novo(
+            RegistroDeExecucao::novo(
+                &contexto.id_execucao,
+                Camada::Raw,
+                contexto.iniciada_em,
+                &dags,
+            )?,
+            historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
@@ -392,15 +401,27 @@ async fn executar(
 
     let mut sucesso = true;
     for (dag, contexto_da_fonte) in dags.iter().zip(&contextos) {
+        if cancelamento.is_cancelled() {
+            break;
+        }
         let relatorio = executor
-            .executar(dag, contexto_da_fonte, registrador.as_ref())
+            .executar_com_cancelamento(
+                dag,
+                contexto_da_fonte,
+                registrador.as_ref(),
+                cancelamento.clone(),
+            )
             .await?;
         imprimir(&relatorio);
         sucesso &= relatorio.sucesso();
     }
     registrador.concluir().await;
 
-    println!("\nexecução: {}", contexto.id_execucao);
+    if cancelamento.is_cancelled() {
+        println!("\nexecução interrompida pelo painel: {}", contexto.id_execucao);
+    } else {
+        println!("\nexecução: {}", contexto.id_execucao);
+    }
     Ok(sucesso)
 }
 
@@ -1000,15 +1021,18 @@ async fn passada_tse_prestacao_contas_silver(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -1161,15 +1185,18 @@ async fn passada_tse_votacao_secao(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -1571,15 +1598,18 @@ async fn passada_tse_silver(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -1782,15 +1812,18 @@ async fn passada_camara_silver(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -2020,15 +2053,18 @@ async fn passada_senado_silver(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -2127,15 +2163,18 @@ async fn passada_bcb_silver(
     let dags = vec![dag];
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -2253,8 +2292,11 @@ async fn passada_ibge_silver(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
@@ -2264,7 +2306,7 @@ async fn passada_ibge_silver(
     let mut sucesso = true;
     for dag in &dags {
         let relatorio = executor
-            .executar(dag, &contexto, registrador.as_ref())
+            .executar_com_cancelamento(dag, &contexto, registrador.as_ref(), cancelamento.clone())
             .await?;
         imprimir(&relatorio);
         sucesso &= relatorio.sucesso();
@@ -2378,8 +2420,11 @@ async fn passada_ibge_renda_per_capita_silver(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
@@ -2389,7 +2434,7 @@ async fn passada_ibge_renda_per_capita_silver(
     let mut sucesso = true;
     for dag in &dags {
         let relatorio = executor
-            .executar(dag, &contexto, registrador.as_ref())
+            .executar_com_cancelamento(dag, &contexto, registrador.as_ref(), cancelamento.clone())
             .await?;
         imprimir(&relatorio);
         sucesso &= relatorio.sucesso();
@@ -2498,8 +2543,11 @@ async fn passada_ibge_localidade_silver(
             iniciada_em,
             std::slice::from_ref(&dag),
         )?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
@@ -2507,7 +2555,7 @@ async fn passada_ibge_localidade_silver(
     });
     let executor = ExecutorDeDag::novo(concorrencia()?);
     let relatorio = executor
-        .executar(&dag, &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dag, &contexto, registrador.as_ref(), cancelamento.clone())
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -2600,8 +2648,11 @@ async fn passada_ipeadata_silver(
             iniciada_em,
             std::slice::from_ref(&dag),
         )?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
@@ -2609,7 +2660,7 @@ async fn passada_ipeadata_silver(
     });
     let executor = ExecutorDeDag::novo(concorrencia()?);
     let relatorio = executor
-        .executar(&dag, &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dag, &contexto, registrador.as_ref(), cancelamento.clone())
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -2716,8 +2767,11 @@ async fn passada(
     historico.preparar().await.context(ERRO_DE_ARMAZENAMENTO)?;
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Bronze, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
@@ -2728,7 +2782,7 @@ async fn passada(
     let mut sucesso = true;
     for dag in &dags {
         let relatorio = executor
-            .executar(dag, &contexto, registrador.as_ref())
+            .executar_com_cancelamento(dag, &contexto, registrador.as_ref(), cancelamento.clone())
             .await?;
         imprimir(&relatorio);
         sucesso &= relatorio.sucesso();
@@ -2769,6 +2823,7 @@ fn imprimir(relatorio: &RelatorioDaExecucao) {
             }
             EstadoDaTarefa::Falhou(erro) => format!("FALHOU: {erro}"),
             EstadoDaTarefa::Ignorada { causa } => format!("IGNORADA: depende de {causa}"),
+            EstadoDaTarefa::Cancelada => "CANCELADA: interrompida pelo painel".to_owned(),
         };
         println!(
             "  {:<14} {:>6.1}s  {situacao}",
@@ -2885,15 +2940,18 @@ async fn passada_generica_silver(
     let dags = vec![dag];
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -3348,15 +3406,18 @@ async fn passada_cnpj_silver(
     let dags = vec![dag];
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;
@@ -3480,15 +3541,18 @@ async fn passada_cnpj_eventos(
     let dags = vec![dag];
     let registrador = Arc::new(RegistradorDeExecucao::novo(
         RegistroDeExecucao::novo(&contexto.id_execucao, Camada::Silver, iniciada_em, &dags)?,
-        historico,
-    ));
+        historico.clone(),
+        )
+        .com_sinalizador(historico),
+    );
+    let cancelamento = registrador.token_de_cancelamento();
     registrador.publicar().await;
     tokio::spawn({
         let registrador = Arc::clone(&registrador);
         async move { registrador.manter_batimento().await }
     });
     let relatorio = ExecutorDeDag::novo(concorrencia()?)
-        .executar(&dags[0], &contexto, registrador.as_ref())
+        .executar_com_cancelamento(&dags[0], &contexto, registrador.as_ref(), cancelamento)
         .await?;
     imprimir(&relatorio);
     registrador.concluir().await;

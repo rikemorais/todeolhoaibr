@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use crate::contexto::ProgressoDaTarefa;
@@ -54,6 +55,8 @@ pub enum EstadoRegistrado {
     Falhou,
     /// Não rodou porque uma dependência falhou.
     Ignorada,
+    /// Cancelada por solicitação do operador.
+    Cancelada,
 }
 
 /// O que se sabe sobre uma tarefa dentro do registro de uma execução.
@@ -117,6 +120,8 @@ pub enum SituacaoDaExecucao {
     ComFalhas,
     /// O processo parou sem concluir a execução.
     Interrompida,
+    /// Cancelada por solicitação do operador (via painel).
+    Cancelada,
 }
 
 /// Tudo o que uma execução fez, publicado enquanto ela acontece.
@@ -193,12 +198,20 @@ impl RegistroDeExecucao {
             };
         }
 
-        let concluiu_tudo = self
-            .fontes
-            .iter()
-            .flat_map(|fonte| &fonte.tarefas)
-            .all(|tarefa| tarefa.estado == EstadoRegistrado::Concluida);
-        if concluiu_tudo {
+        let todas = self.fontes.iter().flat_map(|fonte| &fonte.tarefas);
+        let mut alguma_cancelada = false;
+        let mut todas_ok = true;
+        for tarefa in todas {
+            if tarefa.estado == EstadoRegistrado::Cancelada {
+                alguma_cancelada = true;
+            }
+            if tarefa.estado != EstadoRegistrado::Concluida {
+                todas_ok = false;
+            }
+        }
+        if alguma_cancelada {
+            SituacaoDaExecucao::Cancelada
+        } else if todas_ok {
             SituacaoDaExecucao::Sucesso
         } else {
             SituacaoDaExecucao::ComFalhas
@@ -262,6 +275,11 @@ impl RegistroDeExecucao {
                 registro.detalhe = Some(causa.clone());
                 return;
             }
+            EstadoDaTarefa::Cancelada => {
+                registro.estado = EstadoRegistrado::Cancelada;
+                registro.detalhe = Some("Interrompida pelo painel.".to_owned());
+                return;
+            }
         }
         registro.duracao_ms = Some(resultado.duracao.as_millis() as u64);
     }
@@ -281,6 +299,17 @@ pub trait ConsultaDeExecucoes: Send + Sync {
     async fn recentes(&self, limite: usize) -> Result<Vec<RegistroDeExecucao>, ErroDeIngestao>;
 }
 
+/// Permite que o painel sinalize ao executor para interromper uma execução.
+#[async_trait]
+pub trait SinalizadorDeExecucoes: Send + Sync {
+    /// Grava um sinal de interrupção para a execução.
+    async fn sinalizar_interrupcao(&self, id_execucao: &str) -> Result<(), ErroDeIngestao>;
+    /// Verifica se existe sinal de interrupção pendente.
+    async fn ha_sinal_de_interrupcao(&self, id_execucao: &str) -> Result<bool, ErroDeIngestao>;
+    /// Remove o sinal após processá-lo.
+    async fn consumir_sinal(&self, id_execucao: &str) -> Result<(), ErroDeIngestao>;
+}
+
 /// Mantém o histórico atualizado durante a execução.
 ///
 /// O histórico serve para observar a ingestão, não pode derrubá-la: falhas ao publicar
@@ -292,6 +321,8 @@ pub struct RegistradorDeExecucao {
     /// Acompanhadores de progresso por tarefa `(fonte, tarefa)`, alimentados pela
     /// tarefa em execução e lidos a cada publicação.
     progresso: MutexSincrono<HashMap<(String, String), Arc<ProgressoDaTarefa>>>,
+    sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+    cancelamento: CancellationToken,
 }
 
 impl RegistradorDeExecucao {
@@ -301,7 +332,20 @@ impl RegistradorDeExecucao {
             registro: Mutex::new(registro),
             gravador,
             progresso: MutexSincrono::new(HashMap::new()),
+            sinalizador: None,
+            cancelamento: CancellationToken::new(),
         }
+    }
+
+    /// Habilita a verificação de sinais de interrupção vindos do painel.
+    pub fn com_sinalizador(mut self, sinalizador: Arc<dyn SinalizadorDeExecucoes>) -> Self {
+        self.sinalizador = Some(sinalizador);
+        self
+    }
+
+    /// Token que é cancelado quando o painel solicita interrupção.
+    pub fn token_de_cancelamento(&self) -> CancellationToken {
+        self.cancelamento.clone()
     }
 
     /// Fotografa o progresso de cada tarefa: `(fonte, tarefa, baixados, total)`.
@@ -323,14 +367,34 @@ impl RegistradorDeExecucao {
     /// parcial e, se ele avançou, republica para o painel mostrar o percentual quase
     /// em tempo real; de toda forma republica ao menos a cada `INTERVALO_DE_BATIMENTO`
     /// para sinalizar que o processo segue vivo.
+    ///
+    /// Quando há sinalizador, verifica a cada batimento se o painel pediu interrupção;
+    /// em caso positivo, cancela o token e consome o sinal.
     pub async fn manter_batimento(&self) {
         let mut ultima_publicacao = Instant::now();
         let mut ultimo_baixado = 0u64;
+        let id = self.registro.lock().await.id.clone();
         loop {
             tokio::time::sleep(INTERVALO_DE_PROGRESSO).await;
             if self.registro.lock().await.concluida_em.is_some() {
                 return;
             }
+
+            if let Some(ref sinalizador) = self.sinalizador {
+                match sinalizador.ha_sinal_de_interrupcao(&id).await {
+                    Ok(true) => {
+                        warn!(execucao = %id, "sinal de interrupção recebido do painel");
+                        self.cancelamento.cancel();
+                        let _ = sinalizador.consumir_sinal(&id).await;
+                        return;
+                    }
+                    Err(erro) => {
+                        warn!(%erro, "não foi possível verificar sinal de interrupção");
+                    }
+                    _ => {}
+                }
+            }
+
             let baixado: u64 = self
                 .instantaneos_de_progresso()
                 .iter()

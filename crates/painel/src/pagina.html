@@ -187,6 +187,18 @@ main {
 }
 .paginacao button:hover:not(:disabled) { border-color: var(--texto-2); }
 .paginacao button:disabled { opacity: 0.4; cursor: default; }
+
+.acoes-execucao { display: flex; gap: 8px; margin-top: 12px; }
+.btn-acao {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+  border-radius: 8px; border: 1px solid var(--borda); background: var(--superficie);
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--texto);
+  transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+}
+.btn-acao:hover:not(:disabled) { border-color: var(--texto-2); background: var(--superficie-2); }
+.btn-acao:disabled { opacity: 0.5; cursor: default; }
+.btn-acao.perigo { color: var(--falha); border-color: var(--falha); }
+.btn-acao.perigo:hover:not(:disabled) { background: var(--falha-fundo); }
 .paginacao .info-pagina { font-variant-numeric: tabular-nums; }
 
 @media (max-width: 860px) {
@@ -248,6 +260,7 @@ const SITUACOES = {
   com_falhas: { texto: "Com falhas", classe: "falha" },
   em_andamento: { texto: "Em andamento", classe: "andamento" },
   interrompida: { texto: "Interrompida", classe: "alerta" },
+  cancelada: { texto: "Cancelada", classe: "alerta" },
 };
 
 const ESTADOS = {
@@ -257,6 +270,7 @@ const ESTADOS = {
   ignorada: { texto: "Ignorada", classe: "alerta" },
   pendente: { texto: "Pendente", classe: "neutro" },
   interrompida: { texto: "Interrompida", classe: "alerta" },
+  cancelada: { texto: "Cancelada", classe: "alerta" },
 };
 
 const ICONES = {
@@ -347,9 +361,26 @@ function tarefasDe(execucao) {
   return execucao.fontes.flatMap((fonte) => fonte.tarefas);
 }
 
-// Tarefas de uma execução interrompida nunca vão terminar: não exibi-las como ativas.
+async function interromperExecucao(id, btn) {
+  btn.disabled = true;
+  btn.textContent = "Interrompendo…";
+  try {
+    const resp = await fetch(`/api/execucoes/${encodeURIComponent(id)}/interromper`, { method: "POST" });
+    if (!resp.ok) {
+      const corpo = await resp.json().catch(() => ({}));
+      btn.textContent = corpo.erro || "Erro ao interromper";
+      setTimeout(() => { btn.disabled = false; btn.textContent = "Interromper"; }, 3000);
+      return;
+    }
+    btn.textContent = "Sinal enviado";
+  } catch {
+    btn.textContent = "Falha na conexão";
+    setTimeout(() => { btn.disabled = false; btn.textContent = "Interromper"; }, 3000);
+  }
+}
+
 function estadoVisivel(tarefa, execucao) {
-  const parada = execucao.situacao === "interrompida";
+  const parada = execucao.situacao === "interrompida" || execucao.situacao === "cancelada";
   if (parada && tarefa.estado === "em_execucao") return ESTADOS.interrompida;
   return ESTADOS[tarefa.estado] || ESTADOS.pendente;
 }
@@ -357,7 +388,7 @@ function estadoVisivel(tarefa, execucao) {
 // A duração de uma execução interrompida é desconhecida: o processo pode ter
 // rodado muito além da sua última publicação.
 function duracaoDaExecucao(execucao) {
-  if (execucao.situacao === "interrompida") return null;
+  if (execucao.situacao === "interrompida" || execucao.situacao === "cancelada") return null;
   const fim = execucao.concluida_em ? new Date(execucao.concluida_em) : new Date();
   return fim - new Date(execucao.iniciada_em);
 }
@@ -498,6 +529,16 @@ function telaResumo(execucao) {
   if (execucao.situacao === "interrompida") {
     explicacao = el("p", { class: "detalhe-tarefa" },
       `O processo parou sem concluir. Última atualização em ${formatarData(execucao.atualizada_em)}.`);
+  } else if (execucao.situacao === "cancelada") {
+    explicacao = el("p", { class: "detalhe-tarefa" },
+      `Execução cancelada pelo painel em ${formatarData(execucao.atualizada_em)}.`);
+  }
+
+  let acoes = null;
+  if (execucao.situacao === "em_andamento") {
+    const btn = el("button", { class: "btn-acao perigo", type: "button" }, "Interromper");
+    btn.addEventListener("click", () => interromperExecucao(execucao.id, btn));
+    acoes = el("div", { class: "acoes-execucao" }, btn);
   }
 
   return el("section", { class: "painel" },
@@ -507,6 +548,7 @@ function telaResumo(execucao) {
       selo(SITUACOES[execucao.situacao])),
     el("p", { class: "id-execucao mono" }, execucao.id),
     explicacao,
+    acoes,
     el("div", { class: "numeros" },
       numero(`${feitas.length} de ${tarefas.length}`, "tarefas concluídas"),
       numero(String(falhas), falhas === 1 ? "falha" : "falhas"),

@@ -34,7 +34,8 @@ pub use executor::{
 pub use fonte::{CredencialHttp, FonteDeDados, LimiteHttp, PerfilHttp, RedirecionamentoHttp};
 pub use historico::{
     Camada, ConsultaDeExecucoes, EstadoRegistrado, GravadorDeExecucoes, RegistradorDeExecucao,
-    RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SituacaoDaExecucao,
+    RegistroDeExecucao, RegistroDeFonte, RegistroDeTarefa, SinalizadorDeExecucoes,
+    SituacaoDaExecucao,
 };
 pub use orfas::{
     ResultadoVerificacao, agendar_limpeza_snapshot, limpar_orfas_do_recurso, marcar_execucao_ativa,

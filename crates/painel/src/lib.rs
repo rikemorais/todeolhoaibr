@@ -1,19 +1,21 @@
-//! Painel web, somente leitura, das execuções de ingestão (ver `docs/adr/0008`).
+//! Painel web das execuções de ingestão (ver `docs/adr/0008`).
 
 #![warn(missing_docs)]
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{Html, IntoResponse, Json, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Router, middleware};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use todeolho_nucleo::{ConsultaDeExecucoes, RegistroDeExecucao, SituacaoDaExecucao};
-use tracing::{error, info};
+use todeolho_nucleo::{
+    ConsultaDeExecucoes, RegistroDeExecucao, SinalizadorDeExecucoes, SituacaoDaExecucao,
+};
+use tracing::{error, info, warn};
 
 const LIMITE_DE_EXECUCOES: usize = 200;
 const POR_PAGINA_PADRAO: usize = 20;
@@ -52,13 +54,32 @@ struct RespostaDeErro {
     erro: &'static str,
 }
 
+#[derive(Clone)]
+struct EstadoDoPainel {
+    consulta: Arc<dyn ConsultaDeExecucoes>,
+    sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+}
+
 /// Monta as rotas do painel.
 pub fn rotas(consulta: Arc<dyn ConsultaDeExecucoes>) -> Router {
+    rotas_com_sinalizador(consulta, None)
+}
+
+/// Monta as rotas do painel com suporte a interrupção de execuções.
+pub fn rotas_com_sinalizador(
+    consulta: Arc<dyn ConsultaDeExecucoes>,
+    sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+) -> Router {
+    let estado = EstadoDoPainel {
+        consulta,
+        sinalizador,
+    };
     Router::new()
         .route("/", get(pagina))
         .route("/api/execucoes", get(execucoes))
+        .route("/api/execucoes/{id}/interromper", post(interromper))
         .layer(middleware::map_response(cabecalhos_de_seguranca))
-        .with_state(consulta)
+        .with_state(estado)
 }
 
 /// Serve o painel até o processo ser encerrado.
@@ -66,9 +87,18 @@ pub async fn servir(
     endereco: SocketAddr,
     consulta: Arc<dyn ConsultaDeExecucoes>,
 ) -> std::io::Result<()> {
+    servir_com_sinalizador(endereco, consulta, None).await
+}
+
+/// Serve o painel com suporte a interrupção.
+pub async fn servir_com_sinalizador(
+    endereco: SocketAddr,
+    consulta: Arc<dyn ConsultaDeExecucoes>,
+    sinalizador: Option<Arc<dyn SinalizadorDeExecucoes>>,
+) -> std::io::Result<()> {
     let ouvinte = tokio::net::TcpListener::bind(endereco).await?;
     info!(%endereco, "painel disponível");
-    axum::serve(ouvinte, rotas(consulta)).await
+    axum::serve(ouvinte, rotas_com_sinalizador(consulta, sinalizador)).await
 }
 
 async fn pagina() -> Html<&'static str> {
@@ -81,15 +111,16 @@ fn parse_situacao(valor: &str) -> Option<SituacaoDaExecucao> {
         "com_falhas" => Some(SituacaoDaExecucao::ComFalhas),
         "em_andamento" => Some(SituacaoDaExecucao::EmAndamento),
         "interrompida" => Some(SituacaoDaExecucao::Interrompida),
+        "cancelada" => Some(SituacaoDaExecucao::Cancelada),
         _ => None,
     }
 }
 
 async fn execucoes(
-    State(consulta): State<Arc<dyn ConsultaDeExecucoes>>,
+    State(estado): State<EstadoDoPainel>,
     Query(filtro): Query<FiltroDeExecucoes>,
 ) -> Response {
-    match consulta.recentes(LIMITE_DE_EXECUCOES).await {
+    match estado.consulta.recentes(LIMITE_DE_EXECUCOES).await {
         Ok(registros) => {
             let agora = Utc::now();
             let mut visiveis: Vec<ExecucaoVisivel> = registros
@@ -146,6 +177,38 @@ async fn execucoes(
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(RespostaDeErro {
                     erro: "Não foi possível consultar o armazenamento.",
+                }),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn interromper(
+    State(estado): State<EstadoDoPainel>,
+    Path(id): Path<String>,
+) -> Response {
+    let Some(sinalizador) = &estado.sinalizador else {
+        return (
+            StatusCode::NOT_IMPLEMENTED,
+            Json(RespostaDeErro {
+                erro: "Interrupção não disponível nesta instância.",
+            }),
+        )
+            .into_response();
+    };
+
+    match sinalizador.sinalizar_interrupcao(&id).await {
+        Ok(()) => {
+            info!(execucao = %id, "sinal de interrupção enviado");
+            Json(serde_json::json!({"ok": true})).into_response()
+        }
+        Err(erro) => {
+            warn!(execucao = %id, %erro, "falha ao sinalizar interrupção");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RespostaDeErro {
+                    erro: "Não foi possível sinalizar a interrupção.",
                 }),
             )
                 .into_response()
