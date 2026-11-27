@@ -165,6 +165,30 @@ main {
 .vazio code { display: inline-block; margin-top: 14px; padding: 8px 12px; border-radius: 8px;
   background: var(--superficie-2); overflow-wrap: anywhere; }
 
+.filtros { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px 8px; }
+.filtro {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px;
+  border-radius: 999px; border: 1px solid var(--borda); background: var(--superficie);
+  cursor: pointer; font-size: 13px; font-weight: 500; color: var(--texto-2);
+  transition: border-color 0.15s, background 0.15s;
+}
+.filtro:hover { border-color: var(--texto-2); }
+.filtro[aria-pressed="true"] { border-color: var(--destaque); color: var(--destaque); background: var(--superficie-2); }
+.filtro svg { width: 12px; height: 12px; flex: none; }
+.filtro .contagem { font-variant-numeric: tabular-nums; opacity: 0.7; font-size: 12px; }
+
+.paginacao {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 2px 0; font-size: 13px; color: var(--texto-2);
+}
+.paginacao button {
+  padding: 4px 10px; border-radius: 6px; border: 1px solid var(--borda);
+  background: var(--superficie); cursor: pointer; font-size: 13px;
+}
+.paginacao button:hover:not(:disabled) { border-color: var(--texto-2); }
+.paginacao button:disabled { opacity: 0.4; cursor: default; }
+.paginacao .info-pagina { font-variant-numeric: tabular-nums; }
+
 @media (max-width: 860px) {
   header { padding: 12px 16px; }
   #aviso { margin: 12px 16px 0; }
@@ -212,6 +236,7 @@ function svg(tag, atributos, ...filhos) {
 
 function aplicar(no, atributos) {
   for (const [nome, valor] of Object.entries(atributos || {})) {
+    if (valor === undefined) continue;
     if (nome === "class") no.className = valor;
     else if (nome.startsWith("on")) no.addEventListener(nome.slice(2), valor);
     else no.setAttribute(nome, valor);
@@ -430,6 +455,8 @@ function desenharGrafo(fonte, execucao) {
 // ---- Telas ----
 
 let execucoes = [];
+let paginacao = { total: 0, pagina: 1, por_pagina: 20, total_paginas: 1 };
+let filtroSituacao = null;
 // Sem escolha explícita, o painel acompanha sempre a execução mais recente.
 let selecionada = null;
 let ultimaResposta = "";
@@ -529,22 +556,78 @@ function telaVazia() {
     el("code", { class: "mono" }, "docker compose run --rm ingestao"));
 }
 
+function chipFiltro(chave, info) {
+  const ativo = filtroSituacao === chave;
+  const btn = el("button", {
+    class: "filtro", type: "button",
+    "aria-pressed": String(ativo),
+    onclick: () => {
+      filtroSituacao = ativo ? null : chave;
+      paginacao.pagina = 1;
+      forcarAtualizacao();
+    },
+  }, icone(info.classe), info.texto);
+  return btn;
+}
+
+function barraFiltros() {
+  const todos = el("button", {
+    class: "filtro", type: "button",
+    "aria-pressed": String(filtroSituacao === null),
+    onclick: () => {
+      filtroSituacao = null;
+      paginacao.pagina = 1;
+      forcarAtualizacao();
+    },
+  }, "Todas");
+  return el("div", { class: "filtros" },
+    todos,
+    ...Object.entries(SITUACOES).map(([chave, info]) => chipFiltro(chave, info)));
+}
+
+function controlesDePaginacao() {
+  if (paginacao.total_paginas <= 1) return null;
+  const anterior = el("button", {
+    type: "button",
+    disabled: paginacao.pagina <= 1 || undefined,
+    onclick: () => { paginacao.pagina--; forcarAtualizacao(); },
+  }, "‹ Anterior");
+  const proximo = el("button", {
+    type: "button",
+    disabled: paginacao.pagina >= paginacao.total_paginas || undefined,
+    onclick: () => { paginacao.pagina++; forcarAtualizacao(); },
+  }, "Próxima ›");
+  const info = el("span", { class: "info-pagina" },
+    `${paginacao.pagina} de ${paginacao.total_paginas} (${paginacao.total} execuções)`);
+  return el("div", { class: "paginacao" }, anterior, info, proximo);
+}
+
 function desenhar() {
   const conteudo = document.getElementById("conteudo");
 
-  if (execucoes.length === 0) {
+  if (execucoes.length === 0 && !filtroSituacao) {
     conteudo.replaceChildren(telaVazia());
     return;
   }
   const execucao = execucaoSelecionada();
 
   const rolagemLista = document.getElementById("lista")?.scrollTop ?? 0;
-  const lista = el("nav", { id: "lista", "aria-label": "Execuções" },
+  const filhos = [
     el("div", { class: "rotulo-secao" }, "Execuções recentes"),
-    ...execucoes.map(cartao));
-  const detalhe = el("div", { id: "detalhe" },
-    telaResumo(execucao),
-    ...execucao.fontes.map((fonte) => telaFonte(fonte, execucao)));
+    barraFiltros(),
+    ...execucoes.map(cartao),
+    controlesDePaginacao(),
+  ].filter(Boolean);
+  const lista = el("nav", { id: "lista", "aria-label": "Execuções" }, ...filhos);
+
+  const detalhe = execucao
+    ? el("div", { id: "detalhe" },
+        telaResumo(execucao),
+        ...execucao.fontes.map((fonte) => telaFonte(fonte, execucao)))
+    : el("div", { id: "detalhe" },
+        el("div", { class: "painel vazio" },
+          el("h2", null, "Nenhuma execução com esse filtro"),
+          el("p", null, "Tente outro filtro de situação.")));
 
   const rolagemGrafos = [...conteudo.querySelectorAll(".grafo")].map((g) => g.scrollLeft);
   conteudo.replaceChildren(lista, detalhe);
@@ -562,32 +645,67 @@ function haAlgoEmAndamento() {
   return execucoes.some((e) => e.situacao === "em_andamento");
 }
 
+function urlDaApi() {
+  const params = new URLSearchParams();
+  if (filtroSituacao) params.set("situacao", filtroSituacao);
+  params.set("pagina", String(paginacao.pagina));
+  params.set("por_pagina", String(paginacao.por_pagina));
+  const qs = params.toString();
+  return `/api/execucoes?${qs}`;
+}
+
+let temporizador = null;
+let geracao = 0;
+
+function forcarAtualizacao() {
+  geracao++;
+  ultimaResposta = "";
+  if (temporizador) { clearTimeout(temporizador); temporizador = null; }
+  atualizar();
+}
+
+let haAndamentoGlobal = false;
+
 async function atualizar() {
+  const minhaGeracao = geracao;
   const aviso = document.getElementById("aviso");
   const conexao = document.getElementById("conexao");
   try {
-    const resposta = await fetch("/api/execucoes");
+    const resposta = await fetch(urlDaApi());
+    if (geracao !== minhaGeracao) return;
     if (!resposta.ok) {
       const corpo = await resposta.json().catch(() => ({}));
       throw new Error(corpo.erro || `O painel respondeu com o status ${resposta.status}.`);
     }
     const texto = await resposta.text();
+    if (geracao !== minhaGeracao) return;
     const mudou = texto !== ultimaResposta;
     ultimaResposta = texto;
-    execucoes = JSON.parse(texto);
+    const envelope = JSON.parse(texto);
+    execucoes = envelope.dados;
+    paginacao.total = envelope.total;
+    paginacao.pagina = envelope.pagina;
+    paginacao.por_pagina = envelope.por_pagina;
+    paginacao.total_paginas = envelope.total_paginas;
+    haAndamentoGlobal = !!envelope.ha_andamento;
     aviso.hidden = true;
-    conexao.textContent = haAlgoEmAndamento()
+    const aoVivo = haAndamentoGlobal || haAlgoEmAndamento();
+    conexao.textContent = aoVivo
       ? "Acompanhando ao vivo"
       : `Atualizado às ${new Date().toLocaleTimeString("pt-BR")}`;
-    if (mudou || haAlgoEmAndamento()) desenhar();
+    if (mudou || aoVivo) desenhar();
   } catch (erro) {
+    if (geracao !== minhaGeracao) return;
     aviso.textContent = erro instanceof TypeError
       ? "Sem conexão com o painel. Tentando novamente..."
       : erro.message;
     aviso.hidden = false;
     conexao.textContent = "";
   }
-  setTimeout(atualizar, haAlgoEmAndamento() ? 2000 : 8000);
+  if (geracao === minhaGeracao) {
+    const intervalo = (haAndamentoGlobal || haAlgoEmAndamento()) ? 2000 : 8000;
+    temporizador = setTimeout(atualizar, intervalo);
+  }
 }
 
 selecionada = decodeURIComponent(location.hash.slice(1)) || null;
