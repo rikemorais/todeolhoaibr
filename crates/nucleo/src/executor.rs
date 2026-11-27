@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use futures::{StreamExt, stream};
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::contexto::{ContextoDeExecucao, ProgressoDaTarefa};
@@ -26,6 +27,8 @@ pub enum EstadoDaTarefa {
         /// Nome da tarefa que falhou e causou a ignorada.
         causa: String,
     },
+    /// Cancelada por sinal de interrupção do painel.
+    Cancelada,
 }
 
 /// Resultado de uma tarefa: nome, estado final e duração.
@@ -95,10 +98,36 @@ impl ExecutorDeDag {
         contexto: &ContextoDeExecucao,
         observador: &dyn ObservadorDeExecucao,
     ) -> Result<RelatorioDaExecucao, ErroDeDag> {
+        self.executar_com_cancelamento(dag, contexto, observador, CancellationToken::new())
+            .await
+    }
+
+    /// Executa a DAG com suporte a cancelamento via token. Quando o token é
+    /// cancelado, as tarefas pendentes são marcadas como `Cancelada`.
+    pub async fn executar_com_cancelamento(
+        &self,
+        dag: &DagDeIngestao,
+        contexto: &ContextoDeExecucao,
+        observador: &dyn ObservadorDeExecucao,
+        cancelamento: CancellationToken,
+    ) -> Result<RelatorioDaExecucao, ErroDeDag> {
         let mut resultados = Vec::new();
         let mut causa_de_ignorar: HashMap<String, String> = HashMap::new();
 
         for nivel in dag.niveis()? {
+            if cancelamento.is_cancelled() {
+                for nome in nivel {
+                    let resultado = ResultadoDaTarefa {
+                        nome,
+                        estado: EstadoDaTarefa::Cancelada,
+                        duracao: Duration::ZERO,
+                    };
+                    observador.tarefa_finalizada(dag.fonte(), &resultado).await;
+                    resultados.push(resultado);
+                }
+                continue;
+            }
+
             let mut a_executar = Vec::new();
             for nome in nivel {
                 match causa_de_ignorar.get(&nome) {
@@ -118,41 +147,59 @@ impl ExecutorDeDag {
                 }
             }
 
+            let token = cancelamento.clone();
             let concluidas: Vec<ResultadoDaTarefa> = stream::iter(a_executar)
-                .map(|(tarefa, nome)| async move {
-                    info!(fonte = dag.fonte(), tarefa = %nome, "tarefa iniciada");
-                    let progresso = Arc::new(ProgressoDaTarefa::default());
-                    observador
-                        .tarefa_iniciada(dag.fonte(), &nome, Arc::clone(&progresso))
-                        .await;
-                    let contexto_da_tarefa = ContextoDeExecucao {
-                        progresso: Some(progresso),
-                        ..contexto.clone()
-                    };
-                    let inicio = Instant::now();
-                    let estado = match tarefa.executar(&contexto_da_tarefa).await {
-                        Ok(resumo) => {
-                            info!(
-                                fonte = dag.fonte(),
-                                tarefa = %nome,
-                                partes = resumo.partes,
-                                bytes = resumo.bytes,
-                                "tarefa concluída"
-                            );
-                            EstadoDaTarefa::Concluida(resumo)
+                .map(|(tarefa, nome)| {
+                    let token = token.clone();
+                    async move {
+                        if token.is_cancelled() {
+                            let resultado = ResultadoDaTarefa {
+                                nome,
+                                estado: EstadoDaTarefa::Cancelada,
+                                duracao: Duration::ZERO,
+                            };
+                            observador.tarefa_finalizada(dag.fonte(), &resultado).await;
+                            return resultado;
                         }
-                        Err(erro) => {
-                            error!(fonte = dag.fonte(), tarefa = %nome, %erro, "tarefa falhou");
-                            EstadoDaTarefa::Falhou(erro.to_string())
-                        }
-                    };
-                    let resultado = ResultadoDaTarefa {
-                        nome,
-                        estado,
-                        duracao: inicio.elapsed(),
-                    };
-                    observador.tarefa_finalizada(dag.fonte(), &resultado).await;
-                    resultado
+                        info!(fonte = dag.fonte(), tarefa = %nome, "tarefa iniciada");
+                        let progresso = Arc::new(ProgressoDaTarefa::default());
+                        observador
+                            .tarefa_iniciada(dag.fonte(), &nome, Arc::clone(&progresso))
+                            .await;
+                        let contexto_da_tarefa = ContextoDeExecucao {
+                            progresso: Some(progresso),
+                            ..contexto.clone()
+                        };
+                        let inicio = Instant::now();
+                        let estado = match tarefa.executar(&contexto_da_tarefa).await {
+                            Ok(resumo) => {
+                                info!(
+                                    fonte = dag.fonte(),
+                                    tarefa = %nome,
+                                    partes = resumo.partes,
+                                    bytes = resumo.bytes,
+                                    "tarefa concluída"
+                                );
+                                EstadoDaTarefa::Concluida(resumo)
+                            }
+                            Err(erro) => {
+                                if token.is_cancelled() {
+                                    warn!(fonte = dag.fonte(), tarefa = %nome, "tarefa cancelada durante execução");
+                                    EstadoDaTarefa::Cancelada
+                                } else {
+                                    error!(fonte = dag.fonte(), tarefa = %nome, %erro, "tarefa falhou");
+                                    EstadoDaTarefa::Falhou(erro.to_string())
+                                }
+                            }
+                        };
+                        let resultado = ResultadoDaTarefa {
+                            nome,
+                            estado,
+                            duracao: inicio.elapsed(),
+                        };
+                        observador.tarefa_finalizada(dag.fonte(), &resultado).await;
+                        resultado
+                    }
                 })
                 .buffer_unordered(self.concorrencia)
                 .collect()
