@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["cnpj","conab_safra","cotahist","csv","emendas_siga","ibge_agregados","incra_assentamentos","json","mapa_empresas","senado_processos_detalhes","siconfi","snis","xml_dataset","zip_csv"]};
+window.SIDEBAR_ITEMS = {"mod":["cnpj","conab_safra","cotahist","csv","csv_ou_zip","emendas_siga","ibge_agregados","incra_assentamentos","json","mapa_empresas","senado_processos_detalhes","siconfi","snis","xlsx","xml_dataset","zip_csv"]};
