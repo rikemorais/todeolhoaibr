@@ -690,6 +690,42 @@ async fn refinar(
             }
             return refinar_cnpj_silver(intervalo, tabela).await;
         }
+        if fonte.as_deref() == Some("conab-safras") {
+            return refinar_conab_safras_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("cvm-dfp") {
+            return refinar_cvm_dfp_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("cvm-itr") {
+            return refinar_cvm_itr_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("incra-assentamentos") {
+            return refinar_incra_assentamentos_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("siconfi-dca") {
+            return refinar_siconfi_dca_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("siconfi-entes") {
+            return refinar_siconfi_entes_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("siconfi-rgf") {
+            return refinar_siconfi_rgf_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("siconfi-rreo") {
+            return refinar_siconfi_rreo_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("snis-agua") {
+            return refinar_snis_agua_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("snis-esgoto") {
+            return refinar_snis_esgoto_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("snis-pluviais") {
+            return refinar_snis_pluviais_silver(intervalo).await;
+        }
+        if fonte.as_deref() == Some("snis-residuos") {
+            return refinar_snis_residuos_silver(intervalo).await;
+        }
         if fonte.as_deref() == Some("remuneracao-estadual-mg") {
             return refinar_remuneracao_estadual_mg_silver(intervalo).await;
         }
@@ -1381,6 +1417,18 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
             let tce_ce = refinar_tce_ce_silver(None).await?;
             let beneficios = refinar_transparencia_beneficios_silver(None).await?;
             let transparencia = refinar_transparencia_servidores_ativos_silver(None).await?;
+            let conab_safras = refinar_conab_safras_silver(None).await?;
+            let cvm_dfp = refinar_cvm_dfp_silver(None).await?;
+            let cvm_itr = refinar_cvm_itr_silver(None).await?;
+            let incra = refinar_incra_assentamentos_silver(None).await?;
+            let siconfi_dca = refinar_siconfi_dca_silver(None).await?;
+            let siconfi_entes = refinar_siconfi_entes_silver(None).await?;
+            let siconfi_rgf = refinar_siconfi_rgf_silver(None).await?;
+            let siconfi_rreo = refinar_siconfi_rreo_silver(None).await?;
+            let snis_agua = refinar_snis_agua_silver(None).await?;
+            let snis_esgoto = refinar_snis_esgoto_silver(None).await?;
+            let snis_pluviais = refinar_snis_pluviais_silver(None).await?;
+            let snis_residuos = refinar_snis_residuos_silver(None).await?;
             Ok(bcb
                 && ibge
                 && senado
@@ -1410,7 +1458,19 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 && go
                 && tce_ce
                 && beneficios
-                && transparencia)
+                && transparencia
+                && conab_safras
+                && cvm_dfp
+                && cvm_itr
+                && incra
+                && siconfi_dca
+                && siconfi_entes
+                && siconfi_rgf
+                && siconfi_rreo
+                && snis_agua
+                && snis_esgoto
+                && snis_pluviais
+                && snis_residuos)
         }
         Some(segundos) => {
             println!(
@@ -1537,6 +1597,42 @@ async fn refinar_todas_silver(intervalo: Option<u64>) -> Result<bool> {
                 }
                 if let Err(erro) = refinar_mapa_empresas_silver(None).await {
                     eprintln!("Atenção: falha na reconciliação Silver Mapa de Empresas: {erro:#}");
+                }
+                if let Err(erro) = refinar_conab_safras_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver CONAB safras: {erro:#}");
+                }
+                if let Err(erro) = refinar_cvm_dfp_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver CVM DFP: {erro:#}");
+                }
+                if let Err(erro) = refinar_cvm_itr_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver CVM ITR: {erro:#}");
+                }
+                if let Err(erro) = refinar_incra_assentamentos_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver INCRA assentamentos: {erro:#}");
+                }
+                if let Err(erro) = refinar_siconfi_dca_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SICONFI DCA: {erro:#}");
+                }
+                if let Err(erro) = refinar_siconfi_entes_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SICONFI entes: {erro:#}");
+                }
+                if let Err(erro) = refinar_siconfi_rgf_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SICONFI RGF: {erro:#}");
+                }
+                if let Err(erro) = refinar_siconfi_rreo_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SICONFI RREO: {erro:#}");
+                }
+                if let Err(erro) = refinar_snis_agua_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SNIS água: {erro:#}");
+                }
+                if let Err(erro) = refinar_snis_esgoto_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SNIS esgoto: {erro:#}");
+                }
+                if let Err(erro) = refinar_snis_pluviais_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SNIS pluviais: {erro:#}");
+                }
+                if let Err(erro) = refinar_snis_residuos_silver(None).await {
+                    eprintln!("Atenção: falha na reconciliação Silver SNIS resíduos: {erro:#}");
                 }
                 tokio::time::sleep(Duration::from_secs(segundos)).await;
             }
@@ -3726,6 +3822,126 @@ async fn refinar_transparencia_servidores_ativos_silver(intervalo: Option<u64>) 
         "transparencia-servidores-ativos",
         "transparencia-servidores-ativos-v1",
         include_str!("../../refino/sql/silver/transparencia_servidores_ativos.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_conab_safras_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "conab-safras",
+        "conab-safras-produtos-v1",
+        include_str!("../../refino/sql/silver/conab_safras.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_cvm_dfp_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "cvm-dfp",
+        "cvm-dfp-demonstracao-v1",
+        include_str!("../../refino/sql/silver/cvm_dfp.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_cvm_itr_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "cvm-itr",
+        "cvm-itr-demonstracao-v1",
+        include_str!("../../refino/sql/silver/cvm_itr.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_incra_assentamentos_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "incra-assentamentos",
+        "incra-assentamentos-projetos-v1",
+        include_str!("../../refino/sql/silver/incra_assentamentos.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_siconfi_dca_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "siconfi-dca",
+        "siconfi-dca-declaracao-v1",
+        include_str!("../../refino/sql/silver/siconfi_dca.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_siconfi_entes_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "siconfi-entes",
+        "siconfi-entes-cadastro-v1",
+        include_str!("../../refino/sql/silver/siconfi_entes.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_siconfi_rgf_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "siconfi-rgf",
+        "siconfi-rgf-relatorio-v1",
+        include_str!("../../refino/sql/silver/siconfi_rgf.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_siconfi_rreo_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "siconfi-rreo",
+        "siconfi-rreo-relatorio-v1",
+        include_str!("../../refino/sql/silver/siconfi_rreo.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_snis_agua_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "snis-agua",
+        "snis-agua-indicadores-v1",
+        include_str!("../../refino/sql/silver/snis_agua.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_snis_esgoto_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "snis-esgoto",
+        "snis-esgoto-indicadores-v1",
+        include_str!("../../refino/sql/silver/snis_esgoto.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_snis_pluviais_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "snis-pluviais",
+        "snis-pluviais-indicadores-v1",
+        include_str!("../../refino/sql/silver/snis_pluviais.sql"),
+        intervalo,
+    )
+    .await
+}
+
+async fn refinar_snis_residuos_silver(intervalo: Option<u64>) -> Result<bool> {
+    refinar_fonte_silver(
+        "snis-residuos",
+        "snis-residuos-indicadores-v1",
+        include_str!("../../refino/sql/silver/snis_residuos.sql"),
         intervalo,
     )
     .await

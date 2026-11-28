@@ -10,6 +10,7 @@ pub mod camara_partidos;
 pub mod camara_tramitacoes;
 pub mod camara_votacoes;
 /// Contrato Silver para o cadastro de empresas da Receita Federal (CNPJ).
+pub mod conab_safras;
 pub mod cnpj_empresas;
 /// Contrato Silver para o cadastro de estabelecimentos da Receita Federal (CNPJ).
 pub mod cnpj_estabelecimentos;
@@ -17,6 +18,8 @@ pub mod cnpj_estabelecimentos;
 pub mod cnpj_eventos;
 /// Contrato Silver para opção pelo Simples/MEI da Receita Federal (CNPJ).
 pub mod cnpj_simples;
+pub mod cvm_dfp;
+pub mod cvm_itr;
 /// Contrato Silver para o quadro societário da Receita Federal (CNPJ).
 pub mod cnpj_socios;
 /// Contratos SQL Silver para os dois conjuntos de emendas parlamentares.
@@ -29,6 +32,7 @@ pub mod ibge_municipios;
 /// Esquema Silver para as regiões do IBGE.
 pub mod ibge_regioes;
 pub mod ibge_renda_per_capita;
+pub mod incra_assentamentos;
 /// Esquema Silver para as séries históricas do Ipeadata.
 pub mod ipeadata;
 /// Contrato Silver para as estatísticas mensais do Mapa de Empresas por UF.
@@ -37,6 +41,14 @@ mod publicacao;
 pub mod remuneracao_estadual_go;
 pub mod remuneracao_estadual_mg;
 pub mod remuneracao_municipal_tce_ce;
+pub mod siconfi_dca;
+pub mod siconfi_entes;
+pub mod siconfi_rgf;
+pub mod siconfi_rreo;
+pub mod snis_agua;
+pub mod snis_esgoto;
+pub mod snis_pluviais;
+pub mod snis_residuos;
 pub mod senado_despesas;
 pub mod senado_parlamentares;
 /// Contrato Silver para o catálogo anual de processos legislativos do Senado.
