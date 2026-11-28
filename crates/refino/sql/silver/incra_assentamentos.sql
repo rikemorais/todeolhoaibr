@@ -4,7 +4,7 @@ SELECT
     NULLIF(TRIM(codigo_projeto), '') AS codigo_projeto,
     NULLIF(TRIM(nome_projeto), '') AS nome_projeto,
     NULLIF(TRIM(municipio_sede), '') AS municipio_sede,
-    NULLIF(TRIM(area_ha), '') AS area_ha,
+    TRY_CAST(REPLACE(REPLACE(NULLIF(TRIM(area_ha), ''), '.', ''), ',', '.') AS DOUBLE) AS area_ha,
     TRY_CAST(NULLIF(TRIM(familias_assentadas), '') AS BIGINT) AS familias_assentadas,
     TRY_CAST(NULLIF(TRIM(familias_assent), '') AS BIGINT) AS familias_assent,
     NULLIF(TRIM(fase), '') AS fase,
