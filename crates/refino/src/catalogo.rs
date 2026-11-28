@@ -8,9 +8,10 @@ use std::sync::Arc;
 use crate::decodificador::Decodificador;
 use crate::fontes::{
     DecodificadorAssentamentosIncra, DecodificadorCnpj, DecodificadorConabSafra,
-    DecodificadorCotahist, DecodificadorCsv, DecodificadorEmendasSiga, DecodificadorIbgeAgregados,
-    DecodificadorJson, DecodificadorMapaEmpresas, DecodificadorSenadoProcessosDetalhes,
-    DecodificadorSiconfi, DecodificadorSnis, DecodificadorXmlDataset, DecodificadorZipCsv,
+    DecodificadorCotahist, DecodificadorCsv, DecodificadorCsvOuZip, DecodificadorEmendasSiga,
+    DecodificadorIbgeAgregados, DecodificadorJson, DecodificadorMapaEmpresas,
+    DecodificadorSenadoProcessosDetalhes, DecodificadorSiconfi, DecodificadorSnis,
+    DecodificadorXlsx, DecodificadorXmlDataset, DecodificadorZipCsv,
 };
 
 /// Uma fonte do bronze: o nome no catálogo, de onde lê no raw e como decodifica.
@@ -457,6 +458,156 @@ pub fn catalogo_refino() -> Vec<FonteDeRefino> {
             fonte_raw: "cvm",
             prefixo_recurso: "itr/",
             cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b';')),
+        },
+        // ── Novas fontes (raw → bronze) ────────────────────────────────
+        // FRED: CSVs diários de índices de bolsa, câmbio e commodities.
+        FonteDeRefino {
+            nome: "bolsas-globais",
+            fonte_raw: "bolsas-globais",
+            prefixo_recurso: "",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("serie", b',', 0)),
+        },
+        // ANEEL: CSVs tabulares de tarifas, geração distribuída e empreendimentos.
+        FonteDeRefino {
+            nome: "energia-aneel",
+            fonte_raw: "energia",
+            prefixo_recurso: "aneel/",
+            cria_decodificador: || Arc::new(DecodificadorCsvOuZip::novo("aneel", b',')),
+        },
+        // EPE: XLSX do Balanço Energético Nacional e consumo mensal.
+        FonteDeRefino {
+            nome: "energia-epe",
+            fonte_raw: "energia",
+            prefixo_recurso: "epe/",
+            cria_decodificador: || Arc::new(DecodificadorXlsx::novo("epe")),
+        },
+        // ONS: CSVs de balanço de energia por subsistema.
+        FonteDeRefino {
+            nome: "energia-ons",
+            fonte_raw: "energia",
+            prefixo_recurso: "ons/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("ons", b',', 0)),
+        },
+        // FAOSTAT: bulk ZIPs com um CSV por domínio (produção, comércio, etc.).
+        FonteDeRefino {
+            nome: "fao",
+            fonte_raw: "fao",
+            prefixo_recurso: "dominio=",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b',')),
+        },
+        // Global Forest Watch: CSVs de perda de cobertura florestal.
+        FonteDeRefino {
+            nome: "gfw",
+            fonte_raw: "gfw",
+            prefixo_recurso: "tree-cover-loss",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("tree-cover-loss", b',', 0)),
+        },
+        // IBAMA auto-infração: misto de ZIP+CSV e CSV solto.
+        FonteDeRefino {
+            nome: "ibama-autos",
+            fonte_raw: "ibama",
+            prefixo_recurso: "auto-infracao/",
+            cria_decodificador: || Arc::new(DecodificadorCsvOuZip::novo("auto-infracao", b';')),
+        },
+        // IBAMA embargos: CSVs tabulares.
+        FonteDeRefino {
+            nome: "ibama-embargos",
+            fonte_raw: "ibama",
+            prefixo_recurso: "embargo/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("embargo", b';', 0)),
+        },
+        // ICMBio CNUC: CSVs semestrais de unidades de conservação.
+        FonteDeRefino {
+            nome: "icmbio-cnuc",
+            fonte_raw: "icmbio",
+            prefixo_recurso: "cnuc/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("cnuc", b';', 0)),
+        },
+        // IMF World Economic Outlook: XLSX com projeções macroeconômicas.
+        FonteDeRefino {
+            nome: "macro_intl-imf",
+            fonte_raw: "macro_intl",
+            prefixo_recurso: "imf/",
+            cria_decodificador: || Arc::new(DecodificadorXlsx::novo("weo")),
+        },
+        // OECD SDMX: CSVs de indicadores macroeconômicos.
+        FonteDeRefino {
+            nome: "macro_intl-oecd",
+            fonte_raw: "macro_intl",
+            prefixo_recurso: "oecd/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("oecd", b',', 0)),
+        },
+        // MapBiomas: XLSX de cobertura e uso do solo por bioma/estado.
+        FonteDeRefino {
+            nome: "mapbiomas",
+            fonte_raw: "mapbiomas",
+            prefixo_recurso: "",
+            cria_decodificador: || Arc::new(DecodificadorXlsx::novo("uso-solo")),
+        },
+        // SEEG: XLSX de emissões nacionais e municipais (edição 14.0).
+        FonteDeRefino {
+            nome: "seeg",
+            fonte_raw: "seeg",
+            prefixo_recurso: "",
+            cria_decodificador: || Arc::new(DecodificadorXlsx::novo("emissoes")),
+        },
+        // Atlas da Violência (Ipea): JSON OData com séries de homicídios.
+        FonteDeRefino {
+            nome: "seguranca-aviol",
+            fonte_raw: "seguranca",
+            prefixo_recurso: "atlas-violencia/",
+            cria_decodificador: || {
+                Arc::new(DecodificadorJson::com_caminho("atlas-violencia", &["value"]))
+            },
+        },
+        // FBSP: XLSX do Anuário Brasileiro de Segurança Pública.
+        FonteDeRefino {
+            nome: "seguranca-fbsp",
+            fonte_raw: "seguranca",
+            prefixo_recurso: "anuario-fbsp/",
+            cria_decodificador: || Arc::new(DecodificadorXlsx::novo("anuario-fbsp")),
+        },
+        // Turismo - chegadas internacionais: CSVs anuais do CKAN.
+        FonteDeRefino {
+            nome: "turismo-chegadas",
+            fonte_raw: "turismo-chegadas",
+            prefixo_recurso: "ano=",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("chegadas", b',', 0)),
+        },
+        // Turismo - empregos RAIS: ZIP com CSV por ano.
+        FonteDeRefino {
+            nome: "turismo-empregos",
+            fonte_raw: "turismo-empregos",
+            prefixo_recurso: "ano=",
+            cria_decodificador: || Arc::new(DecodificadorZipCsv::novo(b',')),
+        },
+        // Turismo - meios de hospedagem: XLSX/XLS trimestrais.
+        FonteDeRefino {
+            nome: "turismo-hospedagem",
+            fonte_raw: "turismo-hospedagem",
+            prefixo_recurso: "ano=",
+            cria_decodificador: || Arc::new(DecodificadorXlsx::novo("hospedagem")),
+        },
+        // Turismo - mapa do turismo: CSVs de classificação de municípios.
+        FonteDeRefino {
+            nome: "turismo-mapa",
+            fonte_raw: "turismo-mapa",
+            prefixo_recurso: "mapa/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("mapa", b',', 0)),
+        },
+        // Turismo - categorização de municípios turísticos.
+        FonteDeRefino {
+            nome: "turismo-mapa-categorizacao",
+            fonte_raw: "turismo-mapa",
+            prefixo_recurso: "categorizacao/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("categorizacao", b',', 0)),
+        },
+        // Turismo - índice de competitividade turística.
+        FonteDeRefino {
+            nome: "turismo-mapa-competitividade",
+            fonte_raw: "turismo-mapa",
+            prefixo_recurso: "competitividade/",
+            cria_decodificador: || Arc::new(DecodificadorCsv::novo("competitividade", b',', 0)),
         },
     ]
 }
